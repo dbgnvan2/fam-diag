@@ -4,6 +4,14 @@
 
 This document specifies the functional requirements for a web-based genogram drawing application. A genogram is a specialized family tree diagram that uses boxes to represent individuals and lines to show family relationships and generational structure.
 
+## 1.1 Development Process
+
+When a new requirement is given, the following process should be followed:
+
+1.  **Add to Requirements:** The new requirement should be added to the appropriate section of this document.
+2.  **Implement:** The requirement should be implemented.
+3.  **Mark as Done:** Once the implementation is complete and approved, the requirement should be marked as "done" in this document.
+
 ## 2. Core Entities
 
 ### 2.1 Person Object
@@ -802,11 +810,3 @@ For n children of a partnership:
 **Birth order:** The sequence of children born to the same partnership, typically represented left-to-right from oldest to youngest.
 
 **Generation:** A level in the family hierarchy (grandparents, parents, children, etc.).
-
----
-
-## Document Version
-
-**Version:** 1.0  
-**Date:** January 28, 2026  
-**Status:** Initial Release

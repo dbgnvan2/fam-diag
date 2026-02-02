@@ -60,35 +60,39 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
       {isPerson && (
         <div>
           <div>
-            <label>Name: </label>
+            <label htmlFor="name">Name: </label>
             <input
               type="text"
+              id="name"
               name="name"
               value={(selectedItem as Person).name}
               onChange={handlePersonChange}
             />
           </div>
           <div>
-            <label>Birth Date: </label>
+            <label htmlFor="birthDate">Birth Date: </label>
             <input
               type="text"
+              id="birthDate"
               name="birthDate"
               value={(selectedItem as Person).birthDate || ''}
               onChange={handlePersonChange}
             />
           </div>
           <div>
-            <label>Death Date: </label>
+            <label htmlFor="deathDate">Death Date: </label>
             <input
               type="text"
+              id="deathDate"
               name="deathDate"
               value={(selectedItem as Person).deathDate || ''}
               onChange={handlePersonChange}
             />
           </div>
           <div>
-            <label>Adoption Status: </label>
+            <label htmlFor="adoptionStatus">Adoption Status: </label>
             <select
+              id="adoptionStatus"
               name="adoptionStatus"
               value={(selectedItem as Person).adoptionStatus || 'biological'}
               onChange={handlePersonChange}
@@ -98,8 +102,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
             </select>
           </div>
           <div>
-            <label>Notes: </label>
+            <label htmlFor="notes">Notes: </label>
             <textarea
+              id="notes"
               name="notes"
               value={(selectedItem as Person).notes || ''}
               onChange={handlePersonChange}
@@ -110,8 +115,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
       {isPartnership && (
         <div>
           <div>
-            <label>Relationship Type: </label>
-            <select 
+            <label htmlFor="relationshipType">Relationship Type: </label>
+            <select
+              id="relationshipType" 
               name="relationshipType" 
               value={(selectedItem as Partnership).relationshipType} 
               onChange={handlePartnershipChange}
@@ -123,8 +129,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
             </select>
           </div>
           <div>
-            <label>Relationship Status: </label>
-            <select 
+            <label htmlFor="relationshipStatus">Relationship Status: </label>
+            <select
+              id="relationshipStatus" 
               name="relationshipStatus" 
               value={(selectedItem as Partnership).relationshipStatus} 
               onChange={handlePartnershipChange}
@@ -135,44 +142,49 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
             </select>
           </div>
           <div>
-            <label>Relationship Start Date: </label>
+            <label htmlFor="relationshipStartDate">Relationship Start Date: </label>
             <input
               type="text"
+              id="relationshipStartDate"
               name="relationshipStartDate"
               value={(selectedItem as Partnership).relationshipStartDate || ''}
               onChange={handlePartnershipChange}
             />
           </div>
           <div>
-            <label>Married Start Date: </label>
+            <label htmlFor="marriedStartDate">Married Start Date: </label>
             <input
               type="text"
+              id="marriedStartDate"
               name="marriedStartDate"
               value={(selectedItem as Partnership).marriedStartDate || ''}
               onChange={handlePartnershipChange}
             />
           </div>
           <div>
-            <label>Separation Date: </label>
+            <label htmlFor="separationDate">Separation Date: </label>
             <input
               type="text"
+              id="separationDate"
               name="separationDate"
               value={(selectedItem as Partnership).separationDate || ''}
               onChange={handlePartnershipChange}
             />
           </div>
           <div>
-            <label>Divorce Date: </label>
+            <label htmlFor="divorceDate">Divorce Date: </label>
             <input
               type="text"
+              id="divorceDate"
               name="divorceDate"
               value={(selectedItem as Partnership).divorceDate || ''}
               onChange={handlePartnershipChange}
             />
           </div>
           <div>
-            <label>Notes: </label>
+            <label htmlFor="notes">Notes: </label>
             <textarea
+              id="notes"
               name="notes"
               value={(selectedItem as Partnership).notes || ''}
               onChange={handlePartnershipChange}
@@ -191,17 +203,19 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
         return (
           <div>
             <div>
-              <label>Start Date: </label>
+              <label htmlFor="startDate">Start Date: </label>
               <input
                 type="text"
+                id="startDate"
                 name="startDate"
                 value={(selectedItem as EmotionalLine).startDate || ''}
                 onChange={handleEmotionalLineInputChange}
               />
             </div>
             <div>
-              <label>Relationship Type: </label>
+              <label htmlFor="relationshipType">Relationship Type: </label>
               <select
+                id="relationshipType"
                 name="relationshipType"
                 value={(selectedItem as EmotionalLine).relationshipType}
                 onChange={handleEmotionalLineChange}
@@ -213,8 +227,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               </select>
             </div>
             <div>
-              <label>Line Style: </label>
+              <label htmlFor="lineStyle">Line Style: </label>
               <select
+                id="lineStyle"
                 name="lineStyle"
                 value={(selectedItem as EmotionalLine).lineStyle}
                 onChange={handleEmotionalLineChange}
@@ -225,8 +240,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               </select>
             </div>
             <div>
-              <label>Line Ending: </label>
+              <label htmlFor="lineEnding">Line Ending: </label>
               <select
+                id="lineEnding"
                 name="lineEnding"
                 value={(selectedItem as EmotionalLine).lineEnding}
                 onChange={handleEmotionalLineChange}
@@ -242,8 +258,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               </select>
             </div>
             <div>
-              <label>Notes: </label>
+              <label htmlFor="notes">Notes: </label>
               <textarea
+                id="notes"
                 name="notes"
                 value={(selectedItem as EmotionalLine).notes || ''}
                 onChange={handleEmotionalLineInputChange}
