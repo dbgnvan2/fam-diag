@@ -8,8 +8,9 @@ export type Person = {
   gender?: string;
   partnerships: string[];
   parentPartnership?: string;
-  adoptionStatus?: 'biological' | 'adopted';
   notes?: string;
+  notesPosition?: { x: number; y: number };
+  notesEnabled?: boolean;
 };
 
 export type Partnership = {
@@ -25,6 +26,7 @@ export type Partnership = {
   divorceDate?: string;
   children: string[];
   notes?: string;
+  notesPosition?: { x: number; y: number };
 };
 
 export type EmotionalLine = {
@@ -42,4 +44,5 @@ export type EmotionalLine = {
     'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   notes?: string;
+  notesPosition?: { x: number; y: number };
 };

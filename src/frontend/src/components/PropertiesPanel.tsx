@@ -15,7 +15,9 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
   const isEmotionalLine = 'lineStyle' in selectedItem;
 
   const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    onUpdatePerson(selectedItem.id, { [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    const isCheckbox = type === 'checkbox';
+    onUpdatePerson(selectedItem.id, { [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value });
   };
 
   const handlePartnershipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -107,6 +109,16 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               id="notes"
               name="notes"
               value={(selectedItem as Person).notes || ''}
+              onChange={handlePersonChange}
+            />
+          </div>
+          <div>
+            <label htmlFor="notesEnabled">Notes Enabled: </label>
+            <input
+              type="checkbox"
+              id="notesEnabled"
+              name="notesEnabled"
+              checked={(selectedItem as Person).notesEnabled}
               onChange={handlePersonChange}
             />
           </div>

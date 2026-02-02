@@ -56,33 +56,16 @@ const PersonNode = ({ person, isSelected, onSelect, onDragMove, onDragEnd, onCon
         verticalAlign="middle"
         listening={false}
       />
-      {person.deathDate && (
-        <>
-          <Line
-            points={[0, 0, shapeSize, shapeSize]}
-            offsetX={shapeSize / 2}
-            offsetY={shapeSize / 2}
-            stroke="black"
-            strokeWidth={2}
+        {person.deathDate && (
+          <Text
+            text={`d. ${person.deathDate}`}
+            x={-25}
+            y={35}
+            width={50}
+            align="center"
+            fontSize={12}
           />
-          <Line
-            points={[shapeSize, 0, 0, shapeSize]}
-            offsetX={shapeSize / 2}
-            offsetY={shapeSize / 2}
-            stroke="black"
-            strokeWidth={2}
-          />
-        </>
-      )}
-      {person.notes && (
-        <Text
-          text={person.notes}
-          fontSize={12}
-          y={shapeSize / 2 + 5}
-          width={shapeSize}
-          align="center"
-        />
-      )}
+        )}
     </Group>
   );
 };

@@ -76,22 +76,22 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
 
     const lineProps = {
         stroke: isSelected ? 'blue' : 'black',
-        strokeWidth: isSelected ? 5 : 3,
+        strokeWidth: isSelected ? 5 : 4,
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
     };
 
     const renderLines = () => {
-        if (relationshipType === 'cutoff') {
+        if (lineStyle === 'cutoff') {
             const midX = (p1_x_center + p2_x_center) / 2;
             const midY = (p1_y_center + p2_y_center) / 2;
 
             return (
                 <Group>
                     <Line points={linePoints} {...lineProps} />
-                    <Line points={[midX - 2, midY - 10, midX - 2, midY + 10]} {...lineProps} />
-                    <Line points={[midX + 2, midY - 10, midX + 2, midY + 10]} {...lineProps} />
+                    <Line points={[midX - 2, midY - 20, midX - 2, midY + 20]} {...lineProps} />
+                    <Line points={[midX + 2, midY - 20, midX + 2, midY + 20]} {...lineProps} />
                 </Group>
             )
         }
@@ -162,19 +162,19 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
             const y1 = p2[1] - arrowLength * Math.sin(angle - Math.PI / 6);
             const x2 = p2[0] - arrowLength * Math.cos(angle + Math.PI / 6);
             const y2 = p2[1] - arrowLength * Math.sin(angle + Math.PI / 6);
-            endings.push(<Line key="arrow-p2" points={[x1, y1, p2[0], p2[1], x2, y2]} closed fill={lineProps.stroke} {...lineProps} />);
+            endings.push(<Line key="arrow-p2" points={[x1, y1, p2[0], p2[1], x2, y2]} stroke={lineProps.stroke} {...lineProps} />);
         }
         if (lineEnding === 'arrow-p2-to-p1' || lineEnding === 'arrow-bidirectional') {
             const x1 = p1[0] + arrowLength * Math.cos(angle - Math.PI / 6);
             const y1 = p1[1] + arrowLength * Math.sin(angle - Math.PI / 6);
             const x2 = p1[0] + arrowLength * Math.cos(angle + Math.PI / 6);
             const y2 = p1[1] + arrowLength * Math.sin(angle + Math.PI / 6);
-            endings.push(<Line key="arrow-p1" points={[x1, y1, p1[0], p1[1], x2, y2]} closed fill={lineProps.stroke} {...lineProps} />);
+            endings.push(<Line key="arrow-p1" points={[x1, y1, p1[0], p1[1], x2, y2]} stroke={lineProps.stroke} {...lineProps} />);
         }
 
         // Perpendicular
         const perpAngle = angle + Math.PI / 2;
-        const offset = 10;
+        const offset = 20;
         if (lineEnding === 'perpendicular-p1' || lineEnding === 'double-perpendicular-p1') {
             const p1_offset = [p1[0] + Math.cos(angle) * offset, p1[1] + Math.sin(angle) * offset];
             const p1_1 = [p1_offset[0] + Math.cos(perpAngle) * lineLength, p1_offset[1] + Math.sin(perpAngle) * lineLength];
@@ -205,15 +205,6 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         <Group>
             {renderLines()}
             {renderEndings()}
-            {emotionalLine.notes && (
-                <Text
-                    text={emotionalLine.notes}
-                    x={(p1_x_center + p2_x_center) / 2}
-                    y={(p1_y_center + p2_y_center) / 2}
-                    fontSize={12}
-                    align="center"
-                />
-            )}
         </Group>
     );
 };

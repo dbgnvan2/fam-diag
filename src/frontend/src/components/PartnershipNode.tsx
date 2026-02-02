@@ -159,15 +159,6 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
                 <Line points={[midPointX, horizontalConnectorY - 10, midPointX + 10, horizontalConnectorY + 10]} stroke="black" strokeWidth={2} />
             </>
         )}
-        {partnership.notes && (
-            <Text
-                text={partnership.notes}
-                x={midPointX}
-                y={horizontalConnectorY + 30}
-                fontSize={12}
-                align="center"
-            />
-        )}
     </Group>
   );
 };

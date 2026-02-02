@@ -9,6 +9,7 @@ import ContextMenu from './ContextMenu';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import PropertiesPanel from './PropertiesPanel';
 import EmotionalLineNode from './EmotionalLineNode';
+import NoteNode from './NoteNode';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 
@@ -288,6 +289,13 @@ const DiagramEditor = () => {
               }
           },
           {
+            label: person.notes ? 'Disable Notes' : 'Enable Notes',
+            onClick: () => {
+                handleUpdatePerson(person.id, { notesEnabled: !person.notesEnabled });
+                setContextMenu(null);
+            }
+          },
+          {
             label: 'Properties',
             onClick: () => {
                 setPropertiesPanelItem(person);
@@ -442,6 +450,30 @@ const DiagramEditor = () => {
     setPartnerships(
       partnerships.map((p) =>
         p.id === partnershipId ? { ...p, horizontalConnectorY: y } : p
+      )
+    );
+  };
+
+  const handlePersonNoteDragEnd = (personId: string, x: number, y: number) => {
+    setPeople(
+      people.map((person) =>
+        person.id === personId ? { ...person, notesPosition: { x, y } } : person
+      )
+    );
+  };
+
+  const handlePartnershipNoteDragEnd = (partnershipId: string, x: number, y: number) => {
+    setPartnerships(
+      partnerships.map((p) =>
+        p.id === partnershipId ? { ...p, notesPosition: { x, y } } : p
+      )
+    );
+  };
+
+  const handleEmotionalLineNoteDragEnd = (emotionalLineId: string, x: number, y: number) => {
+    setEmotionalLines(
+      emotionalLines.map((el) =>
+        el.id === emotionalLineId ? { ...el, notesPosition: { x, y } } : el
       )
     );
   };
@@ -614,6 +646,59 @@ const DiagramEditor = () => {
                       onContextMenu={handlePersonContextMenu}
                     />
                   ))}
+
+                  {/* Render Notes */}
+                  {people.map((person) => {
+                    if (!person.notes || !person.notesEnabled) return null;
+                    const x = person.notesPosition?.x || person.x + 50;
+                    const y = person.notesPosition?.y || person.y;
+                    return (
+                      <NoteNode
+                        key={`note-person-${person.id}`}
+                        x={x}
+                        y={y}
+                        title={person.name}
+                        text={person.notes}
+                        onDragEnd={(e) => handlePersonNoteDragEnd(person.id, e.target.x(), e.target.y())}
+                      />
+                    );
+                  })}
+                  {partnerships.map((p) => {
+                    if (!p.notes) return null;
+                    const partner1 = people.find(person => person.id === p.partner1_id);
+                    const partner2 = people.find(person => person.id === p.partner2_id);
+                    if (!partner1 || !partner2) return null;
+                    const x = p.notesPosition?.x || (partner1.x + partner2.x) / 2;
+                    const y = p.notesPosition?.y || p.horizontalConnectorY + 50;
+                    return (
+                      <NoteNode
+                        key={`note-partnership-${p.id}`}
+                        x={x}
+                        y={y}
+                        title={`${partner1.name} - ${partner2.name}`}
+                        text={p.notes}
+                        onDragEnd={(e) => handlePartnershipNoteDragEnd(p.id, e.target.x(), e.target.y())}
+                      />
+                    );
+                  })}
+                  {emotionalLines.map((el) => {
+                    if (!el.notes) return null;
+                    const person1 = people.find(person => person.id === el.person1_id);
+                    const person2 = people.find(person => person.id === el.person2_id);
+                    if (!person1 || !person2) return null;
+                    const x = el.notesPosition?.x || (person1.x + person2.x) / 2;
+                    const y = el.notesPosition?.y || (person1.y + person2.y) / 2 + 20;
+                    return (
+                      <NoteNode
+                        key={`note-el-${el.id}`}
+                        x={x}
+                        y={y}
+                        title={`${person1.name} - ${person2.name}`}
+                        text={el.notes}
+                        onDragEnd={(e) => handleEmotionalLineNoteDragEnd(el.id, e.target.x(), e.target.y())}
+                      />
+                    );
+                  })}
                 </Layer>
               </Stage>
             </div>
