@@ -14,11 +14,11 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
 
-  const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     onUpdatePerson(selectedItem.id, { [e.target.name]: e.target.value });
   };
 
-  const handlePartnershipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handlePartnershipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     onUpdatePartnership(selectedItem.id, { [e.target.name]: e.target.value as any });
   };
 
@@ -47,6 +47,10 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
                 break;
         }
     }
+  };
+
+  const handleEmotionalLineInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onUpdateEmotionalLine(selectedItem.id, { [e.target.name]: e.target.value });
   };
 
   return (
@@ -92,6 +96,14 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               <option value="biological">Biological</option>
               <option value="adopted">Adopted</option>
             </select>
+          </div>
+          <div>
+            <label>Notes: </label>
+            <textarea
+              name="notes"
+              value={(selectedItem as Person).notes || ''}
+              onChange={handlePersonChange}
+            />
           </div>
         </div>
       )}
@@ -158,6 +170,14 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               onChange={handlePartnershipChange}
             />
           </div>
+          <div>
+            <label>Notes: </label>
+            <textarea
+              name="notes"
+              value={(selectedItem as Partnership).notes || ''}
+              onChange={handlePartnershipChange}
+            />
+          </div>
         </div>
       )}
       {isEmotionalLine && (() => {
@@ -170,6 +190,15 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
 
         return (
           <div>
+            <div>
+              <label>Start Date: </label>
+              <input
+                type="text"
+                name="startDate"
+                value={(selectedItem as EmotionalLine).startDate || ''}
+                onChange={handleEmotionalLineInputChange}
+              />
+            </div>
             <div>
               <label>Relationship Type: </label>
               <select
@@ -211,6 +240,14 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
                 <option value="double-perpendicular-p1">Double Perpendicular (Person 1)</option>
                 <option value="double-perpendicular-p2">Double Perpendicular (Person 2)</option>
               </select>
+            </div>
+            <div>
+              <label>Notes: </label>
+              <textarea
+                name="notes"
+                value={(selectedItem as EmotionalLine).notes || ''}
+                onChange={handleEmotionalLineInputChange}
+              />
             </div>
           </div>
         );

@@ -1,4 +1,4 @@
-import { Group, Line } from 'react-konva';
+import { Group, Line, Text } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
@@ -205,6 +205,15 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         <Group>
             {renderLines()}
             {renderEndings()}
+            {emotionalLine.notes && (
+                <Text
+                    text={emotionalLine.notes}
+                    x={(p1_x_center + p2_x_center) / 2}
+                    y={(p1_y_center + p2_y_center) / 2}
+                    fontSize={12}
+                    align="center"
+                />
+            )}
         </Group>
     );
 };

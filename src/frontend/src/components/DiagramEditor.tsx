@@ -123,6 +123,7 @@ const DiagramEditor = () => {
         relationshipType,
         lineStyle,
         lineEnding,
+        startDate: new Date().toISOString().slice(0, 10),
     };
     setEmotionalLines([...emotionalLines, newEmotionalLine]);
   };

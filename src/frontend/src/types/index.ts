@@ -9,6 +9,7 @@ export type Person = {
   partnerships: string[];
   parentPartnership?: string;
   adoptionStatus?: 'biological' | 'adopted';
+  notes?: string;
 };
 
 export type Partnership = {
@@ -23,12 +24,14 @@ export type Partnership = {
   separationDate?: string;
   divorceDate?: string;
   children: string[];
+  notes?: string;
 };
 
 export type EmotionalLine = {
   id: string;
   person1_id: string;
   person2_id: string;
+  startDate?: string;
   relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict';
   lineStyle: 
     // Fusion
@@ -38,4 +41,5 @@ export type EmotionalLine = {
     // Conflict
     'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
+  notes?: string;
 };

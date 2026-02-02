@@ -74,6 +74,15 @@ const PersonNode = ({ person, isSelected, onSelect, onDragMove, onDragEnd, onCon
           />
         </>
       )}
+      {person.notes && (
+        <Text
+          text={person.notes}
+          fontSize={12}
+          y={shapeSize / 2 + 5}
+          width={shapeSize}
+          align="center"
+        />
+      )}
     </Group>
   );
 };
