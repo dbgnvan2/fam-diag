@@ -3,11 +3,12 @@ export type Person = {
   x: number;
   y: number;
   name: string;
-  birthDate?: Date;
-  deathDate?: Date;
+  birthDate?: string;
+  deathDate?: string;
   gender?: string;
   partnerships: string[];
   parentPartnership?: string;
+  adoptionStatus?: 'biological' | 'adopted';
 };
 
 export type Partnership = {
@@ -15,8 +16,26 @@ export type Partnership = {
   partner1_id: string;
   partner2_id: string;
   horizontalConnectorY: number;
-  relationshipType: 'married' | 'divorced' | 'separated' | 'partnered';
-  startDate?: Date;
-  endDate?: Date;
+  relationshipType: 'married' | 'common-law' | 'living-together' | 'dating';
+  relationshipStatus: 'married' | 'separated' | 'divorced';
+  relationshipStartDate?: string;
+  marriedStartDate?: string;
+  separationDate?: string;
+  divorceDate?: string;
   children: string[];
+};
+
+export type EmotionalLine = {
+  id: string;
+  person1_id: string;
+  person2_id: string;
+  relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict';
+  lineStyle: 
+    // Fusion
+    'single' | 'double' | 'triple' | 
+    // Distance
+    'dotted' | 'dashed' | 'cutoff' |
+    // Conflict
+    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
+  lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
 };

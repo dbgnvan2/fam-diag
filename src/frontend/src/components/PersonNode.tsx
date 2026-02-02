@@ -1,6 +1,6 @@
-import { Group, Rect, Text, Circle } from 'react-konva';
+import { Group, Rect, Text, Circle, Line } from 'react-konva';
 import type { Person } from '../types';
-import { KonvaEventObject } from 'konva/lib/Node';
+import type { KonvaEventObject } from 'konva/lib/Node';
 
 interface PersonNodeProps {
   person: Person;
@@ -56,6 +56,24 @@ const PersonNode = ({ person, isSelected, onSelect, onDragMove, onDragEnd, onCon
         verticalAlign="middle"
         listening={false}
       />
+      {person.deathDate && (
+        <>
+          <Line
+            points={[0, 0, shapeSize, shapeSize]}
+            offsetX={shapeSize / 2}
+            offsetY={shapeSize / 2}
+            stroke="black"
+            strokeWidth={2}
+          />
+          <Line
+            points={[shapeSize, 0, 0, shapeSize]}
+            offsetX={shapeSize / 2}
+            offsetY={shapeSize / 2}
+            stroke="black"
+            strokeWidth={2}
+          />
+        </>
+      )}
     </Group>
   );
 };
