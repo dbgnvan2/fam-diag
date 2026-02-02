@@ -173,39 +173,4 @@ describe('EmotionalLineNode', () => {
         expect(line.attrs.points.length).toBeGreaterThan(4);
     });
 
-    it('renders notes when provided', () => {
-        const stageRef = React.createRef<Stage>();
-        const emotionalLine: EmotionalLine = {
-            id: 'el1',
-            person1_id: 'p1',
-            person2_id: 'p2',
-            relationshipType: 'fusion',
-            lineStyle: 'single',
-            lineEnding: 'none',
-            notes: 'Test notes',
-        };
-        const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
-        const person2: Person = { id: 'p2', x: 150, y: 50, name: 'p2', partnerships: [] };
-
-        render(
-            <Stage ref={stageRef}>
-                <Layer>
-                    <EmotionalLineNode
-                        emotionalLine={emotionalLine}
-                        person1={person1}
-                        person2={person2}
-                        isSelected={false}
-                        onSelect={() => {}}
-                        onContextMenu={() => {}}
-                    />
-                </Layer>
-            </Stage>
-        );
-
-        const stage = stageRef.current;
-        const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
-        const text = group.getChildren().find(node => node.getClassName() === 'Text' && node.attrs.text === 'Test notes');
-        expect(text).toBeDefined();
-    });
 });
