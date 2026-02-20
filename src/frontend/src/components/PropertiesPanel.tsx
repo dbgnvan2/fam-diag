@@ -1,18 +1,28 @@
-import React from 'react';
-import type { Person, Partnership, EmotionalLine } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
 
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
+  people: Person[];
+  eventCategories: string[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
   onClose: () => void;
 }
 
-const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, onUpdateEmotionalLine, onClose }: PropertiesPanelProps) => {
+const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson, onUpdatePartnership, onUpdateEmotionalLine, onClose }: PropertiesPanelProps) => {
   const isPerson = 'name' in selectedItem;
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
+  const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventDraft, setEventDraft] = useState<EmotionalProcessEvent | null>(null);
+
+  useEffect(() => {
+    setEventModalOpen(false);
+    setEventDraft(null);
+  }, [selectedItem.id]);
 
   const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -28,7 +38,8 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
     const { name, value } = e.target;
     const lineStyleOptions: { [key: string]: string[] } = {
       fusion: ['single', 'double', 'triple'],
-      distance: ['dotted', 'dashed', 'cutoff'],
+      distance: ['dotted', 'dashed', 'long-dash'],
+      cutoff: ['cutoff'],
       conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
     };
 
@@ -53,6 +64,114 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
 
   const handleEmotionalLineInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onUpdateEmotionalLine(selectedItem.id, { [e.target.name]: e.target.value });
+  };
+
+  const getEvents = () => {
+    if (isPerson) return (selectedItem as Person).events || [];
+    if (isPartnership) return (selectedItem as Partnership).events || [];
+    return (selectedItem as EmotionalLine).events || [];
+  };
+  const emotionalLinePeople = useMemo(() => {
+    if (!isEmotionalLine) return { person1Name: '', person2Name: '' };
+    const line = selectedItem as EmotionalLine;
+    const person1 = people.find((person) => person.id === line.person1_id);
+    const person2 = people.find((person) => person.id === line.person2_id);
+    return { person1Name: person1?.name || '', person2Name: person2?.name || '' };
+  }, [isEmotionalLine, selectedItem, people]);
+  const otherPersonOptions = useMemo(() => {
+    if (isEmotionalLine) {
+      return [emotionalLinePeople.person1Name, emotionalLinePeople.person2Name].filter(Boolean);
+    }
+    if (isPartnership) {
+      const partnership = selectedItem as Partnership;
+      const partner1 = people.find((person) => person.id === partnership.partner1_id);
+      const partner2 = people.find((person) => person.id === partnership.partner2_id);
+      return [partner1?.name || '', partner2?.name || ''].filter(Boolean);
+    }
+    if (isPerson) {
+      const person = selectedItem as Person;
+      return people.filter((p) => p.id !== person.id).map((p) => p.name).filter(Boolean);
+    }
+    return people.map((person) => person.name).filter(Boolean);
+  }, [isEmotionalLine, isPartnership, selectedItem, people, emotionalLinePeople]);
+  const sortedEvents = useMemo(() => {
+    const events = [...getEvents()];
+    const direction = eventSortOrder === 'asc' ? 1 : -1;
+    events.sort((a, b) => {
+      const aTime = a.date ? new Date(a.date).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b.date ? new Date(b.date).getTime() : Number.POSITIVE_INFINITY;
+      if (aTime === bTime) return 0;
+      return aTime > bTime ? direction : -direction;
+    });
+    return events;
+  }, [selectedItem, eventSortOrder]);
+
+  const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const openNewEvent = () => {
+    setEventDraft({
+      id: createEventId(),
+      date: '',
+      category: eventCategories[0] || '',
+      intensity: 5,
+      howWell: 5,
+      otherPersonName: otherPersonOptions[0] || '',
+      wwwwh: '',
+      observations: '',
+    });
+    setEventModalOpen(true);
+  };
+
+  const openEditEvent = (event: EmotionalProcessEvent) => {
+    setEventDraft({
+      ...event,
+      category: event.category || eventCategories[0] || '',
+      otherPersonName: event.otherPersonName || otherPersonOptions[0] || '',
+    });
+    setEventModalOpen(true);
+  };
+
+  const handleEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
+    if (!eventDraft) return;
+    if (field === 'intensity' || field === 'howWell') {
+      const numeric = Number(value);
+      setEventDraft({ ...eventDraft, [field]: Number.isNaN(numeric) ? 0 : numeric });
+      return;
+    }
+    setEventDraft({ ...eventDraft, [field]: value });
+  };
+
+  const saveEvent = () => {
+    if (!eventDraft) return;
+    const cleanedDraft = {
+      ...eventDraft,
+      otherPersonName: eventDraft.otherPersonName || otherPersonOptions[0] || '',
+    };
+    const events = getEvents();
+    const existingIndex = events.findIndex((evt) => evt.id === eventDraft.id);
+    const nextEvents = existingIndex === -1
+      ? [...events, cleanedDraft]
+      : events.map((evt) => (evt.id === eventDraft.id ? cleanedDraft : evt));
+    if (isPerson) {
+      onUpdatePerson(selectedItem.id, { events: nextEvents });
+    } else if (isPartnership) {
+      onUpdatePartnership(selectedItem.id, { events: nextEvents });
+    } else {
+      onUpdateEmotionalLine(selectedItem.id, { events: nextEvents });
+    }
+    setEventModalOpen(false);
+    setEventDraft(null);
+  };
+
+  const deleteEvent = (eventId: string) => {
+    const nextEvents = getEvents().filter((evt) => evt.id !== eventId);
+    if (isPerson) {
+      onUpdatePerson(selectedItem.id, { events: nextEvents });
+    } else if (isPartnership) {
+      onUpdatePartnership(selectedItem.id, { events: nextEvents });
+    } else {
+      onUpdateEmotionalLine(selectedItem.id, { events: nextEvents });
+    }
   };
 
   return (
@@ -121,6 +240,41 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               checked={(selectedItem as Person).notesEnabled}
               onChange={handlePersonChange}
             />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <strong>Emotional Process Events</strong>
+              <button onClick={openNewEvent}>Add Event</button>
+            </div>
+            <div style={{ marginTop: 6 }}>
+              <label htmlFor="eventSortOrder">Sort: </label>
+              <select
+                id="eventSortOrder"
+                value={eventSortOrder}
+                onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
+              >
+                <option value="asc">Date Asc</option>
+                <option value="desc">Date Desc</option>
+              </select>
+            </div>
+            {sortedEvents.length === 0 ? (
+              <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
+                {sortedEvents.map((event) => (
+                  <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
+                    <div><strong>{event.date || 'No date'}</strong></div>
+                    <div>Category: {event.category || '—'}</div>
+                    <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
+                    <div>Other: {event.otherPersonName || '—'}</div>
+                    <div style={{ marginTop: 4 }}>
+                      <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
+                      <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -202,12 +356,48 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
               onChange={handlePartnershipChange}
             />
           </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <strong>Emotional Process Events</strong>
+              <button onClick={openNewEvent}>Add Event</button>
+            </div>
+            <div style={{ marginTop: 6 }}>
+              <label htmlFor="eventSortOrder">Sort: </label>
+              <select
+                id="eventSortOrder"
+                value={eventSortOrder}
+                onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
+              >
+                <option value="asc">Date Asc</option>
+                <option value="desc">Date Desc</option>
+              </select>
+            </div>
+            {sortedEvents.length === 0 ? (
+              <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
+                {sortedEvents.map((event) => (
+                  <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
+                    <div><strong>{event.date || 'No date'}</strong></div>
+                    <div>Category: {event.category || '—'}</div>
+                    <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
+                    <div>Other: {event.otherPersonName || '—'}</div>
+                    <div style={{ marginTop: 4 }}>
+                      <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
+                      <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
       {isEmotionalLine && (() => {
         const lineStyleOptions: { [key: string]: string[] } = {
           fusion: ['single', 'double', 'triple'],
-          distance: ['dotted', 'dashed', 'cutoff'],
+          distance: ['dotted', 'dashed', 'long-dash'],
+          cutoff: ['cutoff'],
           conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
         };
         const currentLineStyles = lineStyleOptions[(selectedItem as EmotionalLine).relationshipType] || [];
@@ -278,9 +468,139 @@ const PropertiesPanel = ({ selectedItem, onUpdatePerson, onUpdatePartnership, on
                 onChange={handleEmotionalLineInputChange}
               />
             </div>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <strong>Emotional Process Events</strong>
+                <button onClick={openNewEvent}>Add Event</button>
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <label htmlFor="eventSortOrder">Sort: </label>
+                <select
+                  id="eventSortOrder"
+                  value={eventSortOrder}
+                  onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
+                >
+                  <option value="asc">Date Asc</option>
+                  <option value="desc">Date Desc</option>
+                </select>
+              </div>
+              {sortedEvents.length === 0 ? (
+                <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
+                  {sortedEvents.map((event) => (
+                    <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
+                      <div><strong>{event.date || 'No date'}</strong></div>
+                      <div>Category: {event.category || '—'}</div>
+                      <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
+                      <div>Other: {event.otherPersonName || '—'}</div>
+                      <div style={{ marginTop: 4 }}>
+                        <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
+                        <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         );
       })()}
+      {eventModalOpen && eventDraft && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+        >
+          <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
+            <h4>{eventDraft.date ? 'Edit Event' : 'New Event'}</h4>
+            <div>
+              <label htmlFor="eventDate">Date: </label>
+              <input
+                type="date"
+                id="eventDate"
+                value={eventDraft.date}
+                onChange={(e) => handleEventDraftChange('date', e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="eventIntensity">Intensity (1-10): </label>
+              <input
+                type="number"
+                id="eventIntensity"
+                min={1}
+                max={10}
+                value={eventDraft.intensity}
+                onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="eventHowWell">How well (1-9): </label>
+              <input
+                type="number"
+                id="eventHowWell"
+                min={1}
+                max={9}
+                value={eventDraft.howWell}
+                onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="eventCategory">Category: </label>
+              <select
+                id="eventCategory"
+                value={eventDraft.category}
+                onChange={(e) => handleEventDraftChange('category', e.target.value)}
+              >
+                {eventCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="eventOtherPerson">Other Person: </label>
+              <input
+                type="text"
+                id="eventOtherPerson"
+                list="eventOtherPersonOptions"
+                value={eventDraft.otherPersonName}
+                onChange={(e) => handleEventDraftChange('otherPersonName', e.target.value)}
+              />
+              <datalist id="eventOtherPersonOptions">
+                {otherPersonOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label htmlFor="eventWwwwh">WWWWH: </label>
+              <textarea
+                id="eventWwwwh"
+                value={eventDraft.wwwwh}
+                onChange={(e) => handleEventDraftChange('wwwwh', e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="eventObservations">Observations: </label>
+              <textarea
+                id="eventObservations"
+                value={eventDraft.observations}
+                onChange={(e) => handleEventDraftChange('observations', e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              <button onClick={() => { setEventModalOpen(false); setEventDraft(null); }} style={{ marginRight: 8 }}>Cancel</button>
+              <button onClick={saveEvent}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

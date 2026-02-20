@@ -8,6 +8,8 @@ const getDashStyle = (lineStyle: EmotionalLine['lineStyle']) => {
             return [2, 5];
         case 'dashed':
             return [10, 5];
+        case 'long-dash':
+            return [20, 5];
         default:
             return undefined;
     }
@@ -54,7 +56,7 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
 
     const points = [p1_x_center, p1_y_center, p2_x_center, p2_y_center];
     
-    const radius = 30;
+    const radius = 30 * 1.05;
     const angle = Math.atan2(p2_y_center - p1_y_center, p2_x_center - p1_x_center);
 
     const p1_edge_x = p1_x_center + radius * Math.cos(angle);
@@ -76,7 +78,7 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
 
     const lineProps = {
         stroke: isSelected ? 'blue' : 'black',
-        strokeWidth: isSelected ? 5 : 4,
+        strokeWidth: isSelected ? 3 : 2,
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
@@ -148,28 +150,67 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
     const renderEndings = () => {
         if (lineEnding === 'none') return null;
 
-        const p1 = [p1_edge_x, p1_edge_y];
-        const p2 = [p2_edge_x, p2_edge_y];
+        let p1 = [p1_edge_x, p1_edge_y];
+        let p2 = [p2_edge_x, p2_edge_y];
+
+        if (lineStyle === 'double' || lineStyle === 'triple') {
+            const numLines = lineStyle === 'double' ? 2 : 3;
+            const lineOffset = 5;
+            const dx = Math.sin(angle) * lineOffset;
+            const dy = -Math.cos(angle) * lineOffset;
+            const centerOffset = (numLines - 1) / 2;
+            const offsetX = dx * centerOffset;
+            const offsetY = dy * centerOffset;
+            p1 = [p1[0] + offsetX, p1[1] + offsetY];
+            p2 = [p2[0] + offsetX, p2[1] + offsetY];
+        }
 
         const arrowLength = 15;
         const lineLength = 10;
+
+        let bandWidth = lineProps.strokeWidth;
+        if (lineStyle === 'double' || lineStyle === 'triple') {
+            const numLines = lineStyle === 'double' ? 2 : 3;
+            const lineOffset = 5;
+            bandWidth = lineOffset * (numLines - 1) + lineProps.strokeWidth;
+        }
+        const arrowWidth = Math.max(11, bandWidth * 1.2);
         
         const endings = [];
 
+        const makeArrow = (key: string, tip: number[], directionAngle: number) => {
+            const baseCenter = [
+                tip[0] - arrowLength * Math.cos(directionAngle),
+                tip[1] - arrowLength * Math.sin(directionAngle),
+            ];
+            const perpAngle = directionAngle + Math.PI / 2;
+            const left = [
+                baseCenter[0] + (arrowWidth / 2) * Math.cos(perpAngle),
+                baseCenter[1] + (arrowWidth / 2) * Math.sin(perpAngle),
+            ];
+            const right = [
+                baseCenter[0] - (arrowWidth / 2) * Math.cos(perpAngle),
+                baseCenter[1] - (arrowWidth / 2) * Math.sin(perpAngle),
+            ];
+            return (
+                <Line
+                    key={key}
+                    points={[left[0], left[1], tip[0], tip[1], right[0], right[1]]}
+                    closed
+                    fill={lineProps.stroke}
+                    stroke={lineProps.stroke}
+                    strokeWidth={lineProps.strokeWidth}
+                    listening={false}
+                />
+            );
+        };
+
         // Arrows
         if (lineEnding === 'arrow-p1-to-p2' || lineEnding === 'arrow-bidirectional') {
-            const x1 = p2[0] - arrowLength * Math.cos(angle - Math.PI / 6);
-            const y1 = p2[1] - arrowLength * Math.sin(angle - Math.PI / 6);
-            const x2 = p2[0] - arrowLength * Math.cos(angle + Math.PI / 6);
-            const y2 = p2[1] - arrowLength * Math.sin(angle + Math.PI / 6);
-            endings.push(<Line key="arrow-p2" points={[x1, y1, p2[0], p2[1], x2, y2]} stroke={lineProps.stroke} {...lineProps} />);
+            endings.push(makeArrow('arrow-p2', p2, angle));
         }
         if (lineEnding === 'arrow-p2-to-p1' || lineEnding === 'arrow-bidirectional') {
-            const x1 = p1[0] + arrowLength * Math.cos(angle - Math.PI / 6);
-            const y1 = p1[1] + arrowLength * Math.sin(angle - Math.PI / 6);
-            const x2 = p1[0] + arrowLength * Math.cos(angle + Math.PI / 6);
-            const y2 = p1[1] + arrowLength * Math.sin(angle + Math.PI / 6);
-            endings.push(<Line key="arrow-p1" points={[x1, y1, p1[0], p1[1], x2, y2]} stroke={lineProps.stroke} {...lineProps} />);
+            endings.push(makeArrow('arrow-p1', p1, angle + Math.PI));
         }
 
         // Perpendicular

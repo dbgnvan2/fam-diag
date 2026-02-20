@@ -19,6 +19,8 @@ describe('PropertiesPanel', () => {
         render(
             <PropertiesPanel
                 selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}

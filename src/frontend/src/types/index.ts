@@ -11,6 +11,7 @@ export type Person = {
   notes?: string;
   notesPosition?: { x: number; y: number };
   notesEnabled?: boolean;
+  events?: EmotionalProcessEvent[];
 };
 
 export type Partnership = {
@@ -27,6 +28,7 @@ export type Partnership = {
   children: string[];
   notes?: string;
   notesPosition?: { x: number; y: number };
+  events?: EmotionalProcessEvent[];
 };
 
 export type EmotionalLine = {
@@ -39,10 +41,24 @@ export type EmotionalLine = {
     // Fusion
     'single' | 'double' | 'triple' | 
     // Distance
-    'dotted' | 'dashed' | 'cutoff' |
+    'dotted' | 'dashed' | 'long-dash' |
+    // Cutoff
+    'cutoff' |
     // Conflict
     'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   notes?: string;
   notesPosition?: { x: number; y: number };
+  events?: EmotionalProcessEvent[];
+};
+
+export type EmotionalProcessEvent = {
+  id: string;
+  date: string;
+  category: string;
+  intensity: number;
+  howWell: number;
+  otherPersonName: string;
+  wwwwh: string;
+  observations: string;
 };

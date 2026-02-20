@@ -1,0 +1,12 @@
+{
+  "name": "fam-diag",
+  "private": true,
+  "scripts": {
+    "install": "npm --prefix src/frontend install",
+    "dev": "npm --prefix src/frontend run dev",
+    "build": "npm --prefix src/frontend run build",
+    "lint": "npm --prefix src/frontend run lint",
+    "test": "npm --prefix src/frontend run test",
+    "preview": "npm --prefix src/frontend run preview"
+  }
+}

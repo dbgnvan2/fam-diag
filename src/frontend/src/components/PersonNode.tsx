@@ -5,13 +5,14 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 interface PersonNodeProps {
   person: Person;
   isSelected: boolean;
-  onSelect: (personId: string) => void;
+  onSelect: (personId: string, additive: boolean) => void;
+  onDragStart: (e: KonvaEventObject<DragEvent>) => void;
   onDragMove: (e: KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, person: Person) => void;
 }
 
-const PersonNode = ({ person, isSelected, onSelect, onDragMove, onDragEnd, onContextMenu }: PersonNodeProps) => {
+const PersonNode = ({ person, isSelected, onSelect, onDragStart, onDragMove, onDragEnd, onContextMenu }: PersonNodeProps) => {
   const isMale = person.gender === 'male';
   const shapeSize = 60;
 
@@ -21,10 +22,11 @@ const PersonNode = ({ person, isSelected, onSelect, onDragMove, onDragEnd, onCon
       x={person.x}
       y={person.y}
       draggable
+      onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onClick={() => onSelect(person.id)}
-      onTap={() => onSelect(person.id)}
+      onClick={(e) => onSelect(person.id, e.evt.shiftKey)}
+      onTap={() => onSelect(person.id, false)}
       onContextMenu={(e) => onContextMenu(e, person)}
     >
       {isMale ? (

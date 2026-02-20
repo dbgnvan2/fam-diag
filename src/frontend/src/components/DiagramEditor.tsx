@@ -39,18 +39,101 @@ const DiagramEditor = () => {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
+  const [eventCategories, setEventCategories] = useState<string[]>(['Job', 'School', 'Health', 'Relationship', 'Other']);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState('');
+  const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
+  const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
   const stageRef = useRef<StageType>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelWidth, setPanelWidth] = useState(220);
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const dragGroupRef = useRef<{
+    personId: string;
+    startX: number;
+    startY: number;
+    selectedIds: string[];
+    people: Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>;
+    partnerships: Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>;
+    emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
+  } | null>(null);
+
+  const normalizeEmotionalLines = (lines: EmotionalLine[]) =>
+    lines.map((line) => {
+      if (line.relationshipType === 'distance' && line.lineStyle === 'cutoff') {
+        return { ...line, lineStyle: 'long-dash' };
+      }
+      if (line.relationshipType === 'cutoff' && line.lineStyle !== 'cutoff') {
+        return { ...line, lineStyle: 'cutoff' };
+      }
+      return line;
+    });
 
   useEffect(() => {
     const savedPeople = localStorage.getItem('genogram-people');
     const savedPartnerships = localStorage.getItem('genogram-partnerships');
     const savedEmotionalLines = localStorage.getItem('genogram-emotional-lines');
+    const savedCategories = localStorage.getItem('genogram-event-categories');
 
     if (savedPeople && savedPartnerships && savedEmotionalLines) {
       setPeople(JSON.parse(savedPeople));
       setPartnerships(JSON.parse(savedPartnerships));
-      setEmotionalLines(JSON.parse(savedEmotionalLines));
+      setEmotionalLines(normalizeEmotionalLines(JSON.parse(savedEmotionalLines)));
     }
+
+    if (savedCategories) {
+      try {
+        const parsed = JSON.parse(savedCategories);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEventCategories(parsed);
+        }
+      } catch {
+        // ignore invalid categories
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!panelRef.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const nextWidth = Math.round(entry.contentRect.width);
+        setPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+      }
+    });
+    observer.observe(panelRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!resizeStateRef.current) return;
+      const delta = resizeStateRef.current.startX - event.clientX;
+      const nextWidth = Math.min(600, Math.max(180, resizeStateRef.current.startWidth + delta));
+      setPanelWidth(nextWidth);
+    };
+    const handleMouseUp = () => {
+      resizeStateRef.current = null;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
   }, []);
 
   useAutosave(
@@ -73,6 +156,14 @@ const DiagramEditor = () => {
     emotionalLines,
     (data) => {
       localStorage.setItem('genogram-emotional-lines', JSON.stringify(data));
+    },
+    1000
+  );
+
+  useAutosave(
+    eventCategories,
+    (data) => {
+      localStorage.setItem('genogram-event-categories', JSON.stringify(data));
     },
     1000
   );
@@ -105,12 +196,27 @@ const DiagramEditor = () => {
 
   const handleUpdateEmotionalLine = (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => {
     console.log('Updating emotional line:', emotionalLineId, updatedProps);
-    setEmotionalLines(emotionalLines.map(el => 
-        el.id === emotionalLineId ? { ...el, ...updatedProps } : el
-    ));
+    setEmotionalLines(emotionalLines.map(el => {
+        if (el.id !== emotionalLineId) return el;
+        const next = { ...el, ...updatedProps };
+        if (next.relationshipType === 'distance' && next.lineStyle === 'cutoff') {
+            next.lineStyle = 'long-dash';
+        }
+        if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
+            next.lineStyle = 'cutoff';
+        }
+        return next;
+    }));
     setPropertiesPanelItem(prev => {
         if (prev && prev.id === emotionalLineId && 'lineStyle' in prev) { // check if it is an emotional line
-            return { ...prev, ...updatedProps };
+            const next = { ...prev, ...updatedProps };
+            if (next.relationshipType === 'distance' && next.lineStyle === 'cutoff') {
+                next.lineStyle = 'long-dash';
+            }
+            if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
+                next.lineStyle = 'cutoff';
+            }
+            return next;
         }
         return prev;
     });
@@ -125,6 +231,7 @@ const DiagramEditor = () => {
         lineStyle,
         lineEnding,
         startDate: new Date().toISOString().slice(0, 10),
+        events: [],
     };
     setEmotionalLines([...emotionalLines, newEmotionalLine]);
   };
@@ -155,6 +262,7 @@ const DiagramEditor = () => {
         relationshipType: 'dating',
         relationshipStatus: 'married',
         children: [],
+        events: [],
     };
     setPartnerships([...partnerships, newPartnership]);
   };
@@ -211,7 +319,7 @@ const DiagramEditor = () => {
             if (data.people && data.partnerships && data.emotionalLines) {
                 setPeople(data.people);
                 setPartnerships(data.partnerships);
-                setEmotionalLines(data.emotionalLines);
+                setEmotionalLines(normalizeEmotionalLines(data.emotionalLines));
             } else {
                 alert('Invalid file format');
             }
@@ -232,6 +340,7 @@ const DiagramEditor = () => {
       y: y,
       gender: 'female',
       partnerships: [],
+      events: [],
     };
     setPeople([...people, newPerson]);
   };
@@ -299,6 +408,13 @@ const DiagramEditor = () => {
             label: 'Properties',
             onClick: () => {
                 setPropertiesPanelItem(person);
+                setContextMenu(null);
+            }
+          },
+          {
+            label: 'Timeline',
+            onClick: () => {
+                setTimelinePersonId(person.id);
                 setContextMenu(null);
             }
           }
@@ -438,11 +554,106 @@ const DiagramEditor = () => {
     }
   };
 
+  const handlePersonDragStart = (personId: string, x: number, y: number) => {
+    if (!selectedPeopleIds.includes(personId) || selectedPeopleIds.length < 2) {
+      dragGroupRef.current = null;
+      return;
+    }
+
+    const selectedIds = [...selectedPeopleIds];
+    const peopleMap = new Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>();
+    for (const person of people) {
+      if (selectedIds.includes(person.id)) {
+        peopleMap.set(person.id, {
+          x: person.x,
+          y: person.y,
+          notesPosition: person.notesPosition ? { ...person.notesPosition } : undefined,
+        });
+      }
+    }
+
+    const partnershipsMap = new Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>();
+    for (const partnership of partnerships) {
+      if (selectedIds.includes(partnership.partner1_id) && selectedIds.includes(partnership.partner2_id)) {
+        partnershipsMap.set(partnership.id, {
+          horizontalConnectorY: partnership.horizontalConnectorY,
+          notesPosition: partnership.notesPosition ? { ...partnership.notesPosition } : undefined,
+        });
+      }
+    }
+
+    const emotionalLinesMap = new Map<string, { notesPosition?: { x: number; y: number } }>();
+    for (const emotionalLine of emotionalLines) {
+      if (selectedIds.includes(emotionalLine.person1_id) && selectedIds.includes(emotionalLine.person2_id)) {
+        emotionalLinesMap.set(emotionalLine.id, {
+          notesPosition: emotionalLine.notesPosition ? { ...emotionalLine.notesPosition } : undefined,
+        });
+      }
+    }
+
+    dragGroupRef.current = {
+      personId,
+      startX: x,
+      startY: y,
+      selectedIds,
+      people: peopleMap,
+      partnerships: partnershipsMap,
+      emotionalLines: emotionalLinesMap,
+    };
+  };
+
   const handlePersonDrag = (personId: string, x: number, y: number) => {
-    setPeople(
-      people.map((person) =>
-        person.id === personId ? { ...person, x, y } : person
-      )
+    const dragGroup = dragGroupRef.current;
+    if (dragGroup && dragGroup.personId === personId) {
+      const dx = x - dragGroup.startX;
+      const dy = y - dragGroup.startY;
+
+      setPeople((prev) =>
+        prev.map((person) => {
+          const base = dragGroup.people.get(person.id);
+          if (!base) return person;
+          return {
+            ...person,
+            x: base.x + dx,
+            y: base.y + dy,
+            notesPosition: base.notesPosition
+              ? { x: base.notesPosition.x + dx, y: base.notesPosition.y + dy }
+              : person.notesPosition,
+          };
+        })
+      );
+
+      setPartnerships((prev) =>
+        prev.map((partnership) => {
+          const base = dragGroup.partnerships.get(partnership.id);
+          if (!base) return partnership;
+          return {
+            ...partnership,
+            horizontalConnectorY: base.horizontalConnectorY + dy,
+            notesPosition: base.notesPosition
+              ? { x: base.notesPosition.x + dx, y: base.notesPosition.y + dy }
+              : partnership.notesPosition,
+          };
+        })
+      );
+
+      setEmotionalLines((prev) =>
+        prev.map((line) => {
+          const base = dragGroup.emotionalLines.get(line.id);
+          if (!base) return line;
+          return {
+            ...line,
+            notesPosition: base.notesPosition
+              ? { x: base.notesPosition.x + dx, y: base.notesPosition.y + dy }
+              : line.notesPosition,
+          };
+        })
+      );
+      return;
+    }
+
+    setPeople((prev) =>
+      prev.map((person) => (person.id === personId ? { ...person, x, y } : person))
     );
   };
 
@@ -485,6 +696,7 @@ const DiagramEditor = () => {
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
+    setPropertiesPanelItem(null);
   };
 
   const handleEmotionalLineSelect = (emotionalLineId: string) => {
@@ -510,6 +722,10 @@ const DiagramEditor = () => {
 
   const handleEmotionalLineContextMenu = (e: KonvaEventObject<PointerEvent>, emotionalLineId: string) => {
     e.evt.preventDefault();
+    setSelectedEmotionalLineId(emotionalLineId);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedChildId(null);
     const emotionalLine = emotionalLines.find(el => el.id === emotionalLineId);
     if (!emotionalLine) return;
 
@@ -532,7 +748,20 @@ const DiagramEditor = () => {
     });
   };
 
-  const handleSelect = (personId: string) => {
+  const handleSelect = (personId: string, additive: boolean) => {
+    if (additive) {
+      if (selectedPeopleIds.includes(personId)) {
+        setSelectedPeopleIds(selectedPeopleIds.filter((id) => id !== personId));
+      } else {
+        setSelectedPeopleIds([...selectedPeopleIds, personId]);
+      }
+      const selectedPerson = people.find((person) => person.id === personId);
+      if (selectedPerson) {
+        setPropertiesPanelItem(selectedPerson);
+      }
+      return;
+    }
+
     setSelectedEmotionalLineId(null); // always deselect emotional lines when selecting a person
     if (selectedPartnershipId) {
       // we are in "add child" mode
@@ -549,17 +778,128 @@ const DiagramEditor = () => {
         setSelectedPeopleIds([...selectedPeopleIds, personId]);
       }
     }
+
+    const selectedPerson = people.find((person) => person.id === personId);
+    if (selectedPerson) {
+      setPropertiesPanelItem(selectedPerson);
+    }
   };
 
   const handlePartnershipSelect = (partnershipId: string) => {
     setSelectedEmotionalLineId(null);
     if (selectedPartnershipId === partnershipId) {
         setSelectedPartnershipId(null);
+        setPropertiesPanelItem(null);
     } else {
         setSelectedPartnershipId(partnershipId);
         setSelectedPeopleIds([]);
+        const selectedPartnership = partnerships.find((p) => p.id === partnershipId);
+        if (selectedPartnership) {
+          setPropertiesPanelItem(selectedPartnership);
+        }
     }
   };
+
+      const timelinePerson = timelinePersonId ? people.find((p) => p.id === timelinePersonId) : null;
+      const timelineItems = (() => {
+        if (!timelinePerson) return [];
+        const items: { id: string; date?: string; label: string; detail: string }[] = [];
+
+        items.push({
+          id: `person-${timelinePerson.id}-birth`,
+          date: timelinePerson.birthDate,
+          label: 'Person',
+          detail: `Birth: ${timelinePerson.birthDate || '—'}`
+        });
+        if (timelinePerson.deathDate) {
+          items.push({
+            id: `person-${timelinePerson.id}-death`,
+            date: timelinePerson.deathDate,
+            label: 'Person',
+            detail: `Death: ${timelinePerson.deathDate}`
+          });
+        }
+        (timelinePerson.events || []).forEach((event) => {
+          items.push({
+            id: `person-event-${event.id}`,
+            date: event.date,
+            label: event.category || 'Event',
+            detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
+          });
+        });
+
+        const relatedPartnerships = partnerships.filter(
+          (p) => p.partner1_id === timelinePerson.id || p.partner2_id === timelinePerson.id
+        );
+        relatedPartnerships.forEach((partnership) => {
+          items.push({
+            id: `partnership-${partnership.id}-start`,
+            date: partnership.relationshipStartDate,
+            label: partnership.relationshipType || 'Partnership',
+            detail: `Relationship start: ${partnership.relationshipStartDate || '—'}`
+          });
+          if (partnership.marriedStartDate) {
+            items.push({
+              id: `partnership-${partnership.id}-married`,
+              date: partnership.marriedStartDate,
+              label: 'Marriage',
+              detail: `Married: ${partnership.marriedStartDate}`
+            });
+          }
+          if (partnership.separationDate) {
+            items.push({
+              id: `partnership-${partnership.id}-separation`,
+              date: partnership.separationDate,
+              label: 'Separation',
+              detail: `Separated: ${partnership.separationDate}`
+            });
+          }
+          if (partnership.divorceDate) {
+            items.push({
+              id: `partnership-${partnership.id}-divorce`,
+              date: partnership.divorceDate,
+              label: 'Divorce',
+              detail: `Divorced: ${partnership.divorceDate}`
+            });
+          }
+          (partnership.events || []).forEach((event) => {
+            items.push({
+              id: `partnership-event-${event.id}`,
+              date: event.date,
+              label: event.category || 'Event',
+              detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
+            });
+          });
+        });
+
+        emotionalLines.forEach((line) => {
+          if (line.person1_id !== timelinePerson.id && line.person2_id !== timelinePerson.id) return;
+          const otherPersonId = line.person1_id === timelinePerson.id ? line.person2_id : line.person1_id;
+          const otherPerson = people.find((p) => p.id === otherPersonId);
+          items.push({
+            id: `epl-${line.id}`,
+            date: line.startDate,
+            label: line.relationshipType || 'EPL',
+            detail: `${line.relationshipType} (${line.lineStyle}) with ${otherPerson?.name || 'Unknown'}`
+          });
+          (line.events || []).forEach((event) => {
+            items.push({
+              id: `epl-event-${event.id}`,
+              date: event.date,
+              label: event.category || 'Event',
+              detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
+            });
+          });
+        });
+
+        const direction = timelineSortOrder === 'asc' ? 1 : -1;
+        return items.sort((a, b) => {
+          const aTime = a.date ? new Date(a.date).getTime() : Number.POSITIVE_INFINITY;
+          const bTime = b.date ? new Date(b.date).getTime() : Number.POSITIVE_INFINITY;
+          if (aTime === bTime) return 0;
+          return aTime > bTime ? direction : -direction;
+        });
+      })();
 
       return (
         <div>
@@ -569,13 +909,79 @@ const DiagramEditor = () => {
                   <label htmlFor="load-file" style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginLeft: 10 }}>Load</label>
                   <button onClick={handleExportPNG}>Export as PNG</button>
                   <button onClick={handleExportSVG}>Export as SVG</button>
+                  <button onClick={() => setSettingsOpen(true)} style={{ marginLeft: 10 }}>Event Categories</button>
+                  <label style={{ marginLeft: 20 }}>
+                    Zoom
+                    <input
+                      type="range"
+                      min={0.25}
+                      max={3}
+                      step={0.05}
+                      value={zoom}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      style={{ marginLeft: 8, verticalAlign: 'middle' }}
+                    />
+                    <span style={{ marginLeft: 8 }}>{Math.round(zoom * 100)}%</span>
+                  </label>
                 </div>          <div style={{ display: 'flex' }}>
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
             <div style={{ flex: 1 }}>
               <Stage 
                 ref={stageRef}
-                width={window.innerWidth - 240} 
-                height={window.innerHeight - 150}
+                width={Math.max(0, viewport.width - panelWidth)} 
+                height={Math.max(0, viewport.height - 150)}
+                scaleX={zoom}
+                scaleY={zoom}
+                onMouseDown={(e) => {
+                  if (e.target === e.target.getStage()) {
+                    setIsPanning(true);
+                    const pointer = e.target.getStage()?.getPointerPosition();
+                    if (pointer) {
+                      panStartRef.current = { x: pointer.x, y: pointer.y };
+                    }
+                  }
+                }}
+                onMouseMove={(e) => {
+                  if (!isPanning || !panStartRef.current) return;
+                  const pointer = e.target.getStage()?.getPointerPosition();
+                  if (!pointer) return;
+                  const dx = (pointer.x - panStartRef.current.x) / zoom;
+                  const dy = (pointer.y - panStartRef.current.y) / zoom;
+                  setStagePosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+                  panStartRef.current = { x: pointer.x, y: pointer.y };
+                }}
+                onMouseUp={() => {
+                  setIsPanning(false);
+                  panStartRef.current = null;
+                }}
+                onMouseLeave={() => {
+                  setIsPanning(false);
+                  panStartRef.current = null;
+                }}
+                onTouchStart={(e) => {
+                  if (e.target === e.target.getStage()) {
+                    setIsPanning(true);
+                    const pointer = e.target.getStage()?.getPointerPosition();
+                    if (pointer) {
+                      panStartRef.current = { x: pointer.x, y: pointer.y };
+                    }
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (!isPanning || !panStartRef.current) return;
+                  const pointer = e.target.getStage()?.getPointerPosition();
+                  if (!pointer) return;
+                  const dx = (pointer.x - panStartRef.current.x) / zoom;
+                  const dy = (pointer.y - panStartRef.current.y) / zoom;
+                  setStagePosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+                  panStartRef.current = { x: pointer.x, y: pointer.y };
+                }}
+                onTouchEnd={() => {
+                  setIsPanning(false);
+                  panStartRef.current = null;
+                }}
+                x={stagePosition.x}
+                y={stagePosition.y}
                 onClick={(e) => {
                   if (e.target === e.target.getStage()) {
                     setSelectedPeopleIds([]);
@@ -641,8 +1047,12 @@ const DiagramEditor = () => {
                       person={person}
                       isSelected={selectedPeopleIds.includes(person.id)}
                       onSelect={handleSelect}
+                      onDragStart={(e) => handlePersonDragStart(person.id, e.target.x(), e.target.y())}
                       onDragMove={(e) => handlePersonDrag(person.id, e.target.x(), e.target.y())}
-                      onDragEnd={(e) => handlePersonDrag(person.id, e.target.x(), e.target.y())}
+                      onDragEnd={(e) => {
+                        handlePersonDrag(person.id, e.target.x(), e.target.y());
+                        dragGroupRef.current = null;
+                      }}
                       onContextMenu={handlePersonContextMenu}
                     />
                   ))}
@@ -659,6 +1069,8 @@ const DiagramEditor = () => {
                         y={y}
                         title={person.name}
                         text={person.notes}
+                        anchorX={person.x}
+                        anchorY={person.y}
                         onDragEnd={(e) => handlePersonNoteDragEnd(person.id, e.target.x(), e.target.y())}
                       />
                     );
@@ -675,8 +1087,10 @@ const DiagramEditor = () => {
                         key={`note-partnership-${p.id}`}
                         x={x}
                         y={y}
-                        title={`${partner1.name} - ${partner2.name}`}
+                        title={`${partner1.name}\n${partner2.name}`}
                         text={p.notes}
+                        anchorX={(partner1.x + partner2.x) / 2}
+                        anchorY={p.horizontalConnectorY}
                         onDragEnd={(e) => handlePartnershipNoteDragEnd(p.id, e.target.x(), e.target.y())}
                       />
                     );
@@ -693,8 +1107,10 @@ const DiagramEditor = () => {
                         key={`note-el-${el.id}`}
                         x={x}
                         y={y}
-                        title={`${person1.name} - ${person2.name}`}
+                        title={`${person1.name}\n${person2.name}`}
                         text={el.notes}
+                        anchorX={(person1.x + person2.x) / 2}
+                        anchorY={(person1.y + person2.y) / 2}
                         onDragEnd={(e) => handleEmotionalLineNoteDragEnd(el.id, e.target.x(), e.target.y())}
                       />
                     );
@@ -702,10 +1118,178 @@ const DiagramEditor = () => {
                 </Layer>
               </Stage>
             </div>
-            <div style={{ width: 220 }}>
-              {propertiesPanelItem && <PropertiesPanel selectedItem={propertiesPanelItem} onUpdatePerson={handleUpdatePerson} onUpdatePartnership={handleUpdatePartnership} onUpdateEmotionalLine={handleUpdateEmotionalLine} onClose={() => setPropertiesPanelItem(null)} />}
+            <div
+              ref={panelRef}
+              style={{
+                width: panelWidth,
+                overflow: 'auto',
+                minWidth: 180,
+                maxWidth: 600,
+                position: 'relative',
+              }}
+            >
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onMouseDown={(event) => {
+                  resizeStateRef.current = { startX: event.clientX, startWidth: panelWidth };
+                }}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 6,
+                  cursor: 'col-resize',
+                  background: 'linear-gradient(to right, rgba(0,0,0,0.15), rgba(0,0,0,0))',
+                  borderRight: '1px solid #c7c7c7',
+                }}
+              />
+              {propertiesPanelItem && (
+                <PropertiesPanel
+                  selectedItem={propertiesPanelItem}
+                  people={people}
+                  eventCategories={eventCategories}
+                  onUpdatePerson={handleUpdatePerson}
+                  onUpdatePartnership={handleUpdatePartnership}
+                  onUpdateEmotionalLine={handleUpdateEmotionalLine}
+                  onClose={() => setPropertiesPanelItem(null)}
+                />
+              )}
             </div>
           </div>
+          {settingsOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2000,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
+                <h4>Event Categories</h4>
+                <div style={{ marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Add category"
+                    value={settingsDraft}
+                    onChange={(e) => setSettingsDraft(e.target.value)}
+                  />
+                  <button
+                    onClick={() => {
+                      const trimmed = settingsDraft.trim();
+                      if (!trimmed) return;
+                      if (!eventCategories.includes(trimmed)) {
+                        setEventCategories([...eventCategories, trimmed]);
+                      }
+                      setSettingsDraft('');
+                    }}
+                    style={{ marginLeft: 6 }}
+                  >
+                    Add
+                  </button>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {eventCategories.map((category) => (
+                    <li key={category} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span>{category}</span>
+                      <button onClick={() => setEventCategories(eventCategories.filter((c) => c !== category))}>Remove</button>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button onClick={() => setSettingsOpen(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {timelinePerson && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2100,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 640, maxHeight: '80vh', overflow: 'auto' }}>
+                <h4>Timeline: {timelinePerson.name}</h4>
+                <div style={{ marginBottom: 8 }}>
+                  <label htmlFor="timelineSortOrder">Sort: </label>
+                  <select
+                    id="timelineSortOrder"
+                    value={timelineSortOrder}
+                    onChange={(e) => setTimelineSortOrder(e.target.value as 'asc' | 'desc')}
+                  >
+                    <option value="asc">Date Asc</option>
+                    <option value="desc">Date Desc</option>
+                  </select>
+                </div>
+                {timelineItems.length === 0 ? (
+                  <div style={{ fontStyle: 'italic' }}>No timeline items.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: '4px 6px' }}>Nodal/EPE</th>
+                        {timelineItems.map((item) => (
+                          <th key={`head-${item.id}`} style={{ textAlign: 'center', borderBottom: '1px solid #ddd', padding: '4px 6px' }}>
+                            {item.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee' }}><strong>Year</strong></td>
+                        {timelineItems.map((item) => {
+                          const year = item.date ? item.date.split('-')[0] : '';
+                          return (
+                            <td key={`year-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px', borderBottom: '1px solid #eee' }}>
+                              {year || '—'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '4px 6px' }}><strong>Date</strong></td>
+                        {timelineItems.map((item) => {
+                          const date = item.date ? item.date.split('-').slice(1).join('-') : '';
+                          return (
+                            <td key={`date-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px' }}>
+                              {date || '—'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '4px 6px' }}><strong>Intensity</strong></td>
+                        {timelineItems.map((item) => {
+                          const intensityMatch = item.detail.match(/Intensity (\d+)/);
+                          const intensity = intensityMatch ? intensityMatch[1] : '';
+                          return (
+                            <td key={`intensity-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px' }}>
+                              {intensity || '—'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button onClick={() => setTimelinePersonId(null)}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     };export default DiagramEditor;

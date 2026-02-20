@@ -1,0 +1,70 @@
+{
+  "people": [
+    {
+      "id": "baXGqkQd3GC6RpVt_bUAb",
+      "name": "John Doe",
+      "x": 50,
+      "y": 50,
+      "gender": "male",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1970-01-01"
+    },
+    {
+      "id": "QE8IhtdAb4dCVPryQU0uq",
+      "name": "Jane Doe",
+      "x": 402,
+      "y": 84,
+      "gender": "female",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1972-03-15"
+    },
+    {
+      "id": "sNMoka4jHkknCbVTzFdDy",
+      "name": "Junior Doe",
+      "x": 143,
+      "y": 248,
+      "gender": "male",
+      "parentPartnership": "p1",
+      "partnerships": [],
+      "birthDate": "2000-05-20"
+    },
+    {
+      "id": "s71QCmsCx5AISYbxjYIWJ",
+      "name": "New Person",
+      "x": 324,
+      "y": 278.8984375,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1"
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "p1",
+      "partner1_id": "baXGqkQd3GC6RpVt_bUAb",
+      "partner2_id": "QE8IhtdAb4dCVPryQU0uq",
+      "horizontalConnectorY": 150,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "relationshipStartDate": "1995-06-01",
+      "children": [
+        "sNMoka4jHkknCbVTzFdDy",
+        "s71QCmsCx5AISYbxjYIWJ"
+      ]
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "y_895eIGLn4fR8ZZWvnOG",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "sNMoka4jHkknCbVTzFdDy",
+      "relationshipType": "cutoff",
+      "lineStyle": "double-angular",
+      "lineEnding": "arrow-p1-to-p2"
+    }
+  ]
+}
