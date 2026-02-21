@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
+import type {
+  Person,
+  Partnership,
+  EmotionalLine,
+  EmotionalProcessEvent,
+  FunctionalIndicatorDefinition,
+  PersonFunctionalIndicator,
+} from '../types';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
@@ -8,24 +15,111 @@ interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
   people: Person[];
   eventCategories: string[];
+  functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
   onClose: () => void;
 }
 
-const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson, onUpdatePartnership, onUpdateEmotionalLine, onClose }: PropertiesPanelProps) => {
+const PropertiesPanel = ({
+  selectedItem,
+  people,
+  eventCategories,
+  functionalIndicatorDefinitions,
+  onUpdatePerson,
+  onUpdatePartnership,
+  onUpdateEmotionalLine,
+  onClose,
+}: PropertiesPanelProps) => {
   const isPerson = 'name' in selectedItem;
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
   const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventDraft, setEventDraft] = useState<EmotionalProcessEvent | null>(null);
+  const selectedPerson = isPerson ? (selectedItem as Person) : null;
+  const selectedPartnership = isPartnership ? (selectedItem as Partnership) : null;
+  const selectedEmotionalLine = isEmotionalLine ? (selectedItem as EmotionalLine) : null;
+  const nameFallbackParts = useMemo(() => {
+    if (!selectedPerson) {
+      return { first: '', last: '' };
+    }
+    const base = (selectedPerson.name || '').trim();
+    if (!base) return { first: '', last: '' };
+    const segments = base.split(/\s+/).filter(Boolean);
+    const first = segments.shift() || '';
+    const last = segments.join(' ');
+    return { first, last };
+  }, [selectedPerson]);
+  const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
+  const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
 
   useEffect(() => {
     setEventModalOpen(false);
     setEventDraft(null);
   }, [selectedItem.id]);
+
+  const composeDisplayName = (overrides: Partial<Person> = {}) => {
+    if (!selectedPerson) return '';
+    const first =
+      overrides.firstName !== undefined
+        ? overrides.firstName
+        : selectedPerson.firstName ?? nameFallbackParts.first;
+    const last =
+      overrides.lastName !== undefined
+        ? overrides.lastName
+        : selectedPerson.lastName ?? nameFallbackParts.last;
+    const fallback =
+      overrides.name !== undefined ? overrides.name : selectedPerson.name || '';
+    const combined = [first?.trim(), last?.trim()].filter(Boolean).join(' ').trim();
+    return combined || fallback;
+  };
+
+  const sanitizePersonIndicators = (
+    indicators: PersonFunctionalIndicator[] | undefined,
+    definitionId: string,
+    next: PersonFunctionalIndicator | null
+  ) => {
+    const existing = indicators || [];
+    const remaining = existing.filter((entry) => entry.definitionId !== definitionId);
+    if (!next) {
+      return remaining.length ? remaining : undefined;
+    }
+    return [...remaining, next];
+  };
+
+  const handleIndicatorStatusChange = (
+    definitionId: string,
+    status: 'past' | 'current' | 'none'
+  ) => {
+    const person = selectedItem as Person;
+    if (status === 'none') {
+      const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, null);
+      onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+      return;
+    }
+    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
+    const nextEntry: PersonFunctionalIndicator = {
+      definitionId,
+      status,
+      impact: existing?.impact ?? 1,
+    };
+    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
+    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+  };
+
+  const handleIndicatorImpactChange = (definitionId: string, impactValue: number) => {
+    const person = selectedItem as Person;
+    if (Number.isNaN(impactValue)) return;
+    const clamped = Math.max(0, Math.min(9, impactValue));
+    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
+    const baseEntry: PersonFunctionalIndicator =
+      existing ?? { definitionId, status: 'current', impact: 1 };
+    const nextEntry = { ...baseEntry, impact: clamped };
+    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
+    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+  };
 
   const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -40,7 +134,11 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
       }
       nextValue = Math.max(20, Math.min(400, numericValue));
     }
-    onUpdatePerson(selectedItem.id, { [name]: nextValue });
+    let updates: Partial<Person> = { [name]: nextValue };
+    if (name === 'firstName' || name === 'lastName') {
+      updates = { ...updates, name: composeDisplayName({ ...updates }) };
+    }
+    onUpdatePerson(selectedItem.id, updates);
   };
 
   const handlePartnershipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -227,29 +325,54 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
         <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{termLabel()}</span>
       </div>
       <h3 style={{ marginTop: 8 }}>Properties</h3>
-      {isPerson && (
+      {isPerson && selectedPerson && (
         <div>
-          <div>
-            <label htmlFor="name">Name: </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={(selectedItem as Person).name}
-              onChange={handlePersonChange}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={rowStyle}>
+              <label htmlFor="firstName" style={labelStyle}>First Name:</label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                value={selectedPerson.firstName ?? nameFallbackParts.first}
+                onChange={handlePersonChange}
+                style={{ width: '25ch', textAlign: 'left' }}
+              />
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="lastName" style={labelStyle}>Last Name:</label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                value={selectedPerson.lastName ?? nameFallbackParts.last}
+                onChange={handlePersonChange}
+                style={{ width: '25ch', textAlign: 'left' }}
+              />
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="maidenName" style={labelStyle}>Maiden Name:</label>
+              <input
+                type="text"
+                id="maidenName"
+                name="maidenName"
+                value={selectedPerson.maidenName ?? ''}
+                onChange={handlePersonChange}
+                style={{ width: '25ch', textAlign: 'left' }}
+              />
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label htmlFor="size">Size: </label>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={rowStyle}>
+            <label htmlFor="size" style={labelStyle}>Size:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button
                 type="button"
                 onClick={() =>
                   onUpdatePerson(selectedItem.id, {
-                    size: Math.max(20, ((selectedItem as Person).size ?? 60) - 1),
+                    size: Math.max(20, (selectedPerson.size ?? 60) - 1),
                   })
                 }
-                style={{ padding: '0 6px', marginRight: 4 }}
+                style={{ padding: '0 6px' }}
               >
                 −
               </button>
@@ -259,7 +382,7 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
                 name="size"
                 min={20}
                 max={200}
-                value={(selectedItem as Person).size ?? 60}
+                value={selectedPerson.size ?? 60}
                 onChange={handlePersonChange}
                 style={{ width: 60, textAlign: 'center' }}
               />
@@ -267,99 +390,174 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
                 type="button"
                 onClick={() =>
                   onUpdatePerson(selectedItem.id, {
-                    size: Math.min(200, ((selectedItem as Person).size ?? 60) + 1),
+                    size: Math.min(200, (selectedPerson.size ?? 60) + 1),
                   })
                 }
-                style={{ padding: '0 6px', marginLeft: 4 }}
+                style={{ padding: '0 6px' }}
               >
                 +
               </button>
             </div>
           </div>
-          <div>
-            <label htmlFor="borderColor">Border Color: </label>
+          <div style={rowStyle}>
+            <label htmlFor="borderColor" style={labelStyle}>Border Color:</label>
             <input
               type="color"
               id="borderColor"
               name="borderColor"
-              value={(selectedItem as Person).borderColor ?? DEFAULT_BORDER_COLOR}
+              value={selectedPerson.borderColor ?? DEFAULT_BORDER_COLOR}
               onChange={handlePersonChange}
+              style={{ width: 80 }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label htmlFor="backgroundEnabled" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={rowStyle}>
+            <label htmlFor="backgroundEnabled" style={labelStyle}>Shaded Background:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="checkbox"
                 id="backgroundEnabled"
                 name="backgroundEnabled"
-                checked={(selectedItem as Person).backgroundEnabled ?? false}
+                checked={selectedPerson.backgroundEnabled ?? false}
                 onChange={handlePersonChange}
               />
-              Shaded Background Enabled
-            </label>
+              <span>Enabled</span>
+            </div>
           </div>
-          <div>
-            <label htmlFor="backgroundColor">Background Color: </label>
+          <div style={rowStyle}>
+            <label htmlFor="backgroundColor" style={labelStyle}>Background Color:</label>
             <input
               type="color"
               id="backgroundColor"
               name="backgroundColor"
-              value={(selectedItem as Person).backgroundColor ?? DEFAULT_BACKGROUND_COLOR}
+              value={selectedPerson.backgroundColor ?? DEFAULT_BACKGROUND_COLOR}
               onChange={handlePersonChange}
-              disabled={!((selectedItem as Person).backgroundEnabled ?? false)}
+              disabled={!(selectedPerson.backgroundEnabled ?? false)}
+              style={{ width: 80 }}
             />
           </div>
-          <div>
-            <label htmlFor="birthDate">Birth Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
             <input
               type="text"
               id="birthDate"
               name="birthDate"
-              value={(selectedItem as Person).birthDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPerson.birthDate || ''}
               onChange={handlePersonChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="deathDate">Death Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
             <input
               type="text"
               id="deathDate"
               name="deathDate"
-              value={(selectedItem as Person).deathDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPerson.deathDate || ''}
               onChange={handlePersonChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="adoptionStatus">Adoption Status: </label>
+          <div style={rowStyle}>
+            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
             <select
               id="adoptionStatus"
               name="adoptionStatus"
-              value={(selectedItem as Person).adoptionStatus || 'biological'}
+              value={selectedPerson.adoptionStatus || 'biological'}
               onChange={handlePersonChange}
+              style={{ width: 160 }}
             >
               <option value="biological">Biological</option>
               <option value="adopted">Adopted</option>
             </select>
           </div>
-          <div>
-            <label htmlFor="notes">Notes: </label>
+          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+            <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
             <textarea
               id="notes"
               name="notes"
-              value={(selectedItem as Person).notes || ''}
+              value={selectedPerson.notes || ''}
               onChange={handlePersonChange}
+              rows={6}
+              style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
             />
           </div>
-          <div>
-            <label htmlFor="notesEnabled">Notes Enabled: </label>
-            <input
-              type="checkbox"
-              id="notesEnabled"
-              name="notesEnabled"
-              checked={(selectedItem as Person).notesEnabled}
-              onChange={handlePersonChange}
-            />
+          <div style={rowStyle}>
+            <label htmlFor="notesEnabled" style={labelStyle}>Notes Enabled:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                id="notesEnabled"
+                name="notesEnabled"
+                checked={selectedPerson.notesEnabled ?? false}
+                onChange={handlePersonChange}
+              />
+            </div>
           </div>
+          {functionalIndicatorDefinitions.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <strong>Functional Indicators</strong>
+              {functionalIndicatorDefinitions.map((definition) => {
+                const person = selectedItem as Person;
+                const entry = person.functionalIndicators?.find((fi) => fi.definitionId === definition.id);
+                const statusValue = entry?.status ?? 'none';
+                const impactValue = entry?.impact ?? 0;
+                return (
+                  <div
+                    key={definition.id}
+                    style={{
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 6,
+                      padding: 8,
+                      marginTop: 6,
+                      background: '#fff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600 }}>{definition.label}</span>
+                      <span style={{ fontSize: 12, color: '#666' }}>
+                        {statusValue === 'none' ? 'Not tracked' : `${statusValue === 'current' ? 'Current' : 'Past'} · Impact ${impactValue}`}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <label htmlFor={`indicator-status-${definition.id}`} style={{ fontSize: 12 }}>
+                        Status:
+                      </label>
+                      <select
+                        id={`indicator-status-${definition.id}`}
+                        value={statusValue}
+                        onChange={(e) =>
+                          handleIndicatorStatusChange(
+                            definition.id,
+                            e.target.value as 'past' | 'current' | 'none'
+                          )
+                        }
+                        style={{ width: 110 }}
+                      >
+                        <option value="none">None</option>
+                        <option value="current">Current</option>
+                        <option value="past">Past</option>
+                      </select>
+                      <label htmlFor={`indicator-impact-${definition.id}`} style={{ fontSize: 12 }}>
+                        Impact:
+                      </label>
+                      <input
+                        type="number"
+                        id={`indicator-impact-${definition.id}`}
+                        min={0}
+                        max={9}
+                        value={impactValue}
+                        disabled={statusValue === 'none'}
+                        onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
+                        style={{ width: 60 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <strong>Emotional Process Events</strong>
@@ -397,82 +595,99 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
           </div>
         </div>
       )}
-      {isPartnership && (
+      {isPartnership && selectedPartnership && (
         <div>
-          <div>
-            <label htmlFor="relationshipType">Relationship Type: </label>
+          <div style={rowStyle}>
+            <label htmlFor="relationshipType" style={labelStyle}>Relationship Type:</label>
             <select
               id="relationshipType" 
               name="relationshipType" 
-              value={(selectedItem as Partnership).relationshipType} 
+              value={selectedPartnership.relationshipType} 
               onChange={handlePartnershipChange}
+              style={{ width: 180 }}
             >
               <option value="married">Married</option>
               <option value="common-law">Common-law</option>
               <option value="living-together">Living Together</option>
               <option value="dating">Dating</option>
+              <option value="affair">Affair</option>
+              <option value="friendship">Friendship</option>
             </select>
           </div>
-          <div>
-            <label htmlFor="relationshipStatus">Relationship Status: </label>
+          <div style={rowStyle}>
+            <label htmlFor="relationshipStatus" style={labelStyle}>Relationship Status:</label>
             <select
               id="relationshipStatus" 
               name="relationshipStatus" 
-              value={(selectedItem as Partnership).relationshipStatus} 
+              value={selectedPartnership.relationshipStatus} 
               onChange={handlePartnershipChange}
+              style={{ width: 180 }}
             >
               <option value="married">Married</option>
               <option value="separated">Separated</option>
               <option value="divorced">Divorced</option>
+              <option value="started">Started</option>
+              <option value="ended">Ended</option>
+              <option value="ongoing">Ongoing</option>
             </select>
           </div>
-          <div>
-            <label htmlFor="relationshipStartDate">Relationship Start Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="relationshipStartDate" style={labelStyle}>Relationship Start:</label>
             <input
               type="text"
               id="relationshipStartDate"
               name="relationshipStartDate"
-              value={(selectedItem as Partnership).relationshipStartDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPartnership.relationshipStartDate || ''}
               onChange={handlePartnershipChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="marriedStartDate">Married Start Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="marriedStartDate" style={labelStyle}>Married Start:</label>
             <input
               type="text"
               id="marriedStartDate"
               name="marriedStartDate"
-              value={(selectedItem as Partnership).marriedStartDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPartnership.marriedStartDate || ''}
               onChange={handlePartnershipChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="separationDate">Separation Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="separationDate" style={labelStyle}>Separation Date:</label>
             <input
               type="text"
               id="separationDate"
               name="separationDate"
-              value={(selectedItem as Partnership).separationDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPartnership.separationDate || ''}
               onChange={handlePartnershipChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="divorceDate">Divorce Date: </label>
+          <div style={rowStyle}>
+            <label htmlFor="divorceDate" style={labelStyle}>Divorce Date:</label>
             <input
               type="text"
               id="divorceDate"
               name="divorceDate"
-              value={(selectedItem as Partnership).divorceDate || ''}
+              placeholder="YYYY-MM-DD"
+              value={selectedPartnership.divorceDate || ''}
               onChange={handlePartnershipChange}
+              style={{ width: '11ch', textAlign: 'left' }}
             />
           </div>
-          <div>
-            <label htmlFor="notes">Notes: </label>
+          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+            <label htmlFor="partnershipNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
             <textarea
-              id="notes"
+              id="partnershipNotes"
               name="notes"
-              value={(selectedItem as Partnership).notes || ''}
+              value={selectedPartnership.notes || ''}
               onChange={handlePartnershipChange}
+              rows={5}
+              style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
             />
           </div>
           <div style={{ marginTop: 12 }}>
@@ -512,8 +727,8 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
           </div>
         </div>
       )}
-      {isEmotionalLine && (() => {
-        const relationshipType = (selectedItem as EmotionalLine).relationshipType;
+      {isEmotionalLine && selectedEmotionalLine && (() => {
+        const relationshipType = selectedEmotionalLine.relationshipType;
         const styleOptions = styleOptionMeta(relationshipType);
         const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict'];
         const lineStyleLabel = intensityTypes.includes(relationshipType) ? 'Intensity' : 'Line Style';
@@ -522,23 +737,26 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
 
         return (
           <div>
-            <div>
-              <label htmlFor="startDate">Start Date: </label>
+            <div style={rowStyle}>
+              <label htmlFor="startDate" style={labelStyle}>Start Date:</label>
               <input
                 type="text"
                 id="startDate"
                 name="startDate"
-                value={(selectedItem as EmotionalLine).startDate || ''}
+                placeholder="YYYY-MM-DD"
+                value={selectedEmotionalLine.startDate || ''}
                 onChange={handleEmotionalLineInputChange}
+                style={{ width: '11ch', textAlign: 'left' }}
               />
             </div>
-            <div>
-              <label htmlFor="relationshipType">Relationship Type: </label>
+            <div style={rowStyle}>
+              <label htmlFor="relationshipType" style={labelStyle}>Relationship Type:</label>
               <select
                 id="relationshipType"
                 name="relationshipType"
-                value={(selectedItem as EmotionalLine).relationshipType}
+                value={selectedEmotionalLine.relationshipType}
                 onChange={handleEmotionalLineChange}
+                style={{ width: 180 }}
               >
                 <option value="fusion">Fusion</option>
                 <option value="distance">Distance</option>
@@ -546,26 +764,28 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
                 <option value="conflict">Conflict</option>
               </select>
             </div>
-            <div>
-              <label htmlFor="lineStyle">{lineStyleLabel}: </label>
+            <div style={rowStyle}>
+              <label htmlFor="lineStyle" style={labelStyle}>{lineStyleLabel}:</label>
               <select
                 id="lineStyle"
                 name="lineStyle"
-                value={(selectedItem as EmotionalLine).lineStyle}
+                value={selectedEmotionalLine.lineStyle}
                 onChange={handleEmotionalLineChange}
+                style={{ width: 180 }}
               >
                 {styleOptions.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label htmlFor="lineEnding">Line Ending: </label>
+            <div style={rowStyle}>
+              <label htmlFor="lineEnding" style={labelStyle}>Line Ending:</label>
               <select
                 id="lineEnding"
                 name="lineEnding"
-                value={(selectedItem as EmotionalLine).lineEnding}
+                value={selectedEmotionalLine.lineEnding}
                 onChange={handleEmotionalLineChange}
+                style={{ width: 220 }}
               >
                 <option value="none">None</option>
                 <option value="arrow-p1-to-p2">Arrow (Person 1 to 2)</option>
@@ -577,41 +797,46 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
                 <option value="double-perpendicular-p2">Double Perpendicular (Person 2)</option>
               </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="lineColor">Color: </label>
-              <input
-                type="color"
-                id="lineColor"
-                name="color"
-                value={(selectedItem as EmotionalLine).color || '#444444'}
-                onChange={handleEmotionalLineInputChange}
-              />
-              <div style={{ display: 'flex', gap: 6 }}>
-                {presetColors.map((hex) => (
-                  <button
-                    key={hex}
-                    type="button"
-                    onClick={() => onUpdateEmotionalLine(selectedItem.id, { color: hex })}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      border: '1px solid #ccc',
-                      background: hex,
-                      cursor: 'pointer',
-                    }}
-                    aria-label={`Set color ${hex}`}
-                  />
-                ))}
+            <div style={{ ...rowStyle, alignItems: 'center' }}>
+              <label htmlFor="lineColor" style={labelStyle}>Color:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="color"
+                  id="lineColor"
+                  name="color"
+                  value={selectedEmotionalLine.color || '#444444'}
+                  onChange={handleEmotionalLineInputChange}
+                  style={{ width: 60 }}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {presetColors.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => onUpdateEmotionalLine(selectedItem.id, { color: hex })}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        border: '1px solid #ccc',
+                        background: hex,
+                        cursor: 'pointer',
+                      }}
+                      aria-label={`Set color ${hex}`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-            <div>
-              <label htmlFor="notes">Notes: </label>
+            <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+              <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
               <textarea
-                id="notes"
+                id="emotionalNotes"
                 name="notes"
-                value={(selectedItem as EmotionalLine).notes || ''}
+                value={selectedEmotionalLine.notes || ''}
                 onChange={handleEmotionalLineInputChange}
+                rows={5}
+                style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
               />
             </div>
             <div style={{ marginTop: 12 }}>

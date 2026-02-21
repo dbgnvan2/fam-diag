@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Stage, Layer } from 'react-konva';
-import type { Person, Partnership, EmotionalLine } from '../types';
+import type { Person, Partnership, EmotionalLine, FunctionalIndicatorDefinition } from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
 import ChildConnection from './ChildConnection';
@@ -14,10 +14,68 @@ import NoteNode from './NoteNode';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
+import { getSaveButtonState } from '../utils/saveButtonState';
 
 const p1_id = nanoid();
 const p2_id = nanoid();
 const child_id = nanoid();
+const defaultFunctionalIndicators: FunctionalIndicatorDefinition[] = [
+  { id: 'indicator-affair', label: 'Affair' },
+  { id: 'indicator-su', label: 'Substance Use' },
+  { id: 'indicator-gambling', label: 'Gambling' },
+];
+
+const buildAllowedIndicatorSet = (defs: FunctionalIndicatorDefinition[]) =>
+  new Set(defs.map((def) => def.id));
+
+const sanitizePersonIndicatorsWithSet = (person: Person, allowed: Set<string>) => {
+  if (!person.functionalIndicators || person.functionalIndicators.length === 0) {
+    return person;
+  }
+  const filtered = person.functionalIndicators.filter((entry) => allowed.has(entry.definitionId));
+  if (filtered.length === person.functionalIndicators.length) {
+    return person;
+  }
+  const updated: Person = { ...person };
+  if (filtered.length) {
+    updated.functionalIndicators = filtered;
+  } else {
+    delete (updated as any).functionalIndicators;
+  }
+  return updated;
+};
+
+const sanitizePeopleIndicators = (peopleList: Person[], defs: FunctionalIndicatorDefinition[]) => {
+  if (!peopleList.length) return peopleList;
+  const allowed = buildAllowedIndicatorSet(defs);
+  if (allowed.size === 0) {
+    let changed = false;
+    const next = peopleList.map((person) => {
+      if (!person.functionalIndicators || person.functionalIndicators.length === 0) {
+        return person;
+      }
+      changed = true;
+      const updated = { ...person };
+      delete (updated as any).functionalIndicators;
+      return updated;
+    });
+    return changed ? next : peopleList;
+  }
+  let changed = false;
+  const next = peopleList.map((person) => {
+    const sanitized = sanitizePersonIndicatorsWithSet(person, allowed);
+    if (sanitized !== person) {
+      changed = true;
+    }
+    return sanitized;
+  });
+  return changed ? next : peopleList;
+};
+
+const sanitizeSinglePersonIndicators = (person: Person, defs: FunctionalIndicatorDefinition[]) => {
+  const allowed = buildAllowedIndicatorSet(defs);
+  return sanitizePersonIndicatorsWithSet(person, allowed);
+};
 
 const initialPeople: Person[] = [
   { id: p1_id, name: 'John Doe', x: 50, y: 50, gender: 'male', partnerships: ['p1'], birthDate: '1970-01-01' },
@@ -36,6 +94,16 @@ const DiagramEditor = () => {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
+  const [fileName, setFileName] = useState(() => {
+    if (typeof window === 'undefined') return 'Untitled';
+    return localStorage.getItem('genogram-file-name') || 'Untitled';
+  });
+  const [autoSaveMinutes, setAutoSaveMinutes] = useState(() => {
+    if (typeof window === 'undefined') return 1;
+    const stored = localStorage.getItem('genogram-autosave-minutes');
+    const parsed = stored ? Number(stored) : 1;
+    return !Number.isFinite(parsed) || parsed <= 0 ? 1 : parsed;
+  });
   const [selectedPeopleIds, setSelectedPeopleIds] = useState<string[]>([]);
   const [selectedPartnershipId, setSelectedPartnershipId] = useState<string | null>(null);
   const [selectedEmotionalLineId, setSelectedEmotionalLineId] = useState<string | null>(null);
@@ -45,11 +113,20 @@ const DiagramEditor = () => {
   const [eventCategories, setEventCategories] = useState<string[]>(['Job', 'School', 'Health', 'Relationship', 'Other']);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] = useState<FunctionalIndicatorDefinition[]>(defaultFunctionalIndicators);
+  const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
+  const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
+  const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
   const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
   const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
   const stageRef = useRef<StageType>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelWidth, setPanelWidth] = useState(220);
+  const DEFAULT_PANEL_WIDTH = 360;
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
@@ -64,11 +141,180 @@ const DiagramEditor = () => {
     partnerships: Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>;
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
   } | null>(null);
+  const savedSnapshotRef = useRef(
+    JSON.stringify({
+      people: initialPeople,
+      partnerships: initialPartnerships,
+      emotionalLines: initialEmotionalLines,
+    })
+  );
+  const fileMenuRef = useRef<HTMLDivElement | null>(null);
+  const loadInputRef = useRef<HTMLInputElement | null>(null);
+  const [, forceTimeRefresh] = useState(0);
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
   );
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
+  const serializeDiagram = useCallback(
+    (peopleData: Person[], partnershipData: Partnership[], emotionalData: EmotionalLine[]) =>
+      JSON.stringify({ people: peopleData, partnerships: partnershipData, emotionalLines: emotionalData }),
+    []
+  );
+  const markSnapshotClean = useCallback(
+    (peopleData: Person[], partnershipData: Partnership[], emotionalData: EmotionalLine[]) => {
+      savedSnapshotRef.current = serializeDiagram(peopleData, partnershipData, emotionalData);
+      setIsDirty(false);
+      setLastDirtyTimestamp(null);
+    },
+    [serializeDiagram]
+  );
+
+  useEffect(() => {
+    const snapshot = serializeDiagram(people, partnerships, emotionalLines);
+    if (snapshot !== savedSnapshotRef.current) {
+      if (!isDirty) {
+        setIsDirty(true);
+        setLastDirtyTimestamp(Date.now());
+      }
+    } else if (isDirty) {
+      setIsDirty(false);
+      setLastDirtyTimestamp(null);
+    }
+  }, [people, partnerships, emotionalLines, isDirty, serializeDiagram]);
+
+  useEffect(() => {
+    if (!fileMenuOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(event.target as Node)) {
+        setFileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [fileMenuOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('genogram-file-name', fileName);
+  }, [fileName]);
+
+  useEffect(() => {
+    localStorage.setItem('genogram-autosave-minutes', String(autoSaveMinutes));
+  }, [autoSaveMinutes]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const interval = setInterval(() => forceTimeRefresh(Date.now()), 500);
+    return () => clearInterval(interval);
+  }, [isDirty, forceTimeRefresh]);
+  const syncPropertiesPanelIndicators = (defs: FunctionalIndicatorDefinition[]) => {
+    setPropertiesPanelItem((prev) => {
+      if (prev && 'name' in prev) {
+        return sanitizeSinglePersonIndicators(prev as Person, defs);
+      }
+      return prev;
+    });
+  };
+  const applyIndicatorDefinitionArray = (nextDefs: FunctionalIndicatorDefinition[]) => {
+    setFunctionalIndicatorDefinitions(nextDefs);
+    setPeople((prev) => sanitizePeopleIndicators(prev, nextDefs));
+    syncPropertiesPanelIndicators(nextDefs);
+  };
+
+  const updateIndicatorDefinitions = (
+    updater: (prev: FunctionalIndicatorDefinition[]) => FunctionalIndicatorDefinition[]
+  ) => {
+    setFunctionalIndicatorDefinitions((prev) => {
+      const next = updater(prev);
+      setPeople((peoplePrev) => sanitizePeopleIndicators(peoplePrev, next));
+      syncPropertiesPanelIndicators(next);
+      return next;
+    });
+  };
+
+  const resetIndicatorDraft = () => {
+    setIndicatorDraftLabel('');
+    setIndicatorDraftIcon(null);
+  };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const addFunctionalIndicatorDefinition = () => {
+    const trimmed = indicatorDraftLabel.trim();
+    if (!trimmed) return;
+    updateIndicatorDefinitions((prev) => [
+      ...prev,
+      { id: nanoid(), label: trimmed, iconDataUrl: indicatorDraftIcon || undefined },
+    ]);
+    resetIndicatorDraft();
+  };
+
+  const updateFunctionalIndicatorLabel = (id: string, label: string) => {
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) => (definition.id === id ? { ...definition, label } : definition))
+    );
+  };
+
+  const updateFunctionalIndicatorIcon = async (id: string, file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      updateIndicatorDefinitions((prev) =>
+        prev.map((definition) =>
+          definition.id === id ? { ...definition, iconDataUrl: dataUrl } : definition
+        )
+      );
+    } catch (error) {
+      console.error('Failed to read icon file', error);
+    }
+  };
+
+  const clearFunctionalIndicatorIcon = (id: string) => {
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) =>
+        definition.id === id ? { ...definition, iconDataUrl: undefined } : definition
+      )
+    );
+  };
+
+  const removeFunctionalIndicatorDefinition = (id: string) => {
+    updateIndicatorDefinitions((prev) => prev.filter((definition) => definition.id !== id));
+  };
+
+  const handleIndicatorDraftIconChange = async (file: File | null) => {
+    if (!file) {
+      setIndicatorDraftIcon(null);
+      return;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setIndicatorDraftIcon(dataUrl);
+    } catch (error) {
+      console.error('Failed to read icon file', error);
+    }
+  };
+  const STYLE_ONLY_FIELDS = useMemo(
+    () =>
+      new Set<keyof Person>([
+        'size',
+        'borderColor',
+        'backgroundColor',
+        'backgroundEnabled',
+        'functionalIndicators',
+      ]),
+    []
+  );
+  const isStyleOnlyUpdate = (updates: Partial<Person>) => {
+    const keys = Object.keys(updates) as (keyof Person)[];
+    if (!keys.length) return false;
+    return keys.every((key) => STYLE_ONLY_FIELDS.has(key));
+  };
 
   const alignAllAnchors = (list: Person[]) => {
     if (!partnerships.length) return list;
@@ -249,15 +495,34 @@ const DiagramEditor = () => {
     const savedPartnerships = localStorage.getItem('genogram-partnerships');
     const savedEmotionalLines = localStorage.getItem('genogram-emotional-lines');
     const savedCategories = localStorage.getItem('genogram-event-categories');
+    const savedIndicators = localStorage.getItem('genogram-functional-indicators');
+    let indicatorDefs = defaultFunctionalIndicators;
+    if (savedIndicators) {
+      try {
+        const parsed = JSON.parse(savedIndicators);
+        if (Array.isArray(parsed)) {
+          indicatorDefs = parsed;
+        }
+      } catch {
+        // ignore malformed indicator definitions
+      }
+    }
+    applyIndicatorDefinitionArray(indicatorDefs);
 
     if (savedPeople && savedPartnerships && savedEmotionalLines) {
       const parsedPeople: Person[] = JSON.parse(savedPeople);
       const parsedPartnerships: Partnership[] = JSON.parse(savedPartnerships);
       const parsedLines: EmotionalLine[] = JSON.parse(savedEmotionalLines);
       const cleaned = removeOrphanedMiscarriages(parsedPeople, parsedPartnerships);
-      setPeople(alignAllAnchors(cleaned.people));
+      const aligned = alignAllAnchors(cleaned.people);
+      const normalizedLines = normalizeEmotionalLines(parsedLines);
+      const sanitizedPeople = sanitizePeopleIndicators(aligned, indicatorDefs);
+      setPeople(sanitizedPeople);
       setPartnerships(cleaned.partnerships);
-      setEmotionalLines(normalizeEmotionalLines(parsedLines));
+      setEmotionalLines(normalizedLines);
+      markSnapshotClean(sanitizedPeople, cleaned.partnerships, normalizedLines);
+    } else {
+      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines);
     }
 
     if (savedCategories) {
@@ -281,18 +546,6 @@ const DiagramEditor = () => {
   }, []);
 
   useEffect(() => {
-    if (!panelRef.current || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const nextWidth = Math.round(entry.contentRect.width);
-        setPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
-      }
-    });
-    observer.observe(panelRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!resizeStateRef.current) return;
       const delta = resizeStateRef.current.startX - event.clientX;
@@ -310,12 +563,25 @@ const DiagramEditor = () => {
     };
   }, []);
 
+  const autosaveDelayMs = Math.max(0.1, autoSaveMinutes) * 60000;
+
+  const clampAutoSaveMinutes = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+    return Math.max(0.25, Math.min(180, value));
+  };
+
+  const handleAutoSaveMinutesInput = (value: number) => {
+    setAutoSaveMinutes(clampAutoSaveMinutes(value));
+  };
+
   useAutosave(
     people,
     (data) => {
       localStorage.setItem('genogram-people', JSON.stringify(data));
     },
-    1000
+    autosaveDelayMs
   );
 
   useAutosave(
@@ -323,7 +589,7 @@ const DiagramEditor = () => {
     (data) => {
       localStorage.setItem('genogram-partnerships', JSON.stringify(data));
     },
-    1000
+    autosaveDelayMs
   );
 
   useAutosave(
@@ -331,7 +597,7 @@ const DiagramEditor = () => {
     (data) => {
       localStorage.setItem('genogram-emotional-lines', JSON.stringify(data));
     },
-    1000
+    autosaveDelayMs
   );
 
   useAutosave(
@@ -339,14 +605,26 @@ const DiagramEditor = () => {
     (data) => {
       localStorage.setItem('genogram-event-categories', JSON.stringify(data));
     },
-    1000
+    autosaveDelayMs
+  );
+
+  useAutosave(
+    functionalIndicatorDefinitions,
+    (data) => {
+      localStorage.setItem('genogram-functional-indicators', JSON.stringify(data));
+    },
+    autosaveDelayMs
   );
 
   const handleUpdatePerson = (personId: string, updatedProps: Partial<Person>) => {
     console.log('Updating person:', personId, updatedProps);
-    setPeopleAligned(prev =>
-      prev.map(p => (p.id === personId ? { ...p, ...updatedProps } : p))
-    );
+    const updater = (prev: Person[]) =>
+      prev.map((p) => (p.id === personId ? { ...p, ...updatedProps } : p));
+    if (isStyleOnlyUpdate(updatedProps)) {
+      setPeople((prev) => updater(prev));
+    } else {
+      setPeopleAligned((prev) => updater(prev));
+    }
     setPropertiesPanelItem(prev => {
         if (prev && prev.id === personId && 'name' in prev) { // check if it is a person
             return { ...prev, ...updatedProps };
@@ -357,11 +635,15 @@ const DiagramEditor = () => {
 
   const handleBatchUpdatePersons = (personIds: string[], updatedProps: Partial<Person>) => {
     if (!personIds.length) return;
-    setPeopleAligned((prev) =>
+    const updater = (prev: Person[]) =>
       prev.map((person) =>
         personIds.includes(person.id) ? { ...person, ...updatedProps } : person
-      )
-    );
+      );
+    if (isStyleOnlyUpdate(updatedProps)) {
+      setPeople((prev) => updater(prev));
+    } else {
+      setPeopleAligned((prev) => updater(prev));
+    }
     setPropertiesPanelItem((prev) => {
       if (prev && 'name' in prev && personIds.includes(prev.id)) {
         return { ...prev, ...updatedProps };
@@ -483,24 +765,45 @@ const DiagramEditor = () => {
     setSelectedPartnershipId((current) => (current === partnershipId ? null : current));
   };
 
-  const handleSave = () => {
-    const diagramData = {
-        people: people,
-        partnerships: partnerships,
-        emotionalLines: emotionalLines,
-    };
+  const buildDiagramPayload = () => ({
+    fileMeta: {
+      fileName,
+      exportedAt: new Date().toISOString(),
+    },
+    people,
+    partnerships,
+    emotionalLines,
+    functionalIndicatorDefinitions,
+    eventCategories,
+    autoSaveMinutes,
+  });
+
+  const handleSave = (forcePrompt = false) => {
+    let targetName = fileName;
+    if (forcePrompt || !targetName || targetName === 'Untitled') {
+      const proposed = targetName && targetName !== 'Untitled' ? targetName : 'family-diagram.json';
+      const userInput = prompt('Enter a filename:', proposed);
+      if (!userInput) return;
+      targetName = userInput;
+    }
+    if (!targetName.toLowerCase().endsWith('.json')) {
+      targetName = `${targetName}.json`;
+    }
+    const diagramData = buildDiagramPayload();
     const jsonString = JSON.stringify(diagramData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const filename = prompt("Enter a filename:", "genogram.json");
-    if (filename) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = targetName;
+    a.click();
     URL.revokeObjectURL(url);
+    setFileName(targetName);
+    markSnapshotClean(people, partnerships, emotionalLines);
+    setLastSavedAt(Date.now());
   };
+
+  const handleSaveAs = () => handleSave(true);
 
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -512,8 +815,14 @@ const DiagramEditor = () => {
         try {
             const data = JSON.parse(jsonString);
             if (data.people && data.partnerships && data.emotionalLines) {
-                setPeople(alignAllAnchors(data.people));
-                setPartnerships(data.partnerships);
+                const nextDefinitions: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
+                  ? data.functionalIndicatorDefinitions
+                  : functionalIndicatorDefinitions;
+                applyIndicatorDefinitionArray(nextDefinitions);
+                const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
+                const aligned = alignAllAnchors(cleaned.people);
+                setPeople(sanitizePeopleIndicators(aligned, nextDefinitions));
+                setPartnerships(cleaned.partnerships);
                 setEmotionalLines(normalizeEmotionalLines(data.emotionalLines));
             } else {
                 alert('Invalid file format');
@@ -525,6 +834,62 @@ const DiagramEditor = () => {
     reader.readAsText(file);
     // Reset the input value to allow loading the same file again
     e.target.value = '';
+  };
+
+  const buildInitialStateSnapshot = () => {
+    const clonedPeople = initialPeople.map((person) => ({
+      ...person,
+      partnerships: [...person.partnerships],
+      events: person.events ? [...person.events] : [],
+    }));
+    const clonedPartnerships = initialPartnerships.map((partnership) => ({
+      ...partnership,
+      children: [...partnership.children],
+    }));
+    const clonedLines = initialEmotionalLines.map((line) => ({ ...line }));
+    return { clonedPeople, clonedPartnerships, clonedLines };
+  };
+
+  const resetDiagramToInitialState = useCallback(() => {
+    const { clonedPeople, clonedPartnerships, clonedLines } = buildInitialStateSnapshot();
+    setPeople(clonedPeople);
+    setPartnerships(clonedPartnerships);
+    setEmotionalLines(clonedLines);
+    setPropertiesPanelItem(null);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setContextMenu(null);
+    setTimelinePersonId(null);
+    setFileName('Untitled');
+    markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines);
+    setLastSavedAt(null);
+  }, [markSnapshotClean]);
+
+  const handleNewFile = () => {
+    if (isDirty) {
+      const confirmReset = window.confirm(
+        'Start a new family diagram? Unsaved changes will be lost.'
+      );
+      if (!confirmReset) {
+        return;
+      }
+    }
+    resetDiagramToInitialState();
+  };
+
+  const handleOpenFilePicker = () => {
+    loadInputRef.current?.click();
+  };
+
+  const handleQuit = () => {
+    const confirmQuit = window.confirm(
+      'Quit the Family Diagram editor? Unsaved changes will be lost.'
+    );
+    if (confirmQuit) {
+      window.close();
+    }
   };
 
   const addPerson = (x: number, y: number, overrides: Partial<Person> = {}) => {
@@ -698,6 +1063,13 @@ const DiagramEditor = () => {
       e.evt.preventDefault();
       console.log('selectedPeopleIds:', selectedPeopleIds);
       console.log('selectedPartnershipId:', selectedPartnershipId);
+      if (!selectedPeopleIds.includes(person.id) || selectedPeopleIds.length === 0) {
+        setSelectedPeopleIds([person.id]);
+        setPropertiesPanelItem(person);
+      }
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
       
       const menuItems = [
           {
@@ -790,6 +1162,11 @@ const DiagramEditor = () => {
 
   const handleChildLineContextMenu = (e: KonvaEventObject<PointerEvent>, childId: string, partnershipId: string) => {
     e.evt.preventDefault();
+    setSelectedChildId(childId);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setPropertiesPanelItem(null);
     setContextMenu({
         x: e.evt.clientX,
         y: e.evt.clientY,
@@ -816,6 +1193,12 @@ const DiagramEditor = () => {
     e.evt.preventDefault();
     const partnership = partnerships.find(p => p.id === partnershipId);
     if (!partnership) return;
+
+    setSelectedPartnershipId(partnershipId);
+    setSelectedPeopleIds([]);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(partnership);
 
     setContextMenu({
         x: e.evt.clientX,
@@ -876,6 +1259,11 @@ const DiagramEditor = () => {
     if (e.target !== e.target.getStage()) {
         return;
     }
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(null);
     const stage = e.target.getStage();
     const pointerPosition = stage.getPointerPosition();
     if (!pointerPosition) return;
@@ -1113,44 +1501,32 @@ const DiagramEditor = () => {
   };
 
   const handleSelect = (personId: string, additive: boolean) => {
+    const selectedPerson = people.find((person) => person.id === personId);
+    if (!selectedPerson) return;
+
     if (additive) {
-      if (selectedPeopleIds.includes(personId)) {
-        setSelectedPeopleIds(selectedPeopleIds.filter((id) => id !== personId));
-      } else {
-        setSelectedPeopleIds([...selectedPeopleIds, personId]);
-      }
-      const selectedPerson = people.find((person) => person.id === personId);
-      if (selectedPerson) {
-        setPropertiesPanelItem(selectedPerson);
-      }
+      const alreadySelected = selectedPeopleIds.includes(personId);
+      const next = alreadySelected
+        ? selectedPeopleIds.filter((id) => id !== personId)
+        : [...selectedPeopleIds, personId];
+      setSelectedPeopleIds(next);
+      setSelectedEmotionalLineId(null);
+      setSelectedPartnershipId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(next.length === 1 ? selectedPerson : null);
       return;
     }
 
-    setSelectedEmotionalLineId(null); // always deselect emotional lines when selecting a person
-    if (selectedPartnershipId) {
-      // we are in "add child" mode
-      if (selectedPeopleIds.includes(personId)) {
-        setSelectedPeopleIds([]);
-      } else {
-        setSelectedPeopleIds([personId]);
-      }
-    } else {
-      // we are in "create partnership" mode
-      if (selectedPeopleIds.includes(personId)) {
-        setSelectedPeopleIds(selectedPeopleIds.filter(id => id !== personId));
-      } else if (selectedPeopleIds.length < 2) {
-        setSelectedPeopleIds([...selectedPeopleIds, personId]);
-      }
-    }
-
-    const selectedPerson = people.find((person) => person.id === personId);
-    if (selectedPerson) {
-      setPropertiesPanelItem(selectedPerson);
-    }
+    setSelectedEmotionalLineId(null);
+    setSelectedPartnershipId(null);
+    setSelectedChildId(null);
+    setSelectedPeopleIds([personId]);
+    setPropertiesPanelItem(selectedPerson);
   };
 
   const handlePartnershipSelect = (partnershipId: string) => {
     setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
     if (selectedPartnershipId === partnershipId) {
         setSelectedPartnershipId(null);
         setPropertiesPanelItem(null);
@@ -1265,35 +1641,163 @@ const DiagramEditor = () => {
         });
       })();
 
+      const canvasWidth = Math.max(0, viewport.width - panelWidth);
+      const canvasHeight = Math.max(0, viewport.height - 150);
+      const now = Date.now();
+      const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now);
+      const shouldBlinkSave = saveVisualState === 'critical';
+      const blinkOn = shouldBlinkSave ? Math.floor(now / 600) % 2 === 0 : false;
+      const isSaveDirty = saveVisualState !== 'clean';
+      const saveButtonStyle: React.CSSProperties = {
+        backgroundColor: isSaveDirty
+          ? blinkOn
+            ? '#ff5252'
+            : '#c62828'
+          : '#1976d2',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 4,
+        padding: '8px 16px',
+        fontWeight: 600,
+        boxShadow: isSaveDirty ? '0 0 0 2px rgba(198,40,40,0.35)' : 'none',
+        cursor: 'pointer',
+      };
+      const fileMenuItems = [
+        { label: 'New', action: handleNewFile },
+        { label: 'Open', action: handleOpenFilePicker },
+        { label: 'Save', action: () => handleSave(false) },
+        { label: 'Save As', action: handleSaveAs },
+        { label: 'Export PNG', action: handleExportPNG },
+        { label: 'Export SVG', action: handleExportSVG },
+        { label: 'Quit', action: handleQuit },
+      ];
+      const handleFileMenuAction = (action: () => void) => {
+        setFileMenuOpen(false);
+        action();
+      };
+
       return (
         <div>
-                <div style={{ padding: 10, borderBottom: '1px solid #ccc' }}>
-                  <button onClick={handleSave}>Save</button>
-                  <input type="file" id="load-file" style={{ display: 'none' }} onChange={handleLoad} accept=".json" />
-                  <label htmlFor="load-file" style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', marginLeft: 10 }}>Load</label>
-                  <button onClick={handleExportPNG}>Export as PNG</button>
-                  <button onClick={handleExportSVG}>Export as SVG</button>
-                  <button onClick={() => setSettingsOpen(true)} style={{ marginLeft: 10 }}>Event Categories</button>
-                  <label style={{ marginLeft: 20 }}>
-                    Zoom
-                    <input
-                      type="range"
-                      min={0.25}
-                      max={3}
-                      step={0.05}
-                      value={zoom}
-                      onChange={(e) => setZoom(Number(e.target.value))}
-                      style={{ marginLeft: 8, verticalAlign: 'middle' }}
-                    />
-                    <span style={{ marginLeft: 8 }}>{Math.round(zoom * 100)}%</span>
-                  </label>
-                </div>          <div style={{ display: 'flex' }}>
+          <div
+            style={{
+              padding: '10px 16px',
+              borderBottom: '1px solid #ccc',
+              background: '#f6f7fb',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div style={{ position: 'relative' }} ref={fileMenuRef}>
+              <button
+                onClick={() => setFileMenuOpen((prev) => !prev)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 4,
+                  border: '1px solid #b0b0b0',
+                  background: '#fff',
+                  cursor: 'pointer',
+                }}
+                aria-haspopup="menu"
+                aria-expanded={fileMenuOpen}
+              >
+                File ▾
+              </button>
+              {fileMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    background: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                    minWidth: 180,
+                    zIndex: 1000,
+                  }}
+                >
+                  {fileMenuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleFileMenuAction(item.action)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => handleFileMenuAction(() => handleSave(false))} style={saveButtonStyle}>
+              Save
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label htmlFor="autosave-minutes" style={{ fontWeight: 500 }}>Auto-Save (min)</label>
+              <input
+                id="autosave-minutes"
+                type="number"
+                min={0.25}
+                max={180}
+                step={0.25}
+                value={autoSaveMinutes}
+                onChange={(e) => handleAutoSaveMinutesInput(Number(e.target.value))}
+                style={{ width: 70 }}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <span>Zoom</span>
+              <input
+                type="range"
+                min={0.25}
+                max={3}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+              />
+              <span style={{ minWidth: 48, textAlign: 'right' }}>{Math.round(zoom * 100)}%</span>
+            </label>
+            <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
+            <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
+            <input
+              ref={loadInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleLoad}
+            />
+          </div>
+          <div style={{ display: 'flex' }}>
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  textAlign: 'center',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                  lineHeight: 1.3,
+                }}
+              >
+                <div style={{ fontSize: 22, fontWeight: 600 }}>Family Diagram</div>
+                <div style={{ fontSize: 14, color: '#333' }}>{fileName || 'Untitled'}</div>
+              </div>
               <Stage 
                 ref={stageRef}
-                width={Math.max(0, viewport.width - panelWidth)} 
-                height={Math.max(0, viewport.height - 150)}
+                width={canvasWidth} 
+                height={canvasHeight}
                 scaleX={zoom}
                 scaleY={zoom}
                 onMouseDown={(e) => {
@@ -1350,6 +1854,7 @@ const DiagramEditor = () => {
                     setSelectedPartnershipId(null);
                     setSelectedEmotionalLineId(null);
                     setSelectedChildId(null);
+                    setPropertiesPanelItem(null);
                   }
                 }}
                 onContextMenu={handleStageContextMenu}
@@ -1416,6 +1921,7 @@ const DiagramEditor = () => {
                         dragGroupRef.current = null;
                       }}
                       onContextMenu={handlePersonContextMenu}
+                      functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                     />
                   ))}
 
@@ -1523,6 +2029,7 @@ const DiagramEditor = () => {
                       selectedItem={propertiesPanelItem}
                       people={people}
                       eventCategories={eventCategories}
+                      functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                       onUpdatePerson={handleUpdatePerson}
                       onUpdatePartnership={handleUpdatePartnership}
                       onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -1578,6 +2085,131 @@ const DiagramEditor = () => {
                 </ul>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                   <button onClick={() => setSettingsOpen(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {indicatorSettingsOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2050,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 520, maxHeight: '80vh', overflow: 'auto' }}>
+                <h4>Functional Indicators</h4>
+                <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>
+                  Add labeled icons that appear beside each person to track affairs, substance use, or any situational flag. If no image is selected, the first letter of the label is used automatically.
+                </p>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Indicator label (e.g., Affair)"
+                    value={indicatorDraftLabel}
+                    onChange={(e) => setIndicatorDraftLabel(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleIndicatorDraftIconChange(e.target.files?.[0] ?? null)}
+                  />
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 6,
+                      border: '1px solid #ddd',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#fafafa',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {indicatorDraftIcon ? (
+                      <img src={indicatorDraftIcon} alt="preview" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                    ) : (
+                      (indicatorDraftLabel.trim().charAt(0) || '?').toUpperCase()
+                    )}
+                  </div>
+                  <button onClick={addFunctionalIndicatorDefinition} disabled={!indicatorDraftLabel.trim()}>
+                    Add
+                  </button>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {functionalIndicatorDefinitions.length === 0 && (
+                    <li style={{ fontStyle: 'italic', color: '#777' }}>No indicators defined yet.</li>
+                  )}
+                  {functionalIndicatorDefinitions.map((definition) => (
+                    <li
+                      key={definition.id}
+                      style={{
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                        padding: 10,
+                        background: '#fdfdfd',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div
+                          style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 8,
+                            border: '1px solid #ccc',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#fff',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {definition.iconDataUrl ? (
+                            <img src={definition.iconDataUrl} alt={`${definition.label} icon`} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                          ) : (
+                            <span style={{ fontWeight: 600 }}>{(definition.label.trim().charAt(0) || '?').toUpperCase()}</span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={definition.label}
+                          onChange={(e) => updateFunctionalIndicatorLabel(definition.id, e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                        <label style={{ fontSize: 13 }}>Icon image:</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void updateFunctionalIndicatorIcon(definition.id, file);
+                            }
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                          <button onClick={() => clearFunctionalIndicatorIcon(definition.id)}>Use Letter</button>
+                          <button onClick={() => removeFunctionalIndicatorDefinition(definition.id)} style={{ color: '#b00020' }}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                  <button onClick={() => setIndicatorSettingsOpen(false)}>Close</button>
                 </div>
               </div>
             </div>

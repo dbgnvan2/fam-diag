@@ -21,6 +21,10 @@ const getDashStyle = (relationshipType: string) => {
             return [10, 5];
         case 'dating':
             return [2, 5];
+        case 'affair':
+            return [4, 4];
+        case 'friendship':
+            return [14, 6, 4, 6];
         case 'married':
         default:
             return undefined;
@@ -156,10 +160,10 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
           />
         )}
 
-        {relationshipStatus === 'separated' && (
+        {(relationshipStatus === 'separated' || relationshipStatus === 'ended') && (
             <Line points={[midPointX - 5, connectorY - 10, midPointX + 5, connectorY + 10]} stroke="black" strokeWidth={2} />
         )}
-        {relationshipStatus === 'divorced' && (
+        {(relationshipStatus === 'divorced' || relationshipStatus === 'ended') && (
             <>
                 <Line points={[midPointX - 10, connectorY - 10, midPointX, connectorY + 10]} stroke="black" strokeWidth={2} />
                 <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke="black" strokeWidth={2} />

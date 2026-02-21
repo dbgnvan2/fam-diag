@@ -1,8 +1,23 @@
+export type PersonFunctionalIndicator = {
+  definitionId: string;
+  status: 'past' | 'current';
+  impact: number;
+};
+
+export type FunctionalIndicatorDefinition = {
+  id: string;
+  label: string;
+  iconDataUrl?: string;
+};
+
 export type Person = {
   id: string;
   x: number;
   y: number;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  maidenName?: string;
   birthDate?: string;
   deathDate?: string;
   gender?: string;
@@ -19,6 +34,7 @@ export type Person = {
   borderColor?: string;
   backgroundColor?: string;
   backgroundEnabled?: boolean;
+  functionalIndicators?: PersonFunctionalIndicator[];
   events?: EmotionalProcessEvent[];
 };
 
@@ -27,8 +43,8 @@ export type Partnership = {
   partner1_id: string;
   partner2_id: string;
   horizontalConnectorY: number;
-  relationshipType: 'married' | 'common-law' | 'living-together' | 'dating';
-  relationshipStatus: 'married' | 'separated' | 'divorced';
+  relationshipType: 'married' | 'common-law' | 'living-together' | 'dating' | 'affair' | 'friendship';
+  relationshipStatus: 'married' | 'separated' | 'divorced' | 'started' | 'ended' | 'ongoing';
   relationshipStartDate?: string;
   marriedStartDate?: string;
   separationDate?: string;
