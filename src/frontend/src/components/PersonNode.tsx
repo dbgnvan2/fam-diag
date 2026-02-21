@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Group, Rect, Text, Circle, Line, Image } from 'react-konva';
 import type { Person, FunctionalIndicatorDefinition, PersonFunctionalIndicator } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';

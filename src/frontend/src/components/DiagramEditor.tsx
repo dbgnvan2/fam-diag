@@ -115,7 +115,7 @@ const DiagramEditor = () => {
   const [settingsDraft, setSettingsDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] = useState<FunctionalIndicatorDefinition[]>(defaultFunctionalIndicators);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
