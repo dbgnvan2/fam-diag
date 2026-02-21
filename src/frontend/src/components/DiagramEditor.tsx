@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Stage, Layer } from 'react-konva';
 import type { Person, Partnership, EmotionalLine } from '../types';
 import PersonNode from './PersonNode';
@@ -8,10 +8,12 @@ import { nanoid } from 'nanoid';
 import ContextMenu from './ContextMenu';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import PropertiesPanel from './PropertiesPanel';
+import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
 import EmotionalLineNode from './EmotionalLineNode';
 import NoteNode from './NoteNode';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
+import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 
 const p1_id = nanoid();
 const p2_id = nanoid();
@@ -30,6 +32,7 @@ const initialPartnerships: Partnership[] = [
 const initialEmotionalLines: EmotionalLine[] = [];
 
 const DiagramEditor = () => {
+  const DEFAULT_LINE_COLOR = '#444444';
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
@@ -50,7 +53,6 @@ const DiagramEditor = () => {
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
-  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 });
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const dragGroupRef = useRef<{
@@ -62,16 +64,184 @@ const DiagramEditor = () => {
     partnerships: Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>;
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
   } | null>(null);
+  const multiSelectedPeople = useMemo(
+    () => people.filter((person) => selectedPeopleIds.includes(person.id)),
+    [people, selectedPeopleIds]
+  );
+  const showMultiPersonPanel = multiSelectedPeople.length > 1;
 
-  const normalizeEmotionalLines = (lines: EmotionalLine[]) =>
+  const alignAllAnchors = (list: Person[]) => {
+    if (!partnerships.length) return list;
+    const personLookup = new Map(list.map((p) => [p.id, p]));
+    const partnershipRanges = new Map<string, { min: number; max: number }>();
+    partnerships.forEach((partnership) => {
+      const partner1 = personLookup.get(partnership.partner1_id);
+      const partner2 = personLookup.get(partnership.partner2_id);
+      if (!partner1 || !partner2) return;
+      partnershipRanges.set(partnership.id, {
+        min: Math.min(partner1.x, partner2.x),
+        max: Math.max(partner1.x, partner2.x),
+      });
+    });
+
+    const multiGroupMembers = new Map<
+      string,
+      { partnershipId: string; members: Person[] }
+    >();
+    list.forEach((person) => {
+      if (!person.parentPartnership) return;
+      if (!person.multipleBirthGroupId) return;
+      const current = multiGroupMembers.get(person.multipleBirthGroupId);
+      if (current) {
+        current.members.push(person);
+      } else {
+        multiGroupMembers.set(person.multipleBirthGroupId, {
+          partnershipId: person.parentPartnership,
+          members: [person],
+        });
+      }
+    });
+
+    const derivedAssignments = new Map<string, string>();
+    const anchorClusters = new Map<string, Person[]>();
+    list.forEach((person) => {
+      if (!person.parentPartnership) return;
+      if (person.multipleBirthGroupId) return;
+      if (typeof person.connectionAnchorX !== 'number') return;
+      const key = `${person.parentPartnership}:${person.connectionAnchorX.toFixed(2)}`;
+      const group = anchorClusters.get(key);
+      if (group) {
+        group.push(person);
+      } else {
+        anchorClusters.set(key, [person]);
+      }
+    });
+    anchorClusters.forEach((members) => {
+      if (members.length < 2) return;
+      const newGroupId = nanoid();
+      members.forEach((member) => {
+        derivedAssignments.set(member.id, newGroupId);
+      });
+      multiGroupMembers.set(newGroupId, {
+        partnershipId: members[0].parentPartnership!,
+        members,
+      });
+    });
+
+    const anchorByPerson = new Map<string, number>();
+    const clampValue = (value: number, min: number, max: number) =>
+      Math.max(min, Math.min(max, value));
+
+    multiGroupMembers.forEach(({ partnershipId, members }) => {
+      if (members.length < 2) {
+        return;
+      }
+      const range = partnershipRanges.get(partnershipId);
+      if (!range) return;
+      const center =
+        members.reduce((sum, member) => sum + member.x, 0) / members.length;
+      const anchor = clampValue(center, range.min, range.max);
+      members.forEach((member) => {
+        anchorByPerson.set(member.id, anchor);
+      });
+    });
+
+    let changed = false;
+    const next = list.map((person) => {
+      let updated = person;
+      const derivedGroupId = derivedAssignments.get(person.id);
+      if (derivedGroupId && person.multipleBirthGroupId !== derivedGroupId) {
+        updated = { ...updated, multipleBirthGroupId: derivedGroupId };
+        changed = true;
+      }
+
+      const targetAnchor = anchorByPerson.get(person.id);
+      if (typeof targetAnchor === 'number') {
+        if (updated.connectionAnchorX !== targetAnchor) {
+          updated = { ...updated, connectionAnchorX: targetAnchor };
+          changed = true;
+        }
+        return updated;
+      }
+
+      if (updated.connectionAnchorX !== undefined) {
+        updated = { ...updated };
+        delete updated.connectionAnchorX;
+        changed = true;
+      }
+      return updated;
+    });
+
+    return changed ? next : list;
+  };
+
+  const setPeopleAligned = (updater: (prev: Person[]) => Person[]) => {
+    setPeople((prev) => alignAllAnchors(updater(prev)));
+  };
+
+  const translateDiagram = (dx: number, dy: number) => {
+    if (dx === 0 && dy === 0) return;
+    setPeopleAligned((prev) =>
+      prev.map((person) => {
+        const next: Person = {
+          ...person,
+          x: person.x + dx,
+          y: person.y + dy,
+          notesPosition: person.notesPosition
+            ? { x: person.notesPosition.x + dx, y: person.notesPosition.y + dy }
+            : undefined,
+        };
+        if (typeof person.connectionAnchorX === 'number') {
+          next.connectionAnchorX = person.connectionAnchorX + dx;
+        }
+        return next;
+      })
+    );
+    setPartnerships((prev) =>
+      prev.map((partnership) => ({
+        ...partnership,
+        horizontalConnectorY: partnership.horizontalConnectorY + dy,
+        notesPosition: partnership.notesPosition
+          ? { x: partnership.notesPosition.x + dx, y: partnership.notesPosition.y + dy }
+          : undefined,
+      }))
+    );
+    setEmotionalLines((prev) =>
+      prev.map((line) => ({
+        ...line,
+        notesPosition: line.notesPosition
+          ? { x: line.notesPosition.x + dx, y: line.notesPosition.y + dy }
+          : undefined,
+      }))
+    );
+  };
+
+  type EmotionalLineInput = Partial<EmotionalLine> & { lineStyle?: string; color?: string };
+
+  const normalizeEmotionalLines = (lines: EmotionalLineInput[]): EmotionalLine[] =>
     lines.map((line) => {
-      if (line.relationshipType === 'distance' && line.lineStyle === 'cutoff') {
-        return { ...line, lineStyle: 'long-dash' };
+      let normalized = { ...line } as EmotionalLine;
+      if (normalized.relationshipType === 'distance' && normalized.lineStyle === 'cutoff') {
+        normalized = { ...normalized, lineStyle: 'long-dash' };
       }
-      if (line.relationshipType === 'cutoff' && line.lineStyle !== 'cutoff') {
-        return { ...line, lineStyle: 'cutoff' };
+      if (normalized.relationshipType === 'cutoff' && normalized.lineStyle !== 'cutoff') {
+        normalized = { ...normalized, lineStyle: 'cutoff' };
       }
-      return line;
+      if (normalized.relationshipType === 'fusion') {
+        const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
+          single: 'low',
+          double: 'medium',
+          triple: 'high',
+        };
+        const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
+        if (mapped) {
+          normalized = { ...normalized, lineStyle: mapped };
+        }
+      }
+      if (!normalized.color) {
+        normalized = { ...normalized, color: DEFAULT_LINE_COLOR };
+      }
+      return normalized;
     });
 
   useEffect(() => {
@@ -81,9 +251,13 @@ const DiagramEditor = () => {
     const savedCategories = localStorage.getItem('genogram-event-categories');
 
     if (savedPeople && savedPartnerships && savedEmotionalLines) {
-      setPeople(JSON.parse(savedPeople));
-      setPartnerships(JSON.parse(savedPartnerships));
-      setEmotionalLines(normalizeEmotionalLines(JSON.parse(savedEmotionalLines)));
+      const parsedPeople: Person[] = JSON.parse(savedPeople);
+      const parsedPartnerships: Partnership[] = JSON.parse(savedPartnerships);
+      const parsedLines: EmotionalLine[] = JSON.parse(savedEmotionalLines);
+      const cleaned = removeOrphanedMiscarriages(parsedPeople, parsedPartnerships);
+      setPeople(alignAllAnchors(cleaned.people));
+      setPartnerships(cleaned.partnerships);
+      setEmotionalLines(normalizeEmotionalLines(parsedLines));
     }
 
     if (savedCategories) {
@@ -170,14 +344,29 @@ const DiagramEditor = () => {
 
   const handleUpdatePerson = (personId: string, updatedProps: Partial<Person>) => {
     console.log('Updating person:', personId, updatedProps);
-    setPeople(people.map(p => 
-        p.id === personId ? { ...p, ...updatedProps } : p
-    ));
+    setPeopleAligned(prev =>
+      prev.map(p => (p.id === personId ? { ...p, ...updatedProps } : p))
+    );
     setPropertiesPanelItem(prev => {
         if (prev && prev.id === personId && 'name' in prev) { // check if it is a person
             return { ...prev, ...updatedProps };
         }
         return prev;
+    });
+  };
+
+  const handleBatchUpdatePersons = (personIds: string[], updatedProps: Partial<Person>) => {
+    if (!personIds.length) return;
+    setPeopleAligned((prev) =>
+      prev.map((person) =>
+        personIds.includes(person.id) ? { ...person, ...updatedProps } : person
+      )
+    );
+    setPropertiesPanelItem((prev) => {
+      if (prev && 'name' in prev && personIds.includes(prev.id)) {
+        return { ...prev, ...updatedProps };
+      }
+      return prev;
     });
   };
 
@@ -231,6 +420,7 @@ const DiagramEditor = () => {
         lineStyle,
         lineEnding,
         startDate: new Date().toISOString().slice(0, 10),
+        color: DEFAULT_LINE_COLOR,
         events: [],
     };
     setEmotionalLines([...emotionalLines, newEmotionalLine]);
@@ -242,12 +432,11 @@ const DiagramEditor = () => {
   };
 
   const changeSex = (personId: string) => {
-    setPeople(people.map(p => {
-        if (p.id === personId) {
-            return { ...p, gender: p.gender === 'male' ? 'female' : 'male' };
-        }
-        return p;
-    }));
+    setPeopleAligned(prev =>
+      prev.map(p =>
+        p.id === personId ? { ...p, gender: p.gender === 'male' ? 'female' : 'male' } : p
+      )
+    );
   };
 
   const addPartnership = () => {
@@ -267,25 +456,31 @@ const DiagramEditor = () => {
     setPartnerships([...partnerships, newPartnership]);
   };
 
-  const addChildToPartnership = () => {
-    if (selectedPeopleIds.length !== 1 || !selectedPartnershipId) return;
+  const addChildToPartnership = (childIdOverride?: string, partnershipIdOverride?: string) => {
+    const childId =
+      childIdOverride ?? (selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null);
+    const partnershipId = partnershipIdOverride ?? selectedPartnershipId;
+    if (!childId || !partnershipId) {
+      alert('Select a partnership first to add this child.');
+      return;
+    }
 
-    const childId = selectedPeopleIds[0];
-    
-    setPartnerships(partnerships.map(p => 
-        p.id === selectedPartnershipId 
-            ? { ...p, children: [...p.children, childId] } 
-            : p
-    ));
+    setPartnerships((prev) =>
+      prev.map((p) =>
+        p.id === partnershipId ? { ...p, children: [...p.children, childId] } : p
+      )
+    );
 
-    setPeople(people.map(p => 
-        p.id === childId 
-            ? { ...p, parentPartnership: selectedPartnershipId } 
-            : p
-    ));
+    setPeopleAligned((prev) =>
+      prev.map((p) =>
+        p.id === childId
+          ? { ...p, parentPartnership: partnershipId, connectionAnchorX: undefined }
+          : p
+      )
+    );
 
-    setSelectedPeopleIds([]);
-    setSelectedPartnershipId(null);
+    setSelectedPeopleIds((ids) => ids.filter((id) => id !== childId));
+    setSelectedPartnershipId((current) => (current === partnershipId ? null : current));
   };
 
   const handleSave = () => {
@@ -317,7 +512,7 @@ const DiagramEditor = () => {
         try {
             const data = JSON.parse(jsonString);
             if (data.people && data.partnerships && data.emotionalLines) {
-                setPeople(data.people);
+                setPeople(alignAllAnchors(data.people));
                 setPartnerships(data.partnerships);
                 setEmotionalLines(normalizeEmotionalLines(data.emotionalLines));
             } else {
@@ -332,17 +527,82 @@ const DiagramEditor = () => {
     e.target.value = '';
   };
 
-  const addPerson = (x: number, y: number) => {
+  const addPerson = (x: number, y: number, overrides: Partial<Person> = {}) => {
     const newPerson: Person = {
-      id: nanoid(),
-      name: 'New Person',
-      x: x,
-      y: y,
-      gender: 'female',
-      partnerships: [],
-      events: [],
+      id: overrides.id ?? nanoid(),
+      name: overrides.name ?? 'New Person',
+      x,
+      y,
+      gender: overrides.gender ?? 'female',
+      partnerships: overrides.partnerships ?? [],
+      parentPartnership: overrides.parentPartnership,
+      lifeStatus: overrides.lifeStatus ?? 'alive',
+      connectionAnchorX: overrides.connectionAnchorX,
+      multipleBirthGroupId: overrides.multipleBirthGroupId,
+      notes: overrides.notes,
+      notesPosition: overrides.notesPosition,
+      notesEnabled: overrides.notesEnabled,
+      events: overrides.events ?? [],
     };
-    setPeople([...people, newPerson]);
+    setPeopleAligned(prev => [...prev, newPerson]);
+    return newPerson;
+  };
+
+  const createChildrenForPartnership = (partnershipId: string, variant: 'single' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth') => {
+    const partnership = partnerships.find(p => p.id === partnershipId);
+    if (!partnership) return;
+    const partner1 = people.find(person => person.id === partnership.partner1_id);
+    const partner2 = people.find(person => person.id === partnership.partner2_id);
+    if (!partner1 || !partner2) return;
+
+    const anchorX = (partner1.x + partner2.x) / 2;
+    const baseY = partnership.horizontalConnectorY + 120;
+    let count = 1;
+    let baseName = 'Child';
+    let lifeStatus: Person['lifeStatus'] | undefined = 'alive';
+
+    switch (variant) {
+      case 'twins':
+        count = 2;
+        baseName = 'Twin';
+        break;
+      case 'triplets':
+        count = 3;
+        baseName = 'Triplet';
+        break;
+      case 'miscarriage':
+        baseName = 'Miscarriage';
+        lifeStatus = 'miscarriage';
+        break;
+      case 'stillbirth':
+        baseName = 'Stillbirth';
+        lifeStatus = 'stillbirth';
+        break;
+    }
+
+    const spacing = 50;
+    const startX = anchorX - ((count - 1) * spacing) / 2;
+    const multipleBirthGroupId = count > 1 ? nanoid() : undefined;
+
+    const newChildren: Person[] = Array.from({ length: count }, (_, idx) => ({
+      id: nanoid(),
+      name: count > 1 ? `${baseName} ${idx + 1}` : baseName,
+      x: startX + idx * spacing,
+      y: baseY,
+      gender: lifeStatus === 'stillbirth' ? (idx % 2 === 0 ? 'female' : 'male') : (idx % 2 === 0 ? 'female' : 'male'),
+      partnerships: [],
+      parentPartnership: partnershipId,
+      connectionAnchorX: multipleBirthGroupId ? anchorX : undefined,
+      multipleBirthGroupId,
+      lifeStatus,
+      events: [],
+    }));
+
+    const childIds = newChildren.map(child => child.id);
+    setPeopleAligned(prev => [...prev, ...newChildren]);
+    setPartnerships(prev =>
+      prev.map(p => (p.id === partnershipId ? { ...p, children: [...p.children, ...childIds] } : p))
+    );
   };
 
   const removePartnership = (partnershipId: string) => {
@@ -351,17 +611,64 @@ const DiagramEditor = () => {
 
     setPartnerships(partnerships.filter(p => p.id !== partnershipId));
 
-    setPeople(people.map(p => {
+    setPeopleAligned(prev =>
+      prev.map(p => {
         if (p.id === partnershipToRemove.partner1_id || p.id === partnershipToRemove.partner2_id) {
-            return { ...p, partnerships: p.partnerships.filter(pid => pid !== partnershipId) };
+          return { ...p, partnerships: p.partnerships.filter(pid => pid !== partnershipId) };
         }
         if (partnershipToRemove.children.includes(p.id)) {
-            const newP = {...p};
-            delete newP.parentPartnership;
-            return newP;
+          const newP = { ...p };
+          delete newP.parentPartnership;
+          delete newP.connectionAnchorX;
+          return newP;
         }
         return p;
-    }));
+      })
+    );
+    setContextMenu(null);
+  };
+
+  const removePerson = (personId: string) => {
+    const personToRemove = people.find(p => p.id === personId);
+    if (!personToRemove) return;
+
+    const partnershipsToRemove = partnerships.filter(
+      (p) => p.partner1_id === personId || p.partner2_id === personId
+    ).map((p) => p.id);
+
+    setPartnerships((prev) =>
+      prev
+        .filter((p) => p.partner1_id !== personId && p.partner2_id !== personId)
+        .map((p) => ({ ...p, children: p.children.filter((id) => id !== personId) }))
+    );
+
+    const childrenNeedingCleanup = new Set(partnershipsToRemove);
+    setPeople((prev) =>
+      alignAllAnchors(
+        prev
+          .filter((p) => p.id !== personId)
+          .map((p) => {
+            if (p.parentPartnership && childrenNeedingCleanup.has(p.parentPartnership)) {
+              const copy = { ...p };
+              delete copy.parentPartnership;
+              delete copy.connectionAnchorX;
+              return copy;
+            }
+            return p;
+          })
+      )
+    );
+
+    setEmotionalLines((prev) =>
+      prev.filter((line) => line.person1_id !== personId && line.person2_id !== personId)
+    );
+
+    if (selectedPeopleIds.includes(personId)) {
+      setSelectedPeopleIds(selectedPeopleIds.filter((id) => id !== personId));
+    }
+    if (propertiesPanelItem?.id === personId) {
+      setPropertiesPanelItem(null);
+    }
     setContextMenu(null);
   };
 
@@ -373,14 +680,17 @@ const DiagramEditor = () => {
         return p;
     }));
 
-    setPeople(people.map(p => {
+    setPeopleAligned(prev =>
+      prev.map(p => {
         if (p.id === childId) {
-            const newP = { ...p };
-            delete newP.parentPartnership;
-            return newP;
+          const newP = { ...p };
+          delete newP.parentPartnership;
+          delete newP.connectionAnchorX;
+          return newP;
         }
         return p;
-    }));
+      })
+    );
     setContextMenu(null);
   };
 
@@ -433,37 +743,47 @@ const DiagramEditor = () => {
         menuItems.push({
             label: 'Add Emotional Line',
             onClick: () => {
-                addEmotionalLine(p1_id, p2_id, 'fusion', 'single', 'none');
+                addEmotionalLine(p1_id, p2_id, 'fusion', 'low', 'none');
                 setContextMenu(null);
                 setSelectedPeopleIds([]);
             }
         });
       }
 
-    if (selectedPeopleIds.length === 1 && selectedPartnershipId) {
-        menuItems.push({
-            label: 'Add as Child',
-            onClick: () => {
-                addChildToPartnership();
+    menuItems.push({
+        label: 'Add as Child',
+        onClick: () => {
+            if (selectedPartnershipId) {
+                addChildToPartnership(person.id, selectedPartnershipId);
                 setContextMenu(null);
+            } else {
+                alert('Select a partnership first (click a PRL) before adding this child.');
             }
-        });
-    }
+        }
+    });
 
-    if (person.parentPartnership) {
-        menuItems.push({
-            label: 'Remove as Child',
-            onClick: () => {
+    menuItems.push({
+        label: 'Remove as Child',
+        onClick: () => {
+            if (person.parentPartnership) {
                 removeChildFromPartnership(person.id, person.parentPartnership!); 
                 setContextMenu(null);
+            } else {
+                alert('This person is not currently linked as a child.');
             }
-        });
-    }
+        }
+    });
 
       setContextMenu({
           x: e.evt.clientX,
           y: e.evt.clientY,
-          items: menuItems,
+          items: [
+            ...menuItems,
+            {
+              label: 'Delete Person',
+              onClick: () => removePerson(person.id),
+            },
+          ],
       });
   };
 
@@ -480,7 +800,14 @@ const DiagramEditor = () => {
                     removeChildFromPartnership(childId, partnershipId);
                     setContextMenu(null);
                 }
-            }
+            },
+            {
+                label: 'Delete Child',
+                onClick: () => {
+                    removeChildFromPartnership(childId, partnershipId);
+                    removePerson(childId);
+                }
+            },
         ]
     });
   };
@@ -495,8 +822,39 @@ const DiagramEditor = () => {
         y: e.evt.clientY,
         items: [
             {
-                label: 'Remove Partnership',
-                onClick: () => removePartnership(partnershipId)
+                label: 'Add Child',
+                onClick: () => {
+                    createChildrenForPartnership(partnershipId, 'single');
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Add Twins',
+                onClick: () => {
+                    createChildrenForPartnership(partnershipId, 'twins');
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Add Triplets',
+                onClick: () => {
+                    createChildrenForPartnership(partnershipId, 'triplets');
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Add Miscarriage',
+                onClick: () => {
+                    createChildrenForPartnership(partnershipId, 'miscarriage');
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Add Stillbirth',
+                onClick: () => {
+                    createChildrenForPartnership(partnershipId, 'stillbirth');
+                    setContextMenu(null);
+                }
             },
             {
               label: 'Properties',
@@ -504,7 +862,11 @@ const DiagramEditor = () => {
                   setPropertiesPanelItem(partnership);
                   setContextMenu(null);
               }
-            }
+            },
+            {
+              label: 'Delete Partnership',
+              onClick: () => removePartnership(partnershipId)
+            },
         ]
     });
   };
@@ -518,18 +880,20 @@ const DiagramEditor = () => {
     const pointerPosition = stage.getPointerPosition();
     if (!pointerPosition) return;
 
+    const baseItems = [
+        {
+            label: 'Add Person',
+            onClick: () => {
+                addPerson(pointerPosition.x, pointerPosition.y);
+                setContextMenu(null);
+            }
+        },
+    ];
+
     setContextMenu({
         x: e.evt.clientX,
         y: e.evt.clientY,
-        items: [
-            {
-                label: 'Add Person',
-                onClick: () => {
-                    addPerson(pointerPosition.x, pointerPosition.y);
-                    setContextMenu(null);
-                }
-            }
-        ]
+        items: baseItems
     });
   };
 
@@ -608,7 +972,7 @@ const DiagramEditor = () => {
       const dx = x - dragGroup.startX;
       const dy = y - dragGroup.startY;
 
-      setPeople((prev) =>
+      setPeopleAligned((prev) =>
         prev.map((person) => {
           const base = dragGroup.people.get(person.id);
           if (!base) return person;
@@ -652,7 +1016,7 @@ const DiagramEditor = () => {
       return;
     }
 
-    setPeople((prev) =>
+    setPeopleAligned((prev) =>
       prev.map((person) => (person.id === personId ? { ...person, x, y } : person))
     );
   };
@@ -666,8 +1030,8 @@ const DiagramEditor = () => {
   };
 
   const handlePersonNoteDragEnd = (personId: string, x: number, y: number) => {
-    setPeople(
-      people.map((person) =>
+    setPeopleAligned((prev) =>
+      prev.map((person) =>
         person.id === personId ? { ...person, notesPosition: { x, y } } : person
       )
     );
@@ -734,16 +1098,16 @@ const DiagramEditor = () => {
         y: e.evt.clientY,
         items: [
             {
-                label: 'Remove Emotional Line',
-                onClick: () => removeEmotionalLine(emotionalLineId)
-            },
-            {
               label: 'Properties',
               onClick: () => {
                   setPropertiesPanelItem(emotionalLine);
                   setContextMenu(null);
               }
-            }
+            },
+            {
+                label: 'Delete Emotional Line',
+                onClick: () => removeEmotionalLine(emotionalLineId)
+            },
         ]
     });
   };
@@ -947,7 +1311,7 @@ const DiagramEditor = () => {
                   if (!pointer) return;
                   const dx = (pointer.x - panStartRef.current.x) / zoom;
                   const dy = (pointer.y - panStartRef.current.y) / zoom;
-                  setStagePosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+                  translateDiagram(dx, dy);
                   panStartRef.current = { x: pointer.x, y: pointer.y };
                 }}
                 onMouseUp={() => {
@@ -973,15 +1337,13 @@ const DiagramEditor = () => {
                   if (!pointer) return;
                   const dx = (pointer.x - panStartRef.current.x) / zoom;
                   const dy = (pointer.y - panStartRef.current.y) / zoom;
-                  setStagePosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+                  translateDiagram(dx, dy);
                   panStartRef.current = { x: pointer.x, y: pointer.y };
                 }}
                 onTouchEnd={() => {
                   setIsPanning(false);
                   panStartRef.current = null;
                 }}
-                x={stagePosition.x}
-                y={stagePosition.y}
                 onClick={(e) => {
                   if (e.target === e.target.getStage()) {
                     setSelectedPeopleIds([]);
@@ -1145,16 +1507,29 @@ const DiagramEditor = () => {
                   borderRight: '1px solid #c7c7c7',
                 }}
               />
-              {propertiesPanelItem && (
-                <PropertiesPanel
-                  selectedItem={propertiesPanelItem}
-                  people={people}
-                  eventCategories={eventCategories}
-                  onUpdatePerson={handleUpdatePerson}
-                  onUpdatePartnership={handleUpdatePartnership}
-                  onUpdateEmotionalLine={handleUpdateEmotionalLine}
-                  onClose={() => setPropertiesPanelItem(null)}
-                />
+              {(showMultiPersonPanel || propertiesPanelItem) && (
+                showMultiPersonPanel ? (
+                  <MultiPersonPropertiesPanel
+                    selectedPeople={multiSelectedPeople}
+                    onBatchUpdate={handleBatchUpdatePersons}
+                    onClose={() => {
+                      setSelectedPeopleIds([]);
+                      setPropertiesPanelItem(null);
+                    }}
+                  />
+                ) : (
+                  propertiesPanelItem && (
+                    <PropertiesPanel
+                      selectedItem={propertiesPanelItem}
+                      people={people}
+                      eventCategories={eventCategories}
+                      onUpdatePerson={handleUpdatePerson}
+                      onUpdatePartnership={handleUpdatePartnership}
+                      onUpdateEmotionalLine={handleUpdateEmotionalLine}
+                      onClose={() => setPropertiesPanelItem(null)}
+                    />
+                  )
+                )
               )}
             </div>
           </div>

@@ -11,7 +11,7 @@ describe('EmotionalLineNode', () => {
             person1_id: 'p1',
             person2_id: 'p2',
             relationshipType: 'fusion',
-            lineStyle: 'single',
+            lineStyle: 'low',
             lineEnding: 'none',
         };
         const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
@@ -33,14 +33,14 @@ describe('EmotionalLineNode', () => {
         );
     });
 
-    it('renders 3 lines for triple fusion', () => {
+    it('renders a short dash for medium fusion', () => {
         const stageRef = React.createRef<Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
             person2_id: 'p2',
             relationshipType: 'fusion',
-            lineStyle: 'triple',
+            lineStyle: 'medium',
             lineEnding: 'none',
         };
         const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
@@ -63,19 +63,19 @@ describe('EmotionalLineNode', () => {
 
         const stage = stageRef.current;
         const layer = stage.getLayers()[0];
-        // The group rendered by EmotionalLineNode will have the lines as children
         const group = layer.getChildren()[0];
-        expect(group.getChildren().length).toBe(3);
+        const line = group.getChildren()[0];
+        expect(line.attrs.dash).toEqual([8, 4]);
     });
 
-    it('renders 2 lines for double fusion', () => {
+    it('renders thicker dash for high fusion', () => {
         const stageRef = React.createRef<Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
             person2_id: 'p2',
             relationshipType: 'fusion',
-            lineStyle: 'double',
+            lineStyle: 'high',
             lineEnding: 'none',
         };
         const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
@@ -99,7 +99,79 @@ describe('EmotionalLineNode', () => {
         const stage = stageRef.current;
         const layer = stage.getLayers()[0];
         const group = layer.getChildren()[0];
-        expect(group.getChildren().length).toBe(2);
+        const line = group.getChildren()[0];
+        expect(line.attrs.strokeWidth).toBeGreaterThan(2);
+    });
+
+    it('renders thicker line for high distance', () => {
+        const stageRef = React.createRef<Stage>();
+        const emotionalLine: EmotionalLine = {
+            id: 'el-distance',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'distance',
+            lineStyle: 'long-dash',
+            lineEnding: 'none',
+        };
+        const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 150, y: 50, name: 'p2', partnerships: [] };
+
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={emotionalLine}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current;
+        const layer = stage.getLayers()[0];
+        const group = layer.getChildren()[0];
+        const line = group.getChildren()[0];
+        expect(line.attrs.strokeWidth).toBeGreaterThan(2);
+    });
+
+    it('uses the provided color when not selected', () => {
+        const stageRef = React.createRef<Stage>();
+        const emotionalLine: EmotionalLine = {
+            id: 'el1',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'low',
+            lineEnding: 'none',
+            color: '#ff5500',
+        };
+        const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 150, y: 50, name: 'p2', partnerships: [] };
+
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={emotionalLine}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current;
+        const layer = stage.getLayers()[0];
+        const group = layer.getChildren()[0];
+        const line = group.getChildren()[0];
+        expect(line.attrs.stroke).toBe('#ff5500');
     });
 
     it('renders a dotted line for dotted distance', () => {

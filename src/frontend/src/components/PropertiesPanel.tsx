@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
 
+const DEFAULT_BORDER_COLOR = '#000000';
+const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
+
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
   people: Person[];
@@ -27,43 +30,86 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
   const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const isCheckbox = type === 'checkbox';
-    onUpdatePerson(selectedItem.id, { [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value });
+    let nextValue: any = value;
+    if (isCheckbox) {
+      nextValue = (e.target as HTMLInputElement).checked;
+    } else if (name === 'size') {
+      const numericValue = Number(value);
+      if (Number.isNaN(numericValue)) {
+        return;
+      }
+      nextValue = Math.max(20, Math.min(400, numericValue));
+    }
+    onUpdatePerson(selectedItem.id, { [name]: nextValue });
   };
 
   const handlePartnershipChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     onUpdatePartnership(selectedItem.id, { [e.target.name]: e.target.value as any });
   };
 
+  const lineStyleValues: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
+    fusion: ['low', 'medium', 'high'],
+    distance: ['dotted', 'dashed', 'long-dash'],
+    cutoff: ['cutoff'],
+    conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
+  };
+
+  const styleOptionMeta = (relationshipType: EmotionalLine['relationshipType']) => {
+    switch (relationshipType) {
+      case 'fusion':
+        return [
+          { value: 'low', label: 'Low (dotted)' },
+          { value: 'medium', label: 'Medium (short dash)' },
+          { value: 'high', label: 'High (bold dash)' },
+        ];
+      case 'distance':
+        return [
+          { value: 'dotted', label: 'Low (dotted)' },
+          { value: 'dashed', label: 'Medium (short dash)' },
+          { value: 'long-dash', label: 'High (long dash)' },
+        ];
+      case 'conflict':
+        return [
+          { value: 'solid-saw-tooth', label: 'Low (solid sawtooth)' },
+          { value: 'dotted-saw-tooth', label: 'Medium (dotted sawtooth)' },
+          { value: 'double-saw-tooth', label: 'High (double sawtooth)' },
+        ];
+      default:
+        return [{ value: 'cutoff', label: 'Cutoff' }];
+    }
+  };
+
   const handleEmotionalLineChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
-    const lineStyleOptions: { [key: string]: string[] } = {
-      fusion: ['single', 'double', 'triple'],
-      distance: ['dotted', 'dashed', 'long-dash'],
-      cutoff: ['cutoff'],
-      conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
-    };
 
     if (name === 'relationshipType') {
       const newRelationshipType = value as EmotionalLine['relationshipType'];
-      const newLineStyle = lineStyleOptions[newRelationshipType]?.[0] || 'single';
+      const newLineStyle = lineStyleValues[newRelationshipType]?.[0] || 'low';
       onUpdateEmotionalLine(selectedItem.id, { 
         relationshipType: newRelationshipType,
         lineStyle: newLineStyle as EmotionalLine['lineStyle']
       });
     } else {
-        switch (name) {
-            case 'lineStyle':
-                onUpdateEmotionalLine(selectedItem.id, { [name]: value as EmotionalLine['lineStyle'] });
-                break;
-            case 'lineEnding':
-                onUpdateEmotionalLine(selectedItem.id, { [name]: value as EmotionalLine['lineEnding'] });
-                break;
-        }
+      switch (name) {
+        case 'lineStyle':
+          onUpdateEmotionalLine(selectedItem.id, { [name]: value as EmotionalLine['lineStyle'] });
+          break;
+        case 'lineEnding':
+          onUpdateEmotionalLine(selectedItem.id, { [name]: value as EmotionalLine['lineEnding'] });
+          break;
+      }
     }
   };
 
   const handleEmotionalLineInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onUpdateEmotionalLine(selectedItem.id, { [e.target.name]: e.target.value });
+  };
+
+  const termLabel = () => {
+    if (isPerson) return 'Person (Person Node)';
+    if (isPartnership) return 'Partner Relationship Line (PRL)';
+    if (isEmotionalLine) return 'Emotional Process Line (EPL)';
+    return '';
   };
 
   const getEvents = () => {
@@ -176,8 +222,11 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
 
   return (
     <div style={{ background: '#f0f0f0', padding: 10, border: '1px solid #ccc', height: '100vh' }}>
-      <button onClick={onClose} style={{ position: 'absolute', top: 5, right: 5, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
-      <h3>Properties</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{termLabel()}</span>
+      </div>
+      <h3 style={{ marginTop: 8 }}>Properties</h3>
       {isPerson && (
         <div>
           <div>
@@ -188,6 +237,76 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
               name="name"
               value={(selectedItem as Person).name}
               onChange={handlePersonChange}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label htmlFor="size">Size: </label>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdatePerson(selectedItem.id, {
+                    size: Math.max(20, ((selectedItem as Person).size ?? 60) - 1),
+                  })
+                }
+                style={{ padding: '0 6px', marginRight: 4 }}
+              >
+                −
+              </button>
+              <input
+                type="number"
+                id="size"
+                name="size"
+                min={20}
+                max={200}
+                value={(selectedItem as Person).size ?? 60}
+                onChange={handlePersonChange}
+                style={{ width: 60, textAlign: 'center' }}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdatePerson(selectedItem.id, {
+                    size: Math.min(200, ((selectedItem as Person).size ?? 60) + 1),
+                  })
+                }
+                style={{ padding: '0 6px', marginLeft: 4 }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="borderColor">Border Color: </label>
+            <input
+              type="color"
+              id="borderColor"
+              name="borderColor"
+              value={(selectedItem as Person).borderColor ?? DEFAULT_BORDER_COLOR}
+              onChange={handlePersonChange}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label htmlFor="backgroundEnabled" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                id="backgroundEnabled"
+                name="backgroundEnabled"
+                checked={(selectedItem as Person).backgroundEnabled ?? false}
+                onChange={handlePersonChange}
+              />
+              Shaded Background Enabled
+            </label>
+          </div>
+          <div>
+            <label htmlFor="backgroundColor">Background Color: </label>
+            <input
+              type="color"
+              id="backgroundColor"
+              name="backgroundColor"
+              value={(selectedItem as Person).backgroundColor ?? DEFAULT_BACKGROUND_COLOR}
+              onChange={handlePersonChange}
+              disabled={!((selectedItem as Person).backgroundEnabled ?? false)}
             />
           </div>
           <div>
@@ -394,13 +513,12 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
         </div>
       )}
       {isEmotionalLine && (() => {
-        const lineStyleOptions: { [key: string]: string[] } = {
-          fusion: ['single', 'double', 'triple'],
-          distance: ['dotted', 'dashed', 'long-dash'],
-          cutoff: ['cutoff'],
-          conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
-        };
-        const currentLineStyles = lineStyleOptions[(selectedItem as EmotionalLine).relationshipType] || [];
+        const relationshipType = (selectedItem as EmotionalLine).relationshipType;
+        const styleOptions = styleOptionMeta(relationshipType);
+        const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict'];
+        const lineStyleLabel = intensityTypes.includes(relationshipType) ? 'Intensity' : 'Line Style';
+
+        const presetColors = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
 
         return (
           <div>
@@ -429,15 +547,15 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
               </select>
             </div>
             <div>
-              <label htmlFor="lineStyle">Line Style: </label>
+              <label htmlFor="lineStyle">{lineStyleLabel}: </label>
               <select
                 id="lineStyle"
                 name="lineStyle"
                 value={(selectedItem as EmotionalLine).lineStyle}
                 onChange={handleEmotionalLineChange}
               >
-                {currentLineStyles.map(style => (
-                  <option key={style} value={style}>{style.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                {styleOptions.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </div>
@@ -458,6 +576,34 @@ const PropertiesPanel = ({ selectedItem, people, eventCategories, onUpdatePerson
                 <option value="double-perpendicular-p1">Double Perpendicular (Person 1)</option>
                 <option value="double-perpendicular-p2">Double Perpendicular (Person 2)</option>
               </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label htmlFor="lineColor">Color: </label>
+              <input
+                type="color"
+                id="lineColor"
+                name="color"
+                value={(selectedItem as EmotionalLine).color || '#444444'}
+                onChange={handleEmotionalLineInputChange}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {presetColors.map((hex) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => onUpdateEmotionalLine(selectedItem.id, { color: hex })}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: '1px solid #ccc',
+                      background: hex,
+                      cursor: 'pointer',
+                    }}
+                    aria-label={`Set color ${hex}`}
+                  />
+                ))}
+              </div>
             </div>
             <div>
               <label htmlFor="notes">Notes: </label>

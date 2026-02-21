@@ -17,6 +17,36 @@ describe('PartnershipNode', () => {
             </Stage>
         );
     });
+    it('keeps horizontal endpoints aligned with partner drop lines', () => {
+        const stageRef = React.createRef<Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PartnershipNode
+                        partnership={partnership}
+                        partner1={{ ...partner1, x: 12.345678 }}
+                        partner2={{ ...partner2, x: 87.654321 }}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onHorizontalConnectorDragEnd={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current!;
+        const layer = stage.getLayers()[0];
+        const rootGroup = layer.getChildren()[0];
+        const children = rootGroup.getChildren();
+        const leftDrop = children[0];
+        const rightDrop = children[1];
+        const horizontalGroup = children[2];
+        const horizontal = horizontalGroup.getChildren()[1];
+
+        expect(leftDrop.attrs.points[0]).toBe(horizontal.attrs.points[0]);
+        expect(rightDrop.attrs.points[2]).toBe(horizontal.attrs.points[2]);
+        expect(leftDrop.attrs.points[3]).toBe(horizontalGroup.attrs.y);
+        expect(rightDrop.attrs.points[3]).toBe(horizontalGroup.attrs.y);
+    });
 });
-
-

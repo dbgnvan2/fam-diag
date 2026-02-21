@@ -39,18 +39,13 @@ const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
           <li
             key={index}
             onClick={item.onClick}
-            style={{ padding: '8px 15px', cursor: 'pointer' }}
+            style={{ padding: '8px 15px', cursor: 'pointer', userSelect: 'none' }}
             className="context-menu-item"
           >
             {item.label}
           </li>
         ))}
       </ul>
-      <style>{`
-        .context-menu-item:hover {
-          background-color: #f0f0f0;
-        }
-      `}</style>
     </div>
   );
 };

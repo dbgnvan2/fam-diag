@@ -9,8 +9,16 @@ export type Person = {
   partnerships: string[];
   parentPartnership?: string;
   notes?: string;
+  size?: number;
   notesPosition?: { x: number; y: number };
   notesEnabled?: boolean;
+  lifeStatus?: 'alive' | 'miscarriage' | 'stillbirth';
+  adoptionStatus?: 'biological' | 'adopted';
+  connectionAnchorX?: number;
+  multipleBirthGroupId?: string;
+  borderColor?: string;
+  backgroundColor?: string;
+  backgroundEnabled?: boolean;
   events?: EmotionalProcessEvent[];
 };
 
@@ -39,7 +47,7 @@ export type EmotionalLine = {
   relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict';
   lineStyle: 
     // Fusion
-    'single' | 'double' | 'triple' | 
+    'low' | 'medium' | 'high' | 
     // Distance
     'dotted' | 'dashed' | 'long-dash' |
     // Cutoff
@@ -47,6 +55,7 @@ export type EmotionalLine = {
     // Conflict
     'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
+  color?: string;
   notes?: string;
   notesPosition?: { x: number; y: number };
   events?: EmotionalProcessEvent[];

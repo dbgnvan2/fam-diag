@@ -464,12 +464,36 @@ For n children of a partnership:
 - System does not automatically enforce birth order after manual changes
 - Option to "reset to birth order" could restore default positions
 
-### 10.3 Twin and Multiple Birth Indicators
+### 10.3 Twin and Multiple Birth Connectors
 
-**Future Consideration:**
-- Visual indicators for twins, triplets (e.g., connected markers)
-- Special connection point arrangements for multiples
-- Data model should support birth order ties
+**Shared Anchor Rules:**
+- Twins and triplets share a single attachment point on the partnership relationship line (PRL).
+- The anchor is positioned at the midpoint of the siblings' horizontal positions and clamped to the PRL span.
+- Dragging any sibling automatically recalculates the shared anchor, keeping all connectors intersecting the PRL at the same point.
+
+**Connector Geometry:**
+- Individual children use vertical connectors until the child drifts beyond the PRL span, at which point the connector tilts diagonally to keep the attachment on the PRL.
+- Multiple-birth connectors fan out diagonally from each child to the shared anchor.
+- These behaviors apply equally to miscarriages and stillbirth symbols generated as part of a multiple birth group.
+
+### 10.4 Batch Styling Controls
+
+**Multi-select Editing:**
+- Shift-click enables selecting multiple Person Nodes simultaneously.
+- A multi-select properties panel must expose shared controls for size (px), border color, and shaded background settings (color + enable toggle).
+- Batch updates apply immediately to every selected node.
+
+**Shaded Background Plates:**
+- When enabled, each Person Node renders a square backplate that is 110% of the person’s current size, centered behind the individual.
+- The backplate color is user-configurable per person (and in batch) and respects enable/disable toggles.
+- Border colors default to black but can be overridden per person or via the multi-select panel without affecting selection outlines.
+
+### 10.5 Canvas Navigation Guarantee
+
+**Pan & Zoom Integrity:**
+- Dragging on empty canvas space pans the entire diagram by translating every person, PDL, PRL, child connector, note, and EPL so relational geometry remains intact.
+- Zoom ranges from 25%–300% via the toolbar slider; scaling must not affect the alignment calculations between Partner Descending Lines (PDLs) and Partner Relationship Lines (PRLs).
+- After any pan/zoom, selecting or dragging a partner or PRL must immediately recompute shared anchor points to prevent visual gaps.
 
 ## 11. Advanced Features and Future Extensibility
 

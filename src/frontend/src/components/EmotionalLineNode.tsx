@@ -1,9 +1,15 @@
-import { Group, Line, Text } from 'react-konva';
+import { Group, Line } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
 const getDashStyle = (lineStyle: EmotionalLine['lineStyle']) => {
     switch (lineStyle) {
+        case 'low':
+            return [2, 5];
+        case 'medium':
+            return [8, 4];
+        case 'high':
+            return [8, 4];
         case 'dotted':
             return [2, 5];
         case 'dashed':
@@ -47,7 +53,7 @@ interface EmotionalLineNodeProps {
 }
 
 const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSelect, onContextMenu }: EmotionalLineNodeProps) => {
-    const { lineStyle, lineEnding, relationshipType } = emotionalLine;
+    const { lineStyle, lineEnding } = emotionalLine;
 
     const p1_x_center = person1.x;
     const p1_y_center = person1.y;
@@ -76,9 +82,18 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         onContextMenu(e, emotionalLine.id);
     }
 
+    const baseColor = emotionalLine.color || '#444444';
+    const baseStrokeWidth = isSelected ? 3 : 2;
+    const fusionDash = lineStyle === 'low' || lineStyle === 'medium' || lineStyle === 'high'
+        ? getDashStyle(lineStyle)
+        : undefined;
+    const strokeWidth = (lineStyle === 'high' || lineStyle === 'long-dash')
+        ? baseStrokeWidth + 1
+        : baseStrokeWidth;
+
     const lineProps = {
-        stroke: isSelected ? 'blue' : 'black',
-        strokeWidth: isSelected ? 3 : 2,
+        stroke: isSelected ? 'blue' : baseColor,
+        strokeWidth,
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
@@ -98,25 +113,9 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
             )
         }
 
-        if (lineStyle === 'double' || lineStyle === 'triple') {
-            const numLines = lineStyle === 'double' ? 2 : 3;
-            const lineOffset = 5; // offset between parallel lines
-            const angle = Math.atan2(p2_y_center - p1_y_center, p2_x_center - p1_x_center);
-            const dx = Math.sin(angle) * lineOffset;
-            const dy = -Math.cos(angle) * lineOffset;
-
-            const lines = [];
-            for (let i = 0; i < numLines; i++) {
-                lines.push(
-                    <Line
-                        key={i}
-                        points={[p1_x_center + dx * i, p1_y_center + dy * i, p2_x_center + dx * i, p2_y_center + dy * i]}
-                        {...lineProps}
-                    />
-                );
-            }
-            return lines;
-                } else if (lineStyle === 'dotted' || lineStyle === 'dashed') {
+        if (lineStyle === 'low' || lineStyle === 'medium' || lineStyle === 'high') {
+            return <Line points={linePoints} {...lineProps} dash={fusionDash} />;
+        } else if (lineStyle === 'dotted' || lineStyle === 'dashed' || lineStyle === 'long-dash') {
             const dash = getDashStyle(lineStyle);
             return <Line points={linePoints} {...lineProps} dash={dash} />;
         } else if (lineStyle === 'solid-saw-tooth' || lineStyle === 'dotted-saw-tooth' || lineStyle === 'double-saw-tooth') {
@@ -153,27 +152,10 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         let p1 = [p1_edge_x, p1_edge_y];
         let p2 = [p2_edge_x, p2_edge_y];
 
-        if (lineStyle === 'double' || lineStyle === 'triple') {
-            const numLines = lineStyle === 'double' ? 2 : 3;
-            const lineOffset = 5;
-            const dx = Math.sin(angle) * lineOffset;
-            const dy = -Math.cos(angle) * lineOffset;
-            const centerOffset = (numLines - 1) / 2;
-            const offsetX = dx * centerOffset;
-            const offsetY = dy * centerOffset;
-            p1 = [p1[0] + offsetX, p1[1] + offsetY];
-            p2 = [p2[0] + offsetX, p2[1] + offsetY];
-        }
-
         const arrowLength = 15;
         const lineLength = 10;
 
-        let bandWidth = lineProps.strokeWidth;
-        if (lineStyle === 'double' || lineStyle === 'triple') {
-            const numLines = lineStyle === 'double' ? 2 : 3;
-            const lineOffset = 5;
-            bandWidth = lineOffset * (numLines - 1) + lineProps.strokeWidth;
-        }
+        const bandWidth = lineProps.strokeWidth;
         const arrowWidth = Math.max(11, bandWidth * 1.2);
         
         const endings = [];

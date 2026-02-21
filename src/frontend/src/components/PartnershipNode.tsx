@@ -1,6 +1,7 @@
 import { Group, Line, Text } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { getPersonVerticalExtents } from '../utils/personGeometry';
 
 interface PartnershipNodeProps {
   partnership: Partnership;
@@ -26,14 +27,19 @@ const getDashStyle = (relationshipType: string) => {
     }
 }
 
+const normalizeCoord = (value: number) => Number(value.toFixed(3));
+
 const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect, onHorizontalConnectorDragEnd, onContextMenu }: PartnershipNodeProps) => {
   const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate } = partnership;
   const dashStyle = getDashStyle(relationshipType);
 
-  const p1_x_center = partner1.x;
-  const p1_y_bottom = partner1.y + 30;
-  const p2_x_center = partner2.x;
-  const p2_y_bottom = partner2.y + 30;
+  const connectorY = normalizeCoord(horizontalConnectorY);
+  const p1Extents = getPersonVerticalExtents(partner1);
+  const p2Extents = getPersonVerticalExtents(partner2);
+  const p1_x_center = normalizeCoord(partner1.x);
+  const p1_y_bottom = normalizeCoord(partner1.y + p1Extents.bottom);
+  const p2_x_center = normalizeCoord(partner2.x);
+  const p2_y_bottom = normalizeCoord(partner2.y + p2Extents.bottom);
 
   const partnerLeft = partner1.x < partner2.x ? partner1 : partner2;
   const partnerRight = partner1.x < partner2.x ? partner2 : partner1;
@@ -69,16 +75,16 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
 
   return (
     <Group>
-        {/* Left vertical drop */}
+        {/* Left Partner Descending Line (PDL) */}
         <Line
-            points={[pLeft_x_center, pLeft_y_bottom, pLeft_x_center, horizontalConnectorY]}
+            points={[pLeft_x_center, pLeft_y_bottom, pLeft_x_center, connectorY]}
             stroke="black"
             strokeWidth={2}
             dash={dashStyle}
         />
-        {/* Right vertical drop */}
+        {/* Right Partner Descending Line (PDL) */}
         <Line
-            points={[pRight_x_center, pRight_y_bottom, pRight_x_center, horizontalConnectorY]}
+            points={[pRight_x_center, pRight_y_bottom, pRight_x_center, connectorY]}
             stroke="black"
             strokeWidth={2}
             dash={dashStyle}
@@ -87,7 +93,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
         <Group
           draggable
           dragDirection="vertical"
-          y={horizontalConnectorY}
+          y={connectorY}
           onDragEnd={handleDragEnd}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -118,7 +124,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
           <Text
             text={`Start: ${relationshipStartDate}`}
             x={midPointX - 50}
-            y={horizontalConnectorY - 20}
+            y={connectorY - 20}
             fontSize={12}
           />
         )}
@@ -127,7 +133,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
           <Text
             text={`Married: ${marriedStartDate}`}
             x={midPointX - 50}
-            y={horizontalConnectorY - 35}
+            y={connectorY - 35}
             fontSize={12}
           />
         )}
@@ -136,7 +142,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
           <Text
             text={`Separated: ${separationDate}`}
             x={midPointX - 50}
-            y={horizontalConnectorY + 5}
+            y={connectorY + 5}
             fontSize={12}
           />
         )}
@@ -145,18 +151,18 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
           <Text
             text={`Divorced: ${divorceDate}`}
             x={midPointX - 50}
-            y={horizontalConnectorY + 20}
+            y={connectorY + 20}
             fontSize={12}
           />
         )}
 
         {relationshipStatus === 'separated' && (
-            <Line points={[midPointX - 5, horizontalConnectorY - 10, midPointX + 5, horizontalConnectorY + 10]} stroke="black" strokeWidth={2} />
+            <Line points={[midPointX - 5, connectorY - 10, midPointX + 5, connectorY + 10]} stroke="black" strokeWidth={2} />
         )}
         {relationshipStatus === 'divorced' && (
             <>
-                <Line points={[midPointX - 10, horizontalConnectorY - 10, midPointX, horizontalConnectorY + 10]} stroke="black" strokeWidth={2} />
-                <Line points={[midPointX, horizontalConnectorY - 10, midPointX + 10, horizontalConnectorY + 10]} stroke="black" strokeWidth={2} />
+                <Line points={[midPointX - 10, connectorY - 10, midPointX, connectorY + 10]} stroke="black" strokeWidth={2} />
+                <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke="black" strokeWidth={2} />
             </>
         )}
     </Group>

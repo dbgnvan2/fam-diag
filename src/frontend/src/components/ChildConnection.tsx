@@ -1,6 +1,7 @@
 import { Line, Group } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { getPersonVerticalExtents } from '../utils/personGeometry';
 
 interface ChildConnectionProps {
   child: Person;
@@ -17,7 +18,8 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, onSelect, onContextMenu }: ChildConnectionProps) => {
   const child_x_center = child.x;
-  const child_y_top = child.y - 30;
+  const { top: topOffset } = getPersonVerticalExtents(child);
+  const child_y_top = child.y - topOffset;
 
   const p1_x_center = partner1.x;
   const p2_x_center = partner2.x;
@@ -25,7 +27,8 @@ const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, o
   const partnershipLineStartX = Math.min(p1_x_center, p2_x_center);
   const partnershipLineEndX = Math.max(p1_x_center, p2_x_center);
   
-  const connectionX = clamp(child_x_center, partnershipLineStartX, partnershipLineEndX);
+  const defaultConnectionX = clamp(child_x_center, partnershipLineStartX, partnershipLineEndX);
+  const connectionX = child.connectionAnchorX !== undefined ? clamp(child.connectionAnchorX, partnershipLineStartX, partnershipLineEndX) : defaultConnectionX;
   const connectionY = partnership.horizontalConnectorY;
 
   const points = [child_x_center, child_y_top, connectionX, connectionY];
