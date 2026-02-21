@@ -52,7 +52,7 @@ I have run the application, and I believe that all of the above features should 
     *   Toggle the indicator back to “None” and verify the badge disappears both from the node and from the panel data after switching to another object and back.
     *   Delete an indicator definition and ensure any badges using it are removed from all people.
 7.  **Toolbar and File Menu:**
-    *   Confirm the canvas header shows “Family Diagram” with the current file name on the next line. Change the file name via “Save As” and verify the subtitle updates immediately.
+    *   Confirm the canvas header shows “Family Diagram Maker” with the current file name on the next line. Change the file name via “Save As” and verify the subtitle updates immediately.
     *   Open the **File** dropdown and exercise every item: “New” should reset to the starter trio after confirmation, “Open” should surface the file picker, “Save/Save As” should download JSON, “Export PNG/SVG” should download the corresponding images, and “Quit” should attempt to close the tab/window.
     *   Make an edit (move a node) and ensure the dedicated **Save** button turns solid red. Leave the change unsaved for ten minutes and verify the button blinks red every ~0.6 seconds.
     *   Adjust the Auto-Save minutes input and confirm changes persist after a reload (storage is in `localStorage`), with the value clamped to ≥0.25 minutes.

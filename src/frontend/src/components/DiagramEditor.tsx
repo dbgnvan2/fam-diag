@@ -885,7 +885,7 @@ const DiagramEditor = () => {
 
   const handleQuit = () => {
     const confirmQuit = window.confirm(
-      'Quit the Family Diagram editor? Unsaved changes will be lost.'
+      'Quit the Family Diagram Maker? Unsaved changes will be lost.'
     );
     if (confirmQuit) {
       window.close();
@@ -1791,7 +1791,7 @@ const DiagramEditor = () => {
                   lineHeight: 1.3,
                 }}
               >
-                <div style={{ fontSize: 22, fontWeight: 600 }}>Family Diagram</div>
+                <div style={{ fontSize: 22, fontWeight: 600 }}>Family Diagram Maker</div>
                 <div style={{ fontSize: 14, color: '#333' }}>{fileName || 'Untitled'}</div>
               </div>
               <Stage 
