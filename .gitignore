@@ -11,3 +11,5 @@ __pycache__/
 **/cypress/videos
 **/cypress/screenshots
 **/cypress/downloads
+.vercel
+.env*.local
