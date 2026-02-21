@@ -118,6 +118,7 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
+        fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
         const statusSelect = screen.getAllByLabelText('Status:')[0];
         fireEvent.change(statusSelect, { target: { value: 'current' } });
         expect(updatePerson).toHaveBeenCalledWith('p1', {
@@ -140,6 +141,7 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
+        fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
 
         const impactInput = screen.getAllByLabelText('Impact:')[0];
         fireEvent.change(impactInput, { target: { value: '7' } });

@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Stage, Layer } from 'react-konva';
-import type { Person, Partnership, EmotionalLine, FunctionalIndicatorDefinition } from '../types';
+import type {
+  Person,
+  Partnership,
+  EmotionalLine,
+  FunctionalIndicatorDefinition,
+  EmotionalProcessEvent,
+} from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
 import ChildConnection from './ChildConnection';
@@ -14,6 +20,7 @@ import NoteNode from './NoteNode';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
+import SessionNotesPanel from './SessionNotesPanel';
 import { getSaveButtonState } from '../utils/saveButtonState';
 
 const p1_id = nanoid();
@@ -123,6 +130,17 @@ const DiagramEditor = () => {
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
   const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
   const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sessionNotesOpen, setSessionNotesOpen] = useState(false);
+  const [sessionNoteCoachName, setSessionNoteCoachName] = useState('');
+  const [sessionNoteClientName, setSessionNoteClientName] = useState('');
+  const [sessionNoteFileName, setSessionNoteFileName] = useState('session-note.json');
+  const [sessionNoteIssue, setSessionNoteIssue] = useState('');
+  const [sessionNoteContent, setSessionNoteContent] = useState('');
+  const [sessionNoteStartedAt, setSessionNoteStartedAt] = useState<number | null>(null);
+  const [sessionAutosaveInfo, setSessionAutosaveInfo] = useState<{ primary?: string | null; backup?: string | null }>({ primary: null, backup: null });
+  const [sessionNotesTarget, setSessionNotesTarget] = useState<string | null>(null);
+  const [sessionEventDraft, setSessionEventDraft] = useState<EmotionalProcessEvent | null>(null);
+  const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
   const stageRef = useRef<StageType>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 360;
@@ -155,6 +173,56 @@ const DiagramEditor = () => {
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
   );
+  const buildSessionNoteFileName = useCallback(
+    (coach: string, client: string, startedAtValue: number | null) => {
+      const safeCoach = (coach?.trim() || 'Coach').replace(/\s+/g, ' ');
+      const safeClient = (client?.trim() || 'Client').replace(/\s+/g, ' ');
+      const baseDate = startedAtValue ?? Date.now();
+      const formatted = new Date(baseDate).toISOString().split('T')[0];
+      return `Session Note - ${safeCoach} - ${safeClient} - ${formatted}.json`;
+    },
+    []
+  );
+  const sessionTargetOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    people.forEach((person) => {
+      options.push({
+        value: `person:${person.id}`,
+        label: `Person · ${person.name || 'Unnamed'}`,
+      });
+    });
+    partnerships.forEach((partnership) => {
+      const partner1 = people.find((p) => p.id === partnership.partner1_id);
+      const partner2 = people.find((p) => p.id === partnership.partner2_id);
+      options.push({
+        value: `partnership:${partnership.id}`,
+        label: `PRL · ${(partner1?.name || 'Partner 1')} + ${(partner2?.name || 'Partner 2')}`,
+      });
+    });
+    emotionalLines.forEach((line) => {
+      const p1 = people.find((p) => p.id === line.person1_id);
+      const p2 = people.find((p) => p.id === line.person2_id);
+      options.push({
+        value: `emotional:${line.id}`,
+        label: `EPL · ${(p1?.name || 'Person 1')} ↔ ${(p2?.name || 'Person 2')}`,
+      });
+    });
+    return options;
+  }, [people, partnerships, emotionalLines]);
+  const composeSessionNotePayload = useCallback(
+    () => ({
+      coachName: sessionNoteCoachName,
+      clientName: sessionNoteClientName,
+      noteFileName: sessionNoteFileName,
+      presentingIssue: sessionNoteIssue,
+      noteContent: sessionNoteContent,
+      startedAt: sessionNoteStartedAt ?? Date.now(),
+      updatedAt: Date.now(),
+    }),
+    [sessionNoteCoachName, sessionNoteClientName, sessionNoteFileName, sessionNoteIssue, sessionNoteContent, sessionNoteStartedAt]
+  );
+  const sessionAutosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionAutosavePhaseRef = useRef<'backup' | 'file'>('backup');
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
   const serializeDiagram = useCallback(
     (peopleData: Person[], partnershipData: Partnership[], emotionalData: EmotionalLine[]) =>
@@ -207,6 +275,313 @@ const DiagramEditor = () => {
     const interval = setInterval(() => forceTimeRefresh(Date.now()), 500);
     return () => clearInterval(interval);
   }, [isDirty, forceTimeRefresh]);
+  useEffect(() => {
+    if (!sessionNotesOpen) {
+      if (sessionAutosaveTimerRef.current) {
+        clearInterval(sessionAutosaveTimerRef.current);
+        sessionAutosaveTimerRef.current = null;
+      }
+      return;
+    }
+    if (!sessionNoteStartedAt) {
+      setSessionNoteStartedAt(Date.now());
+    }
+    const savePrimary = () => {
+      const payload = composeSessionNotePayload();
+      localStorage.setItem('session-note-primary', JSON.stringify(payload));
+      setSessionAutosaveInfo((info) => ({ ...info, primary: new Date().toISOString() }));
+    };
+    savePrimary();
+    sessionAutosavePhaseRef.current = 'backup';
+    sessionAutosaveTimerRef.current = setInterval(() => {
+      if (sessionAutosavePhaseRef.current === 'backup') {
+        const existing = localStorage.getItem('session-note-primary');
+        if (existing) {
+          localStorage.setItem('session-note-backup', existing);
+          setSessionAutosaveInfo((info) => ({ ...info, backup: new Date().toISOString() }));
+        }
+        sessionAutosavePhaseRef.current = 'file';
+      } else {
+        savePrimary();
+        sessionAutosavePhaseRef.current = 'backup';
+      }
+    }, 5 * 60 * 1000);
+    return () => {
+      if (sessionAutosaveTimerRef.current) {
+        clearInterval(sessionAutosaveTimerRef.current);
+        sessionAutosaveTimerRef.current = null;
+      }
+    };
+  }, [
+    sessionNotesOpen,
+    composeSessionNotePayload,
+    sessionNoteStartedAt,
+  ]);
+  useEffect(() => {
+    if (!sessionNotesOpen) return;
+    if (!sessionNoteStartedAt) {
+      setSessionNoteStartedAt(Date.now());
+      return;
+    }
+    const expected = buildSessionNoteFileName(sessionNoteCoachName, sessionNoteClientName, sessionNoteStartedAt);
+    if (sessionNoteFileName !== expected) {
+      setSessionNoteFileName(expected);
+    }
+  }, [
+    sessionNotesOpen,
+    sessionNoteCoachName,
+    sessionNoteClientName,
+    sessionNoteStartedAt,
+    sessionNoteFileName,
+    buildSessionNoteFileName,
+  ]);
+  useEffect(() => {
+    const storedPrimary = localStorage.getItem('session-note-primary');
+    if (storedPrimary) {
+      try {
+        const parsed = JSON.parse(storedPrimary);
+        setSessionNoteCoachName(parsed.coachName || '');
+        setSessionNoteClientName(parsed.clientName || '');
+        setSessionNoteFileName(parsed.noteFileName || 'session-note.json');
+        setSessionNoteIssue(parsed.presentingIssue || '');
+        setSessionNoteContent(parsed.noteContent || '');
+        setSessionNoteStartedAt(parsed.startedAt ?? Date.now());
+        setSessionAutosaveInfo((info) => ({ ...info, primary: parsed.updatedAt || null }));
+      } catch {
+        // ignore malformed session note
+      }
+    }
+    const storedBackup = localStorage.getItem('session-note-backup');
+    if (storedBackup) {
+      try {
+        const parsed = JSON.parse(storedBackup);
+        setSessionAutosaveInfo((info) => ({ ...info, backup: parsed.updatedAt || null }));
+      } catch {
+        // ignore malformed backup
+      }
+    }
+  }, []);
+  useEffect(() => {
+    if (!sessionNotesTarget && sessionTargetOptions.length) {
+      setSessionNotesTarget(sessionTargetOptions[0].value);
+    } else if (
+      sessionNotesTarget &&
+      !sessionTargetOptions.some((option) => option.value === sessionNotesTarget)
+    ) {
+      setSessionNotesTarget(sessionTargetOptions.length ? sessionTargetOptions[0].value : null);
+    }
+  }, [sessionNotesTarget, sessionTargetOptions]);
+  useEffect(() => {
+    if (!sessionNotesOpen) return;
+    if (selectedPeopleIds.length === 1) {
+      setSessionNotesTarget(`person:${selectedPeopleIds[0]}`);
+    } else if (selectedPartnershipId) {
+      setSessionNotesTarget(`partnership:${selectedPartnershipId}`);
+    } else if (selectedEmotionalLineId) {
+      setSessionNotesTarget(`emotional:${selectedEmotionalLineId}`);
+    }
+  }, [sessionNotesOpen, selectedPeopleIds, selectedPartnershipId, selectedEmotionalLineId]);
+
+  const parseSessionTargetValue = (value: string | null) => {
+    if (!value) return null;
+    const [type, id] = value.split(':');
+    if (!type || !id) return null;
+    if (type === 'person' || type === 'partnership' || type === 'emotional') {
+      return { type: type as 'person' | 'partnership' | 'emotional', id };
+    }
+    return null;
+  };
+
+  const handleSessionFieldChange = (field: 'coach' | 'client' | 'fileName' | 'issue' | 'content', value: string) => {
+    switch (field) {
+      case 'coach':
+        setSessionNoteCoachName(value);
+        break;
+      case 'client':
+        setSessionNoteClientName(value);
+        break;
+      case 'fileName':
+        setSessionNoteFileName(value);
+        break;
+      case 'issue':
+        setSessionNoteIssue(value);
+        break;
+      case 'content':
+        setSessionNoteContent(value);
+        break;
+    }
+  };
+
+  const handleSessionNotesTargetChange = (value: string) => {
+    setSessionNotesTarget(value || null);
+  };
+
+  const handleSaveSessionNoteJson = () => {
+    const payload = composeSessionNotePayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = payload.noteFileName || 'session-note.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const handleSaveSessionNoteMarkdown = () => {
+    const payload = composeSessionNotePayload();
+    const started = payload.startedAt ? new Date(payload.startedAt).toLocaleString() : 'N/A';
+    const mdLines = [
+      '# Session Note',
+      '',
+      `- Coach: ${payload.coachName || 'Coach'}`,
+      `- Client: ${payload.clientName || 'Client'}`,
+      `- Started: ${started}`,
+      '',
+      '## Presenting Issue / Client Focus',
+      payload.presentingIssue ? payload.presentingIssue : '_None recorded._',
+      '',
+      '## Session Notes',
+      payload.noteContent ? payload.noteContent : '_No notes recorded._',
+    ];
+    const fileBase = payload.noteFileName?.replace(/\.json$/i, '') || 'session-note';
+    const blob = new Blob([mdLines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${fileBase}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const inferSessionEventDefaults = useCallback(
+    (snippet: string): EmotionalProcessEvent => {
+      const trimmed = snippet.trim();
+      const yearMatch = trimmed.match(/\b(19|20)\d{2}\b/);
+      const matchedPerson = people.find((person) =>
+        person.name ? trimmed.toLowerCase().includes(person.name.toLowerCase()) : false
+      );
+      return {
+        id: nanoid(),
+        date: yearMatch ? `${yearMatch[0]}-01-01` : '',
+        category: eventCategories[0] || 'Session Note',
+        intensity: 5,
+        howWell: 5,
+        otherPersonName: matchedPerson?.name || '',
+        primaryPersonName: '',
+        wwwwh: trimmed,
+        observations: trimmed,
+        isNodalEvent: false,
+      };
+    },
+    [people, eventCategories]
+  );
+
+  const handleSessionNotesMakeEvent = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      alert('Highlight a sentence or add at least one line of notes before creating an event.');
+      return;
+    }
+    const target = parseSessionTargetValue(sessionNotesTarget);
+    if (!target) {
+      alert('Select a target item for the event.');
+      return;
+    }
+    const defaults = inferSessionEventDefaults(trimmed);
+    if (target.type === 'person') {
+      const targetPerson = people.find((p) => p.id === target.id);
+      defaults.primaryPersonName = targetPerson?.name || defaults.primaryPersonName || '';
+    } else if (target.type === 'partnership') {
+      const partnership = partnerships.find((p) => p.id === target.id);
+      const partner1 = people.find((p) => p.id === partnership?.partner1_id)?.name;
+      defaults.primaryPersonName = partner1 || defaults.primaryPersonName || '';
+    } else if (target.type === 'emotional') {
+      const line = emotionalLines.find((el) => el.id === target.id);
+      const person1 = people.find((p) => p.id === line?.person1_id)?.name;
+      defaults.primaryPersonName = person1 || defaults.primaryPersonName || '';
+    }
+    setSessionEventTarget(target);
+    setSessionEventDraft(defaults);
+  };
+
+  const sessionEventOtherOptions = useMemo(() => {
+    if (!sessionEventTarget) return [] as string[];
+    if (sessionEventTarget.type === 'person') {
+      return people.filter((p) => p.id !== sessionEventTarget.id).map((p) => p.name).filter(Boolean) as string[];
+    }
+    if (sessionEventTarget.type === 'partnership') {
+      const partnership = partnerships.find((p) => p.id === sessionEventTarget.id);
+      if (!partnership) return [];
+      const partner1 = people.find((p) => p.id === partnership.partner1_id)?.name;
+      const partner2 = people.find((p) => p.id === partnership.partner2_id)?.name;
+      return [partner1, partner2].filter(Boolean) as string[];
+    }
+    const line = emotionalLines.find((el) => el.id === sessionEventTarget.id);
+    if (!line) return [];
+    const person1 = people.find((p) => p.id === line.person1_id)?.name;
+    const person2 = people.find((p) => p.id === line.person2_id)?.name;
+    return [person1, person2].filter(Boolean) as string[];
+  }, [sessionEventTarget, people, partnerships, emotionalLines]);
+  const sessionEventPrimaryOptions = useMemo(() => {
+    if (!sessionEventTarget) return [] as string[];
+    if (sessionEventTarget.type === 'person') {
+      const person = people.find((p) => p.id === sessionEventTarget.id)?.name;
+      return [person || ''].filter(Boolean) as string[];
+    }
+    if (sessionEventTarget.type === 'partnership') {
+      const partnership = partnerships.find((p) => p.id === sessionEventTarget.id);
+      const partner1 = people.find((p) => p.id === partnership?.partner1_id)?.name;
+      const partner2 = people.find((p) => p.id === partnership?.partner2_id)?.name;
+      return [partner1 || '', partner2 || ''].filter(Boolean) as string[];
+    }
+    const line = emotionalLines.find((el) => el.id === sessionEventTarget.id);
+    const person1 = people.find((p) => p.id === line?.person1_id)?.name;
+    const person2 = people.find((p) => p.id === line?.person2_id)?.name;
+    return [person1 || '', person2 || ''].filter(Boolean) as string[];
+  }, [sessionEventTarget, people, partnerships, emotionalLines]);
+
+  const handleSessionEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
+    setSessionEventDraft((prev) => {
+      if (!prev) return prev;
+      if (field === 'intensity' || field === 'howWell') {
+        const numeric = Number(value);
+        return { ...prev, [field]: Number.isNaN(numeric) ? 0 : numeric };
+      }
+      if (field === 'isNodalEvent') {
+        return { ...prev, isNodalEvent: value === 'true' };
+      }
+      return { ...prev, [field]: value };
+    });
+  };
+
+  const appendEventToTarget = (target: { type: 'person' | 'partnership' | 'emotional'; id: string }, event: EmotionalProcessEvent) => {
+    if (target.type === 'person') {
+      const person = people.find((p) => p.id === target.id);
+      const nextEvents = [...(person?.events ?? []), event];
+      handleUpdatePerson(target.id, { events: nextEvents });
+      return;
+    }
+    if (target.type === 'partnership') {
+      const partnership = partnerships.find((p) => p.id === target.id);
+      const nextEvents = [...(partnership?.events ?? []), event];
+      handleUpdatePartnership(target.id, { events: nextEvents });
+      return;
+    }
+    const line = emotionalLines.find((el) => el.id === target.id);
+    const nextEvents = [...(line?.events ?? []), event];
+    handleUpdateEmotionalLine(target.id, { events: nextEvents });
+  };
+
+  const commitSessionEventFromNotes = () => {
+    if (!sessionEventDraft || !sessionEventTarget) return;
+    appendEventToTarget(sessionEventTarget, sessionEventDraft);
+    setSessionEventDraft(null);
+    setSessionEventTarget(null);
+  };
+
+  const closeSessionEventModal = () => {
+    setSessionEventDraft(null);
+    setSessionEventTarget(null);
+  };
   const syncPropertiesPanelIndicators = (defs: FunctionalIndicatorDefinition[]) => {
     setPropertiesPanelItem((prev) => {
       if (prev && 'name' in prev) {
@@ -1768,6 +2143,7 @@ const DiagramEditor = () => {
             </label>
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
+            <button onClick={() => setSessionNotesOpen(true)}>Session Notes</button>
             <input
               ref={loadInputRef}
               type="file"
@@ -1930,6 +2306,12 @@ const DiagramEditor = () => {
                     if (!person.notes || !person.notesEnabled) return null;
                     const x = person.notesPosition?.x || person.x + 50;
                     const y = person.notesPosition?.y || person.y;
+                    const genderFill =
+                      person.gender === 'male'
+                        ? '#d6ecff'
+                        : person.gender === 'female'
+                          ? '#ffe0ec'
+                          : '#fffbe6';
                     return (
                       <NoteNode
                         key={`note-person-${person.id}`}
@@ -1939,6 +2321,7 @@ const DiagramEditor = () => {
                         text={person.notes}
                         anchorX={person.x}
                         anchorY={person.y}
+                        fillColor={genderFill}
                         onDragEnd={(e) => handlePersonNoteDragEnd(person.id, e.target.x(), e.target.y())}
                       />
                     );
@@ -2297,6 +2680,184 @@ const DiagramEditor = () => {
               </div>
             </div>
           )}
+          <SessionNotesPanel
+            isOpen={sessionNotesOpen}
+            coachName={sessionNoteCoachName}
+            clientName={sessionNoteClientName}
+            noteFileName={sessionNoteFileName}
+            presentingIssue={sessionNoteIssue}
+            noteContent={sessionNoteContent}
+            startedAt={sessionNoteStartedAt}
+            autosaveInfo={sessionAutosaveInfo}
+            targetOptions={sessionTargetOptions}
+            selectedTarget={sessionNotesTarget}
+            onClose={() => setSessionNotesOpen(false)}
+            onFieldChange={handleSessionFieldChange}
+            onTargetChange={handleSessionNotesTargetChange}
+            onSaveJson={handleSaveSessionNoteJson}
+            onSaveMarkdown={handleSaveSessionNoteMarkdown}
+            onMakeEvent={handleSessionNotesMakeEvent}
+          />
+          {sessionEventDraft && sessionEventTarget && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2300,
+              }}
+            >
+              <div style={{ background: '#fff', borderRadius: 10, padding: 20, width: 420 }}>
+                <h4 style={{ marginTop: 0 }}>Session Note Event</h4>
+                {(() => {
+                  const rowStyle: React.CSSProperties = {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 12,
+                    marginTop: 8,
+                  };
+                  const labelStyle: React.CSSProperties = { width: 170, textAlign: 'right', fontWeight: 600 };
+                  const controlStyle: React.CSSProperties = { width: '60%' };
+                  return (
+                    <>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventPrimaryPerson" style={labelStyle}>Primary Person:</label>
+                        <div style={controlStyle}>
+                          <input
+                            type="text"
+                            id="sessionEventPrimaryPerson"
+                            value={sessionEventDraft.primaryPersonName || ''}
+                            onChange={(e) => handleSessionEventDraftChange('primaryPersonName', e.target.value)}
+                            list="session-event-primary-person"
+                            style={{ width: '100%' }}
+                          />
+                          <datalist id="session-event-primary-person">
+                            {sessionEventPrimaryOptions.map((name) => (
+                              <option key={name} value={name} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventDate" style={labelStyle}>Date:</label>
+                        <input
+                          type="date"
+                          id="sessionEventDate"
+                          value={sessionEventDraft.date}
+                          onChange={(e) => handleSessionEventDraftChange('date', e.target.value)}
+                          style={controlStyle}
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventCategory" style={labelStyle}>Category:</label>
+                        <select
+                          id="sessionEventCategory"
+                          value={sessionEventDraft.category}
+                          onChange={(e) => handleSessionEventDraftChange('category', e.target.value)}
+                          style={controlStyle}
+                        >
+                          {eventCategories.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventIntensity" style={labelStyle}>Intensity (1-10):</label>
+                        <input
+                          type="number"
+                          id="sessionEventIntensity"
+                          min={1}
+                          max={10}
+                          value={sessionEventDraft.intensity}
+                          onChange={(e) => handleSessionEventDraftChange('intensity', e.target.value)}
+                          style={controlStyle}
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventHowWell" style={labelStyle}>How well (1-9):</label>
+                        <input
+                          type="number"
+                          id="sessionEventHowWell"
+                          min={1}
+                          max={9}
+                          value={sessionEventDraft.howWell}
+                          onChange={(e) => handleSessionEventDraftChange('howWell', e.target.value)}
+                          style={controlStyle}
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventOtherPerson" style={labelStyle}>Other Person:</label>
+                        <div style={controlStyle}>
+                          <input
+                            type="text"
+                            id="sessionEventOtherPerson"
+                            value={sessionEventDraft.otherPersonName}
+                            onChange={(e) => handleSessionEventDraftChange('otherPersonName', e.target.value)}
+                            list="session-event-other-person"
+                            style={{ width: '100%' }}
+                          />
+                          <datalist id="session-event-other-person">
+                            {sessionEventOtherOptions.map((name) => (
+                              <option key={name} value={name} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventWwwwh" style={labelStyle}>WWWWH:</label>
+                        <textarea
+                          id="sessionEventWwwwh"
+                          value={sessionEventDraft.wwwwh}
+                          onChange={(e) => handleSessionEventDraftChange('wwwwh', e.target.value)}
+                          rows={3}
+                          style={{ ...controlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventObservations" style={labelStyle}>Observations:</label>
+                        <textarea
+                          id="sessionEventObservations"
+                          value={sessionEventDraft.observations}
+                          onChange={(e) => handleSessionEventDraftChange('observations', e.target.value)}
+                          rows={3}
+                          style={{ ...controlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label htmlFor="sessionEventIsNodal" style={labelStyle}>Nodal Event:</label>
+                        <input
+                          type="checkbox"
+                          id="sessionEventIsNodal"
+                          checked={!!sessionEventDraft.isNodalEvent}
+                          onChange={(e) =>
+                            handleSessionEventDraftChange('isNodalEvent', e.target.checked ? 'true' : 'false')
+                          }
+                          style={{ marginRight: 'auto' }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
+                  <button onClick={closeSessionEventModal}>Cancel</button>
+                  <button
+                    onClick={commitSessionEventFromNotes}
+                    style={{ background: '#1976d2', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 4 }}
+                  >
+                    Save Event
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
-    };export default DiagramEditor;
+    };
+
+export default DiagramEditor;

@@ -38,6 +38,7 @@ const PropertiesPanel = ({
   const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventDraft, setEventDraft] = useState<EmotionalProcessEvent | null>(null);
+  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
   const selectedPerson = isPerson ? (selectedItem as Person) : null;
   const selectedPartnership = isPartnership ? (selectedItem as Partnership) : null;
   const selectedEmotionalLine = isEmotionalLine ? (selectedItem as EmotionalLine) : null;
@@ -58,6 +59,7 @@ const PropertiesPanel = ({
   useEffect(() => {
     setEventModalOpen(false);
     setEventDraft(null);
+    setActiveTab('properties');
   }, [selectedItem.id]);
 
   const composeDisplayName = (overrides: Partial<Person> = {}) => {
@@ -238,6 +240,22 @@ const PropertiesPanel = ({
     }
     return people.map((person) => person.name).filter(Boolean);
   }, [isEmotionalLine, isPartnership, selectedItem, people, emotionalLinePeople]);
+  const primaryPersonOptions = useMemo(() => {
+    if (isPerson) {
+      const person = selectedItem as Person;
+      return [person.name || ''].filter(Boolean);
+    }
+    if (isPartnership) {
+      const partnership = selectedItem as Partnership;
+      const partner1 = people.find((person) => person.id === partnership.partner1_id);
+      const partner2 = people.find((person) => person.id === partnership.partner2_id);
+      return [partner1?.name || '', partner2?.name || ''].filter(Boolean);
+    }
+    if (isEmotionalLine) {
+      return [emotionalLinePeople.person1Name, emotionalLinePeople.person2Name].filter(Boolean);
+    }
+    return [];
+  }, [isPerson, isPartnership, isEmotionalLine, selectedItem, people, emotionalLinePeople]);
   const sortedEvents = useMemo(() => {
     const events = [...getEvents()];
     const direction = eventSortOrder === 'asc' ? 1 : -1;
@@ -260,8 +278,10 @@ const PropertiesPanel = ({
       intensity: 5,
       howWell: 5,
       otherPersonName: otherPersonOptions[0] || '',
+      primaryPersonName: primaryPersonOptions[0] || '',
       wwwwh: '',
       observations: '',
+      isNodalEvent: false,
     });
     setEventModalOpen(true);
   };
@@ -271,6 +291,7 @@ const PropertiesPanel = ({
       ...event,
       category: event.category || eventCategories[0] || '',
       otherPersonName: event.otherPersonName || otherPersonOptions[0] || '',
+      primaryPersonName: event.primaryPersonName || primaryPersonOptions[0] || '',
     });
     setEventModalOpen(true);
   };
@@ -282,6 +303,10 @@ const PropertiesPanel = ({
       setEventDraft({ ...eventDraft, [field]: Number.isNaN(numeric) ? 0 : numeric });
       return;
     }
+    if (field === 'isNodalEvent') {
+      setEventDraft({ ...eventDraft, isNodalEvent: value === 'true' });
+      return;
+    }
     setEventDraft({ ...eventDraft, [field]: value });
   };
 
@@ -290,6 +315,7 @@ const PropertiesPanel = ({
     const cleanedDraft = {
       ...eventDraft,
       otherPersonName: eventDraft.otherPersonName || otherPersonOptions[0] || '',
+      primaryPersonName: eventDraft.primaryPersonName || primaryPersonOptions[0] || '',
     };
     const events = getEvents();
     const existingIndex = events.findIndex((evt) => evt.id === eventDraft.id);
@@ -319,13 +345,52 @@ const PropertiesPanel = ({
   };
 
   return (
-    <div style={{ background: '#f0f0f0', padding: 10, border: '1px solid #ccc', height: '100vh' }}>
+    <div
+      style={{
+        background: '#f0f0f0',
+        padding: '10px 20px 12px 12px',
+        border: '1px solid #ccc',
+        height: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{termLabel()}</span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Functional Facts</div>
+          <div style={{ fontSize: 11, color: '#555' }}>{termLabel()}</div>
+        </div>
       </div>
-      <h3 style={{ marginTop: 8 }}>Properties</h3>
-      {isPerson && selectedPerson && (
+      <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+        {(['properties', 'functional', 'events'] as const).map((tab) => {
+          const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
+          const isActive = tab === activeTab;
+          return (
+            <button
+              key={tab}
+              disabled={disabled}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: 1,
+                padding: '8px 4px',
+                borderRadius: 6,
+                border: isActive ? '2px solid #3f51b5' : '1px solid #bdbdbd',
+                background: isActive ? '#e8eaf6' : '#fff',
+                fontWeight: 600,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled ? 0.5 : 1,
+              }}
+            >
+              {tab === 'properties' && 'Person'}
+              {tab === 'functional' && 'Indicators'}
+              {tab === 'events' && 'Events'}
+            </button>
+          );
+        })}
+      </div>
+      {activeTab === 'properties' && (
+        <>
+        {isPerson && selectedPerson && (
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={rowStyle}>
@@ -495,107 +560,9 @@ const PropertiesPanel = ({
               />
             </div>
           </div>
-          {functionalIndicatorDefinitions.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <strong>Functional Indicators</strong>
-              {functionalIndicatorDefinitions.map((definition) => {
-                const person = selectedItem as Person;
-                const entry = person.functionalIndicators?.find((fi) => fi.definitionId === definition.id);
-                const statusValue = entry?.status ?? 'none';
-                const impactValue = entry?.impact ?? 0;
-                return (
-                  <div
-                    key={definition.id}
-                    style={{
-                      border: '1px solid #d9d9d9',
-                      borderRadius: 6,
-                      padding: 8,
-                      marginTop: 6,
-                      background: '#fff',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600 }}>{definition.label}</span>
-                      <span style={{ fontSize: 12, color: '#666' }}>
-                        {statusValue === 'none' ? 'Not tracked' : `${statusValue === 'current' ? 'Current' : 'Past'} · Impact ${impactValue}`}
-                      </span>
-                    </div>
-                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      <label htmlFor={`indicator-status-${definition.id}`} style={{ fontSize: 12 }}>
-                        Status:
-                      </label>
-                      <select
-                        id={`indicator-status-${definition.id}`}
-                        value={statusValue}
-                        onChange={(e) =>
-                          handleIndicatorStatusChange(
-                            definition.id,
-                            e.target.value as 'past' | 'current' | 'none'
-                          )
-                        }
-                        style={{ width: 110 }}
-                      >
-                        <option value="none">None</option>
-                        <option value="current">Current</option>
-                        <option value="past">Past</option>
-                      </select>
-                      <label htmlFor={`indicator-impact-${definition.id}`} style={{ fontSize: 12 }}>
-                        Impact:
-                      </label>
-                      <input
-                        type="number"
-                        id={`indicator-impact-${definition.id}`}
-                        min={0}
-                        max={9}
-                        value={impactValue}
-                        disabled={statusValue === 'none'}
-                        onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
-                        style={{ width: 60 }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <strong>Emotional Process Events</strong>
-              <button onClick={openNewEvent}>Add Event</button>
-            </div>
-            <div style={{ marginTop: 6 }}>
-              <label htmlFor="eventSortOrder">Sort: </label>
-              <select
-                id="eventSortOrder"
-                value={eventSortOrder}
-                onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
-              >
-                <option value="asc">Date Asc</option>
-                <option value="desc">Date Desc</option>
-              </select>
-            </div>
-            {sortedEvents.length === 0 ? (
-              <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
-                {sortedEvents.map((event) => (
-                  <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
-                    <div><strong>{event.date || 'No date'}</strong></div>
-                    <div>Category: {event.category || '—'}</div>
-                    <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
-                    <div>Other: {event.otherPersonName || '—'}</div>
-                    <div style={{ marginTop: 4 }}>
-                      <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
-                      <button onClick={() => deleteEvent(event.id)}>Delete</button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
-      )}
-      {isPartnership && selectedPartnership && (
+        )}
+        {isPartnership && selectedPartnership && (
         <div>
           <div style={rowStyle}>
             <label htmlFor="relationshipType" style={labelStyle}>Relationship Type:</label>
@@ -690,44 +657,9 @@ const PropertiesPanel = ({
               style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
             />
           </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <strong>Emotional Process Events</strong>
-              <button onClick={openNewEvent}>Add Event</button>
-            </div>
-            <div style={{ marginTop: 6 }}>
-              <label htmlFor="eventSortOrder">Sort: </label>
-              <select
-                id="eventSortOrder"
-                value={eventSortOrder}
-                onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
-              >
-                <option value="asc">Date Asc</option>
-                <option value="desc">Date Desc</option>
-              </select>
-            </div>
-            {sortedEvents.length === 0 ? (
-              <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
-                {sortedEvents.map((event) => (
-                  <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
-                    <div><strong>{event.date || 'No date'}</strong></div>
-                    <div>Category: {event.category || '—'}</div>
-                    <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
-                    <div>Other: {event.otherPersonName || '—'}</div>
-                    <div style={{ marginTop: 4 }}>
-                      <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
-                      <button onClick={() => deleteEvent(event.id)}>Delete</button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
-      )}
-      {isEmotionalLine && selectedEmotionalLine && (() => {
+        )}
+        {isEmotionalLine && selectedEmotionalLine && (() => {
         const relationshipType = selectedEmotionalLine.relationshipType;
         const styleOptions = styleOptionMeta(relationshipType);
         const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict'];
@@ -839,44 +771,135 @@ const PropertiesPanel = ({
                 style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
               />
             </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <strong>Emotional Process Events</strong>
-                <button onClick={openNewEvent}>Add Event</button>
-              </div>
-              <div style={{ marginTop: 6 }}>
-                <label htmlFor="eventSortOrder">Sort: </label>
-                <select
-                  id="eventSortOrder"
-                  value={eventSortOrder}
-                  onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
-                >
-                  <option value="asc">Date Asc</option>
-                  <option value="desc">Date Desc</option>
-                </select>
-              </div>
-              {sortedEvents.length === 0 ? (
-                <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
-              ) : (
-                <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
-                  {sortedEvents.map((event) => (
-                    <li key={event.id} style={{ borderBottom: '1px solid #ddd', padding: '6px 0' }}>
-                      <div><strong>{event.date || 'No date'}</strong></div>
-                      <div>Category: {event.category || '—'}</div>
-                      <div>Intensity: {event.intensity} | How well: {event.howWell}</div>
-                      <div>Other: {event.otherPersonName || '—'}</div>
-                      <div style={{ marginTop: 4 }}>
-                        <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
-                        <button onClick={() => deleteEvent(event.id)}>Delete</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
           </div>
         );
-      })()}
+        })()}
+        </>
+      )}
+      {activeTab === 'functional' && (
+        isPerson && selectedPerson ? (
+          functionalIndicatorDefinitions.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <strong>Functional Indicators</strong>
+              {functionalIndicatorDefinitions.map((definition) => {
+                const entry = selectedPerson.functionalIndicators?.find((fi) => fi.definitionId === definition.id);
+                const statusValue = entry?.status ?? 'none';
+                const impactValue = entry?.impact ?? 0;
+                return (
+                  <div
+                    key={definition.id}
+                    style={{
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 6,
+                      padding: 8,
+                      marginTop: 6,
+                      background: '#fff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600 }}>{definition.label}</span>
+                      <span style={{ fontSize: 12, color: '#666' }}>
+                        {statusValue === 'none' ? 'Not tracked' : `${statusValue === 'current' ? 'Current' : 'Past'} · Impact ${impactValue}`}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <label htmlFor={`indicator-status-${definition.id}`} style={{ fontSize: 12 }}>
+                        Status:
+                      </label>
+                      <select
+                        id={`indicator-status-${definition.id}`}
+                        value={statusValue}
+                        onChange={(e) =>
+                          handleIndicatorStatusChange(
+                            definition.id,
+                            e.target.value as 'past' | 'current' | 'none'
+                          )
+                        }
+                        style={{ width: 110 }}
+                      >
+                        <option value="none">None</option>
+                        <option value="current">Current</option>
+                        <option value="past">Past</option>
+                      </select>
+                      <label htmlFor={`indicator-impact-${definition.id}`} style={{ fontSize: 12 }}>
+                        Impact:
+                      </label>
+                      <input
+                        type="number"
+                        id={`indicator-impact-${definition.id}`}
+                        min={0}
+                        max={9}
+                        value={impactValue}
+                        disabled={statusValue === 'none'}
+                        onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
+                        style={{ width: 60 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ marginTop: 12 }}>No functional indicators defined. Use the settings dialog to add some.</div>
+          )
+        ) : (
+          <div style={{ marginTop: 12 }}>Functional indicators apply only to Person nodes.</div>
+        )
+      )}
+      {activeTab === 'events' && (
+        <div style={{ marginTop: 12, textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <strong>Emotional Process Events</strong>
+            <button onClick={openNewEvent}>Add Event</button>
+          </div>
+          <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <label htmlFor="eventSortOrder">Sort: </label>
+            <select
+              id="eventSortOrder"
+              value={eventSortOrder}
+              onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
+            >
+              <option value="asc">Date Asc</option>
+              <option value="desc">Date Desc</option>
+            </select>
+          </div>
+          {sortedEvents.length === 0 ? (
+            <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
+              {sortedEvents.map((event) => (
+                <li
+                  key={event.id}
+                  style={{
+                    borderBottom: '1px solid #ddd',
+                    padding: '10px 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontWeight: 600 }}>
+                      {event.category || 'Event'} · {event.date || 'No date'}
+                    </span>
+                    {event.isNodalEvent && <span style={{ fontSize: 12, color: '#b00020' }}>Nodal Event</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#444', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                    <span>Primary: {event.primaryPersonName || '—'}</span>
+                    <span>Other: {event.otherPersonName || '—'}</span>
+                    <span>Intensity {event.intensity}</span>
+                    <span>How well {event.howWell}</span>
+                  </div>
+                  <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>
+                    <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
+                    <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {eventModalOpen && eventDraft && (
         <div
           style={{
@@ -889,84 +912,147 @@ const PropertiesPanel = ({
             zIndex: 2000,
           }}
         >
-          <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
-            <h4>{eventDraft.date ? 'Edit Event' : 'New Event'}</h4>
-            <div>
-              <label htmlFor="eventDate">Date: </label>
-              <input
-                type="date"
-                id="eventDate"
-                value={eventDraft.date}
-                onChange={(e) => handleEventDraftChange('date', e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="eventIntensity">Intensity (1-10): </label>
-              <input
-                type="number"
-                id="eventIntensity"
-                min={1}
-                max={10}
-                value={eventDraft.intensity}
-                onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="eventHowWell">How well (1-9): </label>
-              <input
-                type="number"
-                id="eventHowWell"
-                min={1}
-                max={9}
-                value={eventDraft.howWell}
-                onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="eventCategory">Category: </label>
-              <select
-                id="eventCategory"
-                value={eventDraft.category}
-                onChange={(e) => handleEventDraftChange('category', e.target.value)}
+          <div style={{ background: 'white', padding: 20, borderRadius: 10, width: 420 }}>
+            <h4 style={{ marginTop: 0 }}>{eventDraft.date ? 'Edit Event' : 'New Event'}</h4>
+            {(() => {
+              const rowStyle: React.CSSProperties = {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 12,
+                marginTop: 8,
+              };
+              const labelStyle: React.CSSProperties = { width: 170, textAlign: 'right', fontWeight: 600 };
+              const controlStyle: React.CSSProperties = { width: '60%' };
+              return (
+                <>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventPrimaryPerson" style={labelStyle}>Primary Person:</label>
+                    <div style={controlStyle}>
+                      <input
+                        type="text"
+                        id="eventPrimaryPerson"
+                        list="eventPrimaryPersonOptions"
+                        value={eventDraft.primaryPersonName || ''}
+                        onChange={(e) => handleEventDraftChange('primaryPersonName', e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                      <datalist id="eventPrimaryPersonOptions">
+                        {primaryPersonOptions.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventDate" style={labelStyle}>Date:</label>
+                    <input
+                      type="date"
+                      id="eventDate"
+                      value={eventDraft.date}
+                      onChange={(e) => handleEventDraftChange('date', e.target.value)}
+                      style={controlStyle}
+                    />
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
+                    <select
+                      id="eventCategory"
+                      value={eventDraft.category}
+                      onChange={(e) => handleEventDraftChange('category', e.target.value)}
+                      style={controlStyle}
+                    >
+                      {eventCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventIntensity" style={labelStyle}>Intensity (1-10):</label>
+                    <input
+                      type="number"
+                      id="eventIntensity"
+                      min={1}
+                      max={10}
+                      value={eventDraft.intensity}
+                      onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
+                      style={controlStyle}
+                    />
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventHowWell" style={labelStyle}>How well (1-9):</label>
+                    <input
+                      type="number"
+                      id="eventHowWell"
+                      min={1}
+                      max={9}
+                      value={eventDraft.howWell}
+                      onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
+                      style={controlStyle}
+                    />
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventOtherPerson" style={labelStyle}>Other Person:</label>
+                    <div style={controlStyle}>
+                      <input
+                        type="text"
+                        id="eventOtherPerson"
+                        list="eventOtherPersonOptions"
+                        value={eventDraft.otherPersonName}
+                        onChange={(e) => handleEventDraftChange('otherPersonName', e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                      <datalist id="eventOtherPersonOptions">
+                        {otherPersonOptions.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventWwwwh" style={labelStyle}>WWWWH:</label>
+                    <textarea
+                      id="eventWwwwh"
+                      value={eventDraft.wwwwh}
+                      onChange={(e) => handleEventDraftChange('wwwwh', e.target.value)}
+                      rows={3}
+                      style={{ ...controlStyle, resize: 'vertical' }}
+                    />
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventObservations" style={labelStyle}>Observations:</label>
+                    <textarea
+                      id="eventObservations"
+                      value={eventDraft.observations}
+                      onChange={(e) => handleEventDraftChange('observations', e.target.value)}
+                      rows={3}
+                      style={{ ...controlStyle, resize: 'vertical' }}
+                    />
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventIsNodal" style={labelStyle}>Nodal Event:</label>
+                    <input
+                      type="checkbox"
+                      id="eventIsNodal"
+                      checked={!!eventDraft.isNodalEvent}
+                      onChange={(e) => handleEventDraftChange('isNodalEvent', e.target.checked ? 'true' : 'false')}
+                      style={{ marginRight: 'auto' }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 10 }}>
+              <button
+                onClick={() => {
+                  setEventModalOpen(false);
+                  setEventDraft(null);
+                }}
               >
-                {eventCategories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="eventOtherPerson">Other Person: </label>
-              <input
-                type="text"
-                id="eventOtherPerson"
-                list="eventOtherPersonOptions"
-                value={eventDraft.otherPersonName}
-                onChange={(e) => handleEventDraftChange('otherPersonName', e.target.value)}
-              />
-              <datalist id="eventOtherPersonOptions">
-                {otherPersonOptions.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </div>
-            <div>
-              <label htmlFor="eventWwwwh">WWWWH: </label>
-              <textarea
-                id="eventWwwwh"
-                value={eventDraft.wwwwh}
-                onChange={(e) => handleEventDraftChange('wwwwh', e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="eventObservations">Observations: </label>
-              <textarea
-                id="eventObservations"
-                value={eventDraft.observations}
-                onChange={(e) => handleEventDraftChange('observations', e.target.value)}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-              <button onClick={() => { setEventModalOpen(false); setEventDraft(null); }} style={{ marginRight: 8 }}>Cancel</button>
+                Cancel
+              </button>
               <button onClick={saveEvent}>Save</button>
             </div>
           </div>

@@ -84,6 +84,8 @@ export type EmotionalProcessEvent = {
   intensity: number;
   howWell: number;
   otherPersonName: string;
+  primaryPersonName?: string;
   wwwwh: string;
   observations: string;
+  isNodalEvent?: boolean;
 };

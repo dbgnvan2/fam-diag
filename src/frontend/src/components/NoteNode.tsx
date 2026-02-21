@@ -9,10 +9,11 @@ interface NoteNodeProps {
   text: string;
   anchorX?: number;
   anchorY?: number;
+  fillColor?: string;
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
 }
 
-const NoteNode = ({ x, y, title, text, anchorX, anchorY, onDragEnd }: NoteNodeProps) => {
+const NoteNode = ({ x, y, title, text, anchorX, anchorY, fillColor = 'white', onDragEnd }: NoteNodeProps) => {
   const titleFontSize = 14;
   const textFontSize = 12;
   const lineHeight = 1.2;
@@ -83,15 +84,15 @@ const NoteNode = ({ x, y, title, text, anchorX, anchorY, onDragEnd }: NoteNodePr
         <Line
           points={[anchorX! - x, anchorY! - y, centerX, centerY]}
           stroke="#999999"
-          strokeWidth={1}
-          dash={[4, 4]}
+          strokeWidth={1.5}
+          dash={[6, 6]}
           listening={false}
         />
       )}
       <Rect
         width={boxWidth}
         height={boxHeight}
-        fill="white"
+        fill={fillColor}
         stroke="black"
         strokeWidth={1}
         cornerRadius={5}
