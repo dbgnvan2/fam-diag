@@ -841,7 +841,7 @@ const PropertiesPanel = ({
                       </span>
                     </div>
                     <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+                      <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <label
                             htmlFor={`indicator-status-${definition.id}`}
@@ -887,7 +887,7 @@ const PropertiesPanel = ({
                           </select>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+                      <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <label
                             htmlFor={`indicator-frequency-${definition.id}`}
