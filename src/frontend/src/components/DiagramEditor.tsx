@@ -19,7 +19,6 @@ import EmotionalLineNode from './EmotionalLineNode';
 import NoteNode from './NoteNode';
 import ReactMarkdown from 'react-markdown';
 import type { Components as MarkdownComponents } from 'react-markdown';
-import type { CodeComponent } from 'react-markdown/lib/ast-to-react';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
@@ -30,7 +29,11 @@ import {
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
 import readmeContent from '../../../../README.md?raw';
-const codeRenderer: CodeComponent = ({ inline, children, ...props }) =>
+type MarkdownCodeProps = React.ComponentPropsWithoutRef<'code'> & {
+  inline?: boolean;
+};
+
+const codeRenderer = ({ inline, children, ...props }: MarkdownCodeProps) =>
   inline ? (
     <code style={{ background: '#f1f3f7', padding: '2px 4px', borderRadius: 4 }} {...props}>
       {children}
