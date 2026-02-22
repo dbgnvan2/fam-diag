@@ -1,12 +1,12 @@
 describe('Universal Interaction', () => {
   beforeEach(() => {
-    // Load the fixture data defined in cypress/fixtures/genogram.json
-    cy.fixture('genogram.json').then((data) => {
+    // Load the fixture data defined in cypress/fixtures/family-diagram.json
+    cy.fixture('family-diagram.json').then((data) => {
       cy.visit('/', {
         onBeforeLoad: (win) => {
           // Inject the fixture data into localStorage so the app loads it on startup.
-          // TODO: Verify 'genogram' is the correct localStorage key your app uses.
-          win.localStorage.setItem('genogram', JSON.stringify(data));
+          // TODO: Verify 'family-diagram' is the correct localStorage key your app uses.
+          win.localStorage.setItem('family-diagram', JSON.stringify(data));
         },
       });
     });
@@ -16,7 +16,7 @@ describe('Universal Interaction', () => {
     // Wait for the canvas to be rendered
     cy.get('canvas').should('be.visible');
 
-    // Coordinates for "John Doe" based on genogram2.json
+    // Coordinates for "John Doe" based on defaultDiagramData.json
     // x: 50, y: 50
     const x = 50;
     const y = 50;
@@ -34,7 +34,7 @@ describe('Universal Interaction', () => {
   it('opens the context menu when right-clicking a Person Node', () => {
     cy.get('canvas').should('be.visible');
 
-    // Coordinates for "Jane Doe" based on genogram2.json
+    // Coordinates for "Jane Doe" based on defaultDiagramData.json
     const x = 402;
     const y = 84;
 

@@ -1,8 +1,8 @@
-# Genogram Drawing Application - Functional Requirements
+# Family Diagram Drawing Application - Functional Requirements
 
 ## 1. Overview
 
-This document specifies the functional requirements for a web-based genogram drawing application. A genogram is a specialized family tree diagram that uses boxes to represent individuals and lines to show family relationships and generational structure.
+This document specifies the functional requirements for a web-based family diagram drawing application. A family diagram is a specialized family tree diagram that uses boxes to represent individuals and lines to show family relationships and generational structure.
 
 ## 1.1 Development Process
 
@@ -16,7 +16,7 @@ When a new requirement is given, the following process should be followed:
 
 ### 2.1 Person Object
 
-**Purpose:** Represents an individual in the genogram
+**Purpose:** Represents an individual in the family diagram
 
 **Visual Representation:** 
 - Box/rectangle shape
@@ -543,8 +543,8 @@ For n children of a partnership:
 ### 11.4 Data Management
 
 **Save/Load:**
-- Serialize genogram to JSON format
-- Load genogram from saved file
+- Serialize family diagram to JSON format
+- Load family diagram from saved file
 - Auto-save functionality
 
 **Export:**
@@ -554,7 +554,7 @@ For n children of a partnership:
 
 **Import:**
 - Import from GEDCOM (genealogy standard)
-- Import from other genogram software
+- Import from other family diagram software
 
 ### 11.5 Analysis Features
 
@@ -602,7 +602,7 @@ For n children of a partnership:
 
 **Rendering:**
 - 60fps target for smooth interactions
-- Support for genograms with 100+ persons without lag
+- Support for family diagrams with 100+ persons without lag
 - Efficient re-rendering (only update changed elements)
 
 **Responsiveness:**
@@ -623,7 +623,7 @@ For n children of a partnership:
 ### 12.4 Data Persistence
 
 **Client-Side Storage:**
-- localStorage for saving genograms locally
+- localStorage for saving family diagrams locally
 - IndexedDB for larger datasets
 
 **Server-Side Storage:**
@@ -725,10 +725,10 @@ For n children of a partnership:
 - Create a multi-generation family tree
 - Edit existing relationships
 - Reorganize layout by dragging
-- Export and re-import genogram
+- Export and re-import family diagram
 
 **Edge Cases:**
-- Very large genograms (100+ persons)
+- Very large family diagrams (100+ persons)
 - Complex family structures (multiple marriages, adoptions)
 - Extreme positions (persons at canvas boundaries)
 
@@ -761,7 +761,7 @@ For n children of a partnership:
 ### 15.3 Data Format Documentation
 
 **File Format Specification:**
-- JSON schema for genogram files
+- JSON schema for family diagram files
 - Import/export format details
 - Version compatibility
 
@@ -804,13 +804,13 @@ For n children of a partnership:
 
 **Server-Side:**
 - Authentication for multi-user features
-- Encryption at rest for stored genograms
+- Encryption at rest for stored family diagrams
 - Regular security audits
 
 ### 17.2 Privacy
 
 **Data Ownership:**
-- Users own their genogram data
+- Users own their family diagram data
 - Clear privacy policy
 - Data export capability
 
@@ -821,7 +821,7 @@ For n children of a partnership:
 
 ## 18. Glossary
 
-**Genogram:** A visual representation of family relationships and patterns across generations, similar to a family tree but with additional relationship and attribute information.
+**Family Diagram:** A visual representation of family relationships and patterns across generations, similar to a family tree but with additional relationship and attribute information.
 
 **Partnership:** A relationship between two people (marriage, divorce, cohabitation, etc.) that serves as the structural connection point for their children.
 

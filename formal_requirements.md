@@ -1,6 +1,6 @@
-# Formal Requirements for Genogram Application
+# Formal Requirements for Family Diagram Application
 
-This document specifies the functional requirements for the genogram drawing application. It serves as the single source of truth for the project.
+This document specifies the functional requirements for the family diagram drawing application. It serves as the single source of truth for the project.
 
 ## 1. Universal Interaction Model
 

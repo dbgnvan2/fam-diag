@@ -1,0 +1,450 @@
+{
+  "fileMeta": {
+    "fileName": "Myfamily1.json",
+    "exportedAt": "2026-02-21T18:22:15.370Z"
+  },
+  "people": [
+    {
+      "id": "3034E4HhZOU54p4L3dEL4",
+      "name": "John Doe",
+      "x": 295.44677871148417,
+      "y": 176.7012138188607,
+      "gender": "male",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1970-01-01",
+      "deathDate": "1990",
+      "notes": "Long illness \nSubstance Use ",
+      "notesPosition": {
+        "x": 148.00000000000023,
+        "y": 332.84126984127005
+      }
+    },
+    {
+      "id": "rd2ITAa3RQ0y4F8SEi7wc",
+      "name": "Jane Doe",
+      "x": 1098.0793650793662,
+      "y": 210.126984126984,
+      "gender": "female",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1972-03-15",
+      "notesEnabled": true,
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-gambling",
+          "status": "current",
+          "impact": 3
+        },
+        {
+          "definitionId": "eD9gKPjti-3j_MBsiw_24",
+          "status": "past",
+          "impact": 4
+        },
+        {
+          "definitionId": "indicator-affair",
+          "status": "current",
+          "impact": 1
+        }
+      ],
+      "size": 72,
+      "notesPosition": {
+        "x": 1244.7460317460332,
+        "y": 211.2380952380951
+      },
+      "notes": "asdfas df asdfasdf asdf "
+    },
+    {
+      "id": "QAzeq3muy6cslftmQd4fu",
+      "name": "Junior Doe",
+      "x": 789.0000000000006,
+      "y": 465.84126984127,
+      "gender": "male",
+      "parentPartnership": "p1",
+      "partnerships": [],
+      "birthDate": "2000-05-20"
+    },
+    {
+      "id": "k__LbQWuVXhEB2HTyl3MQ",
+      "name": "New Person1",
+      "x": 974.3809523809537,
+      "y": 424.3587549603176,
+      "gender": "female",
+      "partnerships": [],
+      "notes": "Notes about this person as well. ",
+      "notesPosition": {
+        "x": 842.9523809523821,
+        "y": 692.3111359126987
+      },
+      "notesEnabled": true,
+      "parentPartnership": "p1",
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-affair",
+          "status": "current",
+          "impact": 4
+        },
+        {
+          "definitionId": "indicator-su",
+          "status": "past",
+          "impact": 5
+        },
+        {
+          "definitionId": "indicator-gambling",
+          "status": "current",
+          "impact": 4
+        },
+        {
+          "definitionId": "eD9gKPjti-3j_MBsiw_24",
+          "status": "past",
+          "impact": 6
+        }
+      ]
+    },
+    {
+      "id": "Lfcp720-GPR_emjtgT-AA",
+      "name": "Joe Smith",
+      "x": 1115.904761904763,
+      "y": 427.70796130952397,
+      "gender": "male",
+      "partnerships": [],
+      "notes": "Notes about the person employment, education and stuff like taht ad a sdf asd fas dfa sdf asdf as dfasd fas df asdf asd fasdf as dfas df asdf asd fas dfasdf as dfas dfa sdf asdf asdf asd fas dfas df asdf sad fasd f asdf",
+      "notesPosition": {
+        "x": 1234.8730158730173,
+        "y": 389.4222470238098
+      },
+      "notesEnabled": true,
+      "birthDate": "1961"
+    },
+    {
+      "id": "k3SYQlwIKOE_-KQ2nSTq9",
+      "name": "Child",
+      "x": 351.0952380952376,
+      "y": 524.8412698412701,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "lifeStatus": "alive",
+      "events": []
+    },
+    {
+      "id": "iClOkYCAjp7axLx4K75m-",
+      "name": "Mary",
+      "x": 380.0952380952376,
+      "y": 413.84126984127,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "lifeStatus": "stillbirth",
+      "events": [],
+      "size": "45",
+      "borderColor": "#f42fc9"
+    },
+    {
+      "id": "AaAG3Jcuj0b-LEgBtcKe9",
+      "name": "Twin 1",
+      "x": 559.095238095238,
+      "y": 520.8412698412701,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "multipleBirthGroupId": "cVOG09zuc3OC4N7u2e0qR",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 56,
+      "backgroundEnabled": true,
+      "backgroundColor": "#eb3ddc",
+      "borderColor": "#f41f1f",
+      "connectionAnchorX": 523.0952380952378
+    },
+    {
+      "id": "66Ie03MgRYRBCF4MQPaYr",
+      "name": "Twin 2",
+      "x": 487.09523809523785,
+      "y": 521.8412698412701,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "multipleBirthGroupId": "cVOG09zuc3OC4N7u2e0qR",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 56,
+      "backgroundEnabled": true,
+      "backgroundColor": "#eb3ddc",
+      "borderColor": "#f41f1f",
+      "connectionAnchorX": 523.0952380952378
+    },
+    {
+      "id": "AddFu0Y7jYzQd-75Vnckj",
+      "name": "Triplet 1",
+      "x": 602.095238095238,
+      "y": 625.8412698412702,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "multipleBirthGroupId": "U0qj-N3UWcGrYdgpRB82l",
+      "lifeStatus": "alive",
+      "events": [],
+      "backgroundColor": "#2ff957",
+      "backgroundEnabled": true,
+      "borderColor": "#f6f91f",
+      "size": 61,
+      "connectionAnchorX": 680.4285714285713
+    },
+    {
+      "id": "D1qgTV25CgZfqWqYZvX_g",
+      "name": "Triplet 2",
+      "x": 678.095238095238,
+      "y": 625.8412698412702,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "multipleBirthGroupId": "U0qj-N3UWcGrYdgpRB82l",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 61,
+      "backgroundColor": "#2ff957",
+      "backgroundEnabled": true,
+      "borderColor": "#f6f91f",
+      "connectionAnchorX": 680.4285714285713
+    },
+    {
+      "id": "VSYzGcqpKOVfJBz65qFcE",
+      "name": "Triplet 3",
+      "x": 761.0952380952381,
+      "y": 627.8412698412702,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "multipleBirthGroupId": "U0qj-N3UWcGrYdgpRB82l",
+      "lifeStatus": "alive",
+      "events": [],
+      "backgroundEnabled": true,
+      "backgroundColor": "#2ff957",
+      "borderColor": "#f6f91f",
+      "size": 61,
+      "connectionAnchorX": 680.4285714285713
+    },
+    {
+      "id": "MTz0G_ETYjgpYKfFFIV_8",
+      "name": "",
+      "x": 451.59523809523773,
+      "y": 404.8412222222224,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "lifeStatus": "miscarriage",
+      "events": [],
+      "size": 31,
+      "borderColor": "#ee2f2f"
+    },
+    {
+      "id": "SZ5nlMJhZV5_hGFt4Ejnx",
+      "name": "Miscarriage",
+      "x": 418.09523809523773,
+      "y": 405.8412222222224,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1",
+      "lifeStatus": "miscarriage",
+      "events": [],
+      "size": 31
+    },
+    {
+      "id": "f-UF1ROHz9wN2ufYYasR9",
+      "name": "New Person",
+      "x": 128.0000000000001,
+      "y": 219.12065972222211,
+      "gender": "female",
+      "partnerships": [],
+      "lifeStatus": "alive",
+      "events": []
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "p1",
+      "partner1_id": "3034E4HhZOU54p4L3dEL4",
+      "partner2_id": "rd2ITAa3RQ0y4F8SEi7wc",
+      "horizontalConnectorY": 327.7468888888888,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "relationshipStartDate": "1995-06-01",
+      "children": [
+        "QAzeq3muy6cslftmQd4fu",
+        "k__LbQWuVXhEB2HTyl3MQ",
+        "k3SYQlwIKOE_-KQ2nSTq9",
+        "iClOkYCAjp7axLx4K75m-",
+        "AaAG3Jcuj0b-LEgBtcKe9",
+        "66Ie03MgRYRBCF4MQPaYr",
+        "AddFu0Y7jYzQd-75Vnckj",
+        "D1qgTV25CgZfqWqYZvX_g",
+        "VSYzGcqpKOVfJBz65qFcE",
+        "MTz0G_ETYjgpYKfFFIV_8",
+        "SZ5nlMJhZV5_hGFt4Ejnx"
+      ],
+      "notes": "this is a note about this stuff..... \n",
+      "notesPosition": {
+        "x": 608.4999999999997,
+        "y": 206.84126984126968
+      },
+      "events": [
+        {
+          "id": "1771620285156-6824da1f65ad78",
+          "date": "1997-03-20",
+          "category": "Health",
+          "intensity": 5,
+          "howWell": 5,
+          "otherPersonName": "John Doe",
+          "wwwwh": "accidennt",
+          "observations": "Accident scare"
+        }
+      ]
+    },
+    {
+      "id": "yxEsWUIQLv8NRH0R_NHTR",
+      "partner1_id": "Lfcp720-GPR_emjtgT-AA",
+      "partner2_id": "k__LbQWuVXhEB2HTyl3MQ",
+      "horizontalConnectorY": 571.6926507936511,
+      "relationshipType": "married",
+      "relationshipStatus": "separated",
+      "children": [],
+      "notes": "This is a note about this stuff too. \n",
+      "notesPosition": {
+        "x": 1061.952380952382,
+        "y": 605.3111359126988
+      }
+    },
+    {
+      "id": "R5lLGRwBLVvuGjEpdCA3P",
+      "partner1_id": "f-UF1ROHz9wN2ufYYasR9",
+      "partner2_id": "3034E4HhZOU54p4L3dEL4",
+      "horizontalConnectorY": 294.2321111111111,
+      "relationshipType": "married",
+      "relationshipStatus": "divorced",
+      "children": [],
+      "events": []
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "TmONtlI_MX_Q55YEgzvTZ",
+      "person1_id": "k__LbQWuVXhEB2HTyl3MQ",
+      "person2_id": "rd2ITAa3RQ0y4F8SEi7wc",
+      "relationshipType": "conflict",
+      "lineStyle": "solid-saw-tooth",
+      "lineEnding": "arrow-p2-to-p1",
+      "startDate": "2023",
+      "color": "#fd5353"
+    },
+    {
+      "id": "mfkG6B8bVjBPwQKO_mAFq",
+      "person1_id": "QAzeq3muy6cslftmQd4fu",
+      "person2_id": "k__LbQWuVXhEB2HTyl3MQ",
+      "relationshipType": "cutoff",
+      "lineStyle": "cutoff",
+      "lineEnding": "perpendicular-p2",
+      "notes": "\nCutoff is driven more by Junior  asd f asdfasd fasdf. sdfd",
+      "notesPosition": {
+        "x": 623.9999999999998,
+        "y": 703.7904885912701
+      },
+      "color": "#B00020"
+    },
+    {
+      "id": "ddg0LQ-AKJRdln385dIxM",
+      "person1_id": "rd2ITAa3RQ0y4F8SEi7wc",
+      "person2_id": "QAzeq3muy6cslftmQd4fu",
+      "relationshipType": "distance",
+      "lineStyle": "long-dash",
+      "lineEnding": "arrow-p2-to-p1",
+      "color": "#B00020"
+    },
+    {
+      "id": "aUczHymmOkqeZzdYG6UiD",
+      "person1_id": "Lfcp720-GPR_emjtgT-AA",
+      "person2_id": "rd2ITAa3RQ0y4F8SEi7wc",
+      "relationshipType": "fusion",
+      "lineStyle": "high",
+      "lineEnding": "arrow-p2-to-p1",
+      "startDate": "2020-06",
+      "notes": "this is a big deal I wish my son in law   asdf asdfsad fasdf sa dfwas different. ",
+      "notesPosition": {
+        "x": 1231.7698412698423,
+        "y": 260.5365203373017
+      },
+      "events": [
+        {
+          "id": "1770267036074-9ff830ee53f1f8",
+          "date": "2025-03-04",
+          "intensity": 5,
+          "howWell": 5,
+          "wwwwh": "late",
+          "observations": "I think he doesn't care"
+        }
+      ],
+      "color": "#68c4fd"
+    },
+    {
+      "id": "Y-zSphkCvHUZLjrad6skG",
+      "person1_id": "Lfcp720-GPR_emjtgT-AA",
+      "person2_id": "k__LbQWuVXhEB2HTyl3MQ",
+      "relationshipType": "distance",
+      "lineStyle": "long-dash",
+      "lineEnding": "none",
+      "startDate": "2026-02-05",
+      "events": [
+        {
+          "id": "1771620140348-69f98fc4c10f8",
+          "date": "2023-01-15",
+          "category": "Job",
+          "intensity": 5,
+          "howWell": 5,
+          "otherPersonName": "Joe Smith",
+          "wwwwh": "change jobs",
+          "observations": "distance started"
+        }
+      ],
+      "color": "#19e624"
+    },
+    {
+      "id": "_9SJt0-i4Heq65SeEo3YO",
+      "person1_id": "f-UF1ROHz9wN2ufYYasR9",
+      "person2_id": "3034E4HhZOU54p4L3dEL4",
+      "relationshipType": "fusion",
+      "lineStyle": "low",
+      "lineEnding": "none",
+      "startDate": "2026-02-21",
+      "color": "#444444",
+      "events": []
+    }
+  ],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "indicator-affair",
+      "label": "Affair"
+    },
+    {
+      "id": "indicator-su",
+      "label": "Substance Use"
+    },
+    {
+      "id": "indicator-gambling",
+      "label": "Gambling"
+    },
+    {
+      "id": "eD9gKPjti-3j_MBsiw_24",
+      "label": "Alcohol"
+    }
+  ],
+  "eventCategories": [
+    "Job",
+    "School",
+    "Health",
+    "Relationship",
+    "Other"
+  ],
+  "autoSaveMinutes": 1
+}

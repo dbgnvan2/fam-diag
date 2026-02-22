@@ -17,19 +17,88 @@ import PropertiesPanel from './PropertiesPanel';
 import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
 import EmotionalLineNode from './EmotionalLineNode';
 import NoteNode from './NoteNode';
+import ReactMarkdown from 'react-markdown';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import SessionNotesPanel from './SessionNotesPanel';
 import { getSaveButtonState } from '../utils/saveButtonState';
+import {
+  DEFAULT_DIAGRAM_STATE,
+  FALLBACK_FILE_NAME,
+} from '../data/defaultDiagramState';
+import readmeContent from '../../../../README.md?raw';
 
-const p1_id = nanoid();
-const p2_id = nanoid();
-const child_id = nanoid();
-const defaultFunctionalIndicators: FunctionalIndicatorDefinition[] = [
-  { id: 'indicator-affair', label: 'Affair' },
-  { id: 'indicator-su', label: 'Substance Use' },
-  { id: 'indicator-gambling', label: 'Gambling' },
+const DEFAULT_LINE_COLOR = '#444444';
+
+const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
+const initialPartnerships: Partnership[] = DEFAULT_DIAGRAM_STATE.partnerships;
+const initialEmotionalLines: EmotionalLine[] = DEFAULT_DIAGRAM_STATE.emotionalLines;
+const initialEventCategories: string[] = DEFAULT_DIAGRAM_STATE.eventCategories;
+const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
+  DEFAULT_DIAGRAM_STATE.functionalIndicatorDefinitions;
+const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
+const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
+const STORAGE_KEYS = {
+  fileName: 'family-diagram-file-name',
+  autoSave: 'family-diagram-autosave-minutes',
+  people: 'family-diagram-people',
+  partnerships: 'family-diagram-partnerships',
+  emotionalLines: 'family-diagram-emotional-lines',
+  eventCategories: 'family-diagram-event-categories',
+  indicatorDefinitions: 'family-diagram-functional-indicators',
+} as const;
+
+const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(STORAGE_KEYS[key]);
+};
+
+const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEYS[key], value);
+};
+const HELP_SECTIONS = [
+  {
+    title: 'Canvas & Navigation',
+    tips: [
+      'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
+      'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
+      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
+    ],
+  },
+  {
+    title: 'People & Partnerships',
+    tips: [
+      'Right-click the canvas to Add Person; drag a person to move both their node and any attached notes.',
+      'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL again to add child, twin, triplet, miscarriage, or stillbirth symbols; the Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
+      'Each person’s right-click menu always ends with Delete, plus “Add as Child”/“Remove as Child” when appropriate.',
+    ],
+  },
+  {
+    title: 'Styling & Properties',
+    tips: [
+      'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
+      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–9 impact per person; indicators render tight to the left/right of the node.',
+      'Events tab lists Emotional Process Events (EPEs) for the selected person, PRL, or EPL with category, nodal flag, intensity, how-well scale, WWWWH, and observations.',
+    ],
+  },
+  {
+    title: 'Emotional Process Lines (EPLs)',
+    tips: [
+      'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
+      'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
+      'Notes for EPLs float like person notes and can be enabled/disabled per line.',
+    ],
+  },
+  {
+    title: 'Session Notes & Timelines',
+    tips: [
+      'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes that auto-save primary/backup files every 5 minutes.',
+      'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
+      'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending.',
+    ],
+  },
 ];
 
 const buildAllowedIndicatorSet = (defs: FunctionalIndicatorDefinition[]) =>
@@ -84,32 +153,24 @@ const sanitizeSinglePersonIndicators = (person: Person, defs: FunctionalIndicato
   return sanitizePersonIndicatorsWithSet(person, allowed);
 };
 
-const initialPeople: Person[] = [
-  { id: p1_id, name: 'John Doe', x: 50, y: 50, gender: 'male', partnerships: ['p1'], birthDate: '1970-01-01' },
-  { id: p2_id, name: 'Jane Doe', x: 250, y: 50, gender: 'female', partnerships: ['p1'], birthDate: '1972-03-15' },
-  { id: child_id, name: 'Junior Doe', x: 150, y: 200, gender: 'male', parentPartnership: 'p1', partnerships: [], birthDate: '2000-05-20' },
-];
-
-const initialPartnerships: Partnership[] = [
-    { id: 'p1', partner1_id: p1_id, partner2_id: p2_id, horizontalConnectorY: 150, relationshipType: 'married', relationshipStatus: 'married', relationshipStartDate: '1995-06-01', children: [child_id] }
-];
-
-const initialEmotionalLines: EmotionalLine[] = [];
-
 const DiagramEditor = () => {
-  const DEFAULT_LINE_COLOR = '#444444';
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
   const [fileName, setFileName] = useState(() => {
-    if (typeof window === 'undefined') return 'Untitled';
-    return localStorage.getItem('genogram-file-name') || 'Untitled';
+    if (typeof window === 'undefined') return initialFileName;
+    const stored = getStoredValue('fileName');
+    if (stored) {
+      setStoredValue('fileName', stored);
+      return stored;
+    }
+    return initialFileName;
   });
   const [autoSaveMinutes, setAutoSaveMinutes] = useState(() => {
-    if (typeof window === 'undefined') return 1;
-    const stored = localStorage.getItem('genogram-autosave-minutes');
-    const parsed = stored ? Number(stored) : 1;
-    return !Number.isFinite(parsed) || parsed <= 0 ? 1 : parsed;
+    if (typeof window === 'undefined') return initialAutoSaveMinutes;
+    const stored = getStoredValue('autoSave');
+    const parsed = stored ? Number(stored) : initialAutoSaveMinutes;
+    return !Number.isFinite(parsed) || parsed <= 0 ? initialAutoSaveMinutes : parsed;
   });
   const [selectedPeopleIds, setSelectedPeopleIds] = useState<string[]>([]);
   const [selectedPartnershipId, setSelectedPartnershipId] = useState<string | null>(null);
@@ -117,14 +178,15 @@ const DiagramEditor = () => {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
-  const [eventCategories, setEventCategories] = useState<string[]>(['Job', 'School', 'Health', 'Relationship', 'Other']);
+  const [eventCategories, setEventCategories] = useState<string[]>(initialEventCategories);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
   const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
-  const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] = useState<FunctionalIndicatorDefinition[]>(defaultFunctionalIndicators);
+  const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] =
+    useState<FunctionalIndicatorDefinition[]>(initialIndicatorDefinitions);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
@@ -141,6 +203,8 @@ const DiagramEditor = () => {
   const [sessionNotesTarget, setSessionNotesTarget] = useState<string | null>(null);
   const [sessionEventDraft, setSessionEventDraft] = useState<EmotionalProcessEvent | null>(null);
   const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
   const stageRef = useRef<StageType>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 360;
@@ -263,11 +327,11 @@ const DiagramEditor = () => {
   }, [fileMenuOpen]);
 
   useEffect(() => {
-    localStorage.setItem('genogram-file-name', fileName);
+    setStoredValue('fileName', fileName);
   }, [fileName]);
 
   useEffect(() => {
-    localStorage.setItem('genogram-autosave-minutes', String(autoSaveMinutes));
+    setStoredValue('autoSave', String(autoSaveMinutes));
   }, [autoSaveMinutes]);
 
   useEffect(() => {
@@ -866,12 +930,12 @@ const DiagramEditor = () => {
     });
 
   useEffect(() => {
-    const savedPeople = localStorage.getItem('genogram-people');
-    const savedPartnerships = localStorage.getItem('genogram-partnerships');
-    const savedEmotionalLines = localStorage.getItem('genogram-emotional-lines');
-    const savedCategories = localStorage.getItem('genogram-event-categories');
-    const savedIndicators = localStorage.getItem('genogram-functional-indicators');
-    let indicatorDefs = defaultFunctionalIndicators;
+    const savedPeople = getStoredValue('people');
+    const savedPartnerships = getStoredValue('partnerships');
+    const savedEmotionalLines = getStoredValue('emotionalLines');
+    const savedCategories = getStoredValue('eventCategories');
+    const savedIndicators = getStoredValue('indicatorDefinitions');
+    let indicatorDefs = initialIndicatorDefinitions;
     if (savedIndicators) {
       try {
         const parsed = JSON.parse(savedIndicators);
@@ -954,7 +1018,7 @@ const DiagramEditor = () => {
   useAutosave(
     people,
     (data) => {
-      localStorage.setItem('genogram-people', JSON.stringify(data));
+      setStoredValue('people', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -962,7 +1026,7 @@ const DiagramEditor = () => {
   useAutosave(
     partnerships,
     (data) => {
-      localStorage.setItem('genogram-partnerships', JSON.stringify(data));
+      setStoredValue('partnerships', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -970,7 +1034,7 @@ const DiagramEditor = () => {
   useAutosave(
     emotionalLines,
     (data) => {
-      localStorage.setItem('genogram-emotional-lines', JSON.stringify(data));
+      setStoredValue('emotionalLines', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -978,7 +1042,7 @@ const DiagramEditor = () => {
   useAutosave(
     eventCategories,
     (data) => {
-      localStorage.setItem('genogram-event-categories', JSON.stringify(data));
+      setStoredValue('eventCategories', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -986,7 +1050,7 @@ const DiagramEditor = () => {
   useAutosave(
     functionalIndicatorDefinitions,
     (data) => {
-      localStorage.setItem('genogram-functional-indicators', JSON.stringify(data));
+      setStoredValue('indicatorDefinitions', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1155,8 +1219,9 @@ const DiagramEditor = () => {
 
   const handleSave = (forcePrompt = false) => {
     let targetName = fileName;
-    if (forcePrompt || !targetName || targetName === 'Untitled') {
-      const proposed = targetName && targetName !== 'Untitled' ? targetName : 'family-diagram.json';
+    if (forcePrompt || !targetName || targetName === FALLBACK_FILE_NAME) {
+      const proposed =
+        targetName && targetName !== FALLBACK_FILE_NAME ? targetName : 'family-diagram.json';
       const userInput = prompt('Enter a filename:', proposed);
       if (!userInput) return;
       targetName = userInput;
@@ -1237,7 +1302,7 @@ const DiagramEditor = () => {
     setSelectedChildId(null);
     setContextMenu(null);
     setTimelinePersonId(null);
-    setFileName('Untitled');
+    setFileName(initialFileName);
     markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines);
     setLastSavedAt(null);
   }, [markSnapshotClean]);
@@ -1666,7 +1731,7 @@ const DiagramEditor = () => {
     if (uri) {
       const a = document.createElement('a');
       a.href = uri;
-      a.download = 'genogram.png';
+      a.download = 'family-diagram.png';
       a.click();
     }
   };
@@ -1676,7 +1741,7 @@ const DiagramEditor = () => {
     if (uri) {
       const a = document.createElement('a');
       a.href = uri;
-      a.download = 'genogram.svg';
+      a.download = 'family-diagram.svg';
       a.click();
     }
   };
@@ -2144,6 +2209,7 @@ const DiagramEditor = () => {
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
             <button onClick={() => setSessionNotesOpen(true)}>Session Notes</button>
+            <button onClick={() => setHelpOpen(true)}>Help</button>
             <input
               ref={loadInputRef}
               type="file"
@@ -2168,7 +2234,9 @@ const DiagramEditor = () => {
                 }}
               >
                 <div style={{ fontSize: 22, fontWeight: 600 }}>Family Diagram Maker</div>
-                <div style={{ fontSize: 14, color: '#333' }}>{fileName || 'Untitled'}</div>
+                <div style={{ fontSize: 14, color: '#333' }}>
+                  {fileName || FALLBACK_FILE_NAME}
+                </div>
               </div>
               <Stage 
                 ref={stageRef}
@@ -2698,6 +2766,190 @@ const DiagramEditor = () => {
             onSaveMarkdown={handleSaveSessionNoteMarkdown}
             onMakeEvent={handleSessionNotesMakeEvent}
           />
+          {helpOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Quick start help"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.45)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2400,
+              }}
+              onClick={() => setHelpOpen(false)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  padding: '24px 28px',
+                  width: 'min(50vw, 520px)',
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        color: '#616161',
+                        letterSpacing: 1,
+                      }}
+                    >
+                      Quick Start
+                    </div>
+                    <h2 style={{ margin: '4px 0 0', fontSize: 22 }}>Family Diagram Maker</h2>
+                  </div>
+                  <button
+                    onClick={() => setHelpOpen(false)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 24,
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                    }}
+                    aria-label="Close help"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+                  {HELP_SECTIONS.map((section) => (
+                    <div key={section.title}>
+                      <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>{section.title}</h3>
+                      <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.5 }}>
+                        {section.tips.map((tip) => (
+                          <li key={tip}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setReadmeViewerOpen(true)}
+                    style={{
+                      border: '1px solid #1976d2',
+                      color: '#1976d2',
+                      background: '#fff',
+                      borderRadius: 6,
+                      padding: '8px 14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Open README Viewer
+                  </button>
+                  <button
+                    onClick={() => setHelpOpen(false)}
+                    style={{
+                      background: '#1976d2',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '8px 18px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {readmeViewerOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="README documentation"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2450,
+              }}
+              onClick={() => setReadmeViewerOpen(false)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 14,
+                  padding: '20px 24px',
+                  width: 'min(70vw, 900px)',
+                  maxHeight: '80vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h2 style={{ margin: 0 }}>README Documentation</h2>
+                  <button
+                    onClick={() => setReadmeViewerOpen(false)}
+                    style={{ border: 'none', background: 'transparent', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}
+                    aria-label="Close README viewer"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1, paddingRight: 6 }}>
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ node, ...props }) => (
+                        <h1 style={{ borderBottom: '1px solid #e0e0e0', paddingBottom: 4 }} {...props} />
+                      ),
+                      h2: ({ node, ...props }) => (
+                        <h2 style={{ marginTop: 24, borderBottom: '1px solid #e0e0e0', paddingBottom: 4 }} {...props} />
+                      ),
+                      pre: ({ node, ...props }) => (
+                        <pre
+                          style={{
+                            background: '#1a1d2d',
+                            color: '#fefefe',
+                            padding: 12,
+                            borderRadius: 8,
+                            overflowX: 'auto',
+                          }}
+                          {...props}
+                        />
+                      ),
+                      code: ({ inline, children, ...props }) =>
+                        inline ? (
+                          <code style={{ background: '#f1f3f7', padding: '2px 4px', borderRadius: 4 }} {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code {...props}>{children}</code>
+                        ),
+                    }}
+                  >
+                    {readmeContent}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+          )}
           {sessionEventDraft && sessionEventTarget && (
             <div
               style={{

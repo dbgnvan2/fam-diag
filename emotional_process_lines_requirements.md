@@ -1,8 +1,8 @@
-# Genogram Emotional Process Lines - Functional Requirements
+# Family Diagram Emotional Process Lines - Functional Requirements
 
 ## 1. Overview
 
-This document specifies the functional requirements for representing emotional process lines in the genogram drawing application. Emotional process lines are used to visualize the quality and nature of emotional bonds between individuals.
+This document specifies the functional requirements for representing emotional process lines in the family diagram drawing application. Emotional process lines are used to visualize the quality and nature of emotional bonds between individuals.
 
 ## 1.1 Development Process
 

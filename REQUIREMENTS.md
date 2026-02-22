@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This document outlines the functional and technical requirements for the Genogram Drawing Application. It serves as the source of truth for development and testing, specifically addressing the need for a robust interaction model and comprehensive support for Emotional Process Lines (EPLs).
+This document outlines the functional and technical requirements for the Family Diagram Drawing Application. It serves as the source of truth for development and testing, specifically addressing the need for a robust interaction model and comprehensive support for Emotional Process Lines (EPLs).
 
 ## 2. User Interaction Model
 
@@ -46,7 +46,7 @@ To ensure consistency and usability, all interactive elements must adhere to the
 
 EPLs represent the emotional dynamic between two individuals.
 
-- **Data Structure (based on `genogram2.json`):**
+- **Data Structure (based on `src/frontend/src/data/defaultDiagramData.json`, exported from the “Myfamily1” diagram):**
   - `person1_id` (Source)
   - `person2_id` (Target)
   - `relationshipType` (Enum: `fusion`, `cutoff`, `conflict`, `distance`)

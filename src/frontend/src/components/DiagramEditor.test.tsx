@@ -66,4 +66,15 @@ describe('DiagramEditor', () => {
         // This cannot be asserted with RTL because we cannot click the line.
         expect(true).toBe(true);
     });
+
+    it('shows a quick start modal when Help is clicked', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        expect(screen.getByRole('dialog', { name: /quick start help/i })).toBeInTheDocument();
+        expect(screen.getByText(/Canvas & Navigation/i)).toBeInTheDocument();
+        const openReadmeBtn = screen.getByRole('button', { name: /open readme viewer/i });
+        expect(openReadmeBtn).toBeInTheDocument();
+        fireEvent.click(openReadmeBtn);
+        expect(screen.getByRole('dialog', { name: /readme documentation/i })).toBeInTheDocument();
+    });
 });
