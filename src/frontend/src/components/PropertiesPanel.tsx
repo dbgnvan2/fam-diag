@@ -11,14 +11,14 @@ import {
   FREQUENCY_OPTIONS,
   INTENSITY_OPTIONS,
   IMPACT_OPTIONS,
-  FREQUENCY_LABELS,
-  INTENSITY_LABELS,
-  IMPACT_LABELS,
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
+import DatePickerField from './DatePickerField';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
+const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
@@ -100,6 +100,36 @@ const PropertiesPanel = ({
     return [...remaining, next];
   };
 
+  const buildIndicatorEvent = (
+    person: Person,
+    definition: FunctionalIndicatorDefinition,
+    entry: PersonFunctionalIndicator
+  ): EmotionalProcessEvent => {
+    const timestamp = entry.lastUpdatedAt ?? Date.now();
+    const isoDate =
+      entry.date && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+        ? entry.date
+        : new Date(timestamp).toISOString().slice(0, 10);
+    return {
+      id: createEventId(),
+      date: isoDate,
+      category: definition.label,
+      intensity: entry.intensity ?? 0,
+      frequency: entry.frequency ?? 0,
+      impact: entry.impact ?? 0,
+      howWell: entry.handledWell ?? 5,
+      otherPersonName: '',
+      primaryPersonName: person.name || '',
+      wwwwh: '',
+      observations: `Indicator ${definition.label} updated (${entry.status}).`,
+      isNodalEvent: false,
+      priorEventsNote: '',
+      reflectionsNote: '',
+      createdAt: timestamp,
+      sourceIndicatorId: definition.id,
+    };
+  };
+
   const normalizeIndicatorEntry = (
     definitionId: string,
     entry?: PersonFunctionalIndicator
@@ -109,6 +139,9 @@ const PropertiesPanel = ({
     impact: clampIndicatorDimension(entry?.impact),
     frequency: clampIndicatorDimension(entry?.frequency),
     intensity: clampIndicatorDimension(entry?.intensity),
+    handledWell: entry?.handledWell,
+    lastUpdatedAt: entry?.lastUpdatedAt,
+    date: entry?.date,
   });
 
   const updateIndicatorEntry = (
@@ -118,9 +151,41 @@ const PropertiesPanel = ({
     const person = selectedItem as Person;
     const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
     const normalized = normalizeIndicatorEntry(definitionId, existing);
+    const definition = functionalIndicatorDefinitions.find((def) => def.id === definitionId);
     const nextEntry = transform(normalized);
-    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
-    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+    const now = Date.now();
+    const isoDate = new Date(now).toISOString().slice(0, 10);
+    const timestampedEntry: PersonFunctionalIndicator = {
+      ...nextEntry,
+      date: isoDate,
+      lastUpdatedAt: now,
+    };
+    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, timestampedEntry);
+    const updates: Partial<Person> = { functionalIndicators: nextIndicators };
+    if (definition) {
+      const existingEvents = person.events || [];
+      const cutoff = now - ONE_HOUR_MS;
+      const recentIndex = existingEvents.findIndex(
+        (evt) =>
+          evt.sourceIndicatorId === definition.id &&
+          typeof evt.createdAt === 'number' &&
+          evt.createdAt >= cutoff
+      );
+      const indicatorEvent = buildIndicatorEvent(person, definition, timestampedEntry);
+      if (recentIndex !== -1) {
+        const prior = existingEvents[recentIndex];
+        const mergedEvent: EmotionalProcessEvent = {
+          ...prior,
+          ...indicatorEvent,
+          id: prior.id,
+          createdAt: prior.createdAt,
+        };
+        updates.events = existingEvents.map((evt, idx) => (idx === recentIndex ? mergedEvent : evt));
+      } else {
+        updates.events = [...existingEvents, indicatorEvent];
+      }
+    }
+    onUpdatePerson(person.id, updates);
   };
 
   const handleIndicatorStatusChange = (
@@ -299,20 +364,23 @@ const PropertiesPanel = ({
     return events;
   }, [selectedItem, eventSortOrder]);
 
-  const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
   const openNewEvent = () => {
     setEventDraft({
       id: createEventId(),
       date: '',
       category: eventCategories[0] || '',
-      intensity: 5,
+      intensity: 0,
+      frequency: 0,
+      impact: 0,
       howWell: 5,
       otherPersonName: otherPersonOptions[0] || '',
       primaryPersonName: primaryPersonOptions[0] || '',
       wwwwh: '',
       observations: '',
+      priorEventsNote: '',
+      reflectionsNote: '',
       isNodalEvent: false,
+      createdAt: Date.now(),
     });
     setEventModalOpen(true);
   };
@@ -323,13 +391,19 @@ const PropertiesPanel = ({
       category: event.category || eventCategories[0] || '',
       otherPersonName: event.otherPersonName || otherPersonOptions[0] || '',
       primaryPersonName: event.primaryPersonName || primaryPersonOptions[0] || '',
+      frequency: typeof event.frequency === 'number' ? event.frequency : 0,
+      impact: typeof event.impact === 'number' ? event.impact : 0,
+      intensity: typeof event.intensity === 'number' ? event.intensity : 0,
+      priorEventsNote: event.priorEventsNote || '',
+      reflectionsNote: event.reflectionsNote || '',
+      createdAt: event.createdAt ?? Date.now(),
     });
     setEventModalOpen(true);
   };
 
   const handleEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     if (!eventDraft) return;
-    if (field === 'intensity' || field === 'howWell') {
+    if (field === 'intensity' || field === 'howWell' || field === 'frequency' || field === 'impact') {
       const numeric = Number(value);
       setEventDraft({ ...eventDraft, [field]: Number.isNaN(numeric) ? 0 : numeric });
       return;
@@ -347,6 +421,13 @@ const PropertiesPanel = ({
       ...eventDraft,
       otherPersonName: eventDraft.otherPersonName || otherPersonOptions[0] || '',
       primaryPersonName: eventDraft.primaryPersonName || primaryPersonOptions[0] || '',
+      intensity: typeof eventDraft.intensity === 'number' ? eventDraft.intensity : 0,
+      frequency: typeof eventDraft.frequency === 'number' ? eventDraft.frequency : 0,
+      impact: typeof eventDraft.impact === 'number' ? eventDraft.impact : 0,
+      priorEventsNote: eventDraft.priorEventsNote || '',
+      reflectionsNote: eventDraft.reflectionsNote || '',
+      createdAt: eventDraft.createdAt ?? Date.now(),
+      sourceIndicatorId: eventDraft.sourceIndicatorId,
     };
     const events = getEvents();
     const existingIndex = events.findIndex((evt) => evt.id === eventDraft.id);
@@ -533,26 +614,24 @@ const PropertiesPanel = ({
           </div>
           <div style={rowStyle}>
             <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="birthDate"
               name="birthDate"
+              value={selectedPerson.birthDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPerson.birthDate || ''}
               onChange={handlePersonChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select birth date"
             />
           </div>
           <div style={rowStyle}>
             <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="deathDate"
               name="deathDate"
+              value={selectedPerson.deathDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPerson.deathDate || ''}
               onChange={handlePersonChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select death date"
             />
           </div>
           <div style={rowStyle}>
@@ -631,50 +710,46 @@ const PropertiesPanel = ({
           </div>
           <div style={rowStyle}>
             <label htmlFor="relationshipStartDate" style={labelStyle}>Relationship Start:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="relationshipStartDate"
               name="relationshipStartDate"
+              value={selectedPartnership.relationshipStartDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPartnership.relationshipStartDate || ''}
               onChange={handlePartnershipChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select relationship start date"
             />
           </div>
           <div style={rowStyle}>
             <label htmlFor="marriedStartDate" style={labelStyle}>Married Start:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="marriedStartDate"
               name="marriedStartDate"
+              value={selectedPartnership.marriedStartDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPartnership.marriedStartDate || ''}
               onChange={handlePartnershipChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select married start date"
             />
           </div>
           <div style={rowStyle}>
             <label htmlFor="separationDate" style={labelStyle}>Separation Date:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="separationDate"
               name="separationDate"
+              value={selectedPartnership.separationDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPartnership.separationDate || ''}
               onChange={handlePartnershipChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select separation date"
             />
           </div>
           <div style={rowStyle}>
             <label htmlFor="divorceDate" style={labelStyle}>Divorce Date:</label>
-            <input
-              type="text"
+            <DatePickerField
               id="divorceDate"
               name="divorceDate"
+              value={selectedPartnership.divorceDate}
               placeholder="YYYY-MM-DD"
-              value={selectedPartnership.divorceDate || ''}
               onChange={handlePartnershipChange}
-              style={{ width: '11ch', textAlign: 'left' }}
+              pickerLabel="Select divorce date"
             />
           </div>
           <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
@@ -702,14 +777,13 @@ const PropertiesPanel = ({
           <div>
             <div style={rowStyle}>
               <label htmlFor="startDate" style={labelStyle}>Start Date:</label>
-              <input
-                type="text"
+              <DatePickerField
                 id="startDate"
                 name="startDate"
+                value={selectedEmotionalLine.startDate}
                 placeholder="YYYY-MM-DD"
-                value={selectedEmotionalLine.startDate || ''}
                 onChange={handleEmotionalLineInputChange}
-                style={{ width: '11ch', textAlign: 'left' }}
+                pickerLabel="Select emotional line start date"
               />
             </div>
             <div style={rowStyle}>
@@ -818,72 +892,63 @@ const PropertiesPanel = ({
                 const impactValue = clampIndicatorDimension(entry?.impact);
                 const frequencyValue = clampIndicatorDimension(entry?.frequency);
                 const intensityValue = clampIndicatorDimension(entry?.intensity);
-                const frequencyLabel = FREQUENCY_LABELS.get(frequencyValue) ?? `${frequencyValue}`;
-                const intensityLabel = INTENSITY_LABELS.get(intensityValue) ?? `${intensityValue}`;
-                const impactLabel = IMPACT_LABELS.get(impactValue) ?? `${impactValue}`;
                 return (
+                <div
+                  key={definition.id}
+                  style={{
+                    border: '1px solid #d9d9d9',
+                    borderRadius: 6,
+                    padding: 8,
+                    marginTop: 6,
+                    background: '#fff',
+                  }}
+                >
+                  <div style={{ textAlign: 'center', fontWeight: 700 }}>{definition.label}</div>
                   <div
-                    key={definition.id}
                     style={{
-                      border: '1px solid #d9d9d9',
-                      borderRadius: 6,
-                      padding: 8,
                       marginTop: 6,
-                      background: '#fff',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                      rowGap: 6,
+                      columnGap: 5,
+                      alignItems: 'center',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600 }}>{definition.label}</span>
-                      <span style={{ fontSize: 12, color: '#666', textAlign: 'right', maxWidth: '60%' }}>
-                        {statusValue === 'none'
-                          ? 'Not tracked'
-                          : `${statusValue === 'current' ? 'Current' : 'Past'} · ${frequencyLabel} · ${intensityLabel} · ${impactLabel}`}
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
+                      <label
+                        htmlFor={`indicator-status-${definition.id}`}
+                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
+                      >
+                        Status:
+                      </label>
+                      <select
+                        id={`indicator-status-${definition.id}`}
+                        value={statusValue}
+                        onChange={(e) =>
+                          handleIndicatorStatusChange(
+                            definition.id,
+                            e.target.value as 'past' | 'current' | 'none'
+                          )
+                        }
+                        style={{ width: '20ch' }}
+                      >
+                        <option value="none">None</option>
+                        <option value="current">Current</option>
+                        <option value="past">Past</option>
+                      </select>
                     </div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, minmax(260px, 1fr))',
-                        rowGap: 8,
-                        columnGap: 24,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label
-                          htmlFor={`indicator-status-${definition.id}`}
-                          style={{ fontSize: 12, width: 120, textAlign: 'right', fontWeight: 600 }}
-                        >
-                          Status:
-                        </label>
-                        <select
-                          id={`indicator-status-${definition.id}`}
-                          value={statusValue}
-                          onChange={(e) =>
-                            handleIndicatorStatusChange(
-                              definition.id,
-                              e.target.value as 'past' | 'current' | 'none'
-                            )
-                          }
-                          style={{ width: '14ch' }}
-                        >
-                          <option value="none">None</option>
-                          <option value="current">Current</option>
-                          <option value="past">Past</option>
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label
-                          htmlFor={`indicator-intensity-${definition.id}`}
-                          style={{ fontSize: 12, width: 120, textAlign: 'right', fontWeight: 600 }}
-                        >
-                          Intensity:
-                        </label>
-                        <select
-                          id={`indicator-intensity-${definition.id}`}
-                          value={intensityValue}
-                          onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
-                          style={{ width: '20ch' }}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
+                      <label
+                        htmlFor={`indicator-intensity-${definition.id}`}
+                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
+                      >
+                        Intensity:
+                      </label>
+                      <select
+                        id={`indicator-intensity-${definition.id}`}
+                        value={intensityValue}
+                        onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
+                        style={{ width: '20ch' }}
                         >
                           {INTENSITY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -892,15 +957,15 @@ const PropertiesPanel = ({
                           ))}
                         </select>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label
-                          htmlFor={`indicator-frequency-${definition.id}`}
-                          style={{ fontSize: 12, width: 120, textAlign: 'right', fontWeight: 600 }}
-                        >
-                          Frequency:
-                        </label>
-                        <select
-                          id={`indicator-frequency-${definition.id}`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
+                      <label
+                        htmlFor={`indicator-frequency-${definition.id}`}
+                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
+                      >
+                        Frequency:
+                      </label>
+                      <select
+                        id={`indicator-frequency-${definition.id}`}
                           value={frequencyValue}
                           onChange={(e) => handleIndicatorFrequencyChange(definition.id, Number(e.target.value))}
                           style={{ width: '20ch' }}
@@ -912,15 +977,15 @@ const PropertiesPanel = ({
                           ))}
                         </select>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label
-                          htmlFor={`indicator-impact-${definition.id}`}
-                          style={{ fontSize: 12, width: 120, textAlign: 'right', fontWeight: 600 }}
-                        >
-                          Impact:
-                        </label>
-                        <select
-                          id={`indicator-impact-${definition.id}`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
+                      <label
+                        htmlFor={`indicator-impact-${definition.id}`}
+                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
+                      >
+                        Impact:
+                      </label>
+                      <select
+                        id={`indicator-impact-${definition.id}`}
                           value={impactValue}
                           onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
                           style={{ width: '20ch' }}
@@ -973,24 +1038,41 @@ const PropertiesPanel = ({
                     padding: '10px 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 4,
+                    gap: 6,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontWeight: 600 }}>
-                      {event.category || 'Event'} · {event.date || 'No date'}
-                    </span>
-                    {event.isNodalEvent && <span style={{ fontSize: 12, color: '#b00020' }}>Nodal Event</span>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 600 }}>{event.category || 'Event'}</span>
+                      {event.isNodalEvent && (
+                        <span style={{ fontSize: 12, color: '#b00020', fontWeight: 600 }}>Nodal</span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{event.date || 'No date'}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: '#444', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                    <span>Primary: {event.primaryPersonName || '—'}</span>
-                    <span>Other: {event.otherPersonName || '—'}</span>
-                    <span>Intensity {event.intensity}</span>
-                    <span>How well {event.howWell}</span>
-                  </div>
-                  <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>
-                    <button onClick={() => openEditEvent(event)} style={{ marginRight: 6 }}>Edit</button>
-                    <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      fontSize: 12,
+                      color: '#333',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      <span>Primary: {event.primaryPersonName || '—'}</span>
+                      <span>Other: {event.otherPersonName || '—'}</span>
+                      <span>Intensity: {event.intensity ?? '—'}</span>
+                      <span>Frequency: {event.frequency ?? '—'}</span>
+                      <span>Impact: {event.impact ?? '—'}</span>
+                      <span>How well: {event.howWell ?? '—'}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => openEditEvent(event)}>Edit</button>
+                      <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -1043,55 +1125,6 @@ const PropertiesPanel = ({
                     </div>
                   </div>
                   <div style={rowStyle}>
-                    <label htmlFor="eventDate" style={labelStyle}>Date:</label>
-                    <input
-                      type="date"
-                      id="eventDate"
-                      value={eventDraft.date}
-                      onChange={(e) => handleEventDraftChange('date', e.target.value)}
-                      style={controlStyle}
-                    />
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
-                    <select
-                      id="eventCategory"
-                      value={eventDraft.category}
-                      onChange={(e) => handleEventDraftChange('category', e.target.value)}
-                      style={controlStyle}
-                    >
-                      {eventCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventIntensity" style={labelStyle}>Intensity (1-10):</label>
-                    <input
-                      type="number"
-                      id="eventIntensity"
-                      min={1}
-                      max={10}
-                      value={eventDraft.intensity}
-                      onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
-                      style={controlStyle}
-                    />
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventHowWell" style={labelStyle}>How well (1-9):</label>
-                    <input
-                      type="number"
-                      id="eventHowWell"
-                      min={1}
-                      max={9}
-                      value={eventDraft.howWell}
-                      onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
-                      style={controlStyle}
-                    />
-                  </div>
-                  <div style={rowStyle}>
                     <label htmlFor="eventOtherPerson" style={labelStyle}>Other Person:</label>
                     <div style={controlStyle}>
                       <input
@@ -1110,22 +1143,127 @@ const PropertiesPanel = ({
                     </div>
                   </div>
                   <div style={rowStyle}>
-                    <label htmlFor="eventWwwwh" style={labelStyle}>WWWWH:</label>
+                    <label htmlFor="eventDate" style={labelStyle}>Date:</label>
+                    <div style={controlStyle}>
+                      <DatePickerField
+                        id="eventDate"
+                        name="eventDate"
+                        value={eventDraft.date}
+                        placeholder="YYYY-MM-DD"
+                        onChange={(e) => handleEventDraftChange('date', e.target.value)}
+                        buttonLabel="Select event date"
+                      />
+                    </div>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
+                    <select
+                      id="eventCategory"
+                      value={eventDraft.category}
+                      onChange={(e) => handleEventDraftChange('category', e.target.value)}
+                      style={{ ...controlStyle, width: '60%' }}
+                    >
+                      {eventCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventIntensity" style={labelStyle}>Intensity:</label>
+                    <select
+                      id="eventIntensity"
+                      value={eventDraft.intensity ?? 0}
+                      onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
+                      style={{ ...controlStyle, width: '60%' }}
+                    >
+                      {INTENSITY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventFrequency" style={labelStyle}>Frequency:</label>
+                    <select
+                      id="eventFrequency"
+                      value={eventDraft.frequency ?? 0}
+                      onChange={(e) => handleEventDraftChange('frequency', e.target.value)}
+                      style={{ ...controlStyle, width: '60%' }}
+                    >
+                      {FREQUENCY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventImpact" style={labelStyle}>Impact:</label>
+                    <select
+                      id="eventImpact"
+                      value={eventDraft.impact ?? 0}
+                      onChange={(e) => handleEventDraftChange('impact', e.target.value)}
+                      style={{ ...controlStyle, width: '60%' }}
+                    >
+                      {IMPACT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={rowStyle}>
+                    <label htmlFor="eventHowWell" style={labelStyle}>How well (1-9):</label>
+                    <input
+                      type="number"
+                      id="eventHowWell"
+                      min={1}
+                      max={9}
+                      value={eventDraft.howWell}
+                      onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
+                      style={{ ...controlStyle, width: '60%' }}
+                    />
+                  </div>
+                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                    <label htmlFor="eventWwwwh" style={{ ...labelStyle, marginTop: 6 }}>WWWWH:</label>
                     <textarea
                       id="eventWwwwh"
                       value={eventDraft.wwwwh}
                       onChange={(e) => handleEventDraftChange('wwwwh', e.target.value)}
-                      rows={3}
+                      rows={2}
                       style={{ ...controlStyle, resize: 'vertical' }}
                     />
                   </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventObservations" style={labelStyle}>Observations:</label>
+                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                    <label htmlFor="eventObservations" style={{ ...labelStyle, marginTop: 6 }}>Observations:</label>
                     <textarea
                       id="eventObservations"
                       value={eventDraft.observations}
                       onChange={(e) => handleEventDraftChange('observations', e.target.value)}
-                      rows={3}
+                      rows={2}
+                      style={{ ...controlStyle, resize: 'vertical' }}
+                    />
+                  </div>
+                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                    <label htmlFor="eventPriorNote" style={{ ...labelStyle, marginTop: 6 }}>Prior Events:</label>
+                    <textarea
+                      id="eventPriorNote"
+                      value={eventDraft.priorEventsNote || ''}
+                      onChange={(e) => handleEventDraftChange('priorEventsNote', e.target.value)}
+                      rows={2}
+                      style={{ ...controlStyle, resize: 'vertical' }}
+                    />
+                  </div>
+                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                    <label htmlFor="eventReflections" style={{ ...labelStyle, marginTop: 6 }}>Reflections:</label>
+                    <textarea
+                      id="eventReflections"
+                      value={eventDraft.reflectionsNote || ''}
+                      onChange={(e) => handleEventDraftChange('reflectionsNote', e.target.value)}
+                      rows={2}
                       style={{ ...controlStyle, resize: 'vertical' }}
                     />
                   </div>

@@ -23,6 +23,7 @@ import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import SessionNotesPanel from './SessionNotesPanel';
+import DatePickerField from './DatePickerField';
 import { getSaveButtonState } from '../utils/saveButtonState';
 import {
   DEFAULT_DIAGRAM_STATE,
@@ -114,8 +115,8 @@ const HELP_SECTIONS = [
     title: 'Styling & Properties',
     tips: [
       'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
-      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node.',
-      'Events tab lists Emotional Process Events (EPEs) for the selected person, PRL, or EPL with category, nodal flag, intensity, how-well scale, WWWWH, and observations.',
+      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node and every change also logs (or updates) an event for that indicator once per hour.',
+      'Events tab now shows compact two-line tiles (Category/Date then ratings + participants + actions) and its editor mirrors the layout with Frequency/Impact dropdowns, WWWWH, Observations, Prior Events, Reflections, and the Nodal Event checkbox.',
     ],
   },
   {
@@ -569,6 +570,7 @@ const DiagramEditor = () => {
         wwwwh: trimmed,
         observations: trimmed,
         isNodalEvent: false,
+        createdAt: Date.now(),
       };
     },
     [people, eventCategories]
@@ -641,7 +643,7 @@ const DiagramEditor = () => {
   const handleSessionEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     setSessionEventDraft((prev) => {
       if (!prev) return prev;
-      if (field === 'intensity' || field === 'howWell') {
+      if (field === 'intensity' || field === 'howWell' || field === 'frequency' || field === 'impact') {
         const numeric = Number(value);
         return { ...prev, [field]: Number.isNaN(numeric) ? 0 : numeric };
       }
@@ -653,20 +655,24 @@ const DiagramEditor = () => {
   };
 
   const appendEventToTarget = (target: { type: 'person' | 'partnership' | 'emotional'; id: string }, event: EmotionalProcessEvent) => {
+    const eventWithTimestamp: EmotionalProcessEvent = {
+      ...event,
+      createdAt: event.createdAt ?? Date.now(),
+    };
     if (target.type === 'person') {
       const person = people.find((p) => p.id === target.id);
-      const nextEvents = [...(person?.events ?? []), event];
+      const nextEvents = [...(person?.events ?? []), eventWithTimestamp];
       handleUpdatePerson(target.id, { events: nextEvents });
       return;
     }
     if (target.type === 'partnership') {
       const partnership = partnerships.find((p) => p.id === target.id);
-      const nextEvents = [...(partnership?.events ?? []), event];
+      const nextEvents = [...(partnership?.events ?? []), eventWithTimestamp];
       handleUpdatePartnership(target.id, { events: nextEvents });
       return;
     }
     const line = emotionalLines.find((el) => el.id === target.id);
-    const nextEvents = [...(line?.events ?? []), event];
+    const nextEvents = [...(line?.events ?? []), eventWithTimestamp];
     handleUpdateEmotionalLine(target.id, { events: nextEvents });
   };
 
@@ -3000,13 +3006,16 @@ const DiagramEditor = () => {
                       </div>
                       <div style={rowStyle}>
                         <label htmlFor="sessionEventDate" style={labelStyle}>Date:</label>
-                        <input
-                          type="date"
-                          id="sessionEventDate"
-                          value={sessionEventDraft.date}
-                          onChange={(e) => handleSessionEventDraftChange('date', e.target.value)}
-                          style={controlStyle}
-                        />
+                        <div style={controlStyle}>
+                          <DatePickerField
+                            id="sessionEventDate"
+                            name="sessionEventDate"
+                            value={sessionEventDraft.date}
+                            placeholder="YYYY-MM-DD"
+                            onChange={(e) => handleSessionEventDraftChange('date', e.target.value)}
+                            buttonLabel="Select session event date"
+                          />
+                        </div>
                       </div>
                       <div style={rowStyle}>
                         <label htmlFor="sessionEventCategory" style={labelStyle}>Category:</label>

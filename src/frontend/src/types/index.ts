@@ -1,9 +1,12 @@
 export type PersonFunctionalIndicator = {
   definitionId: string;
-  status: 'past' | 'current';
+  status: 'past' | 'current' | 'none';
   impact: number;
   frequency?: number;
   intensity?: number;
+  date?: string;
+  handledWell?: number;
+  lastUpdatedAt?: number;
 };
 
 export type FunctionalIndicatorDefinition = {
@@ -90,4 +93,10 @@ export type EmotionalProcessEvent = {
   wwwwh: string;
   observations: string;
   isNodalEvent?: boolean;
+  frequency?: number;
+  impact?: number;
+  priorEventsNote?: string;
+  reflectionsNote?: string;
+  createdAt?: number;
+  sourceIndicatorId?: string;
 };

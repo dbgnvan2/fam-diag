@@ -47,9 +47,12 @@ I have run the application, and I believe that all of the above features should 
     *   Shift-click two or more people to open the Shared Properties panel. Toggle “Shaded Background Enabled” and verify only the selected people gain/lose the lightly tinted square— the overall canvas color should not change.
     *   While still multi-selected, change the border color and confirm the person outlines use the thicker stroke so the new color remains obvious.
     *   Click through the Functional Facts tabs (Person, Indicators, Events) for a person to ensure each tab renders the expected controls. Do the same for PRLs and EPLs—Person should show core properties, Indicators should grey out when not applicable, and Events should always list/add/edit Emotional Process Events.
+    *   On the Events tab, confirm each entry now displays as a two-line summary (category + date on the first line, then ratings and participants plus the Edit/Delete buttons on the second line) and that Frequency/Impact values appear alongside Intensity and “How well”.
 6.  **Functional Indicators:**
     *   Open the Functional Indicators modal, add at least one labeled indicator (try one letter-only and one with an uploaded icon), and make sure they appear in the list with previews.
     *   Select a person and, in the Properties panel, set the new indicator to “Current” or “Past” and assign Frequency, Intensity, and Functional Impact ratings (0–5). Confirm the badge shows next to the person node with the correct status/impact text.
+    *   After saving the indicator values, switch to the Events tab and verify an event was automatically recorded for that indicator (category matches the indicator label and the frequency/intensity/impact numbers mirror the latest entry).
+    *   Change the same indicator multiple times within an hour (e.g., tweak Frequency then Intensity) and confirm the Events tab still shows a single entry for that indicator—with the existing event updating in place rather than adding duplicates.
     *   Toggle the indicator back to “None” and verify the badge disappears both from the node and from the panel data after switching to another object and back.
     *   Delete an indicator definition and ensure any badges using it are removed from all people.
 7.  **Toolbar and File Menu:**
@@ -61,7 +64,7 @@ I have run the application, and I believe that all of the above features should 
 8.  **Session Notes:**
     *   Click “Session Notes” in the toolbar to open the floating panel. Confirm coach name, client name, file name, and presenting-issue fields edit correctly and that the note timestamp reflects the time opened.
     *   Type several lines of notes, highlight a line (or leave the cursor on the last line), pick a target (Person/PRL/EPL) from the dropdown, and hit “Make Event”. Verify the Session Note Event modal appears pre-filled with the text, inferred year (if any), and inferred person name.
-    *   Modify the event fields—including the new “Nodal Event” checkbox—and save; confirm the event shows up on the target object’s Events tab.
+    *   Modify the event fields—including the new Frequency/Impact dropdowns and the “Nodal Event” checkbox—and save; confirm the event shows up on the target object’s Events tab with those ratings populated.
     *   Leave the Session Notes panel open for more than five minutes and check that the “Primary save” and “Backup save” timestamps update in alternating fashion. Close and reopen the app to ensure the most recent primary note is restored.
     *   Verify the filename automatically follows the `Session Note - Coach - Client - YYYY-MM-DD.json` pattern. Use “Save Session Note” to download JSON and “Save as Markdown” for the `.md` export; confirm both files include the latest text.
 9.  **Canvas Notes:**
