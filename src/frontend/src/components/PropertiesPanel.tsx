@@ -859,7 +859,10 @@ const PropertiesPanel = ({
                         <option value="current">Current</option>
                         <option value="past">Past</option>
                       </select>
-                      <label htmlFor={`indicator-frequency-${definition.id}`} style={{ fontSize: 12 }}>
+                      <label
+                        htmlFor={`indicator-frequency-${definition.id}`}
+                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                      >
                         Frequency:
                       </label>
                       <select
@@ -867,7 +870,7 @@ const PropertiesPanel = ({
                         value={frequencyValue}
                         disabled={statusValue === 'none'}
                         onChange={(e) => handleIndicatorFrequencyChange(definition.id, Number(e.target.value))}
-                        style={{ minWidth: 170 }}
+                        style={{ width: '20ch' }}
                       >
                         {FREQUENCY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -875,9 +878,10 @@ const PropertiesPanel = ({
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      <label htmlFor={`indicator-intensity-${definition.id}`} style={{ fontSize: 12 }}>
+                      <label
+                        htmlFor={`indicator-intensity-${definition.id}`}
+                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                      >
                         Intensity:
                       </label>
                       <select
@@ -885,7 +889,7 @@ const PropertiesPanel = ({
                         value={intensityValue}
                         disabled={statusValue === 'none'}
                         onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
-                        style={{ minWidth: 170 }}
+                        style={{ width: '20ch' }}
                       >
                         {INTENSITY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -893,7 +897,12 @@ const PropertiesPanel = ({
                           </option>
                         ))}
                       </select>
-                      <label htmlFor={`indicator-impact-${definition.id}`} style={{ fontSize: 12 }}>
+                    </div>
+                    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <label
+                        htmlFor={`indicator-impact-${definition.id}`}
+                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                      >
                         Impact:
                       </label>
                       <select
@@ -901,7 +910,7 @@ const PropertiesPanel = ({
                         value={impactValue}
                         disabled={statusValue === 'none'}
                         onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
-                        style={{ minWidth: 200 }}
+                        style={{ width: '20ch' }}
                       >
                         {IMPACT_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -909,6 +918,25 @@ const PropertiesPanel = ({
                           </option>
                         ))}
                       </select>
+                      <label
+                        htmlFor={`indicator-legend-${definition.id}`}
+                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                      >
+                        Legend:
+                      </label>
+                      <input
+                        id={`indicator-legend-${definition.id}`}
+                        value="N: Term"
+                        disabled
+                        style={{
+                          width: '20ch',
+                          border: '1px dashed #bbb',
+                          background: '#f6f6f6',
+                          color: '#555',
+                          padding: '2px 6px',
+                          fontSize: 12,
+                        }}
+                      />
                     </div>
                   </div>
                 );
