@@ -19,6 +19,7 @@ import EmotionalLineNode from './EmotionalLineNode';
 import NoteNode from './NoteNode';
 import ReactMarkdown from 'react-markdown';
 import type { Components as MarkdownComponents } from 'react-markdown';
+import type { CodeComponent } from 'react-markdown/lib/ast-to-react';
 import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
@@ -29,6 +30,15 @@ import {
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
 import readmeContent from '../../../../README.md?raw';
+const codeRenderer: CodeComponent = ({ inline, children, ...props }) =>
+  inline ? (
+    <code style={{ background: '#f1f3f7', padding: '2px 4px', borderRadius: 4 }} {...props}>
+      {children}
+    </code>
+  ) : (
+    <code {...props}>{children}</code>
+  );
+
 const markdownComponents: MarkdownComponents = {
   h1: ({ node, ...props }) => (
     <h1 style={{ borderBottom: '1px solid #e0e0e0', paddingBottom: 4 }} {...props} />
@@ -48,14 +58,7 @@ const markdownComponents: MarkdownComponents = {
       {...props}
     />
   ),
-  code: ({ inline, children, ...props }) =>
-    inline ? (
-      <code style={{ background: '#f1f3f7', padding: '2px 4px', borderRadius: 4 }} {...props}>
-        {children}
-      </code>
-    ) : (
-      <code {...props}>{children}</code>
-    ),
+  code: codeRenderer,
 };
 
 const DEFAULT_LINE_COLOR = '#444444';
