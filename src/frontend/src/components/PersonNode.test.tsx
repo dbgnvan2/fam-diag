@@ -94,7 +94,7 @@ describe('PersonNode', () => {
             y: 0,
             gender: 'female',
             partnerships: [],
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 7 }],
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 5, frequency: 3, intensity: 4 }],
         };
         const indicatorDefinitions: FunctionalIndicatorDefinition[] = [
             { id: 'fi1', label: 'Affair' },
@@ -109,7 +109,7 @@ describe('PersonNode', () => {
         const stage = stageRef.current;
         const group = stage.getLayers()[0].getChildren()[0];
         const texts = group.find('Text');
-        const hasCombined = texts.some((node: any) => node.text() === 'C7');
+        const hasCombined = texts.some((node: any) => node.text() === 'C5');
         expect(hasCombined).toBe(true);
     });
 });

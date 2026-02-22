@@ -122,12 +122,12 @@ describe('PropertiesPanel', () => {
         const statusSelect = screen.getAllByLabelText('Status:')[0];
         fireEvent.change(statusSelect, { target: { value: 'current' } });
         expect(updatePerson).toHaveBeenCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 1 }],
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 0, frequency: 0, intensity: 0 }],
         });
 
         const updatedPerson: Person = {
             ...person,
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 1 }],
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 2, frequency: 1, intensity: 1 }],
         };
         rerender(
             <PropertiesPanel
@@ -144,9 +144,57 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
 
         const impactInput = screen.getAllByLabelText('Impact:')[0];
-        fireEvent.change(impactInput, { target: { value: '7' } });
+        fireEvent.change(impactInput, { target: { value: '4' } });
         expect(updatePerson).toHaveBeenLastCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 7 }],
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }],
+        });
+
+        const personAfterImpact: Person = {
+            ...updatedPerson,
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }],
+        };
+        rerender(
+            <PropertiesPanel
+                selectedItem={personAfterImpact}
+                people={[personAfterImpact]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={defs}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
+
+        const frequencySelect = screen.getAllByLabelText('Frequency:')[0];
+        fireEvent.change(frequencySelect, { target: { value: '3' } });
+        expect(updatePerson).toHaveBeenLastCalledWith('p1', {
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }],
+        });
+
+        const personAfterFrequency: Person = {
+            ...personAfterImpact,
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }],
+        };
+        rerender(
+            <PropertiesPanel
+                selectedItem={personAfterFrequency}
+                people={[personAfterFrequency]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={defs}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
+
+        const intensitySelect = screen.getAllByLabelText('Intensity:')[0];
+        fireEvent.change(intensitySelect, { target: { value: '5' } });
+        expect(updatePerson).toHaveBeenLastCalledWith('p1', {
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 5 }],
         });
     });
 

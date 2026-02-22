@@ -2,6 +2,8 @@ export type PersonFunctionalIndicator = {
   definitionId: string;
   status: 'past' | 'current';
   impact: number;
+  frequency?: number;
+  intensity?: number;
 };
 
 export type FunctionalIndicatorDefinition = {

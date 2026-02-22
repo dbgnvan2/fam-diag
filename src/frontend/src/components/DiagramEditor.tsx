@@ -114,7 +114,7 @@ const HELP_SECTIONS = [
     title: 'Styling & Properties',
     tips: [
       'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
-      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–9 impact per person; indicators render tight to the left/right of the node.',
+      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node.',
       'Events tab lists Emotional Process Events (EPEs) for the selected person, PRL, or EPL with category, nodal flag, intensity, how-well scale, WWWWH, and observations.',
     ],
   },

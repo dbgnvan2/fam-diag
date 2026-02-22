@@ -18,7 +18,7 @@ This is a web-based application for drawing family diagrams. A family diagram is
 *   **Data cleanup for orphan miscarriages:** When previously saved data is loaded, any miscarriage markers that were placed directly on the canvas (and never attached to a PRL) are automatically removed so broken symbols do not linger in the diagram.
 *   **Canvas navigation:** Drag on an empty canvas area to pan the entire family diagram and use the zoom slider (25–300%) to focus on dense regions; panning translates every node so Partner Descending Lines (PDLs) and Partner Relationship Lines (PRLs) stay perfectly aligned.
 *   **Multi-select styling:** Shift-click to select multiple Person Nodes and use the multi-edit panel to batch-adjust size, border color, and shaded background (square backplates render 10px larger than each person for emphasis).
-*   **Functional indicators:** Define reusable functional indicator labels (Affair, Substance Use, etc.), optionally upload icon images, and track each indicator per person with Past/Current status plus a 0–9 impact score. Indicators render beside the person node so high-impact situations stand out instantly.
+*   **Functional indicators:** Define reusable functional indicator labels (Affair, Substance Use, etc.), optionally upload icon images, and track each indicator per person with Past/Current status plus 0–5 ratings for Frequency, Intensity, and Functional Impact. Indicators render beside the person node so high-impact situations stand out instantly.
 *   **Functional Facts panel:** The right-hand inspector is labeled “Functional Facts” and exposes three tabs—Person, Indicators, and Events—so you can focus on biographical data, functional indicators, or timeline entries without scrolling miles of form fields.
 *   **Session Notes workspace:** Launch a floating Session Notes window from the toolbar to capture coach/client details, presenting issues, and running notes. Notes auto-save to a primary/backup rotation every five minutes, can be saved as JSON or Markdown with standardized filenames, and let you highlight a line (or use the last line) to pre-populate an Emotional Process Event for any person, partnership, or EPL—complete with inferred names/years and a dedicated event editor.
 *   **Quick Start help:** Tap the Help button any time to launch a modal with curated tips plus an embedded, scrollable copy of `README.md`, so new counselors can orient themselves without leaving the canvas.
@@ -35,3 +35,14 @@ This is a web-based application for drawing family diagrams. A family diagram is
 ## Default Dataset
 
 The editor now ships with the full *Myfamily1* sample diagram stored at `src/frontend/src/data/defaultDiagramData.json`. When the app boots (and there is no prior `localStorage` state) the UI hydrates from that JSON file—people, partnerships, emotional process lines, functional indicator definitions, and event categories all come from this data. If the file is removed or empty, the app gracefully falls back to the simple three-person demo that used to ship with the tool. To customize the out-of-the-box view for other beta testers, adjust that JSON file and commit the new data.
+
+## Functional Indicator Rating Table
+
+| Level    | Frequency                 | Intensity                 | Functional Impact                    |
+|----------|---------------------------|---------------------------|--------------------------------------|
+| Absent   | 0 — Absent                | 0 — Absent                | 0 — None                             |
+| Minimum  | 1 — Rare                  | 1 — Faint                 | 1 — Not Limiting                     |
+| Mild     | 2 — Occasional            | 2 — Noticeable            | 2 — Minor Interference               |
+| Moderate | 3 — Regular               | 3 — Evident               | 3 — Manageable                       |
+| Major    | 4 — Frequent              | 4 — Marked                | 4 — Significant · Daily              |
+| Maximal  | 5 — Continuous            | 5 — Extreme               | 5 — Dictates Daily Choices           |

@@ -49,7 +49,7 @@ I have run the application, and I believe that all of the above features should 
     *   Click through the Functional Facts tabs (Person, Indicators, Events) for a person to ensure each tab renders the expected controls. Do the same for PRLs and EPLs—Person should show core properties, Indicators should grey out when not applicable, and Events should always list/add/edit Emotional Process Events.
 6.  **Functional Indicators:**
     *   Open the Functional Indicators modal, add at least one labeled indicator (try one letter-only and one with an uploaded icon), and make sure they appear in the list with previews.
-    *   Select a person and, in the Properties panel, set the new indicator to “Current” or “Past” and assign an impact level (0–9). Confirm the badge shows next to the person node with the correct status/impact text.
+    *   Select a person and, in the Properties panel, set the new indicator to “Current” or “Past” and assign Frequency, Intensity, and Functional Impact ratings (0–5). Confirm the badge shows next to the person node with the correct status/impact text.
     *   Toggle the indicator back to “None” and verify the badge disappears both from the node and from the panel data after switching to another object and back.
     *   Delete an indicator definition and ensure any badges using it are removed from all people.
 7.  **Toolbar and File Menu:**

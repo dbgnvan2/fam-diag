@@ -36,17 +36,23 @@
         {
           "definitionId": "indicator-gambling",
           "status": "current",
-          "impact": 3
+          "impact": 3,
+          "frequency": 3,
+          "intensity": 3
         },
         {
           "definitionId": "eD9gKPjti-3j_MBsiw_24",
           "status": "past",
-          "impact": 4
+          "impact": 4,
+          "frequency": 4,
+          "intensity": 4
         },
         {
           "definitionId": "indicator-affair",
           "status": "current",
-          "impact": 1
+          "impact": 1,
+          "frequency": 1,
+          "intensity": 1
         }
       ],
       "size": 72,
@@ -84,22 +90,30 @@
         {
           "definitionId": "indicator-affair",
           "status": "current",
-          "impact": 4
+          "impact": 4,
+          "frequency": 4,
+          "intensity": 4
         },
         {
           "definitionId": "indicator-su",
           "status": "past",
-          "impact": 5
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
         },
         {
           "definitionId": "indicator-gambling",
           "status": "current",
-          "impact": 4
+          "impact": 4,
+          "frequency": 4,
+          "intensity": 4
         },
         {
           "definitionId": "eD9gKPjti-3j_MBsiw_24",
           "status": "past",
-          "impact": 6
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
         }
       ]
     },

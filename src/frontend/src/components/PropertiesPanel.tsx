@@ -7,6 +7,15 @@ import type {
   FunctionalIndicatorDefinition,
   PersonFunctionalIndicator,
 } from '../types';
+import {
+  FREQUENCY_OPTIONS,
+  INTENSITY_OPTIONS,
+  IMPACT_OPTIONS,
+  FREQUENCY_LABELS,
+  INTENSITY_LABELS,
+  IMPACT_LABELS,
+  clampIndicatorDimension,
+} from '../constants/functionalIndicatorScales';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
@@ -91,6 +100,29 @@ const PropertiesPanel = ({
     return [...remaining, next];
   };
 
+  const normalizeIndicatorEntry = (
+    definitionId: string,
+    entry?: PersonFunctionalIndicator
+  ): PersonFunctionalIndicator => ({
+    definitionId,
+    status: entry?.status ?? 'current',
+    impact: clampIndicatorDimension(entry?.impact),
+    frequency: clampIndicatorDimension(entry?.frequency),
+    intensity: clampIndicatorDimension(entry?.intensity),
+  });
+
+  const updateIndicatorEntry = (
+    definitionId: string,
+    transform: (entry: PersonFunctionalIndicator) => PersonFunctionalIndicator
+  ) => {
+    const person = selectedItem as Person;
+    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
+    const normalized = normalizeIndicatorEntry(definitionId, existing);
+    const nextEntry = transform(normalized);
+    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
+    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+  };
+
   const handleIndicatorStatusChange = (
     definitionId: string,
     status: 'past' | 'current' | 'none'
@@ -101,26 +133,25 @@ const PropertiesPanel = ({
       onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
       return;
     }
-    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
-    const nextEntry: PersonFunctionalIndicator = {
-      definitionId,
-      status,
-      impact: existing?.impact ?? 1,
-    };
-    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
-    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, status }));
   };
 
   const handleIndicatorImpactChange = (definitionId: string, impactValue: number) => {
-    const person = selectedItem as Person;
     if (Number.isNaN(impactValue)) return;
-    const clamped = Math.max(0, Math.min(9, impactValue));
-    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
-    const baseEntry: PersonFunctionalIndicator =
-      existing ?? { definitionId, status: 'current', impact: 1 };
-    const nextEntry = { ...baseEntry, impact: clamped };
-    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, nextEntry);
-    onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
+    const clamped = clampIndicatorDimension(impactValue);
+    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, impact: clamped }));
+  };
+
+  const handleIndicatorFrequencyChange = (definitionId: string, frequencyValue: number) => {
+    if (Number.isNaN(frequencyValue)) return;
+    const clamped = clampIndicatorDimension(frequencyValue);
+    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, frequency: clamped }));
+  };
+
+  const handleIndicatorIntensityChange = (definitionId: string, intensityValue: number) => {
+    if (Number.isNaN(intensityValue)) return;
+    const clamped = clampIndicatorDimension(intensityValue);
+    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, intensity: clamped }));
   };
 
   const handlePersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -784,7 +815,12 @@ const PropertiesPanel = ({
               {functionalIndicatorDefinitions.map((definition) => {
                 const entry = selectedPerson.functionalIndicators?.find((fi) => fi.definitionId === definition.id);
                 const statusValue = entry?.status ?? 'none';
-                const impactValue = entry?.impact ?? 0;
+                const impactValue = clampIndicatorDimension(entry?.impact);
+                const frequencyValue = clampIndicatorDimension(entry?.frequency);
+                const intensityValue = clampIndicatorDimension(entry?.intensity);
+                const frequencyLabel = FREQUENCY_LABELS.get(frequencyValue) ?? `${frequencyValue}`;
+                const intensityLabel = INTENSITY_LABELS.get(intensityValue) ?? `${intensityValue}`;
+                const impactLabel = IMPACT_LABELS.get(impactValue) ?? `${impactValue}`;
                 return (
                   <div
                     key={definition.id}
@@ -798,8 +834,10 @@ const PropertiesPanel = ({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600 }}>{definition.label}</span>
-                      <span style={{ fontSize: 12, color: '#666' }}>
-                        {statusValue === 'none' ? 'Not tracked' : `${statusValue === 'current' ? 'Current' : 'Past'} · Impact ${impactValue}`}
+                      <span style={{ fontSize: 12, color: '#666', textAlign: 'right', maxWidth: '60%' }}>
+                        {statusValue === 'none'
+                          ? 'Not tracked'
+                          : `${statusValue === 'current' ? 'Current' : 'Past'} · ${frequencyLabel} · ${intensityLabel} · ${impactLabel}`}
                       </span>
                     </div>
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
@@ -821,19 +859,56 @@ const PropertiesPanel = ({
                         <option value="current">Current</option>
                         <option value="past">Past</option>
                       </select>
+                      <label htmlFor={`indicator-frequency-${definition.id}`} style={{ fontSize: 12 }}>
+                        Frequency:
+                      </label>
+                      <select
+                        id={`indicator-frequency-${definition.id}`}
+                        value={frequencyValue}
+                        disabled={statusValue === 'none'}
+                        onChange={(e) => handleIndicatorFrequencyChange(definition.id, Number(e.target.value))}
+                        style={{ minWidth: 170 }}
+                      >
+                        {FREQUENCY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <label htmlFor={`indicator-intensity-${definition.id}`} style={{ fontSize: 12 }}>
+                        Intensity:
+                      </label>
+                      <select
+                        id={`indicator-intensity-${definition.id}`}
+                        value={intensityValue}
+                        disabled={statusValue === 'none'}
+                        onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
+                        style={{ minWidth: 170 }}
+                      >
+                        {INTENSITY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                       <label htmlFor={`indicator-impact-${definition.id}`} style={{ fontSize: 12 }}>
                         Impact:
                       </label>
-                      <input
-                        type="number"
+                      <select
                         id={`indicator-impact-${definition.id}`}
-                        min={0}
-                        max={9}
                         value={impactValue}
                         disabled={statusValue === 'none'}
                         onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
-                        style={{ width: 60 }}
-                      />
+                        style={{ minWidth: 200 }}
+                      >
+                        {IMPACT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 );
