@@ -44,5 +44,5 @@ The editor now ships with the full *Myfamily1* sample diagram stored at `src/fro
 | Minimum  | 1 — Rare                  | 1 — Faint                 | 1 — Not Limiting                     |
 | Mild     | 2 — Occasional            | 2 — Noticeable            | 2 — Minor Interference               |
 | Moderate | 3 — Regular               | 3 — Evident               | 3 — Manageable                       |
-| Major    | 4 — Frequent              | 4 — Marked                | 4 — Significant · Daily              |
+| Major    | 4 — Frequent              | 4 — Marked                | 4 — Significant-Daily                |
 | Maximal  | 5 — Continuous            | 5 — Extreme               | 5 — Dictates Daily Choices           |
