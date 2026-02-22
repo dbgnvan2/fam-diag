@@ -840,103 +840,95 @@ const PropertiesPanel = ({
                           : `${statusValue === 'current' ? 'Current' : 'Past'} · ${frequencyLabel} · ${intensityLabel} · ${impactLabel}`}
                       </span>
                     </div>
-                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      <label htmlFor={`indicator-status-${definition.id}`} style={{ fontSize: 12 }}>
-                        Status:
-                      </label>
-                      <select
-                        id={`indicator-status-${definition.id}`}
-                        value={statusValue}
-                        onChange={(e) =>
-                          handleIndicatorStatusChange(
-                            definition.id,
-                            e.target.value as 'past' | 'current' | 'none'
-                          )
-                        }
-                        style={{ width: 110 }}
-                      >
-                        <option value="none">None</option>
-                        <option value="current">Current</option>
-                        <option value="past">Past</option>
-                      </select>
-                      <label
-                        htmlFor={`indicator-frequency-${definition.id}`}
-                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Frequency:
-                      </label>
-                      <select
-                        id={`indicator-frequency-${definition.id}`}
-                        value={frequencyValue}
-                        disabled={statusValue === 'none'}
-                        onChange={(e) => handleIndicatorFrequencyChange(definition.id, Number(e.target.value))}
-                        style={{ width: '20ch' }}
-                      >
-                        {FREQUENCY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <label
-                        htmlFor={`indicator-intensity-${definition.id}`}
-                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Intensity:
-                      </label>
-                      <select
-                        id={`indicator-intensity-${definition.id}`}
-                        value={intensityValue}
-                        disabled={statusValue === 'none'}
-                        onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
-                        style={{ width: '20ch' }}
-                      >
-                        {INTENSITY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label
+                          htmlFor={`indicator-status-${definition.id}`}
+                          style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                        >
+                          Status:
+                        </label>
+                        <select
+                          id={`indicator-status-${definition.id}`}
+                          value={statusValue}
+                          onChange={(e) =>
+                            handleIndicatorStatusChange(
+                              definition.id,
+                              e.target.value as 'past' | 'current' | 'none'
+                            )
+                          }
+                          style={{ width: '12ch' }}
+                        >
+                          <option value="none">None</option>
+                          <option value="current">Current</option>
+                          <option value="past">Past</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label
+                          htmlFor={`indicator-frequency-${definition.id}`}
+                          style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                        >
+                          Frequency:
+                        </label>
+                        <select
+                          id={`indicator-frequency-${definition.id}`}
+                          value={frequencyValue}
+                          disabled={statusValue === 'none'}
+                          onChange={(e) => handleIndicatorFrequencyChange(definition.id, Number(e.target.value))}
+                          style={{ width: '20ch' }}
+                        >
+                          {FREQUENCY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      <label
-                        htmlFor={`indicator-impact-${definition.id}`}
-                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Impact:
-                      </label>
-                      <select
-                        id={`indicator-impact-${definition.id}`}
-                        value={impactValue}
-                        disabled={statusValue === 'none'}
-                        onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
-                        style={{ width: '20ch' }}
-                      >
-                        {IMPACT_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <label
-                        htmlFor={`indicator-legend-${definition.id}`}
-                        style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Legend:
-                      </label>
-                      <input
-                        id={`indicator-legend-${definition.id}`}
-                        value="N: Term"
-                        disabled
-                        style={{
-                          width: '20ch',
-                          border: '1px dashed #bbb',
-                          background: '#f6f6f6',
-                          color: '#555',
-                          padding: '2px 6px',
-                          fontSize: 12,
-                        }}
-                      />
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label
+                          htmlFor={`indicator-intensity-${definition.id}`}
+                          style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                        >
+                          Intensity:
+                        </label>
+                        <select
+                          id={`indicator-intensity-${definition.id}`}
+                          value={intensityValue}
+                          disabled={statusValue === 'none'}
+                          onChange={(e) => handleIndicatorIntensityChange(definition.id, Number(e.target.value))}
+                          style={{ width: '20ch' }}
+                        >
+                          {INTENSITY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <label
+                          htmlFor={`indicator-impact-${definition.id}`}
+                          style={{ fontSize: 12, width: 110, textAlign: 'right', fontWeight: 600 }}
+                        >
+                          Impact:
+                        </label>
+                        <select
+                          id={`indicator-impact-${definition.id}`}
+                          value={impactValue}
+                          disabled={statusValue === 'none'}
+                          onChange={(e) => handleIndicatorImpactChange(definition.id, Number(e.target.value))}
+                          style={{ width: '20ch' }}
+                        >
+                          {IMPACT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 );
