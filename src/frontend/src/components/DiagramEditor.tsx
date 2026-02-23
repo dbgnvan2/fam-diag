@@ -124,7 +124,7 @@ const HELP_SECTIONS = [
     tips: [
       'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
       'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
-      'Notes for EPLs float like person notes and can be enabled/disabled per line.',
+      'Fusion intensities render as double dotted (Low), double solid (Medium), or triple solid (High) lines while distance/conflict keep their dotted/dashed/sawtooth variants. Notes for EPLs float like person notes and can be enabled/disabled per line.',
     ],
   },
   {

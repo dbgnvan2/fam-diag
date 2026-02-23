@@ -254,9 +254,9 @@ const PropertiesPanel = ({
     switch (relationshipType) {
       case 'fusion':
         return [
-          { value: 'low', label: 'Low (dotted)' },
-          { value: 'medium', label: 'Medium (short dash)' },
-          { value: 'high', label: 'High (bold dash)' },
+          { value: 'low', label: 'Low (double dotted lines)' },
+          { value: 'medium', label: 'Medium (double solid lines)' },
+          { value: 'high', label: 'High (triple solid lines)' },
         ];
       case 'distance':
         return [

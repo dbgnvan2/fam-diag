@@ -29,6 +29,7 @@ I need you to act as the "tester" and manually verify that the application is wo
     *   **Can you create a new EPL between two people?**
     *   **Can you select the EPL by clicking on it?**
     *   **Can you right-click on the EPL to bring up a context menu with "Properties" and "Delete" options?**
+    *   Cycle the Fusion intensity between Low/Medium/High and confirm the canvas renders double dotted lines for Low, double solid lines for Medium, and triple solid lines for High. Distance intensities should stay dotted/short dash/long dash, and Conflict should keep the solid/dotted/double sawtooth renderings.
     *   **Can you change the `relationshipType` in the properties panel and does the `lineStyle` default to the first option?**
     *   **Do the `fusion` styles (`single`, `double`, `triple`) render correctly as parallel lines?**
     *   **Do the `distance` styles (`dotted`, `dashed`, `cutoff`) render correctly?**

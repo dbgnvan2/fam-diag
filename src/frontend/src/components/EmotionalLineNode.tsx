@@ -71,6 +71,7 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
     const p2_edge_y = p2_y_center - radius * Math.sin(angle);
 
     const linePoints = lineEnding === 'none' ? points : [p1_edge_x, p1_edge_y, p2_edge_x, p2_edge_y];
+    const perpendicularAngle = angle + Math.PI / 2;
 
     const handleSelect = (e: KonvaEventObject<MouseEvent>) => {
         e.cancelBubble = true;
@@ -84,9 +85,6 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
 
     const baseColor = emotionalLine.color || '#444444';
     const baseStrokeWidth = isSelected ? 3 : 2;
-    const fusionDash = lineStyle === 'low' || lineStyle === 'medium' || lineStyle === 'high'
-        ? getDashStyle(lineStyle)
-        : undefined;
     const strokeWidth = (lineStyle === 'high' || lineStyle === 'long-dash')
         ? baseStrokeWidth + 1
         : baseStrokeWidth;
@@ -97,6 +95,15 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
+    };
+
+    const shiftLinePoints = (pts: number[], deltaX: number, deltaY: number) => {
+        const shifted = [...pts];
+        shifted[0] += deltaX;
+        shifted[1] += deltaY;
+        shifted[2] += deltaX;
+        shifted[3] += deltaY;
+        return shifted;
     };
 
     const renderLines = () => {
@@ -114,7 +121,20 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         }
 
         if (lineStyle === 'low' || lineStyle === 'medium' || lineStyle === 'high') {
-            return <Line points={linePoints} {...lineProps} dash={fusionDash} />;
+            const offsetStep = 4;
+            const count = lineStyle === 'high' ? 3 : 2;
+            const offsets = count === 3 ? [-1, 0, 1] : [-1, 1];
+            const dash = lineStyle === 'low' ? [2, 6] : undefined;
+            return (
+                <>
+                    {offsets.map((multiplier, idx) => {
+                        const deltaX = Math.cos(perpendicularAngle) * offsetStep * multiplier;
+                        const deltaY = Math.sin(perpendicularAngle) * offsetStep * multiplier;
+                        const shiftedPoints = shiftLinePoints(linePoints, deltaX, deltaY);
+                        return <Line key={`fusion-${lineStyle}-${idx}`} points={shiftedPoints} {...lineProps} dash={dash} />;
+                    })}
+                </>
+            );
         } else if (lineStyle === 'dotted' || lineStyle === 'dashed' || lineStyle === 'long-dash') {
             const dash = getDashStyle(lineStyle);
             return <Line points={linePoints} {...lineProps} dash={dash} />;
