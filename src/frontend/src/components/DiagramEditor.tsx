@@ -6,6 +6,7 @@ import type {
   EmotionalLine,
   FunctionalIndicatorDefinition,
   EmotionalProcessEvent,
+  EventClass,
 } from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
@@ -23,6 +24,7 @@ import { Stage as StageType } from 'konva/lib/Stage';
 import { useAutosave } from '../hooks/useAutosave';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import SessionNotesPanel from './SessionNotesPanel';
+import IdeasPanel from './IdeasPanel';
 import DatePickerField from './DatePickerField';
 import { getSaveButtonState } from '../utils/saveButtonState';
 import {
@@ -83,7 +85,13 @@ const STORAGE_KEYS = {
   emotionalLines: 'family-diagram-emotional-lines',
   eventCategories: 'family-diagram-event-categories',
   indicatorDefinitions: 'family-diagram-functional-indicators',
+  ideas: 'family-diagram-ideas',
 } as const;
+const EVENT_CLASS_LABELS: Record<EventClass, string> = {
+  individual: 'Individual',
+  relationship: 'Relationship',
+  'emotional-pattern': 'Emotional Pattern',
+};
 
 const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
   if (typeof window === 'undefined') return null;
@@ -109,6 +117,7 @@ const HELP_SECTIONS = [
       'Right-click the canvas to Add Person; drag a person to move both their node and any attached notes.',
       'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL again to add child, twin, triplet, miscarriage, or stillbirth symbols; the Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
       'Each person’s right-click menu always ends with Delete, plus “Add as Child”/“Remove as Child” when appropriate.',
+      'Birth dates automatically render an “Age NN” label centered under the person (using death date if present, otherwise today), so you can scan generations without opening Properties.',
     ],
   },
   {
@@ -120,7 +129,7 @@ const HELP_SECTIONS = [
     ],
   },
   {
-    title: 'Emotional Process Lines (EPLs)',
+    title: 'Emotional Pattern Lines (EPLs)',
     tips: [
       'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
       'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
@@ -189,6 +198,27 @@ const sanitizeSinglePersonIndicators = (person: Person, defs: FunctionalIndicato
   return sanitizePersonIndicatorsWithSet(person, allowed);
 };
 
+const normalizeEventList = (
+  events: EmotionalProcessEvent[] | undefined,
+  fallbackClass: EventClass
+): EmotionalProcessEvent[] | undefined =>
+  events
+    ? events.map((event) => ({
+        ...event,
+        statusLabel: event.statusLabel ?? '',
+        eventClass: event.eventClass || fallbackClass,
+      }))
+    : undefined;
+
+const attachEventClassToEntities = <T extends { events?: EmotionalProcessEvent[] }>(
+  entities: T[],
+  fallbackClass: EventClass
+): T[] =>
+  entities.map((entity) => ({
+    ...entity,
+    events: normalizeEventList(entity.events, fallbackClass),
+  }));
+
 const DiagramEditor = () => {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
@@ -218,6 +248,12 @@ const DiagramEditor = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const [ideasOpen, setIdeasOpen] = useState(false);
+  const [ideasText, setIdeasText] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.ideasText;
+    const stored = getStoredValue('ideas');
+    return stored ?? DEFAULT_DIAGRAM_STATE.ideasText;
+  });
   const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
   const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -552,6 +588,9 @@ const DiagramEditor = () => {
     URL.revokeObjectURL(url);
   };
 
+  const getEventClassForTargetType = (type: 'person' | 'partnership' | 'emotional'): EventClass =>
+    type === 'person' ? 'individual' : type === 'partnership' ? 'relationship' : 'emotional-pattern';
+
   const inferSessionEventDefaults = useCallback(
     (snippet: string): EmotionalProcessEvent => {
       const trimmed = snippet.trim();
@@ -571,6 +610,8 @@ const DiagramEditor = () => {
         observations: trimmed,
         isNodalEvent: false,
         createdAt: Date.now(),
+        statusLabel: '',
+        eventClass: 'individual',
       };
     },
     [people, eventCategories]
@@ -588,6 +629,7 @@ const DiagramEditor = () => {
       return;
     }
     const defaults = inferSessionEventDefaults(trimmed);
+    defaults.eventClass = getEventClassForTargetType(target.type);
     if (target.type === 'person') {
       const targetPerson = people.find((p) => p.id === target.id);
       defaults.primaryPersonName = targetPerson?.name || defaults.primaryPersonName || '';
@@ -655,9 +697,12 @@ const DiagramEditor = () => {
   };
 
   const appendEventToTarget = (target: { type: 'person' | 'partnership' | 'emotional'; id: string }, event: EmotionalProcessEvent) => {
+    const fallbackClass = getEventClassForTargetType(target.type);
     const eventWithTimestamp: EmotionalProcessEvent = {
       ...event,
       createdAt: event.createdAt ?? Date.now(),
+      statusLabel: event.statusLabel ?? '',
+      eventClass: event.eventClass || fallbackClass,
     };
     if (target.type === 'person') {
       const person = people.find((p) => p.id === target.id);
@@ -796,11 +841,11 @@ const DiagramEditor = () => {
     return keys.every((key) => STYLE_ONLY_FIELDS.has(key));
   };
 
-  const alignAllAnchors = (list: Person[]) => {
-    if (!partnerships.length) return list;
+  const alignAllAnchors = (list: Person[], partnershipSource: Partnership[] = partnerships) => {
+    if (!partnershipSource.length) return list;
     const personLookup = new Map(list.map((p) => [p.id, p]));
     const partnershipRanges = new Map<string, { min: number; max: number }>();
-    partnerships.forEach((partnership) => {
+    partnershipSource.forEach((partnership) => {
       const partner1 = personLookup.get(partnership.partner1_id);
       const partner2 = personLookup.get(partnership.partner2_id);
       if (!partner1 || !partner2) return;
@@ -947,6 +992,9 @@ const DiagramEditor = () => {
   const normalizeEmotionalLines = (lines: EmotionalLineInput[]): EmotionalLine[] =>
     lines.map((line) => {
       let normalized = { ...line } as EmotionalLine;
+      if (!normalized.status) {
+        normalized = { ...normalized, status: 'ongoing' };
+      }
       if (normalized.relationshipType === 'distance' && normalized.lineStyle === 'cutoff') {
         normalized = { ...normalized, lineStyle: 'long-dash' };
       }
@@ -1017,16 +1065,21 @@ const DiagramEditor = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+useEffect(() => {
+  const handleResize = () => {
+    setViewport({ width: window.innerWidth, height: window.innerHeight });
+  };
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+  setStoredValue('ideas', ideasText);
+}, [ideasText]);
+
+useEffect(() => {
+  const handleMouseMove = (event: MouseEvent) => {
       if (!resizeStateRef.current) return;
       const delta = resizeStateRef.current.startX - event.clientX;
       const nextWidth = Math.min(600, Math.max(180, resizeStateRef.current.startWidth + delta));
@@ -1133,15 +1186,14 @@ const DiagramEditor = () => {
   };
 
   const handleUpdatePartnership = (partnershipId: string, updatedProps: Partial<Partnership>) => {
-    console.log('Updating partnership:', partnershipId, updatedProps);
-    setPartnerships(partnerships.map(p => 
-        p.id === partnershipId ? { ...p, ...updatedProps } : p
-    ));
-    setPropertiesPanelItem(prev => {
-        if (prev && prev.id === partnershipId && 'partner1_id' in prev) { // check if it is a partnership
-            return { ...prev, ...updatedProps };
-        }
-        return prev;
+    setPartnerships((prev) =>
+      prev.map((p) => (p.id === partnershipId ? { ...p, ...updatedProps } : p))
+    );
+    setPropertiesPanelItem((prev) => {
+      if (prev && prev.id === partnershipId && 'partner1_id' in prev) {
+        return { ...prev, ...updatedProps };
+      }
+      return prev;
     });
   };
 
@@ -1178,6 +1230,7 @@ const DiagramEditor = () => {
         id: nanoid(),
         person1_id,
         person2_id,
+        status: 'ongoing',
         relationshipType,
         lineStyle,
         lineEnding,
@@ -1256,7 +1309,46 @@ const DiagramEditor = () => {
     functionalIndicatorDefinitions,
     eventCategories,
     autoSaveMinutes,
+    ideasText,
   });
+
+  const replaceDiagramState = (data: any, sourceFileName?: string) => {
+    if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
+      throw new Error('Invalid file format');
+    }
+    const nextDefinitions: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
+      ? data.functionalIndicatorDefinitions
+      : functionalIndicatorDefinitions;
+    applyIndicatorDefinitionArray(nextDefinitions);
+    const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
+    const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
+    const aligned = alignAllAnchors(cleaned.people, cleaned.partnerships);
+    const sanitizedPeople = sanitizePeopleIndicators(aligned, nextDefinitions);
+    const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
+    const partnershipsWithEvents = attachEventClassToEntities(cleaned.partnerships, 'relationship');
+    const linesWithEvents = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
+    setPeople(peopleWithEvents);
+    setPartnerships(partnershipsWithEvents);
+    setEmotionalLines(linesWithEvents);
+    if (Array.isArray(data.eventCategories) && data.eventCategories.length > 0) {
+      setEventCategories(data.eventCategories);
+    }
+    if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
+      setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
+    }
+    const derivedName =
+      data.fileMeta?.fileName ||
+      sourceFileName ||
+      (typeof data.fileName === 'string' ? data.fileName : FALLBACK_FILE_NAME);
+    setFileName(derivedName);
+    if (typeof data.ideasText === 'string') {
+      setIdeasText(data.ideasText);
+    } else {
+      setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
+    }
+    markSnapshotClean(peopleWithEvents, partnershipsWithEvents, linesWithEvents);
+    setLastSavedAt(null);
+  };
 
   const handleSave = (forcePrompt = false) => {
     let targetName = fileName;
@@ -1295,19 +1387,7 @@ const DiagramEditor = () => {
         const jsonString = event.target?.result as string;
         try {
             const data = JSON.parse(jsonString);
-            if (data.people && data.partnerships && data.emotionalLines) {
-                const nextDefinitions: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
-                  ? data.functionalIndicatorDefinitions
-                  : functionalIndicatorDefinitions;
-                applyIndicatorDefinitionArray(nextDefinitions);
-                const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
-                const aligned = alignAllAnchors(cleaned.people);
-                setPeople(sanitizePeopleIndicators(aligned, nextDefinitions));
-                setPartnerships(cleaned.partnerships);
-                setEmotionalLines(normalizeEmotionalLines(data.emotionalLines));
-            } else {
-                alert('Invalid file format');
-            }
+            replaceDiagramState(data, file.name);
         } catch (error) {
             alert('Error parsing file');
         }
@@ -1346,6 +1426,7 @@ const DiagramEditor = () => {
     setFileName(initialFileName);
     markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines);
     setLastSavedAt(null);
+    setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
   }, [markSnapshotClean]);
 
   const handleNewFile = () => {
@@ -2249,6 +2330,7 @@ const DiagramEditor = () => {
             </label>
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
+            <button onClick={() => setIdeasOpen(true)}>Ideas</button>
             <button onClick={() => setSessionNotesOpen(true)}>Session Notes</button>
             <button onClick={() => setHelpOpen(true)}>Help</button>
             <input
@@ -3033,6 +3115,26 @@ const DiagramEditor = () => {
                         </select>
                       </div>
                       <div style={rowStyle}>
+                        <label htmlFor="sessionEventStatus" style={labelStyle}>Status:</label>
+                        <input
+                          type="text"
+                          id="sessionEventStatus"
+                          value={sessionEventDraft.statusLabel || ''}
+                          onChange={(e) => handleSessionEventDraftChange('statusLabel', e.target.value)}
+                          style={controlStyle}
+                          placeholder="e.g., Start"
+                        />
+                      </div>
+                      <div style={rowStyle}>
+                        <label style={labelStyle}>Event Class:</label>
+                        <div style={{ ...controlStyle, textAlign: 'left' }}>
+                          {EVENT_CLASS_LABELS[
+                            sessionEventDraft.eventClass ||
+                              getEventClassForTargetType(sessionEventTarget.type)
+                          ]}
+                        </div>
+                      </div>
+                      <div style={rowStyle}>
                         <label htmlFor="sessionEventIntensity" style={labelStyle}>Intensity (1-10):</label>
                         <input
                           type="number"
@@ -3121,6 +3223,12 @@ const DiagramEditor = () => {
               </div>
             </div>
           )}
+          <IdeasPanel
+            isOpen={ideasOpen}
+            ideasText={ideasText}
+            onChange={setIdeasText}
+            onClose={() => setIdeasOpen(false)}
+          />
         </div>
       );
     };

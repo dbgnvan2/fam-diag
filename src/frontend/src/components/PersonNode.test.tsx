@@ -112,4 +112,30 @@ describe('PersonNode', () => {
         const hasCombined = texts.some((node: any) => node.text() === 'C5');
         expect(hasCombined).toBe(true);
     });
+
+    it('displays age label based on birth/death dates', () => {
+        const stageRef = React.createRef<Stage>();
+        const datedPerson: Person = {
+            id: 'p6',
+            name: 'Aged',
+            x: 0,
+            y: 0,
+            gender: 'female',
+            partnerships: [],
+            birthDate: '1980-01-05',
+            deathDate: '2020-01-06',
+        };
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={datedPerson} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const texts = group.find('Text');
+        expect(texts.some((node: any) => node.text() === 'Age 40')).toBe(true);
+        expect(texts.some((node: any) => node.text() === 'd. 2020-01-06')).toBe(true);
+    });
 });

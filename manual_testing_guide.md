@@ -25,7 +25,7 @@ I need you to act as the "tester" and manually verify that the application is wo
     *   **Can you select the line connecting the child to the partnership by clicking on it?**
     *   **Can you right-click on the child connection line to bring up a context menu with a "Remove as Child" option?**
 
-4.  **Emotional Process Lines (EPLs):**
+4.  **Emotional Pattern Lines (EPLs):**
     *   **Can you create a new EPL between two people?**
     *   **Can you select the EPL by clicking on it?**
     *   **Can you right-click on the EPL to bring up a context menu with "Properties" and "Delete" options?**
@@ -34,6 +34,7 @@ I need you to act as the "tester" and manually verify that the application is wo
     *   **Do the `fusion` styles (`single`, `double`, `triple`) render correctly as parallel lines?**
     *   **Do the `distance` styles (`dotted`, `dashed`, `cutoff`) render correctly?**
     *   **Do the `conflict` styles (`solid-saw-tooth`, `dotted-saw-tooth`, `double-saw-tooth`) render correctly as saw-tooth patterns?**
+    *   **Set the Status to “Ended”, enter an End Date, click Save, and verify the line disappears from the canvas while its timeline/events remain accessible. Switch back to “Ongoing” (with Save) and confirm it reappears.**
     *   **Do the line endings render correctly?**
 
 Please be as detailed as possible in your feedback. If you find a bug, please tell me exactly what you did, what you expected to happen, and what actually happened.
@@ -47,8 +48,12 @@ I have run the application, and I believe that all of the above features should 
     *   After panning or clicking the empty canvas, ensure no objects stay highlighted and the properties panel closes.
     *   Shift-click two or more people to open the Shared Properties panel. Toggle “Shaded Background Enabled” and verify only the selected people gain/lose the lightly tinted square— the overall canvas color should not change.
     *   While still multi-selected, change the border color and confirm the person outlines use the thicker stroke so the new color remains obvious.
-    *   Click through the Functional Facts tabs (Person, Indicators, Events) for a person to ensure each tab renders the expected controls. Do the same for PRLs and EPLs—Person should show core properties, Indicators should grey out when not applicable, and Events should always list/add/edit Emotional Process Events.
+    *   For any person with a birth date (and optional death date), confirm an “Age NN” label appears centered below the node—if a death date exists, the value reflects age at death; otherwise it reflects age as of today. Remove/clear the birth date and ensure the age badge goes away.
+    *   On an individual Person, edit Birth Date (or Death Date) but skip Save—confirm nothing changes. Click Save and ensure the nodal event appears; repeat for a PRL (Relationship Start/Marriage/Separation/Divorce) and an EPL (Start/End) to confirm Save is the only action that persists changes and logs events, and that Cancel discards staged edits.
+    *   Click through the Functional Facts tabs (Person, Indicators, Events) for a person to ensure each tab renders the expected controls and that the header reads “Individual Functional Facts.” Do the same for PRLs (“Relationship Functional Facts”) and EPLs (“Emotional Pattern Functional Facts”)—Person should show core properties, Indicators should grey out when not applicable, and Events should always list/add/edit Emotional Process Events.
     *   On the Events tab, confirm each entry now displays as a two-line summary (category + date on the first line, then ratings and participants plus the Edit/Delete buttons on the second line) and that Frequency/Impact values appear alongside Intensity and “How well”.
+    *   In the Relationship Functional Facts panel, populate Relationship Start, Marriage Start, Separation Date, and Divorce Date. After each date entry, verify that two Emotional Process Events (one per partner) appear with Category equal to the relationship type, Intensity derived from the relationship status, WWWWH showing the date label, Observations copied from the notes field, and the Nodal Event flag checked.
+    *   Ensure the new Event Class and Status fields display in the Events tab for every entry (Individual for person events, Relationship for PRLs, Emotional Pattern for EPLs) and that editing/adding events updates those labels.
 6.  **Functional Indicators:**
     *   Open the Functional Indicators modal, add at least one labeled indicator (try one letter-only and one with an uploaded icon), and make sure they appear in the list with previews.
     *   Select a person and, in the Properties panel, set the new indicator to “Current” or “Past” and assign Frequency, Intensity, and Functional Impact ratings (0–5). Confirm the badge shows next to the person node with the correct status/impact text.

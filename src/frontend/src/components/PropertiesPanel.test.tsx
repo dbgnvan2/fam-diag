@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import PropertiesPanel from './PropertiesPanel';
-import type { EmotionalLine, Person, FunctionalIndicatorDefinition } from '../types';
+import type { EmotionalLine, Person, FunctionalIndicatorDefinition, Partnership } from '../types';
 import { vi } from 'vitest';
 
 describe('PropertiesPanel', () => {
@@ -33,7 +33,7 @@ describe('PropertiesPanel', () => {
 
         expect(screen.getByLabelText('Start Date:')).toBeInTheDocument();
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('2024-01-01')).toBeInTheDocument();
+        expect((screen.getByLabelText('Start Date:') as HTMLInputElement).value).toBe('2024-01-01');
         expect(screen.getByDisplayValue('Test notes')).toBeInTheDocument();
     });
 
@@ -64,7 +64,8 @@ describe('PropertiesPanel', () => {
 
         const colorInput = screen.getByLabelText('Color:');
         fireEvent.change(colorInput, { target: { value: '#00aa00' } });
-        expect(updateEmotionalLine).toHaveBeenCalledWith('el-color', { color: '#00aa00' });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updateEmotionalLine).toHaveBeenCalledWith('el-color', expect.objectContaining({ color: '#00aa00' }));
     });
 
     it('shows Intensity label for distance EPLs', () => {
@@ -121,9 +122,11 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: /Indicators/i }));
         const statusSelect = screen.getAllByLabelText('Status:')[0];
         fireEvent.change(statusSelect, { target: { value: 'current' } });
-        expect(updatePerson).toHaveBeenCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 0, frequency: 0, intensity: 0 }],
-        });
+        expect(updatePerson).toHaveBeenCalledWith('p1', expect.objectContaining({
+            functionalIndicators: expect.arrayContaining([
+                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 0, frequency: 0, intensity: 0 }),
+            ]),
+        }));
 
         const updatedPerson: Person = {
             ...person,
@@ -145,9 +148,11 @@ describe('PropertiesPanel', () => {
 
         const impactInput = screen.getAllByLabelText('Impact:')[0];
         fireEvent.change(impactInput, { target: { value: '4' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }],
-        });
+        expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
+            functionalIndicators: expect.arrayContaining([
+                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }),
+            ]),
+        }));
 
         const personAfterImpact: Person = {
             ...updatedPerson,
@@ -169,9 +174,11 @@ describe('PropertiesPanel', () => {
 
         const frequencySelect = screen.getAllByLabelText('Frequency:')[0];
         fireEvent.change(frequencySelect, { target: { value: '3' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }],
-        });
+        expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
+            functionalIndicators: expect.arrayContaining([
+                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }),
+            ]),
+        }));
 
         const personAfterFrequency: Person = {
             ...personAfterImpact,
@@ -193,9 +200,11 @@ describe('PropertiesPanel', () => {
 
         const intensitySelect = screen.getAllByLabelText('Intensity:')[0];
         fireEvent.change(intensitySelect, { target: { value: '5' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p1', {
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 5 }],
-        });
+        expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
+            functionalIndicators: expect.arrayContaining([
+                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 5 }),
+            ]),
+        }));
     });
 
     it('updates first and last name fields while keeping display name in sync', () => {
@@ -224,7 +233,8 @@ describe('PropertiesPanel', () => {
         );
         const firstInput = screen.getByLabelText('First Name:');
         fireEvent.change(firstInput, { target: { value: 'Mary' } });
-        expect(updatePerson).toHaveBeenCalledWith('p2', { firstName: 'Mary', name: 'Mary Doe' });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updatePerson).toHaveBeenCalledWith('p2', expect.objectContaining({ firstName: 'Mary', name: 'Mary Doe' }));
 
         const updatedAfterFirst: Person = { ...person, firstName: 'Mary', name: 'Mary Doe' };
         rerender(
@@ -242,6 +252,80 @@ describe('PropertiesPanel', () => {
 
         const lastInput = screen.getByLabelText('Last Name:');
         fireEvent.change(lastInput, { target: { value: 'Smith' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p2', { lastName: 'Smith', name: 'Mary Smith' });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updatePerson).toHaveBeenLastCalledWith('p2', expect.objectContaining({ lastName: 'Smith', name: 'Mary Smith' }));
+    });
+
+    it('creates person events when partnership dates are saved', () => {
+        const updatePerson = vi.fn();
+        const updatePartnership = vi.fn();
+        const partner1: Person = {
+            id: 'person-a',
+            name: 'Partner A',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: ['pair-1'],
+            events: [],
+        };
+        const partner2: Person = {
+            id: 'person-b',
+            name: 'Partner B',
+            x: 100,
+            y: 0,
+            gender: 'female',
+            partnerships: ['pair-1'],
+            events: [],
+        };
+        const partnership: Partnership = {
+            id: 'pair-1',
+            partner1_id: 'person-a',
+            partner2_id: 'person-b',
+            horizontalConnectorY: 120,
+            relationshipType: 'married',
+            relationshipStatus: 'married',
+            children: [],
+            events: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={partnership}
+                people={[partner1, partner2]}
+                eventCategories={['Relationship']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={updatePartnership}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        const startInput = screen.getByLabelText('Relationship Start:');
+        fireEvent.change(startInput, { target: { value: '2020-01-01' } });
+        const saveButtons = screen.getAllByRole('button', { name: /^Save$/i });
+        fireEvent.click(saveButtons[saveButtons.length - 1]);
+
+        expect(updatePartnership).toHaveBeenCalled();
+        expect(updatePerson).toHaveBeenCalledTimes(2);
+
+        const firstCall = updatePerson.mock.calls[0];
+        const secondCall = updatePerson.mock.calls[1];
+
+        expect(firstCall[0]).toBe('person-a');
+        expect(firstCall[1].events?.[0]).toMatchObject({
+            date: '2020-01-01',
+            primaryPersonName: 'Partner A',
+            otherPersonName: 'Partner B',
+            eventClass: 'relationship',
+        });
+
+        expect(secondCall[0]).toBe('person-b');
+        expect(secondCall[1].events?.[0]).toMatchObject({
+            date: '2020-01-01',
+            primaryPersonName: 'Partner B',
+            otherPersonName: 'Partner A',
+            eventClass: 'relationship',
+        });
     });
 });

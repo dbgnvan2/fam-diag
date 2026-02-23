@@ -65,6 +65,8 @@ export type EmotionalLine = {
   person1_id: string;
   person2_id: string;
   startDate?: string;
+  endDate?: string;
+  status?: 'ongoing' | 'ended';
   relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict';
   lineStyle: 
     // Fusion
@@ -82,10 +84,13 @@ export type EmotionalLine = {
   events?: EmotionalProcessEvent[];
 };
 
+export type EventClass = 'individual' | 'relationship' | 'emotional-pattern';
+
 export type EmotionalProcessEvent = {
   id: string;
   date: string;
   category: string;
+  statusLabel?: string;
   intensity: number;
   howWell: number;
   otherPersonName: string;
@@ -99,4 +104,5 @@ export type EmotionalProcessEvent = {
   reflectionsNote?: string;
   createdAt?: number;
   sourceIndicatorId?: string;
+  eventClass: EventClass;
 };

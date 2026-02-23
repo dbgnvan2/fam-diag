@@ -75,6 +75,7 @@ export type RawDiagramFile = {
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
   autoSaveMinutes?: number;
+  ideasText?: string;
 };
 
 export type DefaultDiagramState = {
@@ -85,6 +86,7 @@ export type DefaultDiagramState = {
   eventCategories: string[];
   autoSaveMinutes: number;
   fileName: string;
+  ideasText: string;
 };
 
 const toPositiveNumberOrNull = (value: unknown) => {
@@ -113,6 +115,7 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
     eventCategories: FALLBACK_EVENT_CATEGORIES,
     autoSaveMinutes: FALLBACK_AUTO_SAVE_MINUTES,
     fileName: FALLBACK_FILE_NAME,
+    ideasText: '',
   };
 
   if (!typed) {
@@ -122,7 +125,12 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
   return {
     people: hasItems(typed.people) ? typed.people : base.people,
     partnerships: hasItems(typed.partnerships) ? typed.partnerships : base.partnerships,
-    emotionalLines: Array.isArray(typed.emotionalLines) ? typed.emotionalLines : base.emotionalLines,
+    emotionalLines: Array.isArray(typed.emotionalLines)
+      ? typed.emotionalLines.map((line) => ({
+          ...line,
+          status: line.status || 'ongoing',
+        }))
+      : base.emotionalLines,
     functionalIndicatorDefinitions:
       Array.isArray(typed.functionalIndicatorDefinitions) &&
       typed.functionalIndicatorDefinitions.length
@@ -134,6 +142,7 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
       typeof typed.fileMeta?.fileName === 'string' && typed.fileMeta.fileName.trim().length
         ? typed.fileMeta.fileName.trim()
         : base.fileName,
+    ideasText: typeof typed.ideasText === 'string' ? typed.ideasText : base.ideasText,
   };
 };
 

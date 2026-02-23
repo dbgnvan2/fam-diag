@@ -239,6 +239,26 @@ const PersonNode = ({
     }
   };
 
+  const parseDate = (iso?: string) => {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const ageLabel = useMemo(() => {
+    const birth = parseDate(person.birthDate);
+    if (!birth) return null;
+    const end = parseDate(person.deathDate) ?? new Date();
+    let age = end.getFullYear() - birth.getFullYear();
+    const monthDiff = end.getMonth() - birth.getMonth();
+    const dayDiff = end.getDate() - birth.getDate();
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age -= 1;
+    }
+    if (age < 0) return null;
+    return `Age ${age}`;
+  }, [person.birthDate, person.deathDate]);
+
   const nameProps =
     lifeStatus === 'alive'
       ? {
@@ -296,14 +316,26 @@ const PersonNode = ({
         {...nameProps}
         listening={false}
       />
+        {ageLabel && (
+          <Text
+            text={ageLabel}
+            x={-shapeSize / 2}
+            y={shapeSize / 2 + 6}
+            width={shapeSize}
+            align="center"
+            fontSize={12}
+            listening={false}
+          />
+        )}
         {person.deathDate && (
           <Text
             text={`d. ${person.deathDate}`}
-            x={-25}
-            y={35}
-            width={50}
+            x={-shapeSize / 2}
+            y={shapeSize / 2 + 20}
+            width={shapeSize}
             align="center"
             fontSize={12}
+            listening={false}
           />
         )}
         {pastIndicators.map((entry, index) => (

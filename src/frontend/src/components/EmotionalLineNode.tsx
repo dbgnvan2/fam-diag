@@ -1,4 +1,4 @@
-import { Group, Line } from 'react-konva';
+import { Group, Line, Text } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
@@ -244,10 +244,57 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
         return endings;
     }
 
+    const formatShortDate = (iso?: string | null) => {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+        const [, year, month] = iso.match(/^(\d{4})-(\d{2})/) || [];
+        if (!year || !month) return null;
+        return `${year.slice(2)}/${month}`;
+    };
+
+    const renderDateLabels = () => {
+        const labels: JSX.Element[] = [];
+        const perpendicularShift = 18;
+        const alongLineShift = 0.08;
+
+        const addLabel = (text: string, fraction: number, key: string) => {
+            const baseX = p1_x_center + (p2_x_center - p1_x_center) * fraction;
+            const baseY = p1_y_center + (p2_y_center - p1_y_center) * fraction;
+            const perpX = Math.cos(perpendicularAngle);
+            const perpY = Math.sin(perpendicularAngle);
+            const direction = perpY < 0 ? 1 : -1;
+            const offsetX = perpX * perpendicularShift * direction;
+            const offsetY = perpY * perpendicularShift * direction;
+            labels.push(
+                <Text
+                    key={key}
+                    x={baseX + offsetX - 22}
+                    y={baseY + offsetY - 10}
+                    width={44}
+                    align="center"
+                    text={text}
+                    fontSize={10}
+                    fill={baseColor}
+                    listening={false}
+                />
+            );
+        };
+
+        const startLabel = formatShortDate(emotionalLine.startDate);
+        if (startLabel) {
+            addLabel(`S:${startLabel}`, 0.5 - alongLineShift, `${emotionalLine.id}-start`);
+        }
+        const endLabel = formatShortDate(emotionalLine.endDate);
+        if (endLabel) {
+            addLabel(`E:${endLabel}`, 0.5 + alongLineShift, `${emotionalLine.id}-end`);
+        }
+        return labels;
+    };
+
     return (
         <Group>
             {renderLines()}
             {renderEndings()}
+            {renderDateLabels()}
         </Group>
     );
 };
