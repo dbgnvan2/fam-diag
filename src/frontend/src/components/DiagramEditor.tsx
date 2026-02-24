@@ -113,7 +113,7 @@ const HELP_SECTIONS = [
     title: 'Canvas & Navigation',
     tips: [
       'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
-      'Scrub the Timeline slider (left of Zoom) to replay births, deaths, PRL milestones, EPL start/end dates, and other recorded events—only items on or after the selected date remain visible.',
+      'Scrub the Timeline slider (left of Zoom) to replay births, deaths, PRL milestones, EPL start/end dates, and other recorded events—only items on or before the selected date remain visible so you can “grow” the diagram forward in time.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
       'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
     ],
@@ -418,12 +418,12 @@ const DiagramEditor = () => {
   const timelineActiveEntry = timelineSliderDisabled ? null : timelineEntries[clampedTimelineIndex];
   const timelineCutoffTimestamp = timelineActiveEntry?.timestamp ?? null;
 
-  const isOnOrAfterTimeline = useCallback(
+  const isVisibleAtTimeline = useCallback(
     (date?: string | null) => {
       if (!timelineCutoffTimestamp) return true;
       const ts = parseIsoDateToTimestamp(date);
       if (ts == null) return true;
-      return ts >= timelineCutoffTimestamp;
+      return ts <= timelineCutoffTimestamp;
     },
     [timelineCutoffTimestamp]
   );
@@ -432,13 +432,13 @@ const DiagramEditor = () => {
     setSelectedPeopleIds((prev) =>
       prev.filter((id) => {
         const person = people.find((p) => p.id === id);
-        return person ? isOnOrAfterTimeline(person.birthDate) : false;
+        return person ? isVisibleAtTimeline(person.birthDate) : false;
       })
     );
     setSelectedPartnershipId((prev) => {
       if (!prev) return prev;
       const partnership = partnerships.find((p) => p.id === prev);
-      if (!partnership || !isOnOrAfterTimeline(partnership.relationshipStartDate)) {
+      if (!partnership || !isVisibleAtTimeline(partnership.relationshipStartDate)) {
         return null;
       }
       return prev;
@@ -446,7 +446,7 @@ const DiagramEditor = () => {
     setSelectedChildId((prev) => {
       if (!prev) return prev;
       const child = people.find((p) => p.id === prev);
-      if (!child || !isOnOrAfterTimeline(child.birthDate)) {
+      if (!child || !isVisibleAtTimeline(child.birthDate)) {
         return null;
       }
       return prev;
@@ -454,7 +454,7 @@ const DiagramEditor = () => {
     setSelectedEmotionalLineId((prev) => {
       if (!prev) return prev;
       const line = emotionalLines.find((line) => line.id === prev);
-      if (!line || !isOnOrAfterTimeline(line.startDate)) {
+      if (!line || !isVisibleAtTimeline(line.startDate)) {
         return null;
       }
       return prev;
@@ -462,49 +462,49 @@ const DiagramEditor = () => {
     setPropertiesPanelItem((prev) => {
       if (!prev) return prev;
       if ('name' in prev) {
-        return isOnOrAfterTimeline(prev.birthDate) ? prev : null;
+        return isVisibleAtTimeline(prev.birthDate) ? prev : null;
       }
       if ('partner1_id' in prev) {
-        return isOnOrAfterTimeline(prev.relationshipStartDate) ? prev : null;
+        return isVisibleAtTimeline(prev.relationshipStartDate) ? prev : null;
       }
       if ('lineStyle' in prev) {
-        return isOnOrAfterTimeline(prev.startDate) ? prev : null;
+        return isVisibleAtTimeline(prev.startDate) ? prev : null;
       }
       return prev;
     });
-  }, [people, partnerships, emotionalLines, isOnOrAfterTimeline]);
+  }, [people, partnerships, emotionalLines, isVisibleAtTimeline]);
 
   const personVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
     people.forEach((person) => {
-      map.set(person.id, isOnOrAfterTimeline(person.birthDate));
+      map.set(person.id, isVisibleAtTimeline(person.birthDate));
     });
     return map;
-  }, [people, isOnOrAfterTimeline]);
+  }, [people, isVisibleAtTimeline]);
 
   const partnershipVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
     partnerships.forEach((partnership) => {
       const visible =
-        isOnOrAfterTimeline(partnership.relationshipStartDate) &&
+        isVisibleAtTimeline(partnership.relationshipStartDate) &&
         (personVisibility.get(partnership.partner1_id) ?? true) &&
         (personVisibility.get(partnership.partner2_id) ?? true);
       map.set(partnership.id, visible);
     });
     return map;
-  }, [partnerships, personVisibility, isOnOrAfterTimeline]);
+  }, [partnerships, personVisibility, isVisibleAtTimeline]);
 
   const emotionalVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
     emotionalLines.forEach((line) => {
       const visible =
-        isOnOrAfterTimeline(line.startDate) &&
+        isVisibleAtTimeline(line.startDate) &&
         (personVisibility.get(line.person1_id) ?? true) &&
         (personVisibility.get(line.person2_id) ?? true);
       map.set(line.id, visible);
     });
     return map;
-  }, [emotionalLines, personVisibility, isOnOrAfterTimeline]);
+  }, [emotionalLines, personVisibility, isVisibleAtTimeline]);
   const composeSessionNotePayload = useCallback(
     () => ({
       coachName: sessionNoteCoachName,
