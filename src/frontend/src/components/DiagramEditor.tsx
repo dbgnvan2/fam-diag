@@ -102,11 +102,18 @@ const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS[key], value);
 };
+
+type TimelineEntry = {
+  timestamp: number;
+  date: string;
+  label: string;
+};
 const HELP_SECTIONS = [
   {
     title: 'Canvas & Navigation',
     tips: [
       'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
+      'Scrub the Timeline slider (left of Zoom) to replay births, deaths, PRL milestones, EPL start/end dates, and other recorded events—only items on or after the selected date remain visible.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
       'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
     ],
@@ -198,6 +205,12 @@ const sanitizeSinglePersonIndicators = (person: Person, defs: FunctionalIndicato
   return sanitizePersonIndicatorsWithSet(person, allowed);
 };
 
+const parseIsoDateToTimestamp = (value?: string | null) => {
+  if (!value) return null;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? null : ts;
+};
+
 const normalizeEventList = (
   events: EmotionalProcessEvent[] | undefined,
   fallbackClass: EventClass
@@ -262,6 +275,7 @@ const DiagramEditor = () => {
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
+  const [timelineIndex, setTimelineIndex] = useState(0);
   const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
   const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sessionNotesOpen, setSessionNotesOpen] = useState(false);
@@ -345,6 +359,152 @@ const DiagramEditor = () => {
     });
     return options;
   }, [people, partnerships, emotionalLines]);
+
+  const timelineEntries = useMemo(() => {
+    const entries: TimelineEntry[] = [];
+    const addEntry = (date: string | undefined | null, label: string) => {
+      if (!date) return;
+      const timestamp = parseIsoDateToTimestamp(date);
+      if (timestamp == null) return;
+      entries.push({ timestamp, date, label });
+    };
+    const displayName = (person: Person) => {
+      const first = person.firstName?.trim() || '';
+      const last = person.lastName?.trim() || '';
+      const combined = [first, last].filter(Boolean).join(' ').trim();
+      return combined || person.name?.trim() || `Person ${person.id.slice(0, 4)}`;
+    };
+    const nameMap = new Map<string, string>();
+    people.forEach((person) => {
+      const label = displayName(person);
+      nameMap.set(person.id, label);
+      addEntry(person.birthDate, `Birth – ${label}`);
+      addEntry(person.deathDate, `Death – ${label}`);
+      (person.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${label}`));
+    });
+    partnerships.forEach((partnership) => {
+      const partnerLabel = `${nameMap.get(partnership.partner1_id) || 'Partner 1'} + ${nameMap.get(partnership.partner2_id) || 'Partner 2'}`;
+      const base = `${partnership.relationshipType} – ${partnerLabel}`;
+      addEntry(partnership.relationshipStartDate, `${base} start`);
+      addEntry(partnership.marriedStartDate, `${base} married`);
+      addEntry(partnership.separationDate, `${base} separation`);
+      addEntry(partnership.divorceDate, `${base} divorce`);
+      (partnership.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${partnerLabel}`));
+    });
+    emotionalLines.forEach((line) => {
+      const person1Name = nameMap.get(line.person1_id) || 'Person 1';
+      const person2Name = nameMap.get(line.person2_id) || 'Person 2';
+      const summary = `${person1Name} ↔ ${person2Name}`;
+      addEntry(line.startDate, `EPL start – ${summary}`);
+      addEntry(line.endDate, `EPL end – ${summary}`);
+      (line.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${summary}`));
+    });
+    entries.sort((a, b) => a.timestamp - b.timestamp);
+    return entries;
+  }, [people, partnerships, emotionalLines]);
+
+  useEffect(() => {
+    if (!timelineEntries.length) {
+      setTimelineIndex(0);
+      return;
+    }
+    setTimelineIndex((prev) => (prev >= timelineEntries.length ? timelineEntries.length - 1 : prev));
+  }, [timelineEntries.length]);
+
+  const timelineSliderDisabled = timelineEntries.length === 0;
+  const clampedTimelineIndex = timelineSliderDisabled
+    ? 0
+    : Math.min(timelineIndex, timelineEntries.length - 1);
+  const timelineActiveEntry = timelineSliderDisabled ? null : timelineEntries[clampedTimelineIndex];
+  const timelineCutoffTimestamp = timelineActiveEntry?.timestamp ?? null;
+
+  const isOnOrAfterTimeline = useCallback(
+    (date?: string | null) => {
+      if (!timelineCutoffTimestamp) return true;
+      const ts = parseIsoDateToTimestamp(date);
+      if (ts == null) return true;
+      return ts >= timelineCutoffTimestamp;
+    },
+    [timelineCutoffTimestamp]
+  );
+
+  useEffect(() => {
+    setSelectedPeopleIds((prev) =>
+      prev.filter((id) => {
+        const person = people.find((p) => p.id === id);
+        return person ? isOnOrAfterTimeline(person.birthDate) : false;
+      })
+    );
+    setSelectedPartnershipId((prev) => {
+      if (!prev) return prev;
+      const partnership = partnerships.find((p) => p.id === prev);
+      if (!partnership || !isOnOrAfterTimeline(partnership.relationshipStartDate)) {
+        return null;
+      }
+      return prev;
+    });
+    setSelectedChildId((prev) => {
+      if (!prev) return prev;
+      const child = people.find((p) => p.id === prev);
+      if (!child || !isOnOrAfterTimeline(child.birthDate)) {
+        return null;
+      }
+      return prev;
+    });
+    setSelectedEmotionalLineId((prev) => {
+      if (!prev) return prev;
+      const line = emotionalLines.find((line) => line.id === prev);
+      if (!line || !isOnOrAfterTimeline(line.startDate)) {
+        return null;
+      }
+      return prev;
+    });
+    setPropertiesPanelItem((prev) => {
+      if (!prev) return prev;
+      if ('name' in prev) {
+        return isOnOrAfterTimeline(prev.birthDate) ? prev : null;
+      }
+      if ('partner1_id' in prev) {
+        return isOnOrAfterTimeline(prev.relationshipStartDate) ? prev : null;
+      }
+      if ('lineStyle' in prev) {
+        return isOnOrAfterTimeline(prev.startDate) ? prev : null;
+      }
+      return prev;
+    });
+  }, [people, partnerships, emotionalLines, isOnOrAfterTimeline]);
+
+  const personVisibility = useMemo(() => {
+    const map = new Map<string, boolean>();
+    people.forEach((person) => {
+      map.set(person.id, isOnOrAfterTimeline(person.birthDate));
+    });
+    return map;
+  }, [people, isOnOrAfterTimeline]);
+
+  const partnershipVisibility = useMemo(() => {
+    const map = new Map<string, boolean>();
+    partnerships.forEach((partnership) => {
+      const visible =
+        isOnOrAfterTimeline(partnership.relationshipStartDate) &&
+        (personVisibility.get(partnership.partner1_id) ?? true) &&
+        (personVisibility.get(partnership.partner2_id) ?? true);
+      map.set(partnership.id, visible);
+    });
+    return map;
+  }, [partnerships, personVisibility, isOnOrAfterTimeline]);
+
+  const emotionalVisibility = useMemo(() => {
+    const map = new Map<string, boolean>();
+    emotionalLines.forEach((line) => {
+      const visible =
+        isOnOrAfterTimeline(line.startDate) &&
+        (personVisibility.get(line.person1_id) ?? true) &&
+        (personVisibility.get(line.person2_id) ?? true);
+      map.set(line.id, visible);
+    });
+    return map;
+  }, [emotionalLines, personVisibility, isOnOrAfterTimeline]);
   const composeSessionNotePayload = useCallback(
     () => ({
       coachName: sessionNoteCoachName,
@@ -2316,18 +2476,37 @@ useEffect(() => {
                 style={{ width: 70 }}
               />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-              <span>Zoom</span>
-              <input
-                type="range"
-                min={0.25}
-                max={3}
-                step={0.05}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-              />
-              <span style={{ minWidth: 48, textAlign: 'right' }}>{Math.round(zoom * 100)}%</span>
-            </label>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 180 }}>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(timelineEntries.length - 1, 0)}
+                  step={1}
+                  value={timelineSliderDisabled ? 0 : clampedTimelineIndex}
+                  onChange={(e) => setTimelineIndex(Number(e.target.value))}
+                  disabled={timelineSliderDisabled}
+                  style={{ width: 180 }}
+                />
+                <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}>
+                  Timeline {timelineActiveEntry ? `(${timelineActiveEntry.date})` : '(All Dates)'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 140 }}>
+                <input
+                  type="range"
+                  min={0.25}
+                  max={3}
+                  step={0.05}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  style={{ width: 140 }}
+                />
+                <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}>
+                  Zoom ({Math.round(zoom * 100)}%)
+                </div>
+              </div>
+            </div>
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
             <button onClick={() => setIdeasOpen(true)}>Ideas</button>
@@ -2429,9 +2608,11 @@ useEffect(() => {
                 <Layer>
                   {/* Render Emotional Lines */}
                   {emotionalLines.map((el) => {
+                      if (!emotionalVisibility.get(el.id)) return null;
                       const person1 = people.find(person => person.id === el.person1_id);
                       const person2 = people.find(person => person.id === el.person2_id);
                       if (!person1 || !person2) return null;
+                      if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
     
                       return (
                           <EmotionalLineNode
@@ -2448,13 +2629,15 @@ useEffect(() => {
 
                   {/* Render Connections */}
                   {partnerships.map((p) => {
+                      if (!partnershipVisibility.get(p.id)) return null;
                       const partner1 = people.find(person => person.id === p.partner1_id);
                       const partner2 = people.find(person => person.id === p.partner2_id);
                       if (!partner1 || !partner2) return null;
+                      if (!personVisibility.get(partner1.id) || !personVisibility.get(partner2.id)) return null;
     
                       const childConnections = p.children.map(childId => {
                           const child = people.find(c => c.id === childId);
-                          if (!child) return null;
+                          if (!child || !personVisibility.get(child.id)) return null;
                           return <ChildConnection key={`child-conn-${childId}`} child={child} partnership={p} partner1={partner1} partner2={partner2} isSelected={selectedChildId === childId} onSelect={handleChildLineSelect} onContextMenu={handleChildLineContextMenu} />
                       });
     
@@ -2475,26 +2658,30 @@ useEffect(() => {
                   })}
     
                   {/* Render People */}
-                  {people.map((person) => (
-                    <PersonNode
-                      key={person.id}
-                      person={person}
-                      isSelected={selectedPeopleIds.includes(person.id)}
-                      onSelect={handleSelect}
-                      onDragStart={(e) => handlePersonDragStart(person.id, e.target.x(), e.target.y())}
-                      onDragMove={(e) => handlePersonDrag(person.id, e.target.x(), e.target.y())}
-                      onDragEnd={(e) => {
-                        handlePersonDrag(person.id, e.target.x(), e.target.y());
-                        dragGroupRef.current = null;
-                      }}
-                      onContextMenu={handlePersonContextMenu}
-                      functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-                    />
-                  ))}
+                  {people.map((person) => {
+                    if (!personVisibility.get(person.id)) return null;
+                    return (
+                      <PersonNode
+                        key={person.id}
+                        person={person}
+                        isSelected={selectedPeopleIds.includes(person.id)}
+                        onSelect={handleSelect}
+                        onDragStart={(e) => handlePersonDragStart(person.id, e.target.x(), e.target.y())}
+                        onDragMove={(e) => handlePersonDrag(person.id, e.target.x(), e.target.y())}
+                        onDragEnd={(e) => {
+                          handlePersonDrag(person.id, e.target.x(), e.target.y());
+                          dragGroupRef.current = null;
+                        }}
+                        onContextMenu={handlePersonContextMenu}
+                        functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+                      />
+                    );
+                  })}
 
                   {/* Render Notes */}
                   {people.map((person) => {
                     if (!person.notes || !person.notesEnabled) return null;
+                    if (!personVisibility.get(person.id)) return null;
                     const x = person.notesPosition?.x || person.x + 50;
                     const y = person.notesPosition?.y || person.y;
                     const genderFill =
@@ -2519,9 +2706,11 @@ useEffect(() => {
                   })}
                   {partnerships.map((p) => {
                     if (!p.notes) return null;
+                    if (!partnershipVisibility.get(p.id)) return null;
                     const partner1 = people.find(person => person.id === p.partner1_id);
                     const partner2 = people.find(person => person.id === p.partner2_id);
                     if (!partner1 || !partner2) return null;
+                    if (!personVisibility.get(partner1.id) || !personVisibility.get(partner2.id)) return null;
                     const x = p.notesPosition?.x || (partner1.x + partner2.x) / 2;
                     const y = p.notesPosition?.y || p.horizontalConnectorY + 50;
                     return (
@@ -2539,9 +2728,11 @@ useEffect(() => {
                   })}
                   {emotionalLines.map((el) => {
                     if (!el.notes) return null;
+                    if (!emotionalVisibility.get(el.id)) return null;
                     const person1 = people.find(person => person.id === el.person1_id);
                     const person2 = people.find(person => person.id === el.person2_id);
                     if (!person1 || !person2) return null;
+                    if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
                     const x = el.notesPosition?.x || (person1.x + person2.x) / 2;
                     const y = el.notesPosition?.y || (person1.y + person2.y) / 2 + 20;
                     return (
