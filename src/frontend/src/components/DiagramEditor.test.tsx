@@ -77,4 +77,16 @@ describe('DiagramEditor', () => {
         fireEvent.click(openReadmeBtn);
         expect(screen.getByRole('dialog', { name: /readme documentation/i })).toBeInTheDocument();
     });
+
+    it('renders timeline nudge buttons and play toggle', () => {
+        render(<DiagramEditor />);
+        const backBtn = screen.getByRole('button', { name: '-1 yr' });
+        const forwardBtn = screen.getByRole('button', { name: '+1 yr' });
+        const playBtn = screen.getByRole('button', { name: /play/i });
+        expect(backBtn).toBeInTheDocument();
+        expect(forwardBtn).toBeInTheDocument();
+        expect(playBtn).toBeInTheDocument();
+        fireEvent.click(playBtn);
+        expect(playBtn).toHaveTextContent(/pause/i);
+    });
 });

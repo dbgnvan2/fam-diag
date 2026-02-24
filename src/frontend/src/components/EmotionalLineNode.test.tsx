@@ -33,7 +33,7 @@ describe('EmotionalLineNode', () => {
         );
     });
 
-    it('renders a short dash for medium fusion', () => {
+    it('renders double solid lines for medium fusion', () => {
         const stageRef = React.createRef<Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
@@ -64,11 +64,14 @@ describe('EmotionalLineNode', () => {
         const stage = stageRef.current;
         const layer = stage.getLayers()[0];
         const group = layer.getChildren()[0];
-        const line = group.getChildren()[0];
-        expect(line.attrs.dash).toEqual([8, 4]);
+        const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+        expect(lines).toHaveLength(2);
+        lines.forEach((line) => {
+            expect(line.attrs.dash).toBeUndefined();
+        });
     });
 
-    it('renders thicker dash for high fusion', () => {
+    it('renders triple lines for high fusion', () => {
         const stageRef = React.createRef<Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
@@ -99,8 +102,11 @@ describe('EmotionalLineNode', () => {
         const stage = stageRef.current;
         const layer = stage.getLayers()[0];
         const group = layer.getChildren()[0];
-        const line = group.getChildren()[0];
-        expect(line.attrs.strokeWidth).toBeGreaterThan(2);
+        const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+        expect(lines).toHaveLength(3);
+        lines.forEach((line) => {
+            expect(line.attrs.strokeWidth).toBeGreaterThan(2);
+        });
     });
 
     it('renders thicker line for high distance', () => {

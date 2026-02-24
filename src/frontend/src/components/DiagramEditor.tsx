@@ -113,7 +113,7 @@ const HELP_SECTIONS = [
     title: 'Canvas & Navigation',
     tips: [
       'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
-      'Scrub the Timeline slider (left of Zoom) to replay births, deaths, PRL milestones, EPL start/end dates, and other recorded events—only items on or before the selected date remain visible so you can “grow” the diagram forward in time.',
+      'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay births, deaths, PRL milestones, EPL start/end dates, and logged events. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
       'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
     ],
@@ -275,7 +275,8 @@ const DiagramEditor = () => {
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
-  const [timelineIndex, setTimelineIndex] = useState(0);
+  const [timelineYear, setTimelineYear] = useState<number | null>(null);
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
   const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
   const [sessionNotesOpen, setSessionNotesOpen] = useState(false);
@@ -300,7 +301,7 @@ const DiagramEditor = () => {
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const dragGroupRef = useRef<{
+ const dragGroupRef = useRef<{
     personId: string;
     startX: number;
     startY: number;
@@ -318,6 +319,7 @@ const DiagramEditor = () => {
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
+  const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
@@ -403,20 +405,90 @@ const DiagramEditor = () => {
     return entries;
   }, [people, partnerships, emotionalLines]);
 
-  useEffect(() => {
+  const timelineYearBounds = useMemo(() => {
     if (!timelineEntries.length) {
-      setTimelineIndex(0);
+      const currentYear = new Date().getFullYear();
+      return { min: currentYear, max: currentYear };
+    }
+    let minYear = new Date(timelineEntries[0].timestamp).getFullYear();
+    let maxYear = new Date(timelineEntries[timelineEntries.length - 1].timestamp).getFullYear();
+    const currentYear = new Date().getFullYear();
+    if (maxYear < currentYear) maxYear = currentYear;
+    return { min: minYear, max: maxYear };
+  }, [timelineEntries]);
+
+  useEffect(() => {
+    setTimelineYear((prev) => {
+      if (prev == null) return timelineYearBounds.min;
+      if (prev < timelineYearBounds.min || prev > timelineYearBounds.max) {
+        return timelineYearBounds.min;
+      }
+      return prev;
+    });
+  }, [timelineYearBounds]);
+
+  useEffect(() => {
+    if (!timelinePlaying) {
+      if (timelinePlayRef.current) {
+        clearInterval(timelinePlayRef.current);
+        timelinePlayRef.current = null;
+      }
       return;
     }
-    setTimelineIndex((prev) => (prev >= timelineEntries.length ? timelineEntries.length - 1 : prev));
-  }, [timelineEntries.length]);
+    timelinePlayRef.current = setInterval(() => {
+      setTimelineYear((prev) => {
+        const current = prev ?? timelineYearBounds.min;
+        if (current >= timelineYearBounds.max) {
+          setTimelinePlaying(false);
+          return timelineYearBounds.max;
+        }
+        return current + 1;
+      });
+    }, 1000);
+    return () => {
+      if (timelinePlayRef.current) {
+        clearInterval(timelinePlayRef.current);
+        timelinePlayRef.current = null;
+      }
+    };
+  }, [timelinePlaying, timelineYearBounds]);
 
-  const timelineSliderDisabled = timelineEntries.length === 0;
-  const clampedTimelineIndex = timelineSliderDisabled
-    ? 0
-    : Math.min(timelineIndex, timelineEntries.length - 1);
-  const timelineActiveEntry = timelineSliderDisabled ? null : timelineEntries[clampedTimelineIndex];
-  const timelineCutoffTimestamp = timelineActiveEntry?.timestamp ?? null;
+  const timelineCutoffTimestamp = useMemo(() => {
+    if (timelineYear == null) return null;
+    return Date.UTC(timelineYear, 11, 31, 23, 59, 59, 999);
+  }, [timelineYear]);
+
+  const timelineSliderDisabled = timelineYearBounds.min === timelineYearBounds.max;
+  const displayTimelineYear = timelineYear ?? timelineYearBounds.min;
+
+  useEffect(() => {
+    if (timelineSliderDisabled && timelinePlaying) {
+      setTimelinePlaying(false);
+    }
+  }, [timelineSliderDisabled, timelinePlaying]);
+
+  const adjustTimelineYear = useCallback(
+    (delta: number) => {
+      if (timelineSliderDisabled) return;
+      setTimelineYear((prev) => {
+        const current = prev ?? timelineYearBounds.min;
+        const next = Math.min(
+          Math.max(current + delta, timelineYearBounds.min),
+          timelineYearBounds.max
+        );
+        return next;
+      });
+    },
+    [timelineSliderDisabled, timelineYearBounds]
+  );
+
+  const handleTimelinePlayToggle = () => {
+    if (timelineSliderDisabled) return;
+    if (timelineYear != null && timelineYear >= timelineYearBounds.max) {
+      setTimelineYear(timelineYearBounds.min);
+    }
+    setTimelinePlaying((prev) => !prev);
+  };
 
   const isVisibleAtTimeline = useCallback(
     (date?: string | null) => {
@@ -2476,20 +2548,66 @@ useEffect(() => {
                 style={{ width: 70 }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginLeft: 'auto' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 180 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 260 }}>
                 <input
                   type="range"
-                  min={0}
-                  max={Math.max(timelineEntries.length - 1, 0)}
+                  min={timelineYearBounds.min}
+                  max={timelineYearBounds.max}
                   step={1}
-                  value={timelineSliderDisabled ? 0 : clampedTimelineIndex}
-                  onChange={(e) => setTimelineIndex(Number(e.target.value))}
+                  value={displayTimelineYear}
+                  onChange={(e) => setTimelineYear(Number(e.target.value))}
                   disabled={timelineSliderDisabled}
-                  style={{ width: 180 }}
+                  style={{ width: 260 }}
                 />
                 <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}>
-                  Timeline {timelineActiveEntry ? `(${timelineActiveEntry.date})` : '(All Dates)'}
+                  Timeline {timelineSliderDisabled ? '(All Dates)' : `(${displayTimelineYear})`}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button
+                    onClick={() => adjustTimelineYear(-1)}
+                    disabled={timelineSliderDisabled}
+                    style={{
+                      padding: '2px 10px',
+                      borderRadius: 4,
+                      border: '1px solid #b0b0b0',
+                      background: '#fff',
+                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                      minWidth: 70,
+                    }}
+                  >
+                    -1 yr
+                  </button>
+                  <button
+                    onClick={() => adjustTimelineYear(1)}
+                    disabled={timelineSliderDisabled}
+                    style={{
+                      padding: '2px 10px',
+                      borderRadius: 4,
+                      border: '1px solid #b0b0b0',
+                      background: '#fff',
+                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                      minWidth: 70,
+                    }}
+                  >
+                    +1 yr
+                  </button>
+                  <button
+                    onClick={handleTimelinePlayToggle}
+                    disabled={timelineSliderDisabled}
+                    style={{
+                      padding: '2px 12px',
+                      borderRadius: 4,
+                      border: '1px solid #1976d2',
+                      background: timelinePlaying ? '#1976d2' : '#fff',
+                      color: timelinePlaying ? '#fff' : '#1976d2',
+                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                      minWidth: 80,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {timelinePlaying ? 'Pause' : 'Play'}
+                  </button>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 140 }}>
