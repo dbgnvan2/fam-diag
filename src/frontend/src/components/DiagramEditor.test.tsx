@@ -18,6 +18,7 @@ describe('DiagramEditor', () => {
         const stage = screen.getByRole('presentation');
         fireEvent.contextMenu(stage);
         expect(screen.getByText('Add Person')).toBeInTheDocument();
+        expect(screen.getByText('Add Event')).toBeInTheDocument();
     });
 
     // Note on testing Konva with React Testing Library:

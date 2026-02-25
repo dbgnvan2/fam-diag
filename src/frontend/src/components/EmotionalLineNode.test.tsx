@@ -251,4 +251,88 @@ describe('EmotionalLineNode', () => {
         expect(line.attrs.points.length).toBeGreaterThan(4);
     });
 
+    it('renders projection markers for projection EPL intensity', () => {
+        const stageRef = React.createRef<Stage>();
+        const emotionalLine: EmotionalLine = {
+            id: 'el-projection',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'projection',
+            lineStyle: 'high',
+            lineEnding: 'none',
+        };
+        const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 180, y: 50, name: 'p2', partnerships: [] };
+
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={emotionalLine}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current;
+        const layer = stage.getLayers()[0];
+        const group = layer.getChildren()[0];
+        const texts = group.find('Text');
+        expect(texts.length).toBeGreaterThan(0);
+        expect(texts[0].attrs.text).toBe('>>>>');
+    });
+
+    it('renders two EPLs beside each other for the same pair', () => {
+        const stageRef = React.createRef<Stage>();
+        const emotionalLine: EmotionalLine = {
+            id: 'el-sibling',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'distance',
+            lineStyle: 'dotted',
+            lineEnding: 'none',
+        };
+        const person1: Person = { id: 'p1', x: 50, y: 50, name: 'p1', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 150, y: 50, name: 'p2', partnerships: [] };
+
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={emotionalLine}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                        siblingIndex={0}
+                        siblingCount={2}
+                    />
+                    <EmotionalLineNode
+                        emotionalLine={{ ...emotionalLine, id: 'el-sibling-2' }}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                        siblingIndex={1}
+                        siblingCount={2}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current;
+        const layer = stage.getLayers()[0];
+        const groups = layer.getChildren();
+        const firstLine = groups[0].getChildren()[0];
+        const secondLine = groups[1].getChildren()[0];
+        expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
+    });
+
 });

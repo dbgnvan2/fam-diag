@@ -4,6 +4,7 @@ import type {
   Person,
   Partnership,
   EmotionalLine,
+  Triangle,
   FunctionalIndicatorDefinition,
   EmotionalProcessEvent,
   EventClass,
@@ -17,6 +18,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import PropertiesPanel from './PropertiesPanel';
 import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
 import EmotionalLineNode from './EmotionalLineNode';
+import TriangleFillNode from './TriangleFillNode';
 import NoteNode from './NoteNode';
 import ReactMarkdown from 'react-markdown';
 import type { Components as MarkdownComponents } from 'react-markdown';
@@ -36,6 +38,13 @@ import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
+import {
+  buildTimelineJson,
+  isPersonEventBundle,
+  isTimelineJson,
+  mergePersonEventsFromBundle,
+  timelineJsonToBundle,
+} from '../utils/personEventBundle';
 import readmeContent from '../../../../README.md?raw';
 type MarkdownCodeProps = React.ComponentPropsWithoutRef<'code'> & {
   inline?: boolean;
@@ -77,6 +86,7 @@ const DEFAULT_LINE_COLOR = '#444444';
 const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
 const initialPartnerships: Partnership[] = DEFAULT_DIAGRAM_STATE.partnerships;
 const initialEmotionalLines: EmotionalLine[] = DEFAULT_DIAGRAM_STATE.emotionalLines;
+const initialTriangles: Triangle[] = DEFAULT_DIAGRAM_STATE.triangles;
 const initialEventCategories: string[] = DEFAULT_DIAGRAM_STATE.eventCategories;
 const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
   DEFAULT_DIAGRAM_STATE.functionalIndicatorDefinitions;
@@ -88,6 +98,7 @@ const STORAGE_KEYS = {
   people: 'family-diagram-people',
   partnerships: 'family-diagram-partnerships',
   emotionalLines: 'family-diagram-emotional-lines',
+  triangles: 'family-diagram-triangles',
   eventCategories: 'family-diagram-event-categories',
   indicatorDefinitions: 'family-diagram-functional-indicators',
   ideas: 'family-diagram-ideas',
@@ -113,6 +124,20 @@ type TimelineEntry = {
   date: string;
   label: string;
 };
+type TimelineBoardSelection = {
+  laneLabel: string;
+  entityType: 'person' | 'partnership' | 'emotional';
+  entityId: string;
+  eventId?: string;
+  itemLabel: string;
+  startDate?: string;
+  endDate?: string;
+};
+type PropertiesPanelIntent = {
+  targetId: string;
+  tab?: 'properties' | 'functional' | 'events';
+  focusEventId?: string;
+} | null;
 const HELP_SECTIONS = [
   {
     title: 'Canvas & Navigation',
@@ -120,7 +145,7 @@ const HELP_SECTIONS = [
       'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
       'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay births, deaths, PRL milestones, EPL start/end dates, and logged events. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
-      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
+      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Person Event export/import, Event Creator launch, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
     ],
   },
   {
@@ -147,6 +172,7 @@ const HELP_SECTIONS = [
     tips: [
       'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
       'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
+      'Select three people, then right-click one of them and choose Add Triangle to draw a Bowen triangle between those three people.',
       'Fusion intensities render as double dotted (Low), double solid (Medium), or triple solid (High) lines while distance/conflict keep their dotted/dashed/sawtooth variants. Notes for EPLs float like person notes and can be enabled/disabled per line.',
     ],
   },
@@ -155,7 +181,7 @@ const HELP_SECTIONS = [
     tips: [
       'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes that auto-save primary/backup files every 5 minutes.',
       'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
-      'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending.',
+      'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
     ],
   },
 ];
@@ -244,6 +270,7 @@ type DiagramImportData = {
   people?: Person[];
   partnerships?: Partnership[];
   emotionalLines?: EmotionalLine[];
+  triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
   autoSaveMinutes?: number;
@@ -805,8 +832,8 @@ const parseTranscriptToDraftDiagram = (transcript: string, sourceFileName: strin
       fusion: 'medium',
       distance: 'dashed',
       cutoff: 'cutoff',
-      conflict: 'solid-saw-tooth',
-      projection: 'projection-flow',
+      conflict: 'dotted-saw-tooth',
+      projection: 'medium',
     };
     emotionalLineDrafts.set(key, {
       person1: a.name,
@@ -1329,6 +1356,7 @@ const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => 
     people: normalizedPeople,
     partnerships,
     emotionalLines: [],
+    triangles: [],
     functionalIndicatorDefinitions: [
       { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum' },
     ],
@@ -1342,6 +1370,7 @@ const DiagramEditor = () => {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
+  const [triangles, setTriangles] = useState<Triangle[]>(initialTriangles);
   const [fileName, setFileName] = useState(() => {
     if (typeof window === 'undefined') return initialFileName;
     const stored = getStoredValue('fileName');
@@ -1363,6 +1392,7 @@ const DiagramEditor = () => {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
+  const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(initialEventCategories);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
@@ -1383,8 +1413,28 @@ const DiagramEditor = () => {
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
   const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
   const [timelinePlaying, setTimelinePlaying] = useState(false);
-  const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
-  const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [timelineSelectionIds, setTimelineSelectionIds] = useState<string[]>([]);
+  const [timelineFilterStartYear, setTimelineFilterStartYear] = useState<number | null>(null);
+  const [timelineFilterEndYear, setTimelineFilterEndYear] = useState<number | null>(null);
+  const [timelineYearPickTarget, setTimelineYearPickTarget] = useState<'start' | 'end' | null>(null);
+  const [timelineYearDrag, setTimelineYearDrag] = useState<{
+    pointerId: number;
+    startClientX: number;
+    stripLeft: number;
+    stripWidth: number;
+    startYear: number;
+    endYear: number;
+    minYear: number;
+    maxYear: number;
+    moved: boolean;
+  } | null>(null);
+  const [timelineHoverNote, setTimelineHoverNote] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [timelineBoardSelection, setTimelineBoardSelection] = useState<TimelineBoardSelection | null>(null);
+  const [timelineBoardEventDraft, setTimelineBoardEventDraft] = useState<{
+    event: EmotionalProcessEvent;
+    original?: EmotionalProcessEvent | null;
+    isNew: boolean;
+  } | null>(null);
   const [notesLayerEnabled, setNotesLayerEnabled] = useState(true);
   const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
   const [sessionNotesOpen, setSessionNotesOpen] = useState(false);
@@ -1427,11 +1477,13 @@ const DiagramEditor = () => {
       people: initialPeople,
       partnerships: initialPartnerships,
       emotionalLines: initialEmotionalLines,
+      triangles: initialTriangles,
     })
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const importPersonEventsInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptInputRef = useRef<HTMLInputElement | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
@@ -1439,6 +1491,14 @@ const DiagramEditor = () => {
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
   );
+
+  useEffect(() => {
+    if (!propertiesPanelIntent || !propertiesPanelItem) return;
+    if (propertiesPanelIntent.targetId !== propertiesPanelItem.id) return;
+    const timer = window.setTimeout(() => setPropertiesPanelIntent(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [propertiesPanelIntent, propertiesPanelItem]);
+
   const buildSessionNoteFileName = useCallback(
     (coach: string, client: string, startedAtValue: number | null) => {
       const safeCoach = (coach?.trim() || 'Coach').replace(/\s+/g, ' ');
@@ -1606,6 +1666,60 @@ const DiagramEditor = () => {
     setTimelinePlaying((prev) => !prev);
   };
 
+  const handleTimelineStripDragMove = useCallback(
+    (clientX: number) => {
+      if (!timelineYearDrag) return;
+      const dx = clientX - timelineYearDrag.startClientX;
+      const spanYears = timelineYearDrag.endYear - timelineYearDrag.startYear;
+      const visibleYears = Math.max(1, spanYears + 1);
+      const sensitivity = 2.5;
+      let deltaYears = Math.trunc(
+        (dx / Math.max(1, timelineYearDrag.stripWidth)) * visibleYears * sensitivity
+      );
+      if (deltaYears === 0 && Math.abs(dx) > 10) {
+        deltaYears = dx > 0 ? 1 : -1;
+      }
+      const maxStart = timelineYearDrag.maxYear - spanYears;
+      const nextStart = Math.max(
+        timelineYearDrag.minYear,
+        Math.min(timelineYearDrag.startYear + deltaYears, maxStart)
+      );
+      const nextEnd = nextStart + spanYears;
+      setTimelineFilterStartYear(nextStart);
+      setTimelineFilterEndYear(nextEnd);
+      if (!timelineYearDrag.moved && Math.abs(dx) > 3) {
+        setTimelineYearDrag((prev) => (prev ? { ...prev, moved: true } : prev));
+      }
+    },
+    [timelineYearDrag]
+  );
+
+  const finishTimelineStripDrag = useCallback(
+    (clientX: number) => {
+      if (!timelineYearDrag) return;
+      if (!timelineYearDrag.moved) {
+        const relative = (clientX - timelineYearDrag.stripLeft) / Math.max(1, timelineYearDrag.stripWidth);
+        const spanYears = timelineYearDrag.endYear - timelineYearDrag.startYear;
+        const clickedYear = Math.max(
+          timelineYearDrag.startYear,
+          Math.min(
+            timelineYearDrag.endYear,
+            timelineYearDrag.startYear + Math.floor(relative * (spanYears + 1))
+          )
+        );
+        if (timelineYearPickTarget === 'end') {
+          const currentStart = timelineFilterStartYear ?? timelineYearDrag.startYear;
+          setTimelineFilterEndYear(Math.max(clickedYear, currentStart));
+        } else {
+          const currentEnd = timelineFilterEndYear ?? timelineYearDrag.endYear;
+          setTimelineFilterStartYear(Math.min(clickedYear, currentEnd));
+        }
+      }
+      setTimelineYearDrag(null);
+    },
+    [timelineYearDrag, timelineYearPickTarget, timelineFilterEndYear, timelineFilterStartYear]
+  );
+
   const isVisibleAtTimeline = useCallback(
     (date?: string | null) => {
       if (!timelineCutoffTimestamp) return true;
@@ -1641,7 +1755,9 @@ const DiagramEditor = () => {
     });
     setSelectedEmotionalLineId((prev) => {
       if (!prev) return prev;
-      const line = emotionalLines.find((line) => line.id === prev);
+      const line =
+        emotionalLines.find((line) => line.id === prev) ||
+        triangles.flatMap((triangle) => triangle.tpls || []).find((tpl) => tpl.id === prev);
       if (!line || !isVisibleAtTimeline(line.startDate)) {
         return null;
       }
@@ -1660,7 +1776,7 @@ const DiagramEditor = () => {
       }
       return prev;
     });
-  }, [people, partnerships, emotionalLines, isVisibleAtTimeline]);
+  }, [people, partnerships, emotionalLines, triangles, isVisibleAtTimeline]);
 
   const personVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -1682,9 +1798,41 @@ const DiagramEditor = () => {
     return map;
   }, [partnerships, personVisibility, isVisibleAtTimeline]);
 
+  const triangleTplLines = useMemo(
+    () => triangles.flatMap((triangle) => triangle.tpls || []),
+    [triangles]
+  );
+
+  const allEmotionalLines = useMemo(
+    () => [...emotionalLines, ...triangleTplLines],
+    [emotionalLines, triangleTplLines]
+  );
+
+  const triangleByTplLineId = useMemo(() => {
+    const map = new Map<string, string>();
+    triangles.forEach((triangle) => {
+      (triangle.tpls || []).forEach((tpl) => {
+        map.set(tpl.id, triangle.id);
+      });
+    });
+    return map;
+  }, [triangles]);
+  const panelTriangleContext = useMemo(() => {
+    if (!propertiesPanelItem || !('lineStyle' in propertiesPanelItem)) return null;
+    const triangleId = triangleByTplLineId.get(propertiesPanelItem.id);
+    if (!triangleId) return null;
+    const triangle = triangles.find((item) => item.id === triangleId);
+    if (!triangle) return null;
+    return {
+      id: triangle.id,
+      color: triangle.color || '#8a5a00',
+      intensity: triangle.intensity || 'medium',
+    };
+  }, [propertiesPanelItem, triangleByTplLineId, triangles]);
+
   const emotionalVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
-    emotionalLines.forEach((line) => {
+    allEmotionalLines.forEach((line) => {
       const visible =
         isVisibleAtTimeline(line.startDate) &&
         (personVisibility.get(line.person1_id) ?? true) &&
@@ -1692,7 +1840,27 @@ const DiagramEditor = () => {
       map.set(line.id, visible);
     });
     return map;
-  }, [emotionalLines, personVisibility, isVisibleAtTimeline]);
+  }, [allEmotionalLines, personVisibility, isVisibleAtTimeline]);
+
+  const emotionalSiblingMeta = useMemo(() => {
+    const grouped = new Map<string, string[]>();
+    allEmotionalLines.forEach((line) => {
+      const key = [line.person1_id, line.person2_id].sort().join('::');
+      const bucket = grouped.get(key);
+      if (bucket) {
+        bucket.push(line.id);
+      } else {
+        grouped.set(key, [line.id]);
+      }
+    });
+    const meta = new Map<string, { index: number; count: number }>();
+    grouped.forEach((ids) => {
+      ids.forEach((id, index) => {
+        meta.set(id, { index, count: ids.length });
+      });
+    });
+    return meta;
+  }, [allEmotionalLines]);
   const composeSessionNotePayload = useCallback(
     () => ({
       coachName: sessionNoteCoachName,
@@ -1709,13 +1877,33 @@ const DiagramEditor = () => {
   const sessionAutosavePhaseRef = useRef<'backup' | 'file'>('backup');
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
   const serializeDiagram = useCallback(
-    (peopleData: Person[], partnershipData: Partnership[], emotionalData: EmotionalLine[]) =>
-      JSON.stringify({ people: peopleData, partnerships: partnershipData, emotionalLines: emotionalData }),
+    (
+      peopleData: Person[],
+      partnershipData: Partnership[],
+      emotionalData: EmotionalLine[],
+      triangleData: Triangle[]
+    ) =>
+      JSON.stringify({
+        people: peopleData,
+        partnerships: partnershipData,
+        emotionalLines: emotionalData,
+        triangles: triangleData,
+      }),
     []
   );
   const markSnapshotClean = useCallback(
-    (peopleData: Person[], partnershipData: Partnership[], emotionalData: EmotionalLine[]) => {
-      savedSnapshotRef.current = serializeDiagram(peopleData, partnershipData, emotionalData);
+    (
+      peopleData: Person[],
+      partnershipData: Partnership[],
+      emotionalData: EmotionalLine[],
+      triangleData: Triangle[]
+    ) => {
+      savedSnapshotRef.current = serializeDiagram(
+        peopleData,
+        partnershipData,
+        emotionalData,
+        triangleData
+      );
       setIsDirty(false);
       setLastDirtyTimestamp(null);
     },
@@ -1723,7 +1911,7 @@ const DiagramEditor = () => {
   );
 
   useEffect(() => {
-    const snapshot = serializeDiagram(people, partnerships, emotionalLines);
+    const snapshot = serializeDiagram(people, partnerships, emotionalLines, triangles);
     if (snapshot !== savedSnapshotRef.current) {
       if (!isDirty) {
         setIsDirty(true);
@@ -1733,7 +1921,7 @@ const DiagramEditor = () => {
       setIsDirty(false);
       setLastDirtyTimestamp(null);
     }
-  }, [people, partnerships, emotionalLines, isDirty, serializeDiagram]);
+  }, [people, partnerships, emotionalLines, triangles, isDirty, serializeDiagram]);
 
   useEffect(() => {
     if (!fileMenuOpen) return;
@@ -2069,6 +2257,52 @@ const DiagramEditor = () => {
     handleUpdateEmotionalLine(target.id, { events: nextEvents });
   };
 
+  const focusItemInPropertiesPanel = (
+    item: Person | Partnership | EmotionalLine,
+    intent?: { tab?: 'properties' | 'functional' | 'events'; focusEventId?: string }
+  ) => {
+    setPropertiesPanelItem(item);
+    if (intent) {
+      setPropertiesPanelIntent({
+        targetId: item.id,
+        tab: intent.tab,
+        focusEventId: intent.focusEventId,
+      });
+    } else {
+      setPropertiesPanelIntent(null);
+    }
+  };
+
+  const createDefaultPersonEvent = (person: Person): EmotionalProcessEvent => ({
+    id: nanoid(),
+    date: new Date().toISOString().slice(0, 10),
+    category: eventCategories[0] || 'Individual',
+    statusLabel: '',
+    intensity: 0,
+    frequency: 0,
+    impact: 0,
+    howWell: 5,
+    otherPersonName: '',
+    primaryPersonName: person.name || '',
+    wwwwh: '',
+    observations: '',
+    priorEventsNote: '',
+    reflectionsNote: '',
+    isNodalEvent: false,
+    createdAt: Date.now(),
+    eventClass: 'individual',
+  });
+
+  const addEventToPersonAndOpenPanel = (person: Person) => {
+    const event = createDefaultPersonEvent(person);
+    appendEventToTarget({ type: 'person', id: person.id }, event);
+    setSelectedPeopleIds([person.id]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    focusItemInPropertiesPanel(person, { tab: 'events', focusEventId: event.id });
+  };
+
   const commitSessionEventFromNotes = () => {
     if (!sessionEventDraft || !sessionEventTarget) return;
     appendEventToTarget(sessionEventTarget, sessionEventDraft);
@@ -2328,44 +2562,116 @@ const DiagramEditor = () => {
   };
 
   type EmotionalLineInput = Partial<EmotionalLine> & { lineStyle?: string; color?: string };
+  type TriangleInput = Partial<Triangle>;
+
+  const normalizeEmotionalLine = (line: EmotionalLineInput): EmotionalLine => {
+    let normalized = { ...line } as EmotionalLine;
+    if (!normalized.status) {
+      normalized = { ...normalized, status: 'ongoing' };
+    }
+    if (normalized.relationshipType === 'distance' && normalized.lineStyle === 'cutoff') {
+      normalized = { ...normalized, lineStyle: 'long-dash' };
+    }
+    if (normalized.relationshipType === 'cutoff' && normalized.lineStyle !== 'cutoff') {
+      normalized = { ...normalized, lineStyle: 'cutoff' };
+    }
+    if (normalized.relationshipType === 'projection') {
+      const projectionStyles: EmotionalLine['lineStyle'][] = ['low', 'medium', 'high'];
+      const currentStyle = normalized.lineStyle as EmotionalLine['lineStyle'];
+      let nextStyle: EmotionalLine['lineStyle'] =
+        projectionStyles.includes(currentStyle) ? currentStyle : 'medium';
+      if ((normalized.lineStyle as unknown as string) === 'projection-flow') {
+        nextStyle = 'high';
+      }
+      normalized = { ...normalized, lineStyle: nextStyle, lineEnding: 'none' };
+    }
+    if (normalized.relationshipType === 'fusion') {
+      const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
+        single: 'low',
+        double: 'medium',
+        triple: 'high',
+      };
+      const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
+      if (mapped) {
+        normalized = { ...normalized, lineStyle: mapped };
+      }
+    }
+    if (!normalized.color) {
+      normalized = { ...normalized, color: DEFAULT_LINE_COLOR };
+    }
+    return normalized;
+  };
 
   const normalizeEmotionalLines = (lines: EmotionalLineInput[]): EmotionalLine[] =>
-    lines.map((line) => {
-      let normalized = { ...line } as EmotionalLine;
-      if (!normalized.status) {
-        normalized = { ...normalized, status: 'ongoing' };
-      }
-      if (normalized.relationshipType === 'distance' && normalized.lineStyle === 'cutoff') {
-        normalized = { ...normalized, lineStyle: 'long-dash' };
-      }
-      if (normalized.relationshipType === 'cutoff' && normalized.lineStyle !== 'cutoff') {
-        normalized = { ...normalized, lineStyle: 'cutoff' };
-      }
-      if (normalized.relationshipType === 'projection' && normalized.lineStyle !== 'projection-flow') {
-        normalized = { ...normalized, lineStyle: 'projection-flow', lineEnding: 'none' };
-      }
-      if (normalized.relationshipType === 'fusion') {
-        const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
-          single: 'low',
-          double: 'medium',
-          triple: 'high',
+    lines.map((line) => normalizeEmotionalLine(line));
+
+  const buildDefaultTpl = (
+    person1_id: string,
+    person2_id: string,
+    triangleColor?: string
+  ): EmotionalLine => ({
+    id: nanoid(),
+    person1_id,
+    person2_id,
+    status: 'ongoing',
+    relationshipType: 'fusion',
+    lineStyle: 'low',
+    lineEnding: 'none',
+    startDate: new Date().toISOString().slice(0, 10),
+    color: triangleColor || DEFAULT_LINE_COLOR,
+    events: [],
+  });
+
+  const normalizeTriangles = (items: TriangleInput[]): Triangle[] =>
+    items
+      .map((item) => {
+        const id = item.id || nanoid();
+        const person1_id = item.person1_id || '';
+        const person2_id = item.person2_id || '';
+        const person3_id = item.person3_id || '';
+        const pairA = [person1_id, person2_id];
+        const pairB = [person2_id, person3_id];
+        const pairC = [person3_id, person1_id];
+        const intensity: Triangle['intensity'] =
+          item.intensity === 'low' || item.intensity === 'high' ? item.intensity : 'medium';
+        const existingTpls = Array.isArray(item.tpls) ? normalizeEmotionalLines(item.tpls) : [];
+        const findTpl = (a: string, b: string) =>
+          existingTpls.find(
+            (tpl) =>
+              (tpl.person1_id === a && tpl.person2_id === b) ||
+              (tpl.person1_id === b && tpl.person2_id === a)
+          );
+        const tpls: EmotionalLine[] = [
+          findTpl(pairA[0], pairA[1]) || buildDefaultTpl(pairA[0], pairA[1], item.color),
+          findTpl(pairB[0], pairB[1]) || buildDefaultTpl(pairB[0], pairB[1], item.color),
+          findTpl(pairC[0], pairC[1]) || buildDefaultTpl(pairC[0], pairC[1], item.color),
+        ];
+        return {
+          id,
+          person1_id,
+          person2_id,
+          person3_id,
+          color: item.color,
+          intensity,
+          tpls,
         };
-        const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
-        if (mapped) {
-          normalized = { ...normalized, lineStyle: mapped };
-        }
-      }
-      if (!normalized.color) {
-        normalized = { ...normalized, color: DEFAULT_LINE_COLOR };
-      }
-      return normalized;
-    });
+      })
+      .filter(
+        (item) =>
+          !!item.person1_id &&
+          !!item.person2_id &&
+          !!item.person3_id &&
+          item.person1_id !== item.person2_id &&
+          item.person1_id !== item.person3_id &&
+          item.person2_id !== item.person3_id
+      );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const savedPeople = getStoredValue('people');
     const savedPartnerships = getStoredValue('partnerships');
     const savedEmotionalLines = getStoredValue('emotionalLines');
+    const savedTriangles = getStoredValue('triangles');
     const savedCategories = getStoredValue('eventCategories');
     const savedIndicators = getStoredValue('indicatorDefinitions');
     let indicatorDefs = initialIndicatorDefinitions;
@@ -2385,16 +2691,23 @@ const DiagramEditor = () => {
       const parsedPeople: Person[] = JSON.parse(savedPeople);
       const parsedPartnerships: Partnership[] = JSON.parse(savedPartnerships);
       const parsedLines: EmotionalLine[] = JSON.parse(savedEmotionalLines);
+      const parsedTriangles: Triangle[] = savedTriangles ? JSON.parse(savedTriangles) : [];
       const cleaned = removeOrphanedMiscarriages(parsedPeople, parsedPartnerships);
       const aligned = alignAllAnchors(cleaned.people);
       const normalizedLines = normalizeEmotionalLines(parsedLines);
+      const normalizedTriangles = normalizeTriangles(parsedTriangles).filter((triangle) => {
+        const ids = new Set(cleaned.people.map((person) => person.id));
+        return ids.has(triangle.person1_id) && ids.has(triangle.person2_id) && ids.has(triangle.person3_id);
+      });
       const sanitizedPeople = sanitizePeopleIndicators(aligned, indicatorDefs);
       setPeople(sanitizedPeople);
       setPartnerships(cleaned.partnerships);
       setEmotionalLines(normalizedLines);
-      markSnapshotClean(sanitizedPeople, cleaned.partnerships, normalizedLines);
+      setTriangles(normalizedTriangles);
+      markSnapshotClean(sanitizedPeople, cleaned.partnerships, normalizedLines, normalizedTriangles);
     } else {
-      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines);
+      setTriangles(initialTriangles);
+      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
     }
 
     if (savedCategories) {
@@ -2478,6 +2791,14 @@ useEffect(() => {
   );
 
   useAutosave(
+    triangles,
+    (data) => {
+      setStoredValue('triangles', JSON.stringify(data));
+    },
+    autosaveDelayMs
+  );
+
+  useAutosave(
     eventCategories,
     (data) => {
       setStoredValue('eventCategories', JSON.stringify(data));
@@ -2543,35 +2864,24 @@ useEffect(() => {
 
   const handleUpdateEmotionalLine = (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => {
     console.log('Updating emotional line:', emotionalLineId, updatedProps);
-    setEmotionalLines(emotionalLines.map(el => {
-        if (el.id !== emotionalLineId) return el;
-        const next = { ...el, ...updatedProps };
-        if (next.relationshipType === 'distance' && next.lineStyle === 'cutoff') {
-            next.lineStyle = 'long-dash';
-        }
-        if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
-            next.lineStyle = 'cutoff';
-        }
-        if (next.relationshipType === 'projection' && next.lineStyle !== 'projection-flow') {
-            next.lineStyle = 'projection-flow';
-            next.lineEnding = 'none';
-        }
-        return next;
-    }));
+    setEmotionalLines((prev) =>
+      prev.map((el) => (el.id !== emotionalLineId ? el : normalizeEmotionalLine({ ...el, ...updatedProps })))
+    );
+    setTriangles((prev) =>
+      prev.map((triangle) => {
+        if (!triangle.tpls?.length) return triangle;
+        let changed = false;
+        const nextTpls = triangle.tpls.map((tpl) => {
+          if (tpl.id !== emotionalLineId) return tpl;
+          changed = true;
+          return normalizeEmotionalLine({ ...tpl, ...updatedProps });
+        });
+        return changed ? { ...triangle, tpls: nextTpls } : triangle;
+      })
+    );
     setPropertiesPanelItem(prev => {
         if (prev && prev.id === emotionalLineId && 'lineStyle' in prev) { // check if it is an emotional line
-            const next = { ...prev, ...updatedProps };
-            if (next.relationshipType === 'distance' && next.lineStyle === 'cutoff') {
-                next.lineStyle = 'long-dash';
-            }
-            if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
-                next.lineStyle = 'cutoff';
-            }
-            if (next.relationshipType === 'projection' && next.lineStyle !== 'projection-flow') {
-                next.lineStyle = 'projection-flow';
-                next.lineEnding = 'none';
-            }
-            return next;
+            return normalizeEmotionalLine({ ...prev, ...updatedProps });
         }
         return prev;
     });
@@ -2596,6 +2906,69 @@ useEffect(() => {
   const removeEmotionalLine = (emotionalLineId: string) => {
     setEmotionalLines(emotionalLines.filter(el => el.id !== emotionalLineId));
     setContextMenu(null);
+  };
+
+  const addTriangle = (personIds: string[]) => {
+    if (personIds.length !== 3) return;
+    const uniqueIds = [...new Set(personIds)];
+    if (uniqueIds.length !== 3) return;
+    const key = [...uniqueIds].sort().join('::');
+    const existing = triangles.find(
+      (triangle) =>
+        [triangle.person1_id, triangle.person2_id, triangle.person3_id].sort().join('::') === key
+    );
+    if (existing) {
+      setSelectedPeopleIds([]);
+      return;
+    }
+    const [person1_id, person2_id, person3_id] = uniqueIds;
+    const newTriangle: Triangle = {
+      id: nanoid(),
+      person1_id,
+      person2_id,
+      person3_id,
+      color: '#8a5a00',
+      intensity: 'medium',
+      tpls: [
+        buildDefaultTpl(person1_id, person2_id, '#8a5a00'),
+        buildDefaultTpl(person2_id, person3_id, '#8a5a00'),
+        buildDefaultTpl(person3_id, person1_id, '#8a5a00'),
+      ],
+    };
+    setTriangles((prev) => [...prev, newTriangle]);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(null);
+  };
+
+  const removeTriangle = (triangleId: string) => {
+    setTriangles((prev) => prev.filter((triangle) => triangle.id !== triangleId));
+    setContextMenu(null);
+  };
+
+  const updateTriangleColor = (triangleId: string, color: string) => {
+    setTriangles((prev) =>
+      prev.map((triangle) => {
+        if (triangle.id !== triangleId) return triangle;
+        return {
+          ...triangle,
+          color,
+        };
+      })
+    );
+  };
+
+  const updateTriangleIntensity = (
+    triangleId: string,
+    intensity: 'low' | 'medium' | 'high'
+  ) => {
+    setTriangles((prev) =>
+      prev.map((triangle) =>
+        triangle.id === triangleId ? { ...triangle, intensity } : triangle
+      )
+    );
   };
 
   const changeSex = (personId: string) => {
@@ -2658,6 +3031,7 @@ useEffect(() => {
     people,
     partnerships,
     emotionalLines,
+    triangles,
     functionalIndicatorDefinitions,
     eventCategories,
     autoSaveMinutes,
@@ -2674,6 +3048,7 @@ useEffect(() => {
     applyIndicatorDefinitionArray(nextDefinitions);
     const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
+    const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
     const normalizedImportedPeople = normalizeImportedChildLayout(cleaned.people, cleaned.partnerships, {
       expandParentSpan: true,
       autoResizeDenseFamilies: true,
@@ -2683,9 +3058,17 @@ useEffect(() => {
     const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
     const partnershipsWithEvents = attachEventClassToEntities(cleaned.partnerships, 'relationship');
     const linesWithEvents = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
+    const peopleIdSet = new Set(peopleWithEvents.map((person) => person.id));
+    const trianglesWithKnownPeople = normalizedTriangles.filter(
+      (triangle) =>
+        peopleIdSet.has(triangle.person1_id) &&
+        peopleIdSet.has(triangle.person2_id) &&
+        peopleIdSet.has(triangle.person3_id)
+    );
     setPeople(peopleWithEvents);
     setPartnerships(partnershipsWithEvents);
     setEmotionalLines(linesWithEvents);
+    setTriangles(trianglesWithKnownPeople);
     if (Array.isArray(data.eventCategories) && data.eventCategories.length > 0) {
       setEventCategories(data.eventCategories);
     }
@@ -2704,8 +3087,14 @@ useEffect(() => {
     }
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
-    setTimelinePersonId(null);
-    markSnapshotClean(peopleWithEvents, partnershipsWithEvents, linesWithEvents);
+    setTimelineSelectionIds([]);
+    setTimelineYearPickTarget(null);
+    setTimelineYearDrag(null);
+    setTimelineFilterStartYear(null);
+    setTimelineFilterEndYear(null);
+    setTimelineBoardSelection(null);
+    setTimelineBoardEventDraft(null);
+    markSnapshotClean(peopleWithEvents, partnershipsWithEvents, linesWithEvents, trianglesWithKnownPeople);
     setLastSavedAt(null);
   };
 
@@ -2740,6 +3129,7 @@ useEffect(() => {
 
     const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
+    const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
     const incomingPeople = attachEventClassToEntities(cleaned.people, 'individual');
     const incomingPartnerships = attachEventClassToEntities(cleaned.partnerships, 'relationship');
     const incomingLines = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
@@ -2747,6 +3137,7 @@ useEffect(() => {
     const usedPersonIds = new Set(people.map((p) => p.id));
     const usedPartnershipIds = new Set(partnerships.map((p) => p.id));
     const usedLineIds = new Set(emotionalLines.map((line) => line.id));
+    const usedTriangleIds = new Set(triangles.map((triangle) => triangle.id));
 
     const personIdMap = new Map<string, string>();
     const partnershipIdMap = new Map<string, string>();
@@ -3012,6 +3403,47 @@ useEffect(() => {
       existingLineByKey.set(key, added);
     });
 
+    const triangleKey = (triangle: Triangle) =>
+      [triangle.person1_id, triangle.person2_id, triangle.person3_id].sort().join('::');
+
+    const existingTriangleByKey = new Map<string, Triangle>();
+    triangles.forEach((triangle) => {
+      existingTriangleByKey.set(triangleKey(triangle), triangle);
+    });
+
+    const mergedTriangles = [...triangles];
+    normalizedTriangles.forEach((triangle) => {
+      const remappedTriangle: Triangle = {
+        ...triangle,
+        person1_id: personIdMap.get(triangle.person1_id) ?? triangle.person1_id,
+        person2_id: personIdMap.get(triangle.person2_id) ?? triangle.person2_id,
+        person3_id: personIdMap.get(triangle.person3_id) ?? triangle.person3_id,
+      };
+      const uniquePeople = new Set([
+        remappedTriangle.person1_id,
+        remappedTriangle.person2_id,
+        remappedTriangle.person3_id,
+      ]);
+      if (uniquePeople.size !== 3) return;
+      const key = triangleKey(remappedTriangle);
+      const existingMatch = existingTriangleByKey.get(key);
+      if (existingMatch) {
+        const index = mergedTriangles.findIndex((candidate) => candidate.id === existingMatch.id);
+        if (index >= 0) {
+          mergedTriangles[index] = {
+            ...existingMatch,
+            color: existingMatch.color || remappedTriangle.color,
+            intensity: existingMatch.intensity || remappedTriangle.intensity || 'medium',
+          };
+        }
+        return;
+      }
+      const newId = nextUniqueId(triangle.id, usedTriangleIds);
+      const added = { ...remappedTriangle, id: newId };
+      mergedTriangles.push(added);
+      existingTriangleByKey.set(key, added);
+    });
+
     const peopleWithLinks: Person[] = basePeopleMerged.map((person) => {
       const personPartnerships = mergedPartnerships
         .filter((partnership) => partnership.partner1_id === person.id || partnership.partner2_id === person.id)
@@ -3039,6 +3471,7 @@ useEffect(() => {
     setPeople(sanitizedPeople);
     setPartnerships(mergedPartnerships);
     setEmotionalLines(mergedLines);
+    setTriangles(mergedTriangles);
 
     const mergedCategories = [
       ...new Set([
@@ -3068,7 +3501,13 @@ useEffect(() => {
       // Imported diagrams should open with all elements visible rather than staying on a prior year cutoff.
       setTimelinePlaying(false);
       setTimelineYear(new Date().getFullYear());
-      setTimelinePersonId(null);
+      setTimelineSelectionIds([]);
+      setTimelineYearPickTarget(null);
+      setTimelineYearDrag(null);
+      setTimelineFilterStartYear(null);
+      setTimelineFilterEndYear(null);
+      setTimelineBoardSelection(null);
+      setTimelineBoardEventDraft(null);
       setImportModeDialogOpen(false);
       setPendingImportData(null);
       setPendingImportFileName('');
@@ -3099,7 +3538,7 @@ useEffect(() => {
     a.click();
     URL.revokeObjectURL(url);
     setFileName(targetName);
-    markSnapshotClean(people, partnerships, emotionalLines);
+    markSnapshotClean(people, partnerships, emotionalLines, triangles);
     setLastSavedAt(Date.now());
   };
 
@@ -3137,6 +3576,19 @@ useEffect(() => {
           data = parsed;
           beginImportFlow(data, file.name, 'import');
           return;
+        } else if (isTimelineJson(parsed) || isPersonEventBundle(parsed)) {
+          const bundle = isTimelineJson(parsed) ? timelineJsonToBundle(parsed) : parsed;
+          const result = mergePersonEventsFromBundle(people, bundle);
+          setPeople(result.people);
+          const summary = result.summary;
+          const unmatched =
+            summary.unmatchedPeople.length > 0
+              ? `\nUnmatched: ${summary.unmatchedPeople.join(', ')}`
+              : '';
+          alert(
+            `Imported person events.\nMatched people: ${summary.matchedPeople}\nAdded: ${summary.addedEvents}\nUpdated: ${summary.updatedEvents}\nRemoved: ${summary.removedEvents}${unmatched}`
+          );
+          return;
         } else if (isFactsImportData(parsed)) {
           data = factsToDiagramImportData(parsed);
           beginImportFlow(data, file.name, 'facts');
@@ -3145,7 +3597,7 @@ useEffect(() => {
           throw new Error('Unsupported import format');
         }
       } catch (error) {
-        alert('Error parsing import JSON. Expected diagram JSON or facts JSON.');
+        alert('Error parsing import JSON. Expected diagram JSON, timeline/person-events JSON, or facts JSON.');
       }
     };
     reader.readAsText(file);
@@ -3186,23 +3638,34 @@ useEffect(() => {
       children: [...partnership.children],
     }));
     const clonedLines = initialEmotionalLines.map((line) => ({ ...line }));
-    return { clonedPeople, clonedPartnerships, clonedLines };
+    const clonedTriangles = initialTriangles.map((triangle) => ({
+      ...triangle,
+      tpls: triangle.tpls ? triangle.tpls.map((tpl) => ({ ...tpl })) : undefined,
+    }));
+    return { clonedPeople, clonedPartnerships, clonedLines, clonedTriangles };
   };
 
   const resetDiagramToInitialState = useCallback(() => {
-    const { clonedPeople, clonedPartnerships, clonedLines } = buildInitialStateSnapshot();
+    const { clonedPeople, clonedPartnerships, clonedLines, clonedTriangles } = buildInitialStateSnapshot();
     setPeople(clonedPeople);
     setPartnerships(clonedPartnerships);
     setEmotionalLines(clonedLines);
+    setTriangles(clonedTriangles);
     setPropertiesPanelItem(null);
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
     setContextMenu(null);
-    setTimelinePersonId(null);
+    setTimelineSelectionIds([]);
+    setTimelineYearPickTarget(null);
+    setTimelineYearDrag(null);
+    setTimelineFilterStartYear(null);
+    setTimelineFilterEndYear(null);
+    setTimelineBoardSelection(null);
+    setTimelineBoardEventDraft(null);
     setFileName(initialFileName);
-    markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines);
+    markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines, clonedTriangles);
     setLastSavedAt(null);
     setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
   }, [markSnapshotClean]);
@@ -3227,8 +3690,64 @@ useEffect(() => {
     importInputRef.current?.click();
   };
 
+  const handleImportPersonEventsPicker = () => {
+    importPersonEventsInputRef.current?.click();
+  };
+
   const handleProcessTranscriptPicker = () => {
     transcriptInputRef.current?.click();
+  };
+
+  const handleExportPersonEvents = () => {
+    const payload = buildTimelineJson(people, fileName);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(payload.timelineName || 'timeline').replace(/[^a-z0-9- _]/gi, '')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportPersonEventsLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(String(event.target?.result || ''));
+        const bundle = isTimelineJson(parsed)
+          ? timelineJsonToBundle(parsed)
+          : isPersonEventBundle(parsed)
+          ? parsed
+          : null;
+        if (!bundle) {
+          throw new Error('Not a person-event bundle');
+        }
+        const result = mergePersonEventsFromBundle(people, bundle);
+        setPeople(result.people);
+        setTimelineYear(new Date().getFullYear());
+        setTimelinePlaying(false);
+        const summary = result.summary;
+        const unmatched =
+          summary.unmatchedPeople.length > 0
+            ? `\nUnmatched: ${summary.unmatchedPeople.join(', ')}`
+            : '';
+        alert(
+          `Imported person events.\nMatched people: ${summary.matchedPeople}\nAdded: ${summary.addedEvents}\nUpdated: ${summary.updatedEvents}\nRemoved: ${summary.removedEvents}${unmatched}`
+        );
+      } catch {
+        alert('Error parsing timeline/person events JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleOpenEventCreator = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', 'event-creator');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
   };
 
   const handleQuit = () => {
@@ -3375,6 +3894,14 @@ useEffect(() => {
     setEmotionalLines((prev) =>
       prev.filter((line) => line.person1_id !== personId && line.person2_id !== personId)
     );
+    setTriangles((prev) =>
+      prev.filter(
+        (triangle) =>
+          triangle.person1_id !== personId &&
+          triangle.person2_id !== personId &&
+          triangle.person3_id !== personId
+      )
+    );
 
     if (selectedPeopleIds.includes(personId)) {
       setSelectedPeopleIds(selectedPeopleIds.filter((id) => id !== personId));
@@ -3449,7 +3976,17 @@ useEffect(() => {
           {
             label: 'Timeline',
             onClick: () => {
-                setTimelinePersonId(person.id);
+                const nextIds =
+                  selectedPeopleIds.length > 1 && selectedPeopleIds.includes(person.id)
+                    ? selectedPeopleIds
+                    : [person.id];
+                setTimelineSelectionIds(nextIds);
+                setTimelineYearPickTarget(null);
+                setTimelineYearDrag(null);
+                setTimelineFilterStartYear(null);
+                setTimelineFilterEndYear(null);
+                setTimelineBoardSelection(null);
+                setTimelineBoardEventDraft(null);
                 setContextMenu(null);
             }
           }
@@ -3472,6 +4009,15 @@ useEffect(() => {
                 setContextMenu(null);
                 setSelectedPeopleIds([]);
             }
+        });
+      }
+      if (selectedPeopleIds.length === 3) {
+        menuItems.push({
+          label: 'Add Triangle',
+          onClick: () => {
+            addTriangle(selectedPeopleIds);
+            setContextMenu(null);
+          },
         });
       }
 
@@ -3624,11 +4170,9 @@ useEffect(() => {
     if (e.target !== e.target.getStage()) {
         return;
     }
-    setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
-    setPropertiesPanelItem(null);
     const stage = e.target.getStage();
     const pointerPosition = stage.getPointerPosition();
     if (!pointerPosition) return;
@@ -3638,6 +4182,39 @@ useEffect(() => {
             label: 'Add Person',
             onClick: () => {
                 addPerson(pointerPosition.x, pointerPosition.y);
+                setContextMenu(null);
+            }
+        },
+        {
+            label: 'Add Event',
+            onClick: () => {
+                const selectedId =
+                  selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null;
+                let targetPerson = selectedId
+                  ? people.find((person) => person.id === selectedId)
+                  : undefined;
+
+                if (!targetPerson) {
+                  const defaultName = people[0]?.name || '';
+                  const userName = prompt(
+                    'Add event for which person? Enter name exactly.',
+                    defaultName
+                  );
+                  if (!userName) {
+                    setContextMenu(null);
+                    return;
+                  }
+                  const lookup = userName.trim().toLowerCase();
+                  targetPerson = people.find(
+                    (person) => (person.name || '').trim().toLowerCase() === lookup
+                  );
+                }
+                if (!targetPerson) {
+                  alert('Person not found. Select one person first or enter an exact name.');
+                  setContextMenu(null);
+                  return;
+                }
+                addEventToPersonAndOpenPanel(targetPerson);
                 setContextMenu(null);
             }
         },
@@ -3700,7 +4277,7 @@ useEffect(() => {
     }
 
     const emotionalLinesMap = new Map<string, { notesPosition?: { x: number; y: number } }>();
-    for (const emotionalLine of emotionalLines) {
+    for (const emotionalLine of allEmotionalLines) {
       if (selectedIds.includes(emotionalLine.person1_id) && selectedIds.includes(emotionalLine.person2_id)) {
         emotionalLinesMap.set(emotionalLine.id, {
           notesPosition: emotionalLine.notesPosition ? { ...emotionalLine.notesPosition } : undefined,
@@ -3766,6 +4343,24 @@ useEffect(() => {
           };
         })
       );
+      setTriangles((prev) =>
+        prev.map((triangle) => {
+          if (!triangle.tpls?.length) return triangle;
+          let changed = false;
+          const nextTpls = triangle.tpls.map((tpl) => {
+            const base = dragGroup.emotionalLines.get(tpl.id);
+            if (!base) return tpl;
+            changed = true;
+            return {
+              ...tpl,
+              notesPosition: base.notesPosition
+                ? { x: base.notesPosition.x + dx, y: base.notesPosition.y + dy }
+                : tpl.notesPosition,
+            };
+          });
+          return changed ? { ...triangle, tpls: nextTpls } : triangle;
+        })
+      );
       return;
     }
 
@@ -3790,6 +4385,14 @@ useEffect(() => {
     );
   };
 
+  const handlePersonNoteResizeEnd = (personId: string, width: number, height: number) => {
+    setPeopleAligned((prev) =>
+      prev.map((person) =>
+        person.id === personId ? { ...person, notesSize: { width, height } } : person
+      )
+    );
+  };
+
   const handlePartnershipNoteDragEnd = (partnershipId: string, x: number, y: number) => {
     setPartnerships(
       partnerships.map((p) =>
@@ -3798,11 +4401,47 @@ useEffect(() => {
     );
   };
 
-  const handleEmotionalLineNoteDragEnd = (emotionalLineId: string, x: number, y: number) => {
-    setEmotionalLines(
-      emotionalLines.map((el) =>
-        el.id === emotionalLineId ? { ...el, notesPosition: { x, y } } : el
+  const handlePartnershipNoteResizeEnd = (partnershipId: string, width: number, height: number) => {
+    setPartnerships(
+      partnerships.map((p) =>
+        p.id === partnershipId ? { ...p, notesSize: { width, height } } : p
       )
+    );
+  };
+
+  const handleEmotionalLineNoteDragEnd = (emotionalLineId: string, x: number, y: number) => {
+    setEmotionalLines((prev) =>
+      prev.map((el) => (el.id === emotionalLineId ? { ...el, notesPosition: { x, y } } : el))
+    );
+    setTriangles((prev) =>
+      prev.map((triangle) => {
+        if (!triangle.tpls?.length) return triangle;
+        let changed = false;
+        const nextTpls = triangle.tpls.map((tpl) => {
+          if (tpl.id !== emotionalLineId) return tpl;
+          changed = true;
+          return { ...tpl, notesPosition: { x, y } };
+        });
+        return changed ? { ...triangle, tpls: nextTpls } : triangle;
+      })
+    );
+  };
+
+  const handleEmotionalLineNoteResizeEnd = (emotionalLineId: string, width: number, height: number) => {
+    setEmotionalLines((prev) =>
+      prev.map((el) => (el.id === emotionalLineId ? { ...el, notesSize: { width, height } } : el))
+    );
+    setTriangles((prev) =>
+      prev.map((triangle) => {
+        if (!triangle.tpls?.length) return triangle;
+        let changed = false;
+        const nextTpls = triangle.tpls.map((tpl) => {
+          if (tpl.id !== emotionalLineId) return tpl;
+          changed = true;
+          return { ...tpl, notesSize: { width, height } };
+        });
+        return changed ? { ...triangle, tpls: nextTpls } : triangle;
+      })
     );
   };
 
@@ -3830,7 +4469,7 @@ useEffect(() => {
     setSelectedEmotionalLineId(emotionalLineId);
     setSelectedChildId(null);
 
-    const selectedLine = emotionalLines.find(el => el.id === emotionalLineId);
+    const selectedLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (selectedLine) {
         setPropertiesPanelItem(selectedLine);
     }
@@ -3843,37 +4482,84 @@ useEffect(() => {
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
-    const emotionalLine = emotionalLines.find(el => el.id === emotionalLineId);
+    const emotionalLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (!emotionalLine) return;
+    const parentTriangleId = triangleByTplLineId.get(emotionalLineId);
+    const items = [
+      {
+        label: emotionalLine.notes
+          ? emotionalLine.notesEnabled
+            ? 'Hide Note (Use Layer)'
+            : 'Show Note'
+          : 'No Note',
+        onClick: () => {
+            if (!emotionalLine.notes) return;
+            handleUpdateEmotionalLine(emotionalLineId, { notesEnabled: emotionalLine.notesEnabled ? undefined : true });
+            setContextMenu(null);
+        }
+      },
+      {
+        label: 'Properties',
+        onClick: () => {
+            setPropertiesPanelItem(emotionalLine);
+            setContextMenu(null);
+        }
+      },
+    ];
+
+    items.push({
+      label: parentTriangleId ? 'Delete Triangle' : 'Delete Emotional Line',
+      onClick: () =>
+        parentTriangleId ? removeTriangle(parentTriangleId) : removeEmotionalLine(emotionalLineId),
+    });
 
     setContextMenu({
         x: e.evt.clientX,
         y: e.evt.clientY,
-        items: [
-            {
-              label: emotionalLine.notes
-                ? emotionalLine.notesEnabled
-                  ? 'Hide Note (Use Layer)'
-                  : 'Show Note'
-                : 'No Note',
-              onClick: () => {
-                  if (!emotionalLine.notes) return;
-                  handleUpdateEmotionalLine(emotionalLineId, { notesEnabled: emotionalLine.notesEnabled ? undefined : true });
-                  setContextMenu(null);
-              }
-            },
-            {
-              label: 'Properties',
-              onClick: () => {
-                  setPropertiesPanelItem(emotionalLine);
-                  setContextMenu(null);
-              }
-            },
-            {
-                label: 'Delete Emotional Line',
-                onClick: () => removeEmotionalLine(emotionalLineId)
-            },
-        ]
+        items
+    });
+  };
+
+  const handleTriangleAreaSelect = (triangleId: string) => {
+    const triangle = triangles.find((item) => item.id === triangleId);
+    const firstTpl = triangle?.tpls?.[0];
+    if (!firstTpl) return;
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedChildId(null);
+    setSelectedEmotionalLineId(firstTpl.id);
+    setPropertiesPanelItem(firstTpl);
+  };
+
+  const handleTriangleAreaContextMenu = (
+    e: KonvaEventObject<PointerEvent>,
+    triangleId: string
+  ) => {
+    e.evt.preventDefault();
+    const triangle = triangles.find((item) => item.id === triangleId);
+    const firstTpl = triangle?.tpls?.[0];
+    if (!firstTpl) return;
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedChildId(null);
+    setSelectedEmotionalLineId(firstTpl.id);
+    setPropertiesPanelItem(firstTpl);
+    setContextMenu({
+      x: e.evt.clientX,
+      y: e.evt.clientY,
+      items: [
+        {
+          label: 'Properties',
+          onClick: () => {
+            setPropertiesPanelItem(firstTpl);
+            setContextMenu(null);
+          },
+        },
+        {
+          label: 'Delete Triangle',
+          onClick: () => removeTriangle(triangleId),
+        },
+      ],
     });
   };
 
@@ -3917,106 +4603,443 @@ useEffect(() => {
     }
   };
 
-      const timelinePerson = timelinePersonId ? people.find((p) => p.id === timelinePersonId) : null;
-      const timelineItems = (() => {
-        if (!timelinePerson) return [];
-        const items: { id: string; date?: string; label: string; detail: string }[] = [];
-
-        items.push({
-          id: `person-${timelinePerson.id}-birth`,
-          date: timelinePerson.birthDate,
-          label: 'Person',
-          detail: `Birth: ${timelinePerson.birthDate || '—'}`
-        });
-        if (timelinePerson.deathDate) {
-          items.push({
-            id: `person-${timelinePerson.id}-death`,
-            date: timelinePerson.deathDate,
-            label: 'Person',
-            detail: `Death: ${timelinePerson.deathDate}`
-          });
-        }
-        (timelinePerson.events || []).forEach((event) => {
-          items.push({
-            id: `person-event-${event.id}`,
-            date: event.date,
-            label: event.category || 'Event',
-            detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
-          });
-        });
-
-        const relatedPartnerships = partnerships.filter(
-          (p) => p.partner1_id === timelinePerson.id || p.partner2_id === timelinePerson.id
-        );
-        relatedPartnerships.forEach((partnership) => {
-          items.push({
-            id: `partnership-${partnership.id}-start`,
-            date: partnership.relationshipStartDate,
-            label: partnership.relationshipType || 'Partnership',
-            detail: `Relationship start: ${partnership.relationshipStartDate || '—'}`
-          });
-          if (partnership.marriedStartDate) {
-            items.push({
-              id: `partnership-${partnership.id}-married`,
-              date: partnership.marriedStartDate,
-              label: 'Marriage',
-              detail: `Married: ${partnership.marriedStartDate}`
-            });
-          }
-          if (partnership.separationDate) {
-            items.push({
-              id: `partnership-${partnership.id}-separation`,
-              date: partnership.separationDate,
-              label: 'Separation',
-              detail: `Separated: ${partnership.separationDate}`
-            });
-          }
-          if (partnership.divorceDate) {
-            items.push({
-              id: `partnership-${partnership.id}-divorce`,
-              date: partnership.divorceDate,
-              label: 'Divorce',
-              detail: `Divorced: ${partnership.divorceDate}`
+      type TimelineBlockItem = {
+        id: string;
+        label: string;
+        detail?: string;
+        notes?: string;
+        startDate: string;
+        endDate?: string;
+        color: string;
+        entityType: 'person' | 'partnership' | 'emotional';
+        entityId: string;
+        eventId?: string;
+      };
+      type TimelineLane = { id: string; label: string; items: TimelineBlockItem[] };
+      const parseTimelineDate = (value?: string) => {
+        if (!value) return null;
+        const ts = Date.parse(value);
+        return Number.isNaN(ts) ? null : ts;
+      };
+      const selectedTimelinePeople = people.filter((person) => timelineSelectionIds.includes(person.id));
+      const timelineLanes = (() => {
+        if (!selectedTimelinePeople.length) return [] as TimelineLane[];
+        const lanes: TimelineLane[] = [];
+        const selectedIdSet = new Set(selectedTimelinePeople.map((person) => person.id));
+        const familyItems: TimelineBlockItem[] = [];
+        partnerships.forEach((partnership) => {
+          if (!selectedIdSet.has(partnership.partner1_id) && !selectedIdSet.has(partnership.partner2_id)) return;
+          if (partnership.relationshipStartDate) {
+            const partner1 = people.find((p) => p.id === partnership.partner1_id)?.name || 'Partner 1';
+            const partner2 = people.find((p) => p.id === partnership.partner2_id)?.name || 'Partner 2';
+            familyItems.push({
+              id: `family-prl-${partnership.id}`,
+              label: `${partner1} + ${partner2}`,
+              detail: partnership.relationshipType,
+              notes: partnership.notes,
+              startDate: partnership.relationshipStartDate,
+              endDate: partnership.divorceDate || partnership.separationDate,
+              color: '#dce8ff',
+              entityType: 'partnership',
+              entityId: partnership.id,
             });
           }
           (partnership.events || []).forEach((event) => {
-            items.push({
-              id: `partnership-event-${event.id}`,
-              date: event.date,
-              label: event.category || 'Event',
-              detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
+            if (!event.date) return;
+            familyItems.push({
+              id: `family-prl-event-${event.id}`,
+              label: event.category || 'Relationship Event',
+              detail: event.observations || '',
+              notes: event.observations || '',
+              startDate: event.date,
+              color: '#dce8ff',
+              entityType: 'partnership',
+              entityId: partnership.id,
+              eventId: event.id,
             });
           });
         });
+        if (familyItems.length) {
+          lanes.push({ id: 'family', label: 'Family', items: familyItems });
+        }
 
-        emotionalLines.forEach((line) => {
-          if (line.person1_id !== timelinePerson.id && line.person2_id !== timelinePerson.id) return;
-          const otherPersonId = line.person1_id === timelinePerson.id ? line.person2_id : line.person1_id;
-          const otherPerson = people.find((p) => p.id === otherPersonId);
-          items.push({
-            id: `epl-${line.id}`,
-            date: line.startDate,
-            label: line.relationshipType || 'EPL',
-            detail: `${line.relationshipType} (${line.lineStyle}) with ${otherPerson?.name || 'Unknown'}`
-          });
-          (line.events || []).forEach((event) => {
+        selectedTimelinePeople.forEach((person) => {
+          const items: TimelineBlockItem[] = [];
+          if (person.birthDate) {
             items.push({
-              id: `epl-event-${event.id}`,
-              date: event.date,
+              id: `person-birth-${person.id}`,
+              label: 'Birth',
+              detail: person.birthDate,
+              notes: person.notes,
+              startDate: person.birthDate,
+              color: '#d5f0ff',
+              entityType: 'person',
+              entityId: person.id,
+            });
+          }
+          if (person.deathDate) {
+            items.push({
+              id: `person-death-${person.id}`,
+              label: 'Death',
+              detail: person.deathDate,
+              notes: person.notes,
+              startDate: person.deathDate,
+              color: '#ffd9d9',
+              entityType: 'person',
+              entityId: person.id,
+            });
+          }
+          (person.events || []).forEach((event) => {
+            if (!event.date) return;
+            items.push({
+              id: `person-event-${event.id}`,
               label: event.category || 'Event',
-              detail: `Intensity ${event.intensity}, How well ${event.howWell}${event.otherPersonName ? `, Other: ${event.otherPersonName}` : ''}`
+              detail: event.observations || event.otherPersonName || '',
+              notes: event.observations || '',
+              startDate: event.date,
+              color: '#e8f3ff',
+              entityType: 'person',
+              entityId: person.id,
+              eventId: event.id,
             });
           });
+          partnerships
+            .filter((p) => p.partner1_id === person.id || p.partner2_id === person.id)
+            .forEach((partnership) => {
+              if (partnership.relationshipStartDate) {
+                const otherId = partnership.partner1_id === person.id ? partnership.partner2_id : partnership.partner1_id;
+                const otherName = people.find((p) => p.id === otherId)?.name || 'Partner';
+                items.push({
+                  id: `person-prl-${partnership.id}-${person.id}`,
+                  label: `${otherName}`,
+                  detail: partnership.relationshipType,
+                  notes: partnership.notes,
+                  startDate: partnership.relationshipStartDate,
+                  endDate: partnership.divorceDate || partnership.separationDate,
+                  color: '#f0efff',
+                  entityType: 'partnership',
+                  entityId: partnership.id,
+                });
+              }
+            });
+          allEmotionalLines
+            .filter((line) => line.person1_id === person.id || line.person2_id === person.id)
+            .forEach((line) => {
+              if (!line.startDate) return;
+              const otherId = line.person1_id === person.id ? line.person2_id : line.person1_id;
+              const otherName = people.find((p) => p.id === otherId)?.name || 'Other';
+              items.push({
+                id: `person-epl-${line.id}-${person.id}`,
+                label: `${line.relationshipType} · ${otherName}`,
+                detail: line.lineStyle,
+                notes: line.notes,
+                startDate: line.startDate,
+                color: '#ffe8f0',
+                entityType: 'emotional',
+                entityId: line.id,
+              });
+            });
+          lanes.push({ id: person.id, label: person.name || 'Unnamed', items });
         });
-
-        const direction = timelineSortOrder === 'asc' ? 1 : -1;
-        return items.sort((a, b) => {
-          const aTime = a.date ? new Date(a.date).getTime() : Number.POSITIVE_INFINITY;
-          const bTime = b.date ? new Date(b.date).getTime() : Number.POSITIVE_INFINITY;
-          if (aTime === bTime) return 0;
-          return aTime > bTime ? direction : -direction;
-        });
+        return lanes;
       })();
+      const handleTimelineItemClick = (laneLabel: string, item: TimelineBlockItem) => {
+        setTimelineHoverNote(null);
+        const existingEvent =
+          item.eventId && item.entityType === 'person'
+            ? people
+                .find((entry) => entry.id === item.entityId)
+                ?.events?.find((entry) => entry.id === item.eventId)
+            : item.eventId && item.entityType === 'partnership'
+            ? partnerships
+                .find((entry) => entry.id === item.entityId)
+                ?.events?.find((entry) => entry.id === item.eventId)
+            : item.eventId
+            ? allEmotionalLines
+                .find((entry) => entry.id === item.entityId)
+                ?.events?.find((entry) => entry.id === item.eventId)
+            : undefined;
+        setTimelineBoardSelection({
+          laneLabel,
+          entityType: item.entityType,
+          entityId: item.entityId,
+          eventId: item.eventId,
+          itemLabel: item.label,
+          startDate: item.startDate,
+          endDate: item.endDate,
+        });
+        if (existingEvent) {
+          setTimelineBoardEventDraft({
+            event: { ...existingEvent },
+            original: { ...existingEvent },
+            isNew: false,
+          });
+        } else {
+          setTimelineBoardEventDraft(null);
+        }
+      };
+      const setTimelineEventDraftField = (
+        field: 'date' | 'category' | 'observations',
+        value: string
+      ) => {
+        setTimelineBoardEventDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                event: {
+                  ...prev.event,
+                  date: field === 'date' ? value : prev.event.date,
+                  category: field === 'category' ? value : prev.event.category,
+                  observations: field === 'observations' ? value : prev.event.observations,
+                },
+              }
+            : prev
+        );
+      };
+      const saveTimelineEventDraft = () => {
+        if (!timelineBoardSelection || !timelineBoardEventDraft) return;
+        const draft: EmotionalProcessEvent = {
+          ...timelineBoardEventDraft.event,
+          date: timelineBoardEventDraft.event.date || new Date().toISOString().slice(0, 10),
+        };
+        if (timelineBoardSelection.entityType === 'person') {
+          const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
+          if (!person) return;
+          const nextEvents = timelineBoardEventDraft.isNew
+            ? [...(person.events || []), draft]
+            : (person.events || []).map((event) => (event.id === draft.id ? draft : event));
+          handleUpdatePerson(person.id, { events: nextEvents });
+        } else if (timelineBoardSelection.entityType === 'partnership') {
+          const partnership = partnerships.find((entry) => entry.id === timelineBoardSelection.entityId);
+          if (!partnership) return;
+          const nextEvents = timelineBoardEventDraft.isNew
+            ? [...(partnership.events || []), draft]
+            : (partnership.events || []).map((event) => (event.id === draft.id ? draft : event));
+          handleUpdatePartnership(partnership.id, { events: nextEvents });
+        } else {
+          const line = allEmotionalLines.find((entry) => entry.id === timelineBoardSelection.entityId);
+          if (!line) return;
+          const nextEvents = timelineBoardEventDraft.isNew
+            ? [...(line.events || []), draft]
+            : (line.events || []).map((event) => (event.id === draft.id ? draft : event));
+          handleUpdateEmotionalLine(line.id, { events: nextEvents });
+        }
+        setTimelineBoardSelection((prev) =>
+          prev
+            ? {
+                ...prev,
+                eventId: draft.id,
+                itemLabel: draft.category || prev.itemLabel,
+                startDate: draft.date || prev.startDate,
+              }
+            : prev
+        );
+        setTimelineBoardEventDraft({
+          event: { ...draft },
+          original: { ...draft },
+          isNew: false,
+        });
+        if (draft.date) {
+          const savedYear = new Date(draft.date).getUTCFullYear();
+          if (Number.isFinite(savedYear)) {
+            if (selectedStartYear != null && savedYear < selectedStartYear) {
+              setTimelineFilterStartYear(savedYear);
+            }
+            if (selectedEndYear != null && savedYear > selectedEndYear) {
+              setTimelineFilterEndYear(savedYear);
+            }
+          }
+        }
+      };
+      const cancelTimelineEventDraft = () => {
+        if (!timelineBoardEventDraft) return;
+        if (timelineBoardEventDraft.isNew) {
+          setTimelineBoardSelection((prev) => (prev ? { ...prev, eventId: undefined } : prev));
+          setTimelineBoardEventDraft(null);
+          return;
+        }
+        if (timelineBoardEventDraft.original) {
+          setTimelineBoardEventDraft({
+            event: { ...timelineBoardEventDraft.original },
+            original: { ...timelineBoardEventDraft.original },
+            isNew: false,
+          });
+        }
+      };
+      const handleTimelinePersonPropertyChange = (
+        field: 'name' | 'notes',
+        value: string
+      ) => {
+        if (!timelineBoardSelection || timelineBoardSelection.entityType !== 'person') return;
+        const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
+        if (!person) return;
+        if (field === 'name') {
+          handleUpdatePerson(person.id, { name: value });
+        } else {
+          handleUpdatePerson(person.id, { notes: value });
+        }
+      };
+      const addTimelineEventToSelectedPerson = () => {
+        if (!timelineBoardSelection || timelineBoardSelection.entityType !== 'person') return;
+        const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
+        if (!person) return;
+        const newEvent: EmotionalProcessEvent = {
+          id: nanoid(),
+          date: new Date().toISOString().slice(0, 10),
+          category: eventCategories[0] || 'Event',
+          statusLabel: '',
+          intensity: 0,
+          frequency: 0,
+          impact: 0,
+          howWell: 5,
+          otherPersonName: '',
+          primaryPersonName: person.name || '',
+          wwwwh: '',
+          observations: '',
+          priorEventsNote: '',
+          reflectionsNote: '',
+          isNodalEvent: false,
+          createdAt: Date.now(),
+          eventClass: 'individual',
+        };
+        setTimelineBoardSelection({
+          laneLabel: person.name || timelineBoardSelection.laneLabel,
+          entityType: 'person',
+          entityId: person.id,
+          eventId: newEvent.id,
+          itemLabel: newEvent.category,
+          startDate: newEvent.date,
+        });
+        setTimelineBoardEventDraft({
+          event: { ...newEvent },
+          original: null,
+          isNew: true,
+        });
+      };
+      const timelineSelectionResolved: {
+        person?: Person;
+        partnership?: Partnership;
+        line?: EmotionalLine;
+        event?: EmotionalProcessEvent;
+      } | null = (() => {
+        if (!timelineBoardSelection) return null;
+        if (timelineBoardSelection.entityType === 'person') {
+          const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
+          const event = timelineBoardSelection.eventId
+            ? person?.events?.find((entry) => entry.id === timelineBoardSelection.eventId)
+            : undefined;
+          return { person, event };
+        }
+        if (timelineBoardSelection.entityType === 'partnership') {
+          const partnership = partnerships.find((entry) => entry.id === timelineBoardSelection.entityId);
+          const event = timelineBoardSelection.eventId
+            ? partnership?.events?.find((entry) => entry.id === timelineBoardSelection.eventId)
+            : undefined;
+          return { partnership, event };
+        }
+        const line = allEmotionalLines.find((entry) => entry.id === timelineBoardSelection.entityId);
+        const event = timelineBoardSelection.eventId
+          ? line?.events?.find((entry) => entry.id === timelineBoardSelection.eventId)
+          : undefined;
+        return { line, event };
+      })();
+      const timelineRange = (() => {
+        const points: number[] = [];
+        timelineLanes.forEach((lane) => {
+          lane.items.forEach((item) => {
+            const start = parseTimelineDate(item.startDate);
+            const end = parseTimelineDate(item.endDate || item.startDate);
+            if (start != null) points.push(start);
+            if (end != null) points.push(end);
+          });
+        });
+        if (!points.length) return null;
+        let min = Math.min(...points);
+        let max = Math.max(...points);
+        if (min === max) {
+          const oneYear = 365 * 24 * 60 * 60 * 1000;
+          min -= oneYear;
+          max += oneYear;
+        }
+        return { min, max };
+      })();
+      const timelineYearBoundsForFilter = (() => {
+        if (!timelineRange) return null;
+        return {
+          min: new Date(timelineRange.min).getUTCFullYear(),
+          max: new Date(timelineRange.max).getUTCFullYear(),
+        };
+      })();
+      const selectedStartYear = timelineYearBoundsForFilter
+        ? Math.min(
+            Math.max(
+              timelineFilterStartYear ?? timelineYearBoundsForFilter.min,
+              timelineYearBoundsForFilter.min
+            ),
+            timelineYearBoundsForFilter.max
+          )
+        : null;
+      const selectedEndYear = timelineYearBoundsForFilter
+        ? Math.max(
+            Math.min(
+              timelineFilterEndYear ?? timelineYearBoundsForFilter.max,
+              timelineYearBoundsForFilter.max
+            ),
+            selectedStartYear ?? timelineYearBoundsForFilter.min
+          )
+        : null;
+      const timelineDisplayRange =
+        selectedStartYear != null && selectedEndYear != null
+          ? {
+              min: Date.UTC(selectedStartYear, 0, 1),
+              max: Date.UTC(selectedEndYear, 11, 31, 23, 59, 59, 999),
+            }
+          : timelineRange;
+      const timelineYearSlices = (() => {
+        if (!timelineDisplayRange || selectedStartYear == null || selectedEndYear == null) {
+          return [] as Array<{ year: number; leftPct: number; widthPct: number }>;
+        }
+        const slices: Array<{ year: number; leftPct: number; widthPct: number }> = [];
+        for (let year = selectedStartYear; year <= selectedEndYear; year += 1) {
+          const startTs = Date.UTC(year, 0, 1);
+          const endTs = Date.UTC(year + 1, 0, 1);
+          const leftPct =
+            ((startTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) *
+            100;
+          const widthPct =
+            ((endTs - startTs) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
+          slices.push({ year, leftPct, widthPct });
+        }
+        return slices;
+      })();
+      const timelineHasVisibleItems = (() => {
+        if (!timelineDisplayRange) return false;
+        return timelineLanes.some((lane) =>
+          lane.items.some((item) => {
+            const startTs = parseTimelineDate(item.startDate);
+            const endTs = parseTimelineDate(item.endDate || item.startDate);
+            if (startTs == null || endTs == null) return false;
+            return endTs >= timelineDisplayRange.min && startTs <= timelineDisplayRange.max;
+          })
+        );
+      })();
+      const sparseYearLabels =
+        selectedStartYear != null && selectedEndYear != null
+          ? selectedEndYear - selectedStartYear + 1 > 25
+          : false;
+      const shouldShowYearLabel = (year: number) => {
+        if (!sparseYearLabels) return true;
+        if (year === selectedStartYear || year === selectedEndYear) return true;
+        return year % 5 === 0;
+      };
+      const applyPickedYear = (year: number) => {
+        if (selectedStartYear == null || selectedEndYear == null) return;
+        if (timelineYearPickTarget === 'end') {
+          setTimelineFilterEndYear(Math.max(year, selectedStartYear));
+          return;
+        }
+        setTimelineFilterStartYear(Math.min(year, selectedEndYear));
+      };
 
       const canvasWidth = Math.max(0, viewport.width - panelWidth);
       const canvasHeight = Math.max(0, viewport.height - 150);
@@ -4043,9 +5066,12 @@ useEffect(() => {
         { label: 'New', action: handleNewFile },
         { label: 'Open', action: handleOpenFilePicker },
         { label: 'Import Data', action: handleImportDataPicker },
+        { label: 'Import Person Events', action: handleImportPersonEventsPicker },
         { label: 'Process Transcript', action: handleProcessTranscriptPicker },
         { label: 'Save', action: () => handleSave(false) },
         { label: 'Save As', action: handleSaveAs },
+        { label: 'Export Person Events', action: handleExportPersonEvents },
+        { label: 'Open Event Creator', action: handleOpenEventCreator },
         { label: 'Export PNG', action: handleExportPNG },
         { label: 'Export SVG', action: handleExportSVG },
         { label: 'Quit', action: handleQuit },
@@ -4214,6 +5240,9 @@ useEffect(() => {
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
             <button onClick={handleProcessTranscriptPicker}>Process Transcript</button>
             <button onClick={handleImportDataPicker}>Import Data</button>
+            <button onClick={handleImportPersonEventsPicker}>Import Person Events</button>
+            <button onClick={handleExportPersonEvents}>Export Person Events</button>
+            <button onClick={handleOpenEventCreator}>Event Creator</button>
             <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
               Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
             </button>
@@ -4233,6 +5262,13 @@ useEffect(() => {
               accept=".json"
               style={{ display: 'none' }}
               onChange={handleImportLoad}
+            />
+            <input
+              ref={importPersonEventsInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportPersonEventsLoad}
             />
             <input
               ref={transcriptInputRef}
@@ -4328,13 +5364,40 @@ useEffect(() => {
                 onContextMenu={handleStageContextMenu}
               >
                 <Layer>
+                  {/* Triangle shading */}
+                  {triangles.map((triangle) => {
+                    const person1 = people.find((person) => person.id === triangle.person1_id);
+                    const person2 = people.find((person) => person.id === triangle.person2_id);
+                    const person3 = people.find((person) => person.id === triangle.person3_id);
+                    if (!person1 || !person2 || !person3) return null;
+                    if (
+                      !personVisibility.get(person1.id) ||
+                      !personVisibility.get(person2.id) ||
+                      !personVisibility.get(person3.id)
+                    ) {
+                      return null;
+                    }
+                    return (
+                      <TriangleFillNode
+                        key={`triangle-fill-${triangle.id}`}
+                        triangle={triangle}
+                        person1={person1}
+                        person2={person2}
+                        person3={person3}
+                        onSelect={handleTriangleAreaSelect}
+                        onContextMenu={handleTriangleAreaContextMenu}
+                      />
+                    );
+                  })}
+
                   {/* Render Emotional Lines */}
-                  {emotionalLines.map((el) => {
+                  {allEmotionalLines.map((el) => {
                       if (!emotionalVisibility.get(el.id)) return null;
                       const person1 = people.find(person => person.id === el.person1_id);
                       const person2 = people.find(person => person.id === el.person2_id);
                       if (!person1 || !person2) return null;
                       if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
+                      const sibling = emotionalSiblingMeta.get(el.id);
     
                       return (
                           <EmotionalLineNode
@@ -4345,6 +5408,8 @@ useEffect(() => {
                               isSelected={selectedEmotionalLineId === el.id}
                               onSelect={handleEmotionalLineSelect}
                               onContextMenu={handleEmotionalLineContextMenu}
+                              siblingIndex={sibling?.index}
+                              siblingCount={sibling?.count}
                           />
                       )
                   })}
@@ -4420,10 +5485,13 @@ useEffect(() => {
                         y={y}
                         title={person.name}
                         text={person.notes || ''}
+                        width={person.notesSize?.width}
+                        height={person.notesSize?.height}
                         anchorX={person.x}
                         anchorY={person.y}
                         fillColor={genderFill}
                         onDragEnd={(e) => handlePersonNoteDragEnd(person.id, e.target.x(), e.target.y())}
+                        onResizeEnd={(w, h) => handlePersonNoteResizeEnd(person.id, w, h)}
                       />
                     );
                   })}
@@ -4443,13 +5511,16 @@ useEffect(() => {
                         y={y}
                         title={`${partner1.name}\n${partner2.name}`}
                         text={p.notes || ''}
+                        width={p.notesSize?.width}
+                        height={p.notesSize?.height}
                         anchorX={(partner1.x + partner2.x) / 2}
                         anchorY={p.horizontalConnectorY}
                         onDragEnd={(e) => handlePartnershipNoteDragEnd(p.id, e.target.x(), e.target.y())}
+                        onResizeEnd={(w, h) => handlePartnershipNoteResizeEnd(p.id, w, h)}
                       />
                     );
                   })}
-                  {emotionalLines.map((el) => {
+                  {allEmotionalLines.map((el) => {
                     if (!shouldShowEmotionalNote(el, notesLayerEnabled)) return null;
                     if (!emotionalVisibility.get(el.id)) return null;
                     const person1 = people.find(person => person.id === el.person1_id);
@@ -4465,9 +5536,12 @@ useEffect(() => {
                         y={y}
                         title={`${person1.name}\n${person2.name}`}
                         text={el.notes || ''}
+                        width={el.notesSize?.width}
+                        height={el.notesSize?.height}
                         anchorX={(person1.x + person2.x) / 2}
                         anchorY={(person1.y + person2.y) / 2}
                         onDragEnd={(e) => handleEmotionalLineNoteDragEnd(el.id, e.target.x(), e.target.y())}
+                        onResizeEnd={(w, h) => handleEmotionalLineNoteResizeEnd(el.id, w, h)}
                       />
                     );
                   })}
@@ -4521,7 +5595,25 @@ useEffect(() => {
                       onUpdatePerson={handleUpdatePerson}
                       onUpdatePartnership={handleUpdatePartnership}
                       onUpdateEmotionalLine={handleUpdateEmotionalLine}
-                      onClose={() => setPropertiesPanelItem(null)}
+                      triangleId={panelTriangleContext?.id}
+                      triangleColor={panelTriangleContext?.color}
+                      triangleIntensity={panelTriangleContext?.intensity}
+                      onUpdateTriangleColor={updateTriangleColor}
+                      onUpdateTriangleIntensity={updateTriangleIntensity}
+                      initialActiveTab={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.tab
+                          : undefined
+                      }
+                      focusEventId={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.focusEventId
+                          : undefined
+                      }
+                      onClose={() => {
+                        setPropertiesPanelItem(null);
+                        setPropertiesPanelIntent(null);
+                      }}
                     />
                   )
                 )
@@ -4743,7 +5835,7 @@ useEffect(() => {
               </div>
             </div>
           )}
-          {timelinePerson && (
+          {selectedTimelinePeople.length > 0 && (
             <div
               style={{
                 position: 'fixed',
@@ -4755,73 +5847,450 @@ useEffect(() => {
                 zIndex: 2100,
               }}
             >
-              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 640, maxHeight: '80vh', overflow: 'auto' }}>
-                <h4>Timeline: {timelinePerson.name}</h4>
-                <div style={{ marginBottom: 8 }}>
-                  <label htmlFor="timelineSortOrder">Sort: </label>
-                  <select
-                    id="timelineSortOrder"
-                    value={timelineSortOrder}
-                    onChange={(e) => setTimelineSortOrder(e.target.value as 'asc' | 'desc')}
-                  >
-                    <option value="asc">Date Asc</option>
-                    <option value="desc">Date Desc</option>
-                  </select>
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: '92vw', maxWidth: 1500, maxHeight: '86vh', overflow: 'auto' }}>
+                <h4>Timeline Board</h4>
+                <div style={{ marginBottom: 8, color: '#555', fontSize: 13 }}>
+                  People: {selectedTimelinePeople.map((person) => person.name).join(', ')}
                 </div>
-                {timelineItems.length === 0 ? (
+                {timelineYearBoundsForFilter && (
+                  <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <strong>Start Year</strong>
+                      <button
+                        onClick={() =>
+                          setTimelineFilterStartYear((prev) =>
+                            Math.min(
+                              (prev ?? timelineYearBoundsForFilter.min) + 1,
+                              selectedEndYear ?? timelineYearBoundsForFilter.max
+                            )
+                          )
+                        }
+                        aria-label="Increase start year"
+                      >
+                        ▲
+                      </button>
+                      <input
+                        type="number"
+                        value={selectedStartYear ?? ''}
+                        min={timelineYearBoundsForFilter.min}
+                        max={selectedEndYear ?? timelineYearBoundsForFilter.max}
+                        onFocus={() => setTimelineYearPickTarget('start')}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (!Number.isFinite(parsed)) return;
+                          const next = Math.max(
+                            timelineYearBoundsForFilter.min,
+                            Math.min(parsed, selectedEndYear ?? timelineYearBoundsForFilter.max)
+                          );
+                          setTimelineFilterStartYear(next);
+                        }}
+                        style={{
+                          width: 84,
+                          border: timelineYearPickTarget === 'start' ? '2px solid #3f7ad6' : undefined,
+                        }}
+                      />
+                      <button
+                        onClick={() =>
+                          setTimelineFilterStartYear((prev) =>
+                            Math.max(
+                              (prev ?? timelineYearBoundsForFilter.min) - 1,
+                              timelineYearBoundsForFilter.min
+                            )
+                          )
+                        }
+                        aria-label="Decrease start year"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <strong>End Year</strong>
+                      <button
+                        onClick={() =>
+                          setTimelineFilterEndYear((prev) =>
+                            Math.min(
+                              (prev ?? timelineYearBoundsForFilter.max) + 1,
+                              timelineYearBoundsForFilter.max
+                            )
+                          )
+                        }
+                        aria-label="Increase end year"
+                      >
+                        ▲
+                      </button>
+                      <input
+                        type="number"
+                        value={selectedEndYear ?? ''}
+                        min={selectedStartYear ?? timelineYearBoundsForFilter.min}
+                        max={timelineYearBoundsForFilter.max}
+                        onFocus={() => setTimelineYearPickTarget('end')}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (!Number.isFinite(parsed)) return;
+                          const next = Math.min(
+                            timelineYearBoundsForFilter.max,
+                            Math.max(parsed, selectedStartYear ?? timelineYearBoundsForFilter.min)
+                          );
+                          setTimelineFilterEndYear(next);
+                        }}
+                        style={{
+                          width: 84,
+                          border: timelineYearPickTarget === 'end' ? '2px solid #3f7ad6' : undefined,
+                        }}
+                      />
+                      <button
+                        onClick={() =>
+                          setTimelineFilterEndYear((prev) =>
+                            Math.max(
+                              (prev ?? timelineYearBoundsForFilter.max) - 1,
+                              selectedStartYear ?? timelineYearBoundsForFilter.min
+                            )
+                          )
+                        }
+                        aria-label="Decrease end year"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!timelineHasVisibleItems || !timelineDisplayRange ? (
                   <div style={{ fontStyle: 'italic' }}>No timeline items.</div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: '4px 6px' }}>Nodal/EPE</th>
-                        {timelineItems.map((item) => (
-                          <th key={`head-${item.id}`} style={{ textAlign: 'center', borderBottom: '1px solid #ddd', padding: '4px 6px' }}>
-                            {item.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee' }}><strong>Year</strong></td>
-                        {timelineItems.map((item) => {
-                          const year = item.date ? item.date.split('-')[0] : '';
-                          return (
-                            <td key={`year-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px', borderBottom: '1px solid #eee' }}>
-                              {year || '—'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '4px 6px' }}><strong>Date</strong></td>
-                        {timelineItems.map((item) => {
-                          const date = item.date ? item.date.split('-').slice(1).join('-') : '';
-                          return (
-                            <td key={`date-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px' }}>
-                              {date || '—'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '4px 6px' }}><strong>Intensity</strong></td>
-                        {timelineItems.map((item) => {
-                          const intensityMatch = item.detail.match(/Intensity (\d+)/);
-                          const intensity = intensityMatch ? intensityMatch[1] : '';
-                          return (
-                            <td key={`intensity-${item.id}`} style={{ textAlign: 'center', padding: '4px 6px' }}>
-                              {intensity || '—'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 12 }}>
+                    <div style={{ border: '1px solid #d7d7d7', borderRadius: 8, overflow: 'hidden', minWidth: 960 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', borderBottom: '1px solid #ddd' }}>
+                        <div style={{ background: '#f0f0f0', padding: '12px 10px', fontWeight: 700 }}>Lane</div>
+                        <div
+                          style={{
+                            position: 'relative',
+                            minHeight: 30,
+                            background: '#fafafa',
+                            borderLeft: '1px solid #ddd',
+                            cursor: timelineYearDrag ? 'grabbing' : 'grab',
+                            userSelect: 'none',
+                            touchAction: 'none',
+                          }}
+                          onPointerDown={(e) => {
+                            if (
+                              selectedStartYear == null ||
+                              selectedEndYear == null ||
+                              !timelineYearBoundsForFilter
+                            ) {
+                              return;
+                            }
+                            e.preventDefault();
+                            (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTimelineYearDrag({
+                              pointerId: e.pointerId,
+                              startClientX: e.clientX,
+                              stripLeft: rect.left,
+                              stripWidth: rect.width,
+                              startYear: selectedStartYear,
+                              endYear: selectedEndYear,
+                              minYear: timelineYearBoundsForFilter.min,
+                              maxYear: timelineYearBoundsForFilter.max,
+                              moved: false,
+                            });
+                          }}
+                          onPointerMove={(e) => {
+                            if (!timelineYearDrag || timelineYearDrag.pointerId !== e.pointerId) return;
+                            handleTimelineStripDragMove(e.clientX);
+                          }}
+                          onPointerUp={(e) => {
+                            if (!timelineYearDrag || timelineYearDrag.pointerId !== e.pointerId) return;
+                            finishTimelineStripDrag(e.clientX);
+                            if ((e.currentTarget as HTMLDivElement).hasPointerCapture(e.pointerId)) {
+                              (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+                            }
+                          }}
+                          onPointerCancel={(e) => {
+                            if (!timelineYearDrag || timelineYearDrag.pointerId !== e.pointerId) return;
+                            setTimelineYearDrag(null);
+                            if ((e.currentTarget as HTMLDivElement).hasPointerCapture(e.pointerId)) {
+                              (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+                            }
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: 8,
+                              top: 6,
+                              fontSize: 10,
+                              color: '#5d6b82',
+                              background: 'rgba(255,255,255,0.7)',
+                              padding: '1px 5px',
+                              borderRadius: 10,
+                              border: '1px solid #d5ddec',
+                              pointerEvents: 'none',
+                              zIndex: 2,
+                            }}
+                          >
+                            Drag strip to pan years
+                          </div>
+                          {timelineYearSlices.map((slice, index) => (
+                            <div
+                              key={`slice-${slice.year}`}
+                              onClick={() => applyPickedYear(slice.year)}
+                              style={{
+                                position: 'absolute',
+                                left: `${slice.leftPct}%`,
+                                top: 0,
+                                width: `${slice.widthPct}%`,
+                                height: 30,
+                                background: index % 2 === 0 ? '#edf2fc' : '#e4ebfa',
+                                borderRight: '1px solid #d5ddec',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: '#37527a',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {shouldShowYearLabel(slice.year) ? slice.year : ''}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {timelineLanes.map((lane) => {
+                        const filteredItems = lane.items.filter((item) => {
+                          const startTs = parseTimelineDate(item.startDate);
+                          const endTs = parseTimelineDate(item.endDate || item.startDate);
+                          if (startTs == null || endTs == null) return false;
+                          return endTs >= timelineDisplayRange.min && startTs <= timelineDisplayRange.max;
+                        });
+                        const sorted = [...filteredItems].sort((a, b) => {
+                          const aStart = parseTimelineDate(a.startDate) ?? Number.MAX_SAFE_INTEGER;
+                          const bStart = parseTimelineDate(b.startDate) ?? Number.MAX_SAFE_INTEGER;
+                          if (aStart === bStart) return 0;
+                          return aStart < bStart ? -1 : 1;
+                        });
+                        const rowRightEdges = [-Infinity, -Infinity, -Infinity];
+                        const place = sorted.map((item) => {
+                          const startTs = parseTimelineDate(item.startDate) ?? timelineDisplayRange.min;
+                          const endTs = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
+                          const leftPct = ((startTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
+                          const endPct = ((endTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
+                          const spanPct = Math.max(7, endPct - leftPct);
+                          const centeredLeftPct = leftPct - spanPct / 2;
+                          const clampedLeftPct = Math.max(0, Math.min(centeredLeftPct, 100 - spanPct));
+                          let rowIndex = rowRightEdges.findIndex((edge) => leftPct >= edge + 0.6);
+                          if (rowIndex === -1) {
+                            rowIndex = rowRightEdges.indexOf(Math.min(...rowRightEdges));
+                          }
+                          rowRightEdges[rowIndex] = Math.max(rowRightEdges[rowIndex], leftPct + spanPct);
+                          return {
+                            ...item,
+                            leftPct,
+                            clampedLeftPct,
+                            spanPct,
+                            rowOffset: rowIndex * 34,
+                          };
+                        });
+                        const stripSelfName = (value: string, laneLabel: string) => {
+                          if (!value) return value;
+                          const escaped = laneLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                          const regex = new RegExp(`\\b${escaped}\\b`, 'ig');
+                          return value
+                            .replace(regex, '')
+                            .replace(/\s*·\s*$/, '')
+                            .replace(/^\s*·\s*/, '')
+                            .replace(/\s{2,}/g, ' ')
+                            .trim();
+                        };
+                        return (
+                          <div key={lane.id} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', borderTop: '1px dashed #d7d7d7' }}>
+                            <div
+                              style={{ background: '#f6f6f8', padding: '14px 10px', fontWeight: 700, cursor: lane.id === 'family' ? 'default' : 'pointer' }}
+                              onClick={() => {
+                                if (lane.id === 'family') return;
+                                setTimelineBoardSelection({
+                                  laneLabel: lane.label,
+                                  entityType: 'person',
+                                  entityId: lane.id,
+                                  itemLabel: lane.label,
+                                });
+                                setTimelineBoardEventDraft(null);
+                              }}
+                            >
+                              {lane.label}
+                            </div>
+                            <div style={{ position: 'relative', minHeight: 112, borderLeft: '1px solid #ddd', background: '#fff' }}>
+                              {place.map((item) => (
+                                <div
+                                  key={item.id}
+                                  title={item.notes || ''}
+                                  onClick={() => handleTimelineItemClick(lane.label, item)}
+                                  onMouseEnter={(e) => {
+                                    if (!item.notes) return;
+                                    setTimelineHoverNote({
+                                      text: item.notes,
+                                      x: e.clientX + 10,
+                                      y: e.clientY + 12,
+                                    });
+                                  }}
+                                  onMouseMove={(e) => {
+                                    if (!item.notes) return;
+                                    setTimelineHoverNote({
+                                      text: item.notes,
+                                      x: e.clientX + 10,
+                                      y: e.clientY + 12,
+                                    });
+                                  }}
+                                  onMouseLeave={() => setTimelineHoverNote(null)}
+                                  style={{
+                                  position: 'absolute',
+                                    left: `${item.spanPct <= 8 ? item.clampedLeftPct : item.leftPct}%`,
+                                    top: 10 + item.rowOffset,
+                                    width: `${item.spanPct}%`,
+                                    minWidth: 130,
+                                    transform: 'none',
+                                    padding: '6px 10px',
+                                    borderRadius: 8,
+                                    border:
+                                      timelineBoardSelection?.entityId === item.entityId &&
+                                      timelineBoardSelection?.eventId === item.eventId
+                                        ? '2px solid #2f64b8'
+                                        : '1px solid #cad3e0',
+                                    background: item.color,
+                                    fontSize: 13,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <strong>{stripSelfName(item.label, lane.label)}</strong>
+                                  {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ border: '1px solid #d7d7d7', borderRadius: 8, padding: 10, background: '#fcfdff' }}>
+                      <h5 style={{ margin: '2px 0 8px' }}>Timeline Properties</h5>
+                      {!timelineBoardSelection ? (
+                        <div style={{ fontStyle: 'italic', color: '#667' }}>
+                          Click an event block or lane name to inspect properties.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div><strong>Lane:</strong> {timelineBoardSelection.laneLabel}</div>
+                          <div><strong>Type:</strong> {timelineBoardSelection.entityType}</div>
+                          <div><strong>Item:</strong> {timelineBoardSelection.itemLabel}</div>
+                          {timelineBoardSelection.startDate && (
+                            <div><strong>Start:</strong> {timelineBoardSelection.startDate}</div>
+                          )}
+                          {timelineBoardSelection.endDate && (
+                            <div><strong>End:</strong> {timelineBoardSelection.endDate}</div>
+                          )}
+                          {timelineBoardSelection.entityType === 'person' && timelineSelectionResolved?.person && (
+                            <>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                Person Name
+                                <input
+                                  type="text"
+                                  value={timelineSelectionResolved.person.name || ''}
+                                  onChange={(e) =>
+                                    handleTimelinePersonPropertyChange('name', e.target.value)
+                                  }
+                                />
+                              </label>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                Person Notes
+                                <textarea
+                                  rows={4}
+                                  value={timelineSelectionResolved.person.notes || ''}
+                                  onChange={(e) =>
+                                    handleTimelinePersonPropertyChange('notes', e.target.value)
+                                  }
+                                  style={{ fontFamily: 'inherit' }}
+                                />
+                              </label>
+                              <button onClick={addTimelineEventToSelectedPerson}>Add Event</button>
+                            </>
+                          )}
+                          {timelineBoardEventDraft && (
+                            <>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                Date
+                                <input
+                                  type="date"
+                                  value={timelineBoardEventDraft.event.date || ''}
+                                  onChange={(e) => setTimelineEventDraftField('date', e.target.value)}
+                                />
+                              </label>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                Category
+                                <input
+                                  type="text"
+                                  value={timelineBoardEventDraft.event.category || ''}
+                                  onChange={(e) => setTimelineEventDraftField('category', e.target.value)}
+                                />
+                              </label>
+                              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                Notes
+                                <textarea
+                                  rows={7}
+                                  value={timelineBoardEventDraft.event.observations || ''}
+                                  onChange={(e) => setTimelineEventDraftField('observations', e.target.value)}
+                                  style={{ fontFamily: 'inherit' }}
+                                />
+                              </label>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                <button onClick={cancelTimelineEventDraft}>Cancel</button>
+                                <button onClick={saveTimelineEventDraft}>Save</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {timelineHoverNote && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      left: timelineHoverNote.x,
+                      top: timelineHoverNote.y,
+                      maxWidth: 320,
+                      background: '#fff',
+                      border: '1px solid #b6bfd0',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      color: '#253044',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                      zIndex: 2300,
+                      pointerEvents: 'none',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {timelineHoverNote.text}
+                  </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                  <button onClick={() => setTimelinePersonId(null)}>Close</button>
+                  <button
+                    onClick={() => {
+                      setTimelineSelectionIds([]);
+                      setTimelineYearPickTarget(null);
+                      setTimelineYearDrag(null);
+                      setTimelineFilterStartYear(null);
+                      setTimelineFilterEndYear(null);
+                      setTimelineHoverNote(null);
+                      setTimelineBoardSelection(null);
+                      setTimelineBoardEventDraft(null);
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

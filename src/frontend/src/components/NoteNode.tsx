@@ -1,6 +1,6 @@
 import { Group, Line, Rect, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface NoteNodeProps {
   x: number;
@@ -10,16 +10,41 @@ interface NoteNodeProps {
   anchorX?: number;
   anchorY?: number;
   fillColor?: string;
+  width?: number;
+  height?: number;
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
+  onResizeEnd?: (width: number, height: number) => void;
 }
 
-const NoteNode = ({ x, y, title, text, anchorX, anchorY, fillColor = 'white', onDragEnd }: NoteNodeProps) => {
+const NoteNode = ({
+  x,
+  y,
+  title,
+  text,
+  anchorX,
+  anchorY,
+  fillColor = 'white',
+  width,
+  height,
+  onDragEnd,
+  onResizeEnd,
+}: NoteNodeProps) => {
   const titleFontSize = 14;
   const textFontSize = 12;
   const lineHeight = 1.2;
   const padding = 5;
   const gap = 5;
-  const maxCharsPerLine = 40;
+  const minWidth = 150;
+  const minHeight = 70;
+  const handleSize = 10;
+  const [draftSize, setDraftSize] = useState<{ width?: number; height?: number }>({
+    width,
+    height,
+  });
+
+  useEffect(() => {
+    setDraftSize({ width, height });
+  }, [width, height]);
 
   const { boxWidth, boxHeight, textY, contentWidth, wrappedTitle, wrappedText } = useMemo(() => {
     const measure = (value: string, fontSize: number, fontStyle?: string) => {
@@ -49,10 +74,14 @@ const NoteNode = ({ x, y, title, text, anchorX, anchorY, fillColor = 'white', on
       return wrapped.join('\n');
     };
 
-    const wrappedTitle = wrapByChars(title, maxCharsPerLine);
-    const wrappedText = wrapByChars(text, maxCharsPerLine);
+    const requestedWidth = draftSize.width && Number.isFinite(draftSize.width) ? draftSize.width : undefined;
+    const derivedMaxChars = requestedWidth
+      ? Math.max(18, Math.floor((requestedWidth - padding * 2) / 7))
+      : 40;
+    const wrappedText = wrapByChars(text, derivedMaxChars);
+    const wrappedTitleByWidth = wrapByChars(title, Math.max(12, derivedMaxChars - 3));
 
-    const titleLines = wrappedTitle.split('\n');
+    const titleLines = wrappedTitleByWidth.split('\n');
     const textLines = wrappedText.split('\n');
 
     const titleLineWidths = titleLines.map((line) => measure(line, titleFontSize, 'bold'));
@@ -62,12 +91,18 @@ const NoteNode = ({ x, y, title, text, anchorX, anchorY, fillColor = 'white', on
 
     const titleHeight = Math.ceil(titleLines.length * titleFontSize * lineHeight);
     const textHeight = Math.ceil(textLines.length * textFontSize * lineHeight);
-    const boxWidth = contentWidth + padding * 2;
-    const boxHeight = padding + titleHeight + gap + textHeight + padding;
+    const intrinsicWidth = contentWidth + padding * 2;
+    const boxWidth = Math.max(
+      minWidth,
+      requestedWidth ?? intrinsicWidth
+    );
+    const intrinsicHeight = padding + titleHeight + gap + textHeight + padding;
+    const requestedHeight = draftSize.height && Number.isFinite(draftSize.height) ? draftSize.height : undefined;
+    const boxHeight = Math.max(minHeight, intrinsicHeight, requestedHeight ?? 0);
     const textY = padding + titleHeight + gap;
 
-    return { boxWidth, boxHeight, textY, contentWidth, wrappedTitle, wrappedText };
-  }, [title, text]);
+    return { boxWidth, boxHeight, textY, contentWidth: Math.max(contentWidth, boxWidth - padding * 2), wrappedTitle: wrappedTitleByWidth, wrappedText };
+  }, [title, text, draftSize.width, draftSize.height]);
 
   const centerX = boxWidth / 2;
   const centerY = boxHeight / 2;
@@ -113,6 +148,32 @@ const NoteNode = ({ x, y, title, text, anchorX, anchorY, fillColor = 'white', on
         fontSize={textFontSize}
         width={contentWidth}
         wrap="char"
+      />
+      <Rect
+        x={boxWidth - handleSize}
+        y={boxHeight - handleSize}
+        width={handleSize}
+        height={handleSize}
+        fill="#dddddd"
+        stroke="#666666"
+        strokeWidth={1}
+        draggable
+        onDragStart={(e) => {
+          e.cancelBubble = true;
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          const nextWidth = Math.max(minWidth, e.target.x() + handleSize);
+          const nextHeight = Math.max(minHeight, e.target.y() + handleSize);
+          setDraftSize({ width: nextWidth, height: nextHeight });
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true;
+          const nextWidth = Math.max(minWidth, e.target.x() + handleSize);
+          const nextHeight = Math.max(minHeight, e.target.y() + handleSize);
+          setDraftSize({ width: nextWidth, height: nextHeight });
+          onResizeEnd?.(nextWidth, nextHeight);
+        }}
       />
     </Group>
   );

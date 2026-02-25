@@ -1,0 +1,53 @@
+{
+  "sourceFile": "/Users/davemini2/ObsidianSyncVault/Attachments Text Files/Hidden Valley Road GMT20200619-173250_BTA-webcas_otter_ai.pdf",
+  "processedAt": "2026-02-25",
+  "family": {
+    "parents": ["Don Galvin", "Mimi Galvin"],
+    "marriageYear": 1944,
+    "childrenCountMentioned": 12,
+    "childrenMentionedByName": [
+      "Donald",
+      "Jim",
+      "John",
+      "Brian",
+      "Michael",
+      "Richard",
+      "Joseph",
+      "Mark",
+      "Matthew",
+      "Peter",
+      "Margaret",
+      "Mary Lindsay"
+    ]
+  },
+  "relationships": [
+    { "a": "Donald", "b": "Jean", "type": "married", "status": "divorced", "evidence": "Donald did marry Jean, and they eventually divorced." },
+    { "a": "Jim", "b": "Kathy", "type": "married", "status": "problematic", "evidence": "Jim married Kathy. That marriage lasted longer, but it was real problematic." },
+    { "a": "John", "b": "Nancy", "type": "married", "status": "ongoing", "evidence": "John and Nancy ... as a couple with two children." },
+    { "a": "Brian", "b": "Noni", "type": "dating", "status": "ended", "evidence": "Noni, his girlfriend who he ultimately killed and then killed himself." },
+    { "a": "Mary Lindsay", "b": "Rick", "type": "married", "status": "ongoing", "evidence": "Mary ... married Rick, and they have two kids." }
+  ],
+  "clinical": {
+    "explicitSchizophreniaMentions": [
+      "Donald",
+      "Joseph",
+      "Matthew",
+      "Peter"
+    ],
+    "explicitNoDiagnosisMentions": [
+      "John",
+      "Mark",
+      "Michael"
+    ],
+    "events": [
+      { "person": "Brian", "type": "homicide_suicide", "year": 1973 },
+      { "person": "Donald", "type": "first_major_hospitalization", "year": 1970 }
+    ]
+  },
+  "uncertainties": [
+    "Transcript states 'six of 12' had schizophrenia-spectrum diagnoses, but only four are directly named in this excerpt.",
+    "Don's death year is inconsistent in transcript sections (1975 appears once; 2003 appears later with detailed cancer timeline).",
+    "Sibling birth order details beyond names are incomplete in the excerpt.",
+    "Multiple spouses/children are mentioned for some siblings without names in this excerpt."
+  ]
+}

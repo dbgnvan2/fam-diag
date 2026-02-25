@@ -50,15 +50,41 @@ interface EmotionalLineNodeProps {
     isSelected: boolean;
     onSelect: (emotionalLineId: string) => void;
     onContextMenu: (e: KonvaEventObject<PointerEvent>, emotionalLineId: string) => void;
+    siblingIndex?: number;
+    siblingCount?: number;
 }
 
-const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSelect, onContextMenu }: EmotionalLineNodeProps) => {
-    const { lineStyle, lineEnding } = emotionalLine;
+const EmotionalLineNode = ({
+    emotionalLine,
+    person1,
+    person2,
+    isSelected,
+    onSelect,
+    onContextMenu,
+    siblingIndex = 0,
+    siblingCount = 1,
+}: EmotionalLineNodeProps) => {
+    const { relationshipType, lineStyle, lineEnding } = emotionalLine;
 
-    const p1_x_center = person1.x;
-    const p1_y_center = person1.y;
-    const p2_x_center = person2.x;
-    const p2_y_center = person2.y;
+    const baseP1X = person1.x;
+    const baseP1Y = person1.y;
+    const baseP2X = person2.x;
+    const baseP2Y = person2.y;
+    const baseAngle = Math.atan2(baseP2Y - baseP1Y, baseP2X - baseP1X);
+    const basePerpendicularAngle = baseAngle + Math.PI / 2;
+    const laneOffset =
+        siblingCount === 2
+            ? (siblingIndex === 0 ? -8 : 8)
+            : siblingCount > 1
+                ? (siblingIndex - (siblingCount - 1) / 2) * 10
+                : 0;
+    const laneDx = Math.cos(basePerpendicularAngle) * laneOffset;
+    const laneDy = Math.sin(basePerpendicularAngle) * laneOffset;
+
+    const p1_x_center = baseP1X + laneDx;
+    const p1_y_center = baseP1Y + laneDy;
+    const p2_x_center = baseP2X + laneDx;
+    const p2_y_center = baseP2Y + laneDy;
 
     const points = [p1_x_center, p1_y_center, p2_x_center, p2_y_center];
     
@@ -92,6 +118,7 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
     const lineProps = {
         stroke: isSelected ? 'blue' : baseColor,
         strokeWidth,
+        hitStrokeWidth: 24,
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
@@ -107,6 +134,43 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
     };
 
     const renderLines = () => {
+        if (relationshipType === 'projection') {
+            const markerCount = 4;
+            const markerText = lineStyle === 'low' ? '>...>' : lineStyle === 'medium' ? '>.>' : '>>>>';
+            const markerAngle = (angle * 180) / Math.PI;
+            const markers = Array.from({ length: markerCount }, (_, idx) => {
+                const fraction = (idx + 1) / (markerCount + 1);
+                const x = p1_edge_x + (p2_edge_x - p1_edge_x) * fraction;
+                const y = p1_edge_y + (p2_edge_y - p1_edge_y) * fraction;
+                return (
+                    <Text
+                        key={`projection-marker-${idx}`}
+                        text={markerText}
+                        x={x - 12}
+                        y={y - 7}
+                        fontSize={12}
+                        fontStyle="bold"
+                        fill={lineProps.stroke}
+                        rotation={markerAngle}
+                        listening={false}
+                    />
+                );
+            });
+            return (
+                <Group>
+                    <Line
+                        points={linePoints}
+                        stroke="transparent"
+                        strokeWidth={28}
+                        onClick={handleSelect}
+                        onTap={handleSelect}
+                        onContextMenu={handleContextMenu}
+                    />
+                    {markers}
+                </Group>
+            );
+        }
+
         if (lineStyle === 'cutoff') {
             const midX = (p1_x_center + p2_x_center) / 2;
             const midY = (p1_y_center + p2_y_center) / 2;
@@ -167,10 +231,11 @@ const EmotionalLineNode = ({ emotionalLine, person1, person2, isSelected, onSele
     };
 
     const renderEndings = () => {
+        if (relationshipType === 'projection') return null;
         if (lineEnding === 'none') return null;
 
-        let p1 = [p1_edge_x, p1_edge_y];
-        let p2 = [p2_edge_x, p2_edge_y];
+        const p1 = [p1_edge_x, p1_edge_y];
+        const p2 = [p2_edge_x, p2_edge_y];
 
         const arrowLength = 15;
         const lineLength = 10;

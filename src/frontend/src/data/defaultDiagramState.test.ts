@@ -15,6 +15,11 @@ describe('defaultDiagramState', () => {
     expect(DEFAULT_DIAGRAM_STATE.emotionalLines).toHaveLength(
       defaultDiagramDataJson.emotionalLines.length
     );
+    expect(DEFAULT_DIAGRAM_STATE.triangles).toHaveLength(
+      Array.isArray((defaultDiagramDataJson as any).triangles)
+        ? (defaultDiagramDataJson as any).triangles.length
+        : 0
+    );
   });
 
   it('falls back to built-in sample data when no dataset exists', () => {

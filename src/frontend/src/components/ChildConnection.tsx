@@ -30,7 +30,7 @@ const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, o
   const defaultConnectionX = clamp(child_x_center, partnershipLineStartX, partnershipLineEndX);
   const connectionX = child.connectionAnchorX !== undefined ? clamp(child.connectionAnchorX, partnershipLineStartX, partnershipLineEndX) : defaultConnectionX;
   const connectionY = partnership.horizontalConnectorY;
-
+  // Normal model: line is attached to the child center and ends on the PRL anchor.
   const points = [child_x_center, child_y_top, connectionX, connectionY];
 
   const isAdopted = child.adoptionStatus === 'adopted';

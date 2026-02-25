@@ -4,6 +4,7 @@ import type {
   FunctionalIndicatorDefinition,
   Partnership,
   Person,
+  Triangle,
 } from '../types';
 import defaultDiagramDataJson from './defaultDiagramData.json';
 
@@ -66,12 +67,14 @@ const FALLBACK_PARTNERSHIPS: Partnership[] = [
 ];
 
 const FALLBACK_EMOTIONAL_LINES: EmotionalLine[] = [];
+const FALLBACK_TRIANGLES: Triangle[] = [];
 
 export type RawDiagramFile = {
   fileMeta?: { fileName?: string };
   people?: Person[];
   partnerships?: Partnership[];
   emotionalLines?: EmotionalLine[];
+  triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
   autoSaveMinutes?: number;
@@ -82,6 +85,7 @@ export type DefaultDiagramState = {
   people: Person[];
   partnerships: Partnership[];
   emotionalLines: EmotionalLine[];
+  triangles: Triangle[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   eventCategories: string[];
   autoSaveMinutes: number;
@@ -105,12 +109,33 @@ const sanitizeStringArray = (value: unknown): string[] | null => {
 const hasItems = <T,>(value: T[] | undefined | null): value is T[] =>
   Array.isArray(value) && value.length > 0;
 
+const sanitizePeople = (value: unknown): Person[] | null => {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  return value.map((person) => {
+    if (!person || typeof person !== 'object') {
+      return person as Person;
+    }
+    const typed = person as Person & { size?: unknown };
+    if (typeof typed.size === 'number') return typed;
+    if (typeof typed.size === 'string') {
+      const parsed = Number(typed.size);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return { ...typed, size: parsed };
+      }
+    }
+    const next = { ...typed };
+    delete next.size;
+    return next;
+  }) as Person[];
+};
+
 export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState => {
   const typed = rawData as RawDiagramFile | undefined;
   const base: DefaultDiagramState = {
     people: FALLBACK_PEOPLE,
     partnerships: FALLBACK_PARTNERSHIPS,
     emotionalLines: FALLBACK_EMOTIONAL_LINES,
+    triangles: FALLBACK_TRIANGLES,
     functionalIndicatorDefinitions: FALLBACK_FUNCTIONAL_INDICATORS,
     eventCategories: FALLBACK_EVENT_CATEGORIES,
     autoSaveMinutes: FALLBACK_AUTO_SAVE_MINUTES,
@@ -122,8 +147,10 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
     return base;
   }
 
+  const sanitizedPeople = sanitizePeople(typed.people);
+
   return {
-    people: hasItems(typed.people) ? typed.people : base.people,
+    people: sanitizedPeople ?? base.people,
     partnerships: hasItems(typed.partnerships) ? typed.partnerships : base.partnerships,
     emotionalLines: Array.isArray(typed.emotionalLines)
       ? typed.emotionalLines.map((line) => ({
@@ -131,6 +158,7 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
           status: line.status || 'ongoing',
         }))
       : base.emotionalLines,
+    triangles: Array.isArray(typed.triangles) ? typed.triangles : base.triangles,
     functionalIndicatorDefinitions:
       Array.isArray(typed.functionalIndicatorDefinitions) &&
       typed.functionalIndicatorDefinitions.length

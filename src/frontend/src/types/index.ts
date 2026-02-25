@@ -31,6 +31,7 @@ export type Person = {
   notes?: string;
   size?: number;
   notesPosition?: { x: number; y: number };
+  notesSize?: { width: number; height: number };
   notesEnabled?: boolean;
   lifeStatus?: 'alive' | 'miscarriage' | 'stillbirth';
   adoptionStatus?: 'biological' | 'adopted';
@@ -58,6 +59,7 @@ export type Partnership = {
   notes?: string;
   notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
+  notesSize?: { width: number; height: number };
   events?: EmotionalProcessEvent[];
 };
 
@@ -77,15 +79,24 @@ export type EmotionalLine = {
     // Cutoff
     'cutoff' |
     // Conflict
-    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth' |
-    // Projection
-    'projection-flow';
+    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   color?: string;
   notes?: string;
   notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
+  notesSize?: { width: number; height: number };
   events?: EmotionalProcessEvent[];
+};
+
+export type Triangle = {
+  id: string;
+  person1_id: string;
+  person2_id: string;
+  person3_id: string;
+  color?: string;
+  intensity?: 'low' | 'medium' | 'high';
+  tpls?: EmotionalLine[];
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern';

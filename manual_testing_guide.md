@@ -82,3 +82,9 @@ I have run the application, and I believe that all of the above features should 
     *   Right-click a Person, PRL, and EPL that each have notes, choose `Show Note`, then switch Notes Layer Off. Those pinned notes should remain visible.
     *   Right-click the same objects and choose `Hide Note (Use Layer)`, then confirm they follow the global Notes Layer state again.
     *   With Notes Layer Off, hover over a person with notes and verify that note appears only during hover.
+11. **Timeline + Event Creator Integration:**
+    *   Right-click empty canvas and confirm `Add Event` appears. Use it with a single selected person and verify a new event is created and the right panel opens on the Events tab.
+    *   Right-click a person and choose `Timeline`, then click any timeline block and verify the related object opens in the right-side Events tab.
+    *   Use `File -> Export Person Events` and verify a JSON file downloads.
+    *   Open `File -> Open Event Creator`, load the exported JSON, add/edit/delete events, save JSON, then import via `Import Person Events`.
+    *   Confirm event edits merge by event ID and baseline deletions are respected (deleted exported events are removed; unrelated local events remain).

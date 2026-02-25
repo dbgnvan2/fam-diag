@@ -96,6 +96,72 @@ describe('PropertiesPanel', () => {
         expect(screen.getByRole('option', { name: /Low \(dotted\)/i })).toBeInTheDocument();
     });
 
+    it('shows dotted sawtooth as low intensity for conflict EPLs', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-conflict',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'conflict',
+            lineStyle: 'dotted-saw-tooth',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByLabelText('Intensity:')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /Low \(dotted sawtooth\)/i })).toBeInTheDocument();
+    });
+
+    it('shows Triangle Properties and saves triangle settings for TPL', () => {
+        const updateTriangleColor = vi.fn();
+        const updateTriangleIntensity = vi.fn();
+        const emotionalLine: EmotionalLine = {
+            id: 'tpl-1',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'low',
+            lineEnding: 'none',
+            color: '#444444',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                triangleId="tri-1"
+                triangleColor="#8a5a00"
+                triangleIntensity="medium"
+                onUpdateTriangleColor={updateTriangleColor}
+                onUpdateTriangleIntensity={updateTriangleIntensity}
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByText('Triangle Properties')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Intensity:'), { target: { value: 'high' } });
+        fireEvent.change(screen.getByLabelText('Color:'), { target: { value: '#123456' } });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updateTriangleColor).toHaveBeenCalledWith('tri-1', '#123456');
+        expect(updateTriangleIntensity).toHaveBeenCalledWith('tri-1', 'high');
+    });
+
     it('updates functional indicator status and impact for a person', () => {
         const updatePerson = vi.fn();
         const person: Person = {
@@ -327,5 +393,48 @@ describe('PropertiesPanel', () => {
             otherPersonName: 'Partner A',
             eventClass: 'relationship',
         });
+    });
+
+    it('opens directly on events tab when requested', () => {
+        const person: Person = {
+            id: 'person-events',
+            name: 'Event Person',
+            x: 0,
+            y: 0,
+            gender: 'female',
+            partnerships: [],
+            events: [
+                {
+                    id: 'event-1',
+                    date: '2024-04-01',
+                    category: 'Individual',
+                    intensity: 1,
+                    frequency: 1,
+                    impact: 1,
+                    howWell: 5,
+                    otherPersonName: '',
+                    primaryPersonName: 'Event Person',
+                    wwwwh: '',
+                    observations: 'Example note',
+                    eventClass: 'individual',
+                },
+            ],
+        };
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Individual']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                focusEventId="event-1"
+                onClose={() => {}}
+            />
+        );
+        expect(screen.getByRole('button', { name: 'Events' })).toBeInTheDocument();
+        expect(screen.getByText(/Primary: Event Person/i)).toBeInTheDocument();
     });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   Person,
   Partnership,
@@ -105,6 +105,16 @@ interface PropertiesPanelProps {
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
+  triangleId?: string;
+  triangleColor?: string;
+  triangleIntensity?: 'low' | 'medium' | 'high';
+  onUpdateTriangleColor?: (triangleId: string, color: string) => void;
+  onUpdateTriangleIntensity?: (
+    triangleId: string,
+    intensity: 'low' | 'medium' | 'high'
+  ) => void;
+  initialActiveTab?: 'properties' | 'functional' | 'events';
+  focusEventId?: string;
   onClose: () => void;
 }
 
@@ -116,6 +126,13 @@ const PropertiesPanel = ({
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
+  triangleId,
+  triangleColor,
+  triangleIntensity,
+  onUpdateTriangleColor,
+  onUpdateTriangleIntensity,
+  initialActiveTab,
+  focusEventId,
   onClose,
 }: PropertiesPanelProps) => {
   const isPerson = 'name' in selectedItem;
@@ -125,6 +142,7 @@ const PropertiesPanel = ({
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventDraft, setEventDraft] = useState<EmotionalProcessEvent | null>(null);
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
   const [emotionalPristine, setEmotionalPristine] = useState(true);
@@ -139,6 +157,10 @@ const PropertiesPanel = ({
   );
   const [emotionalDraft, setEmotionalDraft] = useState<EmotionalLine | null>(
     selectedEmotionalLine ? { ...selectedEmotionalLine } : null
+  );
+  const [triangleColorDraft, setTriangleColorDraft] = useState(triangleColor || '#8a5a00');
+  const [triangleIntensityDraft, setTriangleIntensityDraft] = useState<'low' | 'medium' | 'high'>(
+    triangleIntensity || 'medium'
   );
   const deriveFallbackParts = (person: Person | null) => {
     if (!person) {
@@ -165,13 +187,20 @@ const PropertiesPanel = ({
   useEffect(() => {
     setEventModalOpen(false);
     setEventDraft(null);
-    setActiveTab('properties');
-  }, [selectedItem.id]);
+    setFocusedEventId(focusEventId || null);
+    setActiveTab(initialActiveTab || 'properties');
+  }, [selectedItem.id, initialActiveTab, focusEventId]);
+
+  useEffect(() => {
+    if (!focusEventId) return;
+    setFocusedEventId(focusEventId);
+    setActiveTab(initialActiveTab || 'events');
+  }, [focusEventId, initialActiveTab]);
 
   useEffect(() => {
     setPersonPristine(true);
     setPersonDraft(selectedPerson ? { ...selectedPerson } : null);
-  }, [selectedPerson?.id]);
+  }, [selectedPerson?.id, selectedPerson]);
 
   useEffect(() => {
     if (!personPristine) return;
@@ -181,7 +210,7 @@ const PropertiesPanel = ({
   useEffect(() => {
     setPartnershipPristine(true);
     setPartnershipDraft(selectedPartnership ? { ...selectedPartnership } : null);
-  }, [selectedPartnership?.id]);
+  }, [selectedPartnership?.id, selectedPartnership]);
 
   useEffect(() => {
     if (!partnershipPristine) return;
@@ -191,12 +220,19 @@ const PropertiesPanel = ({
   useEffect(() => {
     setEmotionalPristine(true);
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
-  }, [selectedEmotionalLine?.id]);
+  }, [selectedEmotionalLine?.id, selectedEmotionalLine]);
 
   useEffect(() => {
     if (!emotionalPristine) return;
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
   }, [selectedEmotionalLine, emotionalPristine]);
+
+  useEffect(() => {
+    setTriangleColorDraft(triangleColor || '#8a5a00');
+  }, [triangleId, triangleColor]);
+  useEffect(() => {
+    setTriangleIntensityDraft(triangleIntensity || 'medium');
+  }, [triangleId, triangleIntensity]);
 
   const composeDisplayName = (
     overrides: Partial<Person> = {},
@@ -403,7 +439,8 @@ const PropertiesPanel = ({
     fusion: ['low', 'medium', 'high'],
     distance: ['dotted', 'dashed', 'long-dash'],
     cutoff: ['cutoff'],
-    conflict: ['solid-saw-tooth', 'dotted-saw-tooth', 'double-saw-tooth'],
+    conflict: ['dotted-saw-tooth', 'solid-saw-tooth', 'double-saw-tooth'],
+    projection: ['low', 'medium', 'high'],
   };
 
   const updateEmotionalDraftState = (updates: Partial<EmotionalLine>) => {
@@ -426,9 +463,15 @@ const PropertiesPanel = ({
         ];
       case 'conflict':
         return [
-          { value: 'solid-saw-tooth', label: 'Low (solid sawtooth)' },
-          { value: 'dotted-saw-tooth', label: 'Medium (dotted sawtooth)' },
+          { value: 'dotted-saw-tooth', label: 'Low (dotted sawtooth)' },
+          { value: 'solid-saw-tooth', label: 'Medium (solid sawtooth)' },
           { value: 'double-saw-tooth', label: 'High (double sawtooth)' },
+        ];
+      case 'projection':
+        return [
+          { value: 'low', label: 'Low (>...>)' },
+          { value: 'medium', label: 'Medium (>.>)' },
+          { value: 'high', label: 'High (>>>>)' },
         ];
       default:
         return [{ value: 'cutoff', label: 'Cutoff' }];
@@ -691,9 +734,23 @@ const PropertiesPanel = ({
       stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
     );
   }, [selectedEmotionalLine, emotionalDraft]);
+  const triangleColorDirty = useMemo(() => {
+    if (!triangleId) return false;
+    return triangleColorDraft !== (triangleColor || '#8a5a00');
+  }, [triangleId, triangleColor, triangleColorDraft]);
+  const triangleIntensityDirty = useMemo(() => {
+    if (!triangleId) return false;
+    return triangleIntensityDraft !== (triangleIntensity || 'medium');
+  }, [triangleId, triangleIntensity, triangleIntensityDraft]);
 
   const saveEmotionalLineProperties = () => {
-    if (!selectedEmotionalLine || !emotionalDraft || !emotionalDirty) return;
+    if (
+      !selectedEmotionalLine ||
+      !emotionalDraft ||
+      (!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty)
+    ) {
+      return;
+    }
     const updates: Partial<EmotionalLine> = {};
     EMOTIONAL_STRING_FIELDS.forEach((field) => {
       if (stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])) {
@@ -716,6 +773,12 @@ const PropertiesPanel = ({
     if (newEvents.length) {
       updates.events = [...(selectedEmotionalLine.events || []), ...newEvents];
     }
+    if (triangleId && onUpdateTriangleColor && triangleColorDirty) {
+      onUpdateTriangleColor(triangleId, triangleColorDraft);
+    }
+    if (triangleId && onUpdateTriangleIntensity && triangleIntensityDirty) {
+      onUpdateTriangleIntensity(triangleId, triangleIntensityDraft);
+    }
     if (!Object.keys(updates).length) {
       setEmotionalPristine(true);
       setEmotionalDraft({ ...selectedEmotionalLine });
@@ -729,6 +792,8 @@ const PropertiesPanel = ({
   const cancelEmotionalChanges = () => {
     if (!selectedEmotionalLine) return;
     setEmotionalDraft({ ...selectedEmotionalLine });
+    setTriangleColorDraft(triangleColor || '#8a5a00');
+    setTriangleIntensityDraft(triangleIntensity || 'medium');
     setEmotionalPristine(true);
   };
 
@@ -739,11 +804,11 @@ const PropertiesPanel = ({
     return '';
   };
 
-  const getEvents = () => {
+  const getEvents = useCallback(() => {
     if (isPerson) return (selectedItem as Person).events || [];
     if (isPartnership) return (selectedItem as Partnership).events || [];
     return (selectedItem as EmotionalLine).events || [];
-  };
+  }, [isPerson, isPartnership, selectedItem]);
   const resolveEventClass = (): EventClass =>
     isEmotionalLine ? 'emotional-pattern' : isPartnership ? 'relationship' : 'individual';
   const emotionalLinePeople = useMemo(() => {
@@ -768,7 +833,7 @@ const PropertiesPanel = ({
       return people.filter((p) => p.id !== person.id).map((p) => p.name).filter(Boolean);
     }
     return people.map((person) => person.name).filter(Boolean);
-  }, [isEmotionalLine, isPartnership, selectedItem, people, emotionalLinePeople]);
+  }, [isEmotionalLine, isPartnership, isPerson, selectedItem, people, emotionalLinePeople]);
   const primaryPersonOptions = useMemo(() => {
     if (isPerson) {
       const person = selectedItem as Person;
@@ -795,7 +860,7 @@ const PropertiesPanel = ({
       return aTime > bTime ? direction : -direction;
     });
     return events;
-  }, [selectedItem, eventSortOrder]);
+  }, [getEvents, eventSortOrder]);
 
   const openNewEvent = () => {
     setEventDraft({
@@ -821,6 +886,7 @@ const PropertiesPanel = ({
   };
 
   const openEditEvent = (event: EmotionalProcessEvent) => {
+    setFocusedEventId(event.id);
     setEventDraft({
       ...event,
       category: event.category || eventCategories[0] || '',
@@ -885,6 +951,9 @@ const PropertiesPanel = ({
   };
 
   const deleteEvent = (eventId: string) => {
+    if (focusedEventId === eventId) {
+      setFocusedEventId(null);
+    }
     const nextEvents = getEvents().filter((evt) => evt.id !== eventId);
     if (isPerson) {
       onUpdatePerson(selectedItem.id, { events: nextEvents });
@@ -895,7 +964,9 @@ const PropertiesPanel = ({
     }
   };
 
-  const panelTitle = isEmotionalLine
+  const panelTitle = triangleId
+    ? 'Triangle Properties'
+    : isEmotionalLine
     ? 'Emotional Pattern Functional Facts'
     : isPartnership
     ? 'Relationship Functional Facts'
@@ -1211,9 +1282,61 @@ const PropertiesPanel = ({
         </div>
         )}
         {isEmotionalLine && selectedEmotionalLine && emotionalDraft && (() => {
+        if (triangleId) {
+          return (
+            <div>
+              <div style={rowStyle}>
+                <label htmlFor="triangleIntensity" style={labelStyle}>Intensity:</label>
+                <select
+                  id="triangleIntensity"
+                  value={triangleIntensityDraft}
+                  onChange={(e) => {
+                    setTriangleIntensityDraft(e.target.value as 'low' | 'medium' | 'high');
+                    setEmotionalPristine(false);
+                  }}
+                  style={{ width: 180 }}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div style={{ ...rowStyle, alignItems: 'center' }}>
+                <label htmlFor="triangleColor" style={labelStyle}>Color:</label>
+                <input
+                  type="color"
+                  id="triangleColor"
+                  value={triangleColorDraft}
+                  onChange={(e) => {
+                    setTriangleColorDraft(e.target.value);
+                    setEmotionalPristine(false);
+                  }}
+                  style={{ width: 60 }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={cancelEmotionalChanges}
+                  disabled={!triangleColorDirty && !triangleIntensityDirty}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEmotionalLineProperties}
+                  disabled={!triangleColorDirty && !triangleIntensityDirty}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          );
+        }
+
         const relationshipType = emotionalDraft.relationshipType;
         const styleOptions = styleOptionMeta(relationshipType);
-        const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict'];
+        const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict', 'projection'];
         const lineStyleLabel = intensityTypes.includes(relationshipType) ? 'Intensity' : 'Line Style';
 
         const presetColors = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
@@ -1268,6 +1391,7 @@ const PropertiesPanel = ({
                 <option value="distance">Distance</option>
                 <option value="cutoff">Cutoff</option>
                 <option value="conflict">Conflict</option>
+                <option value="projection">Projection</option>
               </select>
             </div>
             <div style={rowStyle}>
@@ -1337,6 +1461,21 @@ const PropertiesPanel = ({
                 </div>
               </div>
             </div>
+            {triangleId && (
+              <div style={{ ...rowStyle, alignItems: 'center' }}>
+                <label htmlFor="triangleColor" style={labelStyle}>Triangle Color:</label>
+                <input
+                  type="color"
+                  id="triangleColor"
+                  value={triangleColorDraft}
+                  onChange={(e) => {
+                    setTriangleColorDraft(e.target.value);
+                    setEmotionalPristine(false);
+                  }}
+                  style={{ width: 60 }}
+                />
+              </div>
+            )}
             <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
               <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
               <textarea
@@ -1349,8 +1488,8 @@ const PropertiesPanel = ({
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button type="button" onClick={cancelEmotionalChanges} disabled={!emotionalDirty}>Cancel</button>
-              <button type="button" onClick={saveEmotionalLineProperties} disabled={!emotionalDirty}>Save</button>
+              <button type="button" onClick={cancelEmotionalChanges} disabled={!emotionalDirty && !triangleColorDirty}>Cancel</button>
+              <button type="button" onClick={saveEmotionalLineProperties} disabled={!emotionalDirty && !triangleColorDirty}>Save</button>
             </div>
           </div>
         );
@@ -1509,12 +1648,15 @@ const PropertiesPanel = ({
               {sortedEvents.map((event) => (
                 <li
                   key={event.id}
+                  onClick={() => setFocusedEventId(event.id)}
                   style={{
                     borderBottom: '1px solid #ddd',
+                    borderLeft: focusedEventId === event.id ? '3px solid #3f51b5' : '3px solid transparent',
                     padding: '10px 0',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 6,
+                    cursor: 'pointer',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
