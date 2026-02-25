@@ -28,6 +28,11 @@ import IdeasPanel from './IdeasPanel';
 import DatePickerField from './DatePickerField';
 import { getSaveButtonState } from '../utils/saveButtonState';
 import {
+  shouldShowEmotionalNote,
+  shouldShowPartnershipNote,
+  shouldShowPersonNote,
+} from '../utils/noteVisibility';
+import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
@@ -46,13 +51,13 @@ const codeRenderer = ({ inline, children, ...props }: MarkdownCodeProps) =>
   );
 
 const markdownComponents: MarkdownComponents = {
-  h1: ({ node, ...props }) => (
+  h1: ({ node: _node, ...props }) => (
     <h1 style={{ borderBottom: '1px solid #e0e0e0', paddingBottom: 4 }} {...props} />
   ),
-  h2: ({ node, ...props }) => (
+  h2: ({ node: _node, ...props }) => (
     <h2 style={{ marginTop: 24, borderBottom: '1px solid #e0e0e0', paddingBottom: 4 }} {...props} />
   ),
-  pre: ({ node, ...props }) => (
+  pre: ({ node: _node, ...props }) => (
     <pre
       style={{
         background: '#1a1d2d',
@@ -131,6 +136,8 @@ const HELP_SECTIONS = [
     title: 'Styling & Properties',
     tips: [
       'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
+      'Use the Notes Layer toggle in the toolbar to hide/show notes globally. Right-click a Person/PRL/EPL and choose Show Note to pin that note on even when the global layer is off.',
+      'Hovering a person temporarily reveals that person’s note, regardless of Notes Layer state.',
       'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node and every change also logs (or updates) an event for that indicator once per hour.',
       'Events tab now shows compact two-line tiles (Category/Date then ratings + participants + actions) and its editor mirrors the layout with Frequency/Impact dropdowns, WWWWH, Observations, Prior Events, Reflections, and the Nodal Event checkbox.',
     ],
@@ -232,6 +239,1105 @@ const attachEventClassToEntities = <T extends { events?: EmotionalProcessEvent[]
     events: normalizeEventList(entity.events, fallbackClass),
   }));
 
+type DiagramImportData = {
+  fileMeta?: { fileName?: string };
+  people?: Person[];
+  partnerships?: Partnership[];
+  emotionalLines?: EmotionalLine[];
+  functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
+  eventCategories?: string[];
+  autoSaveMinutes?: number;
+  ideasText?: string;
+};
+
+type FactsImportData = {
+  sourceFile?: string;
+  processedAt?: string;
+  family?: {
+    parents?: string[];
+    marriageYear?: number;
+    childrenCountMentioned?: number;
+    childrenMentionedByName?: string[];
+  };
+  relationships?: Array<{
+    a?: string;
+    b?: string;
+    type?: string;
+    status?: string;
+    evidence?: string;
+  }>;
+  clinical?: {
+    explicitSchizophreniaMentions?: string[];
+    explicitNoDiagnosisMentions?: string[];
+    events?: Array<{ person?: string; type?: string; year?: number }>;
+  };
+  uncertainties?: string[];
+};
+
+const sentenceCaseName = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+const GENDER_NAME_OVERRIDES: Record<string, Person['gender']> = {
+  don: 'male',
+  donald: 'male',
+  jim: 'male',
+  john: 'male',
+  brian: 'male',
+  michael: 'male',
+  richard: 'male',
+  joseph: 'male',
+  mark: 'male',
+  matthew: 'male',
+  peter: 'male',
+  rick: 'male',
+  mimi: 'female',
+  margaret: 'female',
+  mary: 'female',
+  jean: 'female',
+  kathy: 'female',
+  nancy: 'female',
+  noni: 'female',
+  betty: 'female',
+};
+
+const inferGenderFromName = (value: string): Person['gender'] | undefined => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  const first = normalized.split(/\s+/)[0];
+  if (GENDER_NAME_OVERRIDES[first]) return GENDER_NAME_OVERRIDES[first];
+  if (GENDER_NAME_OVERRIDES[normalized]) return GENDER_NAME_OVERRIDES[normalized];
+  return undefined;
+};
+
+const findLikelyExistingPerson = (
+  peopleByName: Map<string, Person>,
+  normalizedName: string
+): Person | undefined => {
+  const exact = peopleByName.get(normalizedName);
+  if (exact) return exact;
+
+  const normalized = normalizedName.trim().toLowerCase();
+  if (!normalized) return undefined;
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const all = [...peopleByName.values()];
+
+  if (tokens.length === 1) {
+    const first = tokens[0];
+    const matches = all.filter(
+      (person) => (person.firstName || person.name || '').trim().toLowerCase() === first
+    );
+    if (matches.length === 1) return matches[0];
+  }
+
+  const phraseMatches = all.filter((person) => {
+    const existing = (person.name || '').trim().toLowerCase();
+    if (!existing) return false;
+    return existing.startsWith(`${normalized} `) || normalized.startsWith(`${existing} `);
+  });
+  if (phraseMatches.length === 1) return phraseMatches[0];
+
+  return undefined;
+};
+
+type NormalizeImportedLayoutOptions = {
+  expandParentSpan?: boolean;
+  autoResizeDenseFamilies?: boolean;
+};
+
+const normalizeImportedChildLayout = (
+  people: Person[],
+  partnerships: Partnership[],
+  options?: NormalizeImportedLayoutOptions
+): Person[] => {
+  if (!people.length || !partnerships.length) return people;
+
+  const expandParentSpan = options?.expandParentSpan ?? false;
+  const autoResizeDenseFamilies = options?.autoResizeDenseFamilies ?? false;
+  const personById = new Map(people.map((person) => [person.id, person]));
+  const updates = new Map<string, Person>();
+
+  const getEditablePerson = (id: string) => {
+    const existing = updates.get(id);
+    if (existing) return existing;
+    const base = personById.get(id);
+    if (!base) return null;
+    const clone = { ...base };
+    updates.set(id, clone);
+    return clone;
+  };
+  const getCurrentPerson = (id: string) => updates.get(id) || personById.get(id) || null;
+
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(value, max));
+  const targetChildSize = (count: number) => {
+    if (count >= 12) return 42;
+    if (count >= 10) return 46;
+    if (count >= 8) return 50;
+    if (count >= 6) return 54;
+    return 60;
+  };
+  const targetPartnerSize = (childCount: number) => {
+    const childSize = targetChildSize(childCount);
+    return Math.max(46, childSize + 6);
+  };
+  const enforceChildSpouseSequence = () => {
+    partnerships.forEach((parentPartnership) => {
+      const children = (parentPartnership.children || [])
+        .map((childId) => getCurrentPerson(childId))
+        .filter((person): person is Person => Boolean(person))
+        .filter((person) => person.parentPartnership === parentPartnership.id)
+        .sort((a, b) => a.x - b.x);
+      if (!children.length) return;
+
+      children.forEach((child, index) => {
+        const childEditable = getEditablePerson(child.id);
+        if (!childEditable) return;
+
+        const spousePartnership = partnerships.find(
+          (candidate) =>
+            candidate.id !== parentPartnership.id &&
+            (candidate.partner1_id === child.id || candidate.partner2_id === child.id)
+        );
+        if (!spousePartnership) return;
+
+        const spouseId =
+          spousePartnership.partner1_id === child.id
+            ? spousePartnership.partner2_id
+            : spousePartnership.partner1_id;
+        const spouse = getCurrentPerson(spouseId);
+        const spouseEditable = getEditablePerson(spouseId);
+        if (!spouse || !spouseEditable) return;
+
+        const prev = index > 0 ? children[index - 1] : null;
+        const next = index < children.length - 1 ? children[index + 1] : null;
+        const distPrev = prev ? Math.abs(child.x - prev.x) : Number.POSITIVE_INFINITY;
+        const distNext = next ? Math.abs(next.x - child.x) : Number.POSITIVE_INFINITY;
+        const nearestSiblingDistance = Math.min(distPrev, distNext);
+        const preferredGap = 56;
+        const maxGapFromSibling = Number.isFinite(nearestSiblingDistance)
+          ? Math.max(26, nearestSiblingDistance * 0.45)
+          : preferredGap;
+        const gap = Math.min(preferredGap, maxGapFromSibling);
+
+        let direction = 1;
+        if (childEditable.gender === 'female' && spouseEditable.gender === 'male') direction = -1;
+        if (childEditable.gender === 'male' && spouseEditable.gender === 'female') direction = 1;
+
+        let targetX = childEditable.x + direction * gap;
+        if (direction > 0 && next) {
+          const hardMax = childEditable.x + Math.max(24, (next.x - childEditable.x) * 0.45);
+          targetX = Math.min(targetX, hardMax);
+        }
+        if (direction < 0 && prev) {
+          const hardMin = childEditable.x - Math.max(24, (childEditable.x - prev.x) * 0.45);
+          targetX = Math.max(targetX, hardMin);
+        }
+
+        spouseEditable.x = targetX;
+        spouseEditable.y = childEditable.y;
+        const sharedSize = Math.min(childEditable.size ?? 60, spouseEditable.size ?? 60);
+        childEditable.size = sharedSize;
+        spouseEditable.size = sharedSize;
+        spousePartnership.horizontalConnectorY = Math.max(childEditable.y, spouseEditable.y) + 60;
+      });
+    });
+  };
+
+  partnerships.forEach((partnership, partnershipIndex) => {
+    const partner1Base = personById.get(partnership.partner1_id);
+    const partner2Base = personById.get(partnership.partner2_id);
+    if (!partner1Base || !partner2Base) return;
+
+    const partner1Editable = getEditablePerson(partnership.partner1_id);
+    const partner2Editable = getEditablePerson(partnership.partner2_id);
+    if (partner1Editable && partner2Editable) {
+      // Imported couples should share the same baseline to produce the expected U-shaped PRL.
+      const alignedY = Math.min(partner1Editable.y, partner2Editable.y);
+      partner1Editable.y = alignedY;
+      partner2Editable.y = alignedY;
+      const p1Size = partner1Editable.size ?? 60;
+      const p2Size = partner2Editable.size ?? 60;
+      const matchedPartnerSize = Math.min(p1Size, p2Size);
+      partner1Editable.size = matchedPartnerSize;
+      partner2Editable.size = matchedPartnerSize;
+
+      // Rule: male left, female right for partnerships when both genders are known.
+      if (partner1Editable.gender === 'female' && partner2Editable.gender === 'male') {
+        const leftX = Math.min(partner1Editable.x, partner2Editable.x);
+        const rightX = Math.max(partner1Editable.x, partner2Editable.x);
+        partner2Editable.x = leftX;
+        partner1Editable.x = rightX;
+      } else if (partner1Editable.gender === 'male' && partner2Editable.gender === 'female') {
+        const leftX = Math.min(partner1Editable.x, partner2Editable.x);
+        const rightX = Math.max(partner1Editable.x, partner2Editable.x);
+        partner1Editable.x = leftX;
+        partner2Editable.x = rightX;
+      }
+    }
+
+    const children = (partnership.children || [])
+      .map((childId) => personById.get(childId))
+      .filter((person): person is Person => Boolean(person))
+      .filter((person) => person.parentPartnership === partnership.id);
+    if (children.length === 0) return;
+
+    if (partner1Editable && partner2Editable) {
+      const hasChildPartner = Boolean(partner1Base.parentPartnership || partner2Base.parentPartnership);
+      if (hasChildPartner) {
+        const stagger = (partnershipIndex % 3) * 14;
+        partner1Editable.y += stagger;
+        partner2Editable.y += stagger;
+        partnership.horizontalConnectorY = Math.max(partner1Editable.y, partner2Editable.y) + 60;
+      }
+    }
+
+    if (autoResizeDenseFamilies) {
+      const desiredSize = targetChildSize(children.length);
+      const currentPartnerSize = Math.min(partner1Editable?.size ?? 60, partner2Editable?.size ?? 60);
+      const maxChildSize = Math.max(36, currentPartnerSize - 6);
+      const childSize = Math.min(desiredSize, maxChildSize);
+      children.forEach((child) => {
+        const editable = getEditablePerson(child.id);
+        if (!editable) return;
+        const currentSize = editable.size ?? 60;
+        editable.size = Math.min(currentSize, childSize);
+      });
+      if (children.length >= 6) {
+        const desiredPartnerSize = targetPartnerSize(children.length);
+        const editableP1 = getEditablePerson(partnership.partner1_id);
+        const editableP2 = getEditablePerson(partnership.partner2_id);
+        if (editableP1) {
+          const p1Current = editableP1.size ?? 60;
+          editableP1.size = Math.min(p1Current, desiredPartnerSize);
+        }
+        if (editableP2) {
+          const p2Current = editableP2.size ?? 60;
+          editableP2.size = Math.min(p2Current, desiredPartnerSize);
+        }
+        if (editableP1 && editableP2) {
+          const syncedPartnerSize = Math.min(editableP1.size ?? 60, editableP2.size ?? 60);
+          editableP1.size = syncedPartnerSize;
+          editableP2.size = syncedPartnerSize;
+        }
+      }
+    }
+
+    const partner1 = getEditablePerson(partnership.partner1_id);
+    const partner2 = getEditablePerson(partnership.partner2_id);
+    if (!partner1 || !partner2) return;
+
+    if (expandParentSpan && children.length > 1) {
+      const childMin = Math.min(...children.map((child) => child.x));
+      const childMax = Math.max(...children.map((child) => child.x));
+      const desiredSpan = Math.max(200, childMax - childMin + 80);
+      const currentSpan = Math.abs(partner2.x - partner1.x);
+      if (currentSpan < desiredSpan) {
+        const center = (childMin + childMax) / 2;
+        const leftX = center - desiredSpan / 2;
+        const rightX = center + desiredSpan / 2;
+        if (partner1.x <= partner2.x) {
+          partner1.x = leftX;
+          partner2.x = rightX;
+        } else {
+          partner1.x = rightX;
+          partner2.x = leftX;
+        }
+      }
+    }
+
+    const minX = Math.min(partner1.x, partner2.x);
+    const maxX = Math.max(partner1.x, partner2.x);
+    if (maxX <= minX) return;
+
+    const groups = new Map<string, Person[]>();
+    children.forEach((child) => {
+      const key = child.multipleBirthGroupId || `single:${child.id}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(child);
+      } else {
+        groups.set(key, [child]);
+      }
+    });
+
+    const orderedGroups = [...groups.values()]
+      .map((members) => ({
+        members,
+        center: members.reduce((sum, member) => sum + member.x, 0) / members.length,
+      }))
+      .sort((a, b) => a.center - b.center);
+
+    const count = orderedGroups.length;
+    orderedGroups.forEach((group, index) => {
+      const anchor =
+        count === 1 ? (minX + maxX) / 2 : minX + (index * (maxX - minX)) / (count - 1);
+      group.members.forEach((member) => {
+        const editable = getEditablePerson(member.id);
+        if (!editable) return;
+        const clampedAnchor = clamp(anchor, minX, maxX);
+        editable.x = clampedAnchor;
+        if (editable.multipleBirthGroupId) {
+          // Twins/triplets share a fixed anchor.
+          editable.connectionAnchorX = clampedAnchor;
+        } else if (editable.connectionAnchorX !== undefined) {
+          delete editable.connectionAnchorX;
+        }
+      });
+    });
+  });
+
+  enforceChildSpouseSequence();
+
+  // Resolve person-to-person overlaps after anchor and resize adjustments.
+  const overlapPasses = 6;
+  for (let pass = 0; pass < overlapPasses; pass += 1) {
+    const currentPeople = people
+      .map((person) => getCurrentPerson(person.id))
+      .filter((person): person is Person => Boolean(person))
+      .sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
+    let moved = false;
+    for (let i = 0; i < currentPeople.length; i += 1) {
+      const a = currentPeople[i];
+      const aW = (a.size ?? 60) + 36;
+      const aH = (a.size ?? 60) + 44;
+      for (let j = i + 1; j < currentPeople.length; j += 1) {
+        const b = currentPeople[j];
+        const bW = (b.size ?? 60) + 36;
+        const bH = (b.size ?? 60) + 44;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const overlapX = aW / 2 + bW / 2 - Math.abs(dx);
+        const overlapY = aH / 2 + bH / 2 - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        const shift = overlapX + 18;
+        const target = getEditablePerson(b.id);
+        if (!target) continue;
+        target.x = target.x + shift;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Keep child anchors in sync after overlap shifts and assign partnership note positions
+  // to reduce overlap with people and with other notes.
+  const occupiedNoteRects: Array<{ x: number; y: number; w: number; h: number }> = [];
+  const noteIntersects = (x: number, y: number, w: number, h: number) =>
+    occupiedNoteRects.some(
+      (rect) =>
+        x < rect.x + rect.w &&
+        x + w > rect.x &&
+        y < rect.y + rect.h &&
+        y + h > rect.y
+    );
+
+  partnerships.forEach((partnership) => {
+    const partner1 = getCurrentPerson(partnership.partner1_id);
+    const partner2 = getCurrentPerson(partnership.partner2_id);
+    if (!partner1 || !partner2) return;
+    const minX = Math.min(partner1.x, partner2.x);
+    const maxX = Math.max(partner1.x, partner2.x);
+    const children = (partnership.children || [])
+      .map((childId) => getCurrentPerson(childId))
+      .filter((person): person is Person => Boolean(person))
+      .filter((person) => person.parentPartnership === partnership.id);
+    children.forEach((child) => {
+      const editable = getEditablePerson(child.id);
+      if (!editable) return;
+      if (editable.multipleBirthGroupId && typeof child.connectionAnchorX === 'number') {
+        const clamped = clamp(child.connectionAnchorX, minX, maxX);
+        editable.connectionAnchorX = clamped;
+        editable.x = clamped;
+      } else if (editable.connectionAnchorX !== undefined) {
+        delete editable.connectionAnchorX;
+      }
+    });
+
+    if (!partnership.notes || partnership.notesPosition) return;
+    const noteWidth = 260;
+    const noteHeight = 96;
+    let noteX = (partner1.x + partner2.x) / 2 + 24;
+    let noteY = partnership.horizontalConnectorY + 88;
+    for (let tries = 0; tries < 20; tries += 1) {
+      const intersectsPerson = people.some((p) => {
+        const current = getCurrentPerson(p.id);
+        if (!current) return false;
+        const w = (current.size ?? 60) + 30;
+        const h = (current.size ?? 60) + 36;
+        const px = current.x - w / 2;
+        const py = current.y - h / 2;
+        return (
+          noteX < px + w &&
+          noteX + noteWidth > px &&
+          noteY < py + h &&
+          noteY + noteHeight > py
+        );
+      });
+      if (!intersectsPerson && !noteIntersects(noteX, noteY, noteWidth, noteHeight)) {
+        partnership.notesPosition = { x: noteX, y: noteY };
+        occupiedNoteRects.push({ x: noteX, y: noteY, w: noteWidth, h: noteHeight });
+        break;
+      }
+      noteY += 28;
+      noteX += 18;
+    }
+  });
+
+  enforceChildSpouseSequence();
+
+  if (updates.size === 0) return people;
+  return people.map((person) => updates.get(person.id) || person);
+};
+
+const parseTranscriptToDraftDiagram = (transcript: string, sourceFileName: string): DiagramImportData => {
+  const peopleByName = new Map<string, Person>();
+  const partnershipsByKey = new Map<
+    string,
+    {
+      id: string;
+      partner1: string;
+      partner2: string;
+      relationshipType: Partnership['relationshipType'];
+      relationshipStatus: Partnership['relationshipStatus'];
+      relationshipStartDate?: string;
+      notes?: string;
+      children: string[];
+    }
+  >();
+  const personNotes = new Map<string, string[]>();
+  const diagnosedSchizophrenia = new Set<string>();
+  const parentCouples: Array<{ parent1: string; parent2: string; childCount: number }> = [];
+  const coupleChildrenMentions = new Map<string, number>();
+  const deceasedNames = new Set<string>();
+  const emotionalLineDrafts = new Map<
+    string,
+    {
+      person1: string;
+      person2: string;
+      relationshipType: EmotionalLine['relationshipType'];
+      lineStyle: EmotionalLine['lineStyle'];
+      lineEnding: EmotionalLine['lineEnding'];
+      notes: string;
+    }
+  >();
+
+  const getPerson = (raw: string) => {
+    const normalized = sentenceCaseName(raw);
+    const existing = findLikelyExistingPerson(peopleByName, normalized);
+    if (existing) return existing;
+    const next: Person = {
+      id: nanoid(),
+      name: normalized,
+      firstName: normalized.split(/\s+/)[0],
+      lastName: normalized.split(/\s+/).slice(1).join(' ') || undefined,
+      x: 0,
+      y: 0,
+      gender: inferGenderFromName(normalized) || 'female',
+      partnerships: [],
+      events: [],
+    };
+    peopleByName.set(normalized, next);
+    return next;
+  };
+
+  const addPartnership = (
+    personA: string,
+    personB: string,
+    relationshipType: Partnership['relationshipType'] = 'married',
+    relationshipStatus: Partnership['relationshipStatus'] = 'married',
+    relationshipStartDate?: string,
+    note?: string
+  ) => {
+    const a = getPerson(personA);
+    const b = getPerson(personB);
+    const pair = [a.name, b.name].sort();
+    const key = pair.join('::');
+    const existing = partnershipsByKey.get(key);
+    if (existing) {
+      if (note) {
+        existing.notes = existing.notes ? `${existing.notes} ${note}` : note;
+      }
+      if (relationshipStartDate && !existing.relationshipStartDate) {
+        existing.relationshipStartDate = relationshipStartDate;
+      }
+      return existing.id;
+    }
+    const id = nanoid();
+    partnershipsByKey.set(key, {
+      id,
+      partner1: pair[0],
+      partner2: pair[1],
+      relationshipType,
+      relationshipStatus,
+      relationshipStartDate,
+      notes: note,
+      children: [],
+    });
+    return id;
+  };
+
+  const addNote = (name: string, note: string) => {
+    const person = getPerson(name);
+    const notes = personNotes.get(person.name) || [];
+    notes.push(note);
+    personNotes.set(person.name, notes);
+  };
+
+  const addEmotionalPatternDraft = (
+    personA: string,
+    personB: string,
+    relationshipType: EmotionalLine['relationshipType'],
+    notes: string
+  ) => {
+    const a = getPerson(personA);
+    const b = getPerson(personB);
+    const directional = relationshipType === 'projection';
+    const key = directional
+      ? `${a.name}->${b.name}::${relationshipType}`
+      : [[a.name, b.name].sort().join('::'), relationshipType].join('::');
+    if (emotionalLineDrafts.has(key)) {
+      return;
+    }
+    const styleMap: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle']> = {
+      fusion: 'medium',
+      distance: 'dashed',
+      cutoff: 'cutoff',
+      conflict: 'solid-saw-tooth',
+      projection: 'projection-flow',
+    };
+    emotionalLineDrafts.set(key, {
+      person1: a.name,
+      person2: b.name,
+      relationshipType,
+      lineStyle: styleMap[relationshipType],
+      lineEnding: 'none',
+      notes,
+    });
+  };
+
+  const marryPattern = /\b([A-Z][a-z]+)\s+(?:did\s+)?marry(?:\s+to)?\s+([A-Z][a-z]+)\b/g;
+  for (const match of transcript.matchAll(marryPattern)) {
+    addPartnership(match[1], match[2], 'married', 'married');
+  }
+
+  const couplePattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bmarried(?:\s+in\s+(\d{4}))?/gi;
+  for (const match of transcript.matchAll(couplePattern)) {
+    const year = match[3] ? `${match[3]}-01-01` : undefined;
+    addPartnership(match[1], match[2], 'married', 'married', year);
+  }
+
+  const parentPattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bhad\s+(\d+)\s+children\b/gi;
+  for (const match of transcript.matchAll(parentPattern)) {
+    parentCouples.push({
+      parent1: sentenceCaseName(match[1]),
+      parent2: sentenceCaseName(match[2]),
+      childCount: Number(match[3]),
+    });
+  }
+
+  const dxPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,120}\bdiagnos(?:ed|is|e)\b[^.\n]{0,120}\bschizophrenia\b/gi;
+  for (const match of transcript.matchAll(dxPattern)) {
+    const name = sentenceCaseName(match[1]);
+    diagnosedSchizophrenia.add(name);
+  }
+
+  const killPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,140}\bkilled\s+([A-Z][a-z]+)\b[^.\n]{0,80}\bkilled\s+(?:himself|herself)\b/gi;
+  for (const match of transcript.matchAll(killPattern)) {
+    addPartnership(match[1], match[2], 'dating', 'ended', undefined, 'Transcript references homicide-suicide sequence.');
+    const killer = sentenceCaseName(match[1]);
+    const victim = sentenceCaseName(match[2]);
+    deceasedNames.add(killer);
+    deceasedNames.add(victim);
+    addNote(killer, `Transcript: killed ${victim}, then died by suicide.`);
+    addNote(victim, `Transcript: killed by ${killer}.`);
+  }
+
+  const bornPattern = /\b([A-Z][a-z]+)\s+([A-Z][a-z]+)[^.\n]{0,30}\bborn\s+(\d{4})/gi;
+  for (const match of transcript.matchAll(bornPattern)) {
+    const person = getPerson(`${match[1]} ${match[2]}`);
+    person.birthDate = `${match[3]}-01-01`;
+  }
+
+  const diedPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,40}\bdied\s+(\d{4})/gi;
+  for (const match of transcript.matchAll(diedPattern)) {
+    const person = getPerson(match[1]);
+    person.deathDate = `${match[2]}-01-01`;
+  }
+
+  const coupleChildrenPattern =
+    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,140}\b(?:have|had)\s+(one|two|three|four|five|\d+)\s+children\b/gi;
+  const countFromWord = (value: string) => {
+    const lowered = value.toLowerCase();
+    const map: Record<string, number> = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+    };
+    if (map[lowered]) return map[lowered];
+    const parsed = Number(lowered);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  for (const match of transcript.matchAll(coupleChildrenPattern)) {
+    const a = sentenceCaseName(match[1]);
+    const b = sentenceCaseName(match[2]);
+    const key = [a, b].sort().join('::');
+    const count = countFromWord(match[3]);
+    if (count > 0) {
+      coupleChildrenMentions.set(key, Math.max(coupleChildrenMentions.get(key) || 0, count));
+    }
+  }
+
+  const conflictPattern =
+    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\b(argu(?:e|ed|ing)|argur(?:e|ed|ing)|go at it|fight(?:ing)?|conflict)\b/gi;
+  for (const match of transcript.matchAll(conflictPattern)) {
+    addEmotionalPatternDraft(
+      match[1],
+      match[2],
+      'conflict',
+      `Transcript conflict phrase: "${match[0].trim()}"`
+    );
+  }
+
+  const cutoffPattern =
+    /\b([A-Z][a-z]+)[^.\n]{0,90}\b(no contact|cut\s*off|cutoff|estranged|distance|distant)\b[^.\n]{0,80}\b(with|from)\b[^A-Z\n]{0,12}([A-Z][a-z]+)/gi;
+  for (const match of transcript.matchAll(cutoffPattern)) {
+    addEmotionalPatternDraft(
+      match[1],
+      match[4],
+      'cutoff',
+      `Transcript cutoff phrase: "${match[0].trim()}"`
+    );
+  }
+
+  const fusionPattern =
+    /\b([A-Z][a-z]+)[^.\n]{0,120}\b(reactive|fused|fusion|enmeshed|overly close)\b[^.\n]{0,80}\b(around|with|to)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+  for (const match of transcript.matchAll(fusionPattern)) {
+    addEmotionalPatternDraft(
+      match[1],
+      match[4],
+      'fusion',
+      `Transcript fusion phrase: "${match[0].trim()}"`
+    );
+  }
+
+  const projectionPatternNamed =
+    /\b([A-Z][a-z]+)\s+(?:and|&)\s+([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+  for (const match of transcript.matchAll(projectionPatternNamed)) {
+    addEmotionalPatternDraft(
+      match[1],
+      match[4],
+      'projection',
+      `Transcript projection phrase: "${match[0].trim()}"`
+    );
+    addEmotionalPatternDraft(
+      match[2],
+      match[4],
+      'projection',
+      `Transcript projection phrase: "${match[0].trim()}"`
+    );
+  }
+
+  const projectionPatternSingle =
+    /\b([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+  for (const match of transcript.matchAll(projectionPatternSingle)) {
+    addEmotionalPatternDraft(
+      match[1],
+      match[3],
+      'projection',
+      `Transcript projection phrase: "${match[0].trim()}"`
+    );
+  }
+
+  const peopleList = [...peopleByName.values()];
+  peopleList.forEach((person, index) => {
+    person.x = 120 + (index % 6) * 150;
+    person.y = 140 + Math.floor(index / 6) * 180;
+    person.gender = inferGenderFromName(person.name) || person.gender || 'female';
+    const notes = personNotes.get(person.name);
+    if (notes?.length) {
+      person.notes = notes.join(' ');
+      person.notesEnabled = true;
+    }
+    if (diagnosedSchizophrenia.has(person.name)) {
+      person.functionalIndicators = [
+        {
+          definitionId: 'indicator-schizophrenia-spectrum',
+          status: 'past',
+          impact: 5,
+          frequency: 5,
+          intensity: 5,
+        },
+      ];
+    }
+    if (deceasedNames.has(person.name) && !person.deathDate) {
+      person.deathDate = '1973-01-01';
+    }
+  });
+
+  const partnerships: Partnership[] = [...partnershipsByKey.values()].map((entry, idx) => {
+    const p1 = peopleByName.get(entry.partner1)!;
+    const p2 = peopleByName.get(entry.partner2)!;
+    p1.partnerships = [...new Set([...p1.partnerships, entry.id])];
+    p2.partnerships = [...new Set([...p2.partnerships, entry.id])];
+    return {
+      id: entry.id,
+      partner1_id: p1.id,
+      partner2_id: p2.id,
+      horizontalConnectorY: Math.max(p1.y, p2.y) + 60 + idx * 4,
+      relationshipType: entry.relationshipType,
+      relationshipStatus: entry.relationshipStatus,
+      relationshipStartDate: entry.relationshipStartDate,
+      children: entry.children,
+      notes: entry.notes,
+      events: [],
+    };
+  });
+
+  const emotionalLines: EmotionalLine[] = [...emotionalLineDrafts.values()].map((entry) => {
+    const p1 = peopleByName.get(entry.person1)!;
+    const p2 = peopleByName.get(entry.person2)!;
+    return {
+      id: nanoid(),
+      person1_id: p1.id,
+      person2_id: p2.id,
+      status: 'ongoing',
+      relationshipType: entry.relationshipType,
+      lineStyle: entry.lineStyle,
+      lineEnding: entry.lineEnding,
+      startDate: new Date().toISOString().slice(0, 10),
+      color: DEFAULT_LINE_COLOR,
+      notes: entry.notes,
+      events: [],
+    };
+  });
+
+  for (const parent of parentCouples) {
+    const parentPair = [parent.parent1, parent.parent2].sort().join('::');
+    const parentPartnership = partnershipsByKey.get(parentPair);
+    if (!parentPartnership) continue;
+    const children = peopleList
+      .filter((person) => person.name !== parent.parent1 && person.name !== parent.parent2)
+      .slice(0, parent.childCount);
+    children.forEach((child) => {
+      child.parentPartnership = parentPartnership.id;
+      parentPartnership.children.push(child.id);
+    });
+  }
+
+  coupleChildrenMentions.forEach((count, pairKey) => {
+    const parentPartnership = partnershipsByKey.get(pairKey);
+    if (!parentPartnership) return;
+    const partnership = partnerships.find((p) => p.id === parentPartnership.id);
+    if (!partnership) return;
+    const parent1 = peopleByName.get(parentPartnership.partner1);
+    const parent2 = peopleByName.get(parentPartnership.partner2);
+    if (!parent1 || !parent2) return;
+    const existingCount = partnership.children.length;
+    if (existingCount >= count) return;
+    const needed = count - existingCount;
+    const anchorX = (parent1.x + parent2.x) / 2;
+    const baseY = partnership.horizontalConnectorY + 120;
+    for (let i = 0; i < needed; i += 1) {
+      const childIndex = existingCount + i + 1;
+      const childName = `${parentPartnership.partner1.split(' ')[0]}-${parentPartnership.partner2.split(' ')[0]} Child ${childIndex}`;
+      const child: Person = {
+        id: nanoid(),
+        name: childName,
+        firstName: childName,
+        x: anchorX + (i - (needed - 1) / 2) * 42,
+        y: baseY,
+        gender: i % 2 === 0 ? 'female' : 'male',
+        partnerships: [],
+        parentPartnership: partnership.id,
+        notes: 'Placeholder child generated from transcript statement about child count.',
+        notesEnabled: false,
+        events: [],
+      };
+      peopleByName.set(childName, child);
+      peopleList.push(child);
+      partnership.children.push(child.id);
+      parentPartnership.children.push(child.id);
+    }
+  });
+
+  const normalizedPeople = normalizeImportedChildLayout(peopleList, partnerships, {
+    expandParentSpan: true,
+    autoResizeDenseFamilies: true,
+  });
+
+  return {
+    fileMeta: {
+      fileName: `processed-${sourceFileName.replace(/\.[^.]+$/, '')}.json`,
+    },
+    people: normalizedPeople,
+    partnerships,
+    emotionalLines,
+    functionalIndicatorDefinitions: [
+      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum' },
+    ],
+    eventCategories: ['Mental Health', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
+    autoSaveMinutes: 1,
+    ideasText:
+      'Transcript-processed draft. Review person names, genders, dates, parent-child links, diagnoses, and extracted emotional pattern lines before clinical use.',
+  };
+};
+
+const isDiagramImportData = (data: unknown): data is DiagramImportData => {
+  const typed = data as DiagramImportData;
+  return (
+    !!typed &&
+    Array.isArray(typed.people) &&
+    Array.isArray(typed.partnerships) &&
+    Array.isArray(typed.emotionalLines)
+  );
+};
+
+const isFactsImportData = (data: unknown): data is FactsImportData => {
+  const typed = data as FactsImportData;
+  return !!typed && typeof typed === 'object' && (Array.isArray(typed.relationships) || !!typed.family);
+};
+
+const normalizeRelationshipType = (value?: string): Partnership['relationshipType'] => {
+  const raw = (value || '').toLowerCase();
+  if (raw.includes('married')) return 'married';
+  if (raw.includes('dating')) return 'dating';
+  if (raw.includes('affair')) return 'affair';
+  if (raw.includes('friend')) return 'friendship';
+  return 'dating';
+};
+
+const normalizeRelationshipStatus = (value?: string): Partnership['relationshipStatus'] => {
+  const raw = (value || '').toLowerCase();
+  if (raw.includes('divorc')) return 'divorced';
+  if (raw.includes('end')) return 'ended';
+  if (raw.includes('separat')) return 'separated';
+  if (raw.includes('ongoing')) return 'ongoing';
+  if (raw.includes('start')) return 'started';
+  return 'married';
+};
+
+const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => {
+  const peopleByName = new Map<string, Person>();
+  const getPerson = (name: string) => {
+    const normalized = name.trim();
+    if (!normalized) return null;
+    const existing = findLikelyExistingPerson(peopleByName, normalized);
+    if (existing) return existing;
+    const next: Person = {
+      id: nanoid(),
+      name: normalized,
+      firstName: normalized.split(/\s+/)[0],
+      lastName: normalized.split(/\s+/).slice(1).join(' ') || undefined,
+      x: 0,
+      y: 0,
+      gender: inferGenderFromName(normalized) || 'female',
+      partnerships: [],
+      events: [],
+    };
+    peopleByName.set(normalized, next);
+    return next;
+  };
+
+  const parents = facts.family?.parents || [];
+  parents.forEach((name) => getPerson(name));
+  (facts.family?.childrenMentionedByName || []).forEach((name) => getPerson(name));
+  (facts.relationships || []).forEach((rel) => {
+    if (rel.a) getPerson(rel.a);
+    if (rel.b) getPerson(rel.b);
+  });
+  (facts.clinical?.explicitSchizophreniaMentions || []).forEach((name) => getPerson(name));
+  (facts.clinical?.explicitNoDiagnosisMentions || []).forEach((name) => getPerson(name));
+  (facts.clinical?.events || []).forEach((evt) => {
+    if (evt.person) getPerson(evt.person);
+  });
+
+  const people = [...peopleByName.values()];
+  people.forEach((person, idx) => {
+    person.x = 120 + (idx % 6) * 150;
+    person.y = 140 + Math.floor(idx / 6) * 170;
+    person.gender = inferGenderFromName(person.name) || person.gender || 'female';
+  });
+
+  const partnerships: Partnership[] = [];
+  const toChildCount = (text?: string) => {
+    if (!text) return 0;
+    const match = text.match(/\b(one|two|three|four|five|\d+)\s+children\b/i);
+    if (!match) return 0;
+    const token = match[1].toLowerCase();
+    const map: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+    if (map[token]) return map[token];
+    const parsed = Number(token);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  if (parents.length >= 2) {
+    const parentPartnershipId = nanoid();
+    const parent1 = getPerson(parents[0])!;
+    const parent2 = getPerson(parents[1])!;
+    const children = (facts.family?.childrenMentionedByName || [])
+      .map((name) => getPerson(name))
+      .filter((person): person is Person => Boolean(person));
+    children.forEach((child) => {
+      child.parentPartnership = parentPartnershipId;
+    });
+    parent1.partnerships = [...new Set([...parent1.partnerships, parentPartnershipId])];
+    parent2.partnerships = [...new Set([...parent2.partnerships, parentPartnershipId])];
+    partnerships.push({
+      id: parentPartnershipId,
+      partner1_id: parent1.id,
+      partner2_id: parent2.id,
+      horizontalConnectorY: Math.max(parent1.y, parent2.y) + 60,
+      relationshipType: 'married',
+      relationshipStatus: 'ended',
+      relationshipStartDate: facts.family?.marriageYear
+        ? `${facts.family.marriageYear}-01-01`
+        : undefined,
+      children: children.map((child) => child.id),
+      notes: 'Derived from facts.family',
+      events: [],
+    });
+  }
+
+  (facts.relationships || []).forEach((rel, index) => {
+    if (!rel.a || !rel.b) return;
+    const personA = getPerson(rel.a);
+    const personB = getPerson(rel.b);
+    if (!personA || !personB) return;
+    const existing = partnerships.find(
+      (partnership) =>
+        (partnership.partner1_id === personA.id && partnership.partner2_id === personB.id) ||
+        (partnership.partner1_id === personB.id && partnership.partner2_id === personA.id)
+    );
+    if (existing) {
+      if (rel.evidence) {
+        existing.notes = existing.notes ? `${existing.notes}\n${rel.evidence}` : rel.evidence;
+      }
+      const childCount = toChildCount(rel.evidence);
+      if (childCount > existing.children.length) {
+        const parent1 = people.find((person) => person.id === existing.partner1_id);
+        const parent2 = people.find((person) => person.id === existing.partner2_id);
+        const anchorX = parent1 && parent2 ? (parent1.x + parent2.x) / 2 : 120;
+        const baseY = existing.horizontalConnectorY + 120;
+        for (let i = existing.children.length; i < childCount; i += 1) {
+          const childName = `${(parent1?.firstName || parent1?.name || 'Child').split(' ')[0]}-${(parent2?.firstName || parent2?.name || 'Child').split(' ')[0]} Child ${i + 1}`;
+          const child = getPerson(childName);
+          if (!child) continue;
+          child.parentPartnership = existing.id;
+          child.x = anchorX + (i - (childCount - 1) / 2) * 42;
+          child.y = baseY;
+          child.notes = 'Placeholder child generated from facts relationship evidence.';
+          child.notesEnabled = false;
+          existing.children.push(child.id);
+        }
+      }
+      return;
+    }
+    const id = nanoid();
+    personA.partnerships = [...new Set([...personA.partnerships, id])];
+    personB.partnerships = [...new Set([...personB.partnerships, id])];
+    partnerships.push({
+      id,
+      partner1_id: personA.id,
+      partner2_id: personB.id,
+      horizontalConnectorY: Math.max(personA.y, personB.y) + 60 + index * 6,
+      relationshipType: normalizeRelationshipType(rel.type),
+      relationshipStatus: normalizeRelationshipStatus(rel.status),
+      children: [],
+      notes: rel.evidence,
+      events: [],
+    });
+    const childCount = toChildCount(rel.evidence);
+    if (childCount > 0) {
+      const created = partnerships[partnerships.length - 1];
+      const anchorX = (personA.x + personB.x) / 2;
+      const baseY = created.horizontalConnectorY + 120;
+      for (let i = 0; i < childCount; i += 1) {
+        const childName = `${(personA.firstName || personA.name || 'Child').split(' ')[0]}-${(personB.firstName || personB.name || 'Child').split(' ')[0]} Child ${i + 1}`;
+        const child = getPerson(childName);
+        if (!child) continue;
+        child.parentPartnership = created.id;
+        child.x = anchorX + (i - (childCount - 1) / 2) * 42;
+        child.y = baseY;
+        child.notes = 'Placeholder child generated from facts relationship evidence.';
+        child.notesEnabled = false;
+        created.children.push(child.id);
+      }
+    }
+  });
+
+  const schizophreniaSet = new Set(
+    (facts.clinical?.explicitSchizophreniaMentions || []).map((name) => name.trim())
+  );
+  const noDxSet = new Set(
+    (facts.clinical?.explicitNoDiagnosisMentions || []).map((name) => name.trim())
+  );
+  people.forEach((person) => {
+    if (schizophreniaSet.has(person.name)) {
+      person.functionalIndicators = [
+        {
+          definitionId: 'indicator-schizophrenia-spectrum',
+          status: 'past',
+          impact: 5,
+          frequency: 5,
+          intensity: 5,
+        },
+      ];
+    }
+    if (noDxSet.has(person.name)) {
+      person.notes = person.notes
+        ? `${person.notes}\nFacts: explicitly no schizophrenia diagnosis mention.`
+        : 'Facts: explicitly no schizophrenia diagnosis mention.';
+      person.notesEnabled = true;
+    }
+  });
+
+  (facts.clinical?.events || []).forEach((evt, idx) => {
+    if (!evt.person || !evt.type) return;
+    const person = getPerson(evt.person);
+    if (!person) return;
+    const event: EmotionalProcessEvent = {
+      id: `facts-event-${idx}-${person.id}`,
+      date: evt.year ? `${evt.year}-01-01` : '',
+      category: 'Clinical',
+      statusLabel: evt.type,
+      intensity: 3,
+      howWell: 0,
+      otherPersonName: '',
+      wwwwh: 'Derived from facts JSON',
+      observations: evt.type,
+      eventClass: 'individual',
+    };
+    person.events = [...(person.events || []), event];
+    if ((evt.type || '').toLowerCase().includes('homicide_suicide') && !person.deathDate) {
+      person.deathDate = evt.year ? `${evt.year}-01-01` : '1973-01-01';
+    }
+  });
+
+  const normalizedPeople = normalizeImportedChildLayout(people, partnerships, {
+    expandParentSpan: true,
+    autoResizeDenseFamilies: true,
+  });
+
+  return {
+    fileMeta: {
+      fileName: `facts-import-${facts.processedAt || 'processed'}.json`,
+    },
+    people: normalizedPeople,
+    partnerships,
+    emotionalLines: [],
+    functionalIndicatorDefinitions: [
+      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum' },
+    ],
+    eventCategories: ['Clinical', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
+    autoSaveMinutes: 1,
+    ideasText: (facts.uncertainties || []).join('\n'),
+  };
+};
+
 const DiagramEditor = () => {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
@@ -275,10 +1381,12 @@ const DiagramEditor = () => {
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
-  const [timelineYear, setTimelineYear] = useState<number | null>(null);
+  const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelinePersonId, setTimelinePersonId] = useState<string | null>(null);
   const [timelineSortOrder, setTimelineSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [notesLayerEnabled, setNotesLayerEnabled] = useState(true);
+  const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
   const [sessionNotesOpen, setSessionNotesOpen] = useState(false);
   const [sessionNoteCoachName, setSessionNoteCoachName] = useState('');
   const [sessionNoteClientName, setSessionNoteClientName] = useState('');
@@ -292,6 +1400,10 @@ const DiagramEditor = () => {
   const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
+  const [importModeDialogOpen, setImportModeDialogOpen] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
+  const [pendingImportFileName, setPendingImportFileName] = useState('');
+  const [pendingImportSource, setPendingImportSource] = useState<'import' | 'transcript' | 'facts'>('import');
   const stageRef = useRef<StageType>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 360;
@@ -319,6 +1431,8 @@ const DiagramEditor = () => {
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const transcriptInputRef = useRef<HTMLInputElement | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
   const multiSelectedPeople = useMemo(
@@ -410,13 +1524,15 @@ const DiagramEditor = () => {
       const currentYear = new Date().getFullYear();
       return { min: currentYear, max: currentYear };
     }
-    let minYear = new Date(timelineEntries[0].timestamp).getFullYear();
+    const minYear = new Date(timelineEntries[0].timestamp).getFullYear();
     let maxYear = new Date(timelineEntries[timelineEntries.length - 1].timestamp).getFullYear();
     const currentYear = new Date().getFullYear();
     if (maxYear < currentYear) maxYear = currentYear;
     return { min: minYear, max: maxYear };
   }, [timelineEntries]);
 
+  // Bootstrap from localStorage once on initial mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setTimelineYear((prev) => {
       if (prev == null) return timelineYearBounds.min;
@@ -728,7 +1844,7 @@ const DiagramEditor = () => {
         // ignore malformed backup
       }
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sessionNotesTarget && sessionTargetOptions.length) {
       setSessionNotesTarget(sessionTargetOptions[0].value);
@@ -1106,30 +2222,6 @@ const DiagramEditor = () => {
     });
 
     const derivedAssignments = new Map<string, string>();
-    const anchorClusters = new Map<string, Person[]>();
-    list.forEach((person) => {
-      if (!person.parentPartnership) return;
-      if (person.multipleBirthGroupId) return;
-      if (typeof person.connectionAnchorX !== 'number') return;
-      const key = `${person.parentPartnership}:${person.connectionAnchorX.toFixed(2)}`;
-      const group = anchorClusters.get(key);
-      if (group) {
-        group.push(person);
-      } else {
-        anchorClusters.set(key, [person]);
-      }
-    });
-    anchorClusters.forEach((members) => {
-      if (members.length < 2) return;
-      const newGroupId = nanoid();
-      members.forEach((member) => {
-        derivedAssignments.set(member.id, newGroupId);
-      });
-      multiGroupMembers.set(newGroupId, {
-        partnershipId: members[0].parentPartnership!,
-        members,
-      });
-    });
 
     const anchorByPerson = new Map<string, number>();
     const clampValue = (value: number, min: number, max: number) =>
@@ -1167,7 +2259,23 @@ const DiagramEditor = () => {
         return updated;
       }
 
-      if (updated.connectionAnchorX !== undefined) {
+      if (!updated.parentPartnership && updated.connectionAnchorX !== undefined) {
+        updated = { ...updated };
+        delete updated.connectionAnchorX;
+        changed = true;
+        return updated;
+      }
+
+      if (updated.parentPartnership && updated.multipleBirthGroupId && typeof updated.connectionAnchorX === 'number') {
+        const range = partnershipRanges.get(updated.parentPartnership);
+        if (range) {
+          const clamped = clampValue(updated.connectionAnchorX, range.min, range.max);
+          if (clamped !== updated.connectionAnchorX) {
+            updated = { ...updated, connectionAnchorX: clamped };
+            changed = true;
+          }
+        }
+      } else if (updated.parentPartnership && !updated.multipleBirthGroupId && updated.connectionAnchorX !== undefined) {
         updated = { ...updated };
         delete updated.connectionAnchorX;
         changed = true;
@@ -1233,6 +2341,9 @@ const DiagramEditor = () => {
       if (normalized.relationshipType === 'cutoff' && normalized.lineStyle !== 'cutoff') {
         normalized = { ...normalized, lineStyle: 'cutoff' };
       }
+      if (normalized.relationshipType === 'projection' && normalized.lineStyle !== 'projection-flow') {
+        normalized = { ...normalized, lineStyle: 'projection-flow', lineEnding: 'none' };
+      }
       if (normalized.relationshipType === 'fusion') {
         const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
           single: 'low',
@@ -1250,6 +2361,7 @@ const DiagramEditor = () => {
       return normalized;
     });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const savedPeople = getStoredValue('people');
     const savedPartnerships = getStoredValue('partnerships');
@@ -1295,7 +2407,7 @@ const DiagramEditor = () => {
         // ignore invalid categories
       }
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
   const handleResize = () => {
@@ -1440,6 +2552,10 @@ useEffect(() => {
         if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
             next.lineStyle = 'cutoff';
         }
+        if (next.relationshipType === 'projection' && next.lineStyle !== 'projection-flow') {
+            next.lineStyle = 'projection-flow';
+            next.lineEnding = 'none';
+        }
         return next;
     }));
     setPropertiesPanelItem(prev => {
@@ -1450,6 +2566,10 @@ useEffect(() => {
             }
             if (next.relationshipType === 'cutoff' && next.lineStyle !== 'cutoff') {
                 next.lineStyle = 'cutoff';
+            }
+            if (next.relationshipType === 'projection' && next.lineStyle !== 'projection-flow') {
+                next.lineStyle = 'projection-flow';
+                next.lineEnding = 'none';
             }
             return next;
         }
@@ -1554,7 +2674,11 @@ useEffect(() => {
     applyIndicatorDefinitionArray(nextDefinitions);
     const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
-    const aligned = alignAllAnchors(cleaned.people, cleaned.partnerships);
+    const normalizedImportedPeople = normalizeImportedChildLayout(cleaned.people, cleaned.partnerships, {
+      expandParentSpan: true,
+      autoResizeDenseFamilies: true,
+    });
+    const aligned = alignAllAnchors(normalizedImportedPeople, cleaned.partnerships);
     const sanitizedPeople = sanitizePeopleIndicators(aligned, nextDefinitions);
     const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
     const partnershipsWithEvents = attachEventClassToEntities(cleaned.partnerships, 'relationship');
@@ -1578,8 +2702,379 @@ useEffect(() => {
     } else {
       setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
     }
+    setTimelinePlaying(false);
+    setTimelineYear(new Date().getFullYear());
+    setTimelinePersonId(null);
     markSnapshotClean(peopleWithEvents, partnershipsWithEvents, linesWithEvents);
     setLastSavedAt(null);
+  };
+
+  const beginImportFlow = (
+    data: DiagramImportData,
+    sourceFileName: string,
+    source: 'import' | 'transcript' | 'facts'
+  ) => {
+    setPendingImportData(data);
+    setPendingImportFileName(sourceFileName);
+    setPendingImportSource(source);
+    setImportModeDialogOpen(true);
+  };
+
+  const mergeDiagramState = (data: DiagramImportData, options?: { allowNewPeople?: boolean }) => {
+    const allowNewPeople = options?.allowNewPeople ?? true;
+    if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
+      throw new Error('Invalid file format');
+    }
+
+    const incomingDefs: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
+      ? data.functionalIndicatorDefinitions
+      : [];
+    const definitionById = new Map(functionalIndicatorDefinitions.map((def) => [def.id, def]));
+    incomingDefs.forEach((def) => {
+      if (def?.id && !definitionById.has(def.id)) {
+        definitionById.set(def.id, def);
+      }
+    });
+    const mergedDefinitions = [...definitionById.values()];
+    applyIndicatorDefinitionArray(mergedDefinitions);
+
+    const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
+    const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
+    const incomingPeople = attachEventClassToEntities(cleaned.people, 'individual');
+    const incomingPartnerships = attachEventClassToEntities(cleaned.partnerships, 'relationship');
+    const incomingLines = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
+
+    const usedPersonIds = new Set(people.map((p) => p.id));
+    const usedPartnershipIds = new Set(partnerships.map((p) => p.id));
+    const usedLineIds = new Set(emotionalLines.map((line) => line.id));
+
+    const personIdMap = new Map<string, string>();
+    const partnershipIdMap = new Map<string, string>();
+    const lineIdMap = new Map<string, string>();
+
+    const nextUniqueId = (preferred: string | undefined, used: Set<string>) => {
+      if (preferred && !used.has(preferred)) {
+        used.add(preferred);
+        return preferred;
+      }
+      let next = nanoid();
+      while (used.has(next)) {
+        next = nanoid();
+      }
+      used.add(next);
+      return next;
+    };
+
+    const normalizeNameKey = (person: Pick<Person, 'name' | 'firstName' | 'lastName'>) => {
+      const combined = [person.firstName, person.lastName].filter(Boolean).join(' ').trim();
+      const base = (combined || person.name || '').trim().toLowerCase();
+      return base.replace(/[^a-z0-9]+/g, ' ').trim();
+    };
+    const normalizeFirstName = (person: Pick<Person, 'name' | 'firstName'>) => {
+      const first = (person.firstName || person.name || '').trim().split(/\s+/)[0] || '';
+      return first.toLowerCase();
+    };
+    const normalizeLastName = (person: Pick<Person, 'name' | 'lastName'>) => {
+      const fromField = (person.lastName || '').trim();
+      if (fromField) return fromField.toLowerCase();
+      const tokens = (person.name || '').trim().split(/\s+/).filter(Boolean);
+      return tokens.length > 1 ? tokens[tokens.length - 1].toLowerCase() : '';
+    };
+
+    const mergeEvents = (
+      current?: EmotionalProcessEvent[],
+      incoming?: EmotionalProcessEvent[]
+    ): EmotionalProcessEvent[] | undefined => {
+      const merged = [...(current || [])];
+      const seen = new Set(merged.map((event) => event.id));
+      (incoming || []).forEach((event) => {
+        if (!seen.has(event.id)) {
+          merged.push(event);
+          seen.add(event.id);
+        }
+      });
+      return merged.length ? merged : undefined;
+    };
+
+    const mergeIndicators = (
+      current?: Person['functionalIndicators'],
+      incoming?: Person['functionalIndicators']
+    ): Person['functionalIndicators'] => {
+      const merged = [...(current || [])];
+      const seen = new Set(merged.map((entry) => `${entry.definitionId}:${entry.status}`));
+      (incoming || []).forEach((entry) => {
+        const key = `${entry.definitionId}:${entry.status}`;
+        if (!seen.has(key)) {
+          merged.push(entry);
+          seen.add(key);
+        }
+      });
+      return merged.length ? merged : undefined;
+    };
+
+    const existingPersonByNameKey = new Map<string, Person>();
+    const existingPersonByFirst = new Map<string, Person[]>();
+    people.forEach((person) => {
+      const key = normalizeNameKey(person);
+      if (key && !existingPersonByNameKey.has(key)) {
+        existingPersonByNameKey.set(key, person);
+      }
+      const first = normalizeFirstName(person);
+      if (first) {
+        const bucket = existingPersonByFirst.get(first) || [];
+        bucket.push(person);
+        existingPersonByFirst.set(first, bucket);
+      }
+    });
+
+    const updatedPeopleById = new Map<string, Person>(people.map((person) => [person.id, person]));
+    const newPeople: Person[] = [];
+
+    incomingPeople.forEach((incomingPerson) => {
+      const key = normalizeNameKey(incomingPerson);
+      const incomingFirst = normalizeFirstName(incomingPerson);
+      const incomingLast = normalizeLastName(incomingPerson);
+      let existingMatch = key ? existingPersonByNameKey.get(key) : undefined;
+      if (!existingMatch && incomingFirst) {
+        const candidates = existingPersonByFirst.get(incomingFirst) || [];
+        if (incomingLast) {
+          existingMatch = candidates.find(
+            (candidate) => normalizeLastName(candidate) === incomingLast
+          );
+        } else if (candidates.length === 1) {
+          // If incoming record is single-name (e.g., "Donald"), attach to the unique existing first-name match.
+          existingMatch = candidates[0];
+        }
+      }
+      if (existingMatch) {
+        personIdMap.set(incomingPerson.id, existingMatch.id);
+        const mergedPerson: Person = {
+          ...existingMatch,
+          firstName: existingMatch.firstName || incomingPerson.firstName,
+          lastName: existingMatch.lastName || incomingPerson.lastName,
+          maidenName: existingMatch.maidenName || incomingPerson.maidenName,
+          birthDate: existingMatch.birthDate || incomingPerson.birthDate,
+          deathDate: existingMatch.deathDate || incomingPerson.deathDate,
+          gender: existingMatch.gender || incomingPerson.gender,
+          notes:
+            existingMatch.notes && incomingPerson.notes
+              ? existingMatch.notes.includes(incomingPerson.notes)
+                ? existingMatch.notes
+                : `${existingMatch.notes}\n${incomingPerson.notes}`
+              : existingMatch.notes || incomingPerson.notes,
+          lifeStatus: existingMatch.lifeStatus || incomingPerson.lifeStatus,
+          adoptionStatus: existingMatch.adoptionStatus || incomingPerson.adoptionStatus,
+          functionalIndicators: mergeIndicators(
+            existingMatch.functionalIndicators,
+            incomingPerson.functionalIndicators
+          ),
+          events: mergeEvents(existingMatch.events, incomingPerson.events),
+        };
+        updatedPeopleById.set(existingMatch.id, mergedPerson);
+        return;
+      }
+
+      if (!allowNewPeople) {
+        // Facts-mode merge: ignore unmatched names instead of creating noisy/duplicate people.
+        return;
+      }
+
+      const newId = nextUniqueId(incomingPerson.id, usedPersonIds);
+      personIdMap.set(incomingPerson.id, newId);
+      const nextPerson: Person = {
+        ...incomingPerson,
+        id: newId,
+        partnerships: [],
+      };
+      newPeople.push(nextPerson);
+      if (key) {
+        existingPersonByNameKey.set(key, nextPerson);
+      }
+      const first = normalizeFirstName(nextPerson);
+      if (first) {
+        const bucket = existingPersonByFirst.get(first) || [];
+        bucket.push(nextPerson);
+        existingPersonByFirst.set(first, bucket);
+      }
+    });
+
+    const basePeopleMerged = [...updatedPeopleById.values(), ...newPeople];
+
+    const partnershipPairKey = (partner1: string, partner2: string) =>
+      [partner1, partner2].sort().join('::');
+
+    const existingPartnershipByPair = new Map<string, Partnership>();
+    partnerships.forEach((partnership) => {
+      existingPartnershipByPair.set(
+        partnershipPairKey(partnership.partner1_id, partnership.partner2_id),
+        partnership
+      );
+    });
+
+    const mergedPartnerships = [...partnerships];
+    incomingPartnerships.forEach((partnership) => {
+      const partner1 = personIdMap.get(partnership.partner1_id) ?? partnership.partner1_id;
+      const partner2 = personIdMap.get(partnership.partner2_id) ?? partnership.partner2_id;
+      const pairKey = partnershipPairKey(partner1, partner2);
+      const existingMatch = existingPartnershipByPair.get(pairKey);
+      if (existingMatch) {
+        partnershipIdMap.set(partnership.id, existingMatch.id);
+        const mergedChildren = [
+          ...new Set([
+            ...(existingMatch.children || []),
+            ...(partnership.children || []).map((childId) => personIdMap.get(childId) ?? childId),
+          ]),
+        ];
+        const merged: Partnership = {
+          ...existingMatch,
+          relationshipType:
+            existingMatch.relationshipType === 'dating' ? partnership.relationshipType : existingMatch.relationshipType,
+          relationshipStatus:
+            existingMatch.relationshipStatus === 'married' && partnership.relationshipStatus !== 'married'
+              ? partnership.relationshipStatus
+              : existingMatch.relationshipStatus,
+          relationshipStartDate: existingMatch.relationshipStartDate || partnership.relationshipStartDate,
+          marriedStartDate: existingMatch.marriedStartDate || partnership.marriedStartDate,
+          separationDate: existingMatch.separationDate || partnership.separationDate,
+          divorceDate: existingMatch.divorceDate || partnership.divorceDate,
+          notes:
+            existingMatch.notes && partnership.notes
+              ? existingMatch.notes.includes(partnership.notes)
+                ? existingMatch.notes
+                : `${existingMatch.notes}\n${partnership.notes}`
+              : existingMatch.notes || partnership.notes,
+          children: mergedChildren,
+          events: mergeEvents(existingMatch.events, partnership.events),
+        };
+        const index = mergedPartnerships.findIndex((candidate) => candidate.id === existingMatch.id);
+        if (index >= 0) mergedPartnerships[index] = merged;
+        return;
+      }
+
+      const newId = nextUniqueId(partnership.id, usedPartnershipIds);
+      partnershipIdMap.set(partnership.id, newId);
+      const added: Partnership = {
+        ...partnership,
+        id: newId,
+        partner1_id: partner1,
+        partner2_id: partner2,
+        children: (partnership.children || []).map((childId) => personIdMap.get(childId) ?? childId),
+      };
+      mergedPartnerships.push(added);
+      existingPartnershipByPair.set(pairKey, added);
+    });
+
+    const lineKey = (line: EmotionalLine) =>
+      [
+        ...[line.person1_id, line.person2_id].sort(),
+        line.relationshipType,
+        line.lineStyle,
+        line.lineEnding,
+      ].join('::');
+
+    const existingLineByKey = new Map<string, EmotionalLine>();
+    emotionalLines.forEach((line) => {
+      existingLineByKey.set(lineKey(line), line);
+    });
+
+    const mergedLines = [...emotionalLines];
+    incomingLines.forEach((line) => {
+      const remappedLine: EmotionalLine = {
+        ...line,
+        person1_id: personIdMap.get(line.person1_id) ?? line.person1_id,
+        person2_id: personIdMap.get(line.person2_id) ?? line.person2_id,
+      };
+      const key = lineKey(remappedLine);
+      const existingMatch = existingLineByKey.get(key);
+      if (existingMatch) {
+        lineIdMap.set(line.id, existingMatch.id);
+        const merged: EmotionalLine = {
+          ...existingMatch,
+          status: existingMatch.status || remappedLine.status,
+          startDate: existingMatch.startDate || remappedLine.startDate,
+          endDate: existingMatch.endDate || remappedLine.endDate,
+          notes:
+            existingMatch.notes && remappedLine.notes
+              ? existingMatch.notes.includes(remappedLine.notes)
+                ? existingMatch.notes
+                : `${existingMatch.notes}\n${remappedLine.notes}`
+              : existingMatch.notes || remappedLine.notes,
+          events: mergeEvents(existingMatch.events, remappedLine.events),
+        };
+        const index = mergedLines.findIndex((candidate) => candidate.id === existingMatch.id);
+        if (index >= 0) mergedLines[index] = merged;
+        return;
+      }
+      const newId = nextUniqueId(line.id, usedLineIds);
+      lineIdMap.set(line.id, newId);
+      const added = { ...remappedLine, id: newId };
+      mergedLines.push(added);
+      existingLineByKey.set(key, added);
+    });
+
+    const peopleWithLinks: Person[] = basePeopleMerged.map((person) => {
+      const personPartnerships = mergedPartnerships
+        .filter((partnership) => partnership.partner1_id === person.id || partnership.partner2_id === person.id)
+        .map((partnership) => partnership.id);
+      const remappedParent = person.parentPartnership
+        ? partnershipIdMap.get(person.parentPartnership) ?? person.parentPartnership
+        : undefined;
+      const parentExists = remappedParent
+        ? mergedPartnerships.some((partnership) => partnership.id === remappedParent)
+        : false;
+      return {
+        ...person,
+        parentPartnership: parentExists ? remappedParent : person.parentPartnership,
+        partnerships: [...new Set([...(person.partnerships || []), ...personPartnerships])],
+      };
+    });
+
+    const normalizedImportedPeople = normalizeImportedChildLayout(peopleWithLinks, mergedPartnerships, {
+      expandParentSpan: true,
+      autoResizeDenseFamilies: true,
+    });
+    const alignedPeople = alignAllAnchors(normalizedImportedPeople, mergedPartnerships);
+    const sanitizedPeople = sanitizePeopleIndicators(alignedPeople, mergedDefinitions);
+
+    setPeople(sanitizedPeople);
+    setPartnerships(mergedPartnerships);
+    setEmotionalLines(mergedLines);
+
+    const mergedCategories = [
+      ...new Set([
+        ...eventCategories,
+        ...(Array.isArray(data.eventCategories) ? data.eventCategories : []),
+      ]),
+    ];
+    if (mergedCategories.length) {
+      setEventCategories(mergedCategories);
+    }
+
+    if (typeof data.ideasText === 'string' && data.ideasText.trim()) {
+      const importedIdeas = data.ideasText.trim();
+      setIdeasText((prev) => (prev.trim() ? `${prev}\n\n${importedIdeas}` : importedIdeas));
+    }
+  };
+
+  const completePendingImport = (mode: 'replace' | 'merge') => {
+    if (!pendingImportData) return;
+    try {
+      if (mode === 'replace') {
+        replaceDiagramState(pendingImportData, pendingImportFileName);
+      } else {
+        const allowNewPeople = pendingImportSource !== 'facts';
+        mergeDiagramState(pendingImportData, { allowNewPeople });
+      }
+      // Imported diagrams should open with all elements visible rather than staying on a prior year cutoff.
+      setTimelinePlaying(false);
+      setTimelineYear(new Date().getFullYear());
+      setTimelinePersonId(null);
+      setImportModeDialogOpen(false);
+      setPendingImportData(null);
+      setPendingImportFileName('');
+    } catch (error) {
+      alert('Error importing data');
+    }
   };
 
   const handleSave = (forcePrompt = false) => {
@@ -1629,6 +3124,57 @@ useEffect(() => {
     e.target.value = '';
   };
 
+  const handleImportLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const jsonString = event.target?.result as string;
+      try {
+        const parsed = JSON.parse(jsonString);
+        let data: DiagramImportData;
+        if (isDiagramImportData(parsed)) {
+          data = parsed;
+          beginImportFlow(data, file.name, 'import');
+          return;
+        } else if (isFactsImportData(parsed)) {
+          data = factsToDiagramImportData(parsed);
+          beginImportFlow(data, file.name, 'facts');
+          return;
+        } else {
+          throw new Error('Unsupported import format');
+        }
+      } catch (error) {
+        alert('Error parsing import JSON. Expected diagram JSON or facts JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleProcessTranscriptLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith('.pdf')) {
+      alert('Transcript processing currently supports text files (.txt, .md, .rtf). Convert PDF to text first.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const transcript = String(event.target?.result || '');
+      try {
+        const draft = parseTranscriptToDraftDiagram(transcript, file.name);
+        beginImportFlow(draft, file.name, 'transcript');
+      } catch (error) {
+        alert('Error processing transcript');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const buildInitialStateSnapshot = () => {
     const clonedPeople = initialPeople.map((person) => ({
       ...person,
@@ -1675,6 +3221,14 @@ useEffect(() => {
 
   const handleOpenFilePicker = () => {
     loadInputRef.current?.click();
+  };
+
+  const handleImportDataPicker = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleProcessTranscriptPicker = () => {
+    transcriptInputRef.current?.click();
   };
 
   const handleQuit = () => {
@@ -1874,9 +3428,14 @@ useEffect(() => {
               }
           },
           {
-            label: person.notes ? 'Disable Notes' : 'Enable Notes',
+            label: person.notes
+              ? person.notesEnabled
+                ? 'Hide Note (Use Layer)'
+                : 'Show Note'
+              : 'No Note',
             onClick: () => {
-                handleUpdatePerson(person.id, { notesEnabled: !person.notesEnabled });
+                if (!person.notes) return;
+                handleUpdatePerson(person.id, { notesEnabled: person.notesEnabled ? undefined : true });
                 setContextMenu(null);
             }
           },
@@ -2032,6 +3591,18 @@ useEffect(() => {
                     createChildrenForPartnership(partnershipId, 'stillbirth');
                     setContextMenu(null);
                 }
+            },
+            {
+              label: partnership.notes
+                ? partnership.notesEnabled
+                  ? 'Hide Note (Use Layer)'
+                  : 'Show Note'
+                : 'No Note',
+              onClick: () => {
+                  if (!partnership.notes) return;
+                  handleUpdatePartnership(partnershipId, { notesEnabled: partnership.notesEnabled ? undefined : true });
+                  setContextMenu(null);
+              }
             },
             {
               label: 'Properties',
@@ -2280,6 +3851,18 @@ useEffect(() => {
         y: e.evt.clientY,
         items: [
             {
+              label: emotionalLine.notes
+                ? emotionalLine.notesEnabled
+                  ? 'Hide Note (Use Layer)'
+                  : 'Show Note'
+                : 'No Note',
+              onClick: () => {
+                  if (!emotionalLine.notes) return;
+                  handleUpdateEmotionalLine(emotionalLineId, { notesEnabled: emotionalLine.notesEnabled ? undefined : true });
+                  setContextMenu(null);
+              }
+            },
+            {
               label: 'Properties',
               onClick: () => {
                   setPropertiesPanelItem(emotionalLine);
@@ -2459,6 +4042,8 @@ useEffect(() => {
       const fileMenuItems = [
         { label: 'New', action: handleNewFile },
         { label: 'Open', action: handleOpenFilePicker },
+        { label: 'Import Data', action: handleImportDataPicker },
+        { label: 'Process Transcript', action: handleProcessTranscriptPicker },
         { label: 'Save', action: () => handleSave(false) },
         { label: 'Save As', action: handleSaveAs },
         { label: 'Export PNG', action: handleExportPNG },
@@ -2627,6 +4212,11 @@ useEffect(() => {
             </div>
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
+            <button onClick={handleProcessTranscriptPicker}>Process Transcript</button>
+            <button onClick={handleImportDataPicker}>Import Data</button>
+            <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
+              Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
+            </button>
             <button onClick={() => setIdeasOpen(true)}>Ideas</button>
             <button onClick={() => setSessionNotesOpen(true)}>Session Notes</button>
             <button onClick={() => setHelpOpen(true)}>Help</button>
@@ -2636,6 +4226,20 @@ useEffect(() => {
               accept=".json"
               style={{ display: 'none' }}
               onChange={handleLoad}
+            />
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportLoad}
+            />
+            <input
+              ref={transcriptInputRef}
+              type="file"
+              accept=".txt,.md,.rtf,.pdf"
+              style={{ display: 'none' }}
+              onChange={handleProcessTranscriptLoad}
             />
           </div>
           <div style={{ display: 'flex' }}>
@@ -2791,6 +4395,7 @@ useEffect(() => {
                           dragGroupRef.current = null;
                         }}
                         onContextMenu={handlePersonContextMenu}
+                        onHoverChange={setHoveredPersonId}
                         functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                       />
                     );
@@ -2798,7 +4403,7 @@ useEffect(() => {
 
                   {/* Render Notes */}
                   {people.map((person) => {
-                    if (!person.notes || !person.notesEnabled) return null;
+                    if (!shouldShowPersonNote(person, notesLayerEnabled, hoveredPersonId)) return null;
                     if (!personVisibility.get(person.id)) return null;
                     const x = person.notesPosition?.x || person.x + 50;
                     const y = person.notesPosition?.y || person.y;
@@ -2814,7 +4419,7 @@ useEffect(() => {
                         x={x}
                         y={y}
                         title={person.name}
-                        text={person.notes}
+                        text={person.notes || ''}
                         anchorX={person.x}
                         anchorY={person.y}
                         fillColor={genderFill}
@@ -2823,7 +4428,7 @@ useEffect(() => {
                     );
                   })}
                   {partnerships.map((p) => {
-                    if (!p.notes) return null;
+                    if (!shouldShowPartnershipNote(p, notesLayerEnabled)) return null;
                     if (!partnershipVisibility.get(p.id)) return null;
                     const partner1 = people.find(person => person.id === p.partner1_id);
                     const partner2 = people.find(person => person.id === p.partner2_id);
@@ -2837,7 +4442,7 @@ useEffect(() => {
                         x={x}
                         y={y}
                         title={`${partner1.name}\n${partner2.name}`}
-                        text={p.notes}
+                        text={p.notes || ''}
                         anchorX={(partner1.x + partner2.x) / 2}
                         anchorY={p.horizontalConnectorY}
                         onDragEnd={(e) => handlePartnershipNoteDragEnd(p.id, e.target.x(), e.target.y())}
@@ -2845,7 +4450,7 @@ useEffect(() => {
                     );
                   })}
                   {emotionalLines.map((el) => {
-                    if (!el.notes) return null;
+                    if (!shouldShowEmotionalNote(el, notesLayerEnabled)) return null;
                     if (!emotionalVisibility.get(el.id)) return null;
                     const person1 = people.find(person => person.id === el.person1_id);
                     const person2 = people.find(person => person.id === el.person2_id);
@@ -2859,7 +4464,7 @@ useEffect(() => {
                         x={x}
                         y={y}
                         title={`${person1.name}\n${person2.name}`}
-                        text={el.notes}
+                        text={el.notes || ''}
                         anchorX={(person1.x + person2.x) / 2}
                         anchorY={(person1.y + person2.y) / 2}
                         onDragEnd={(e) => handleEmotionalLineNoteDragEnd(el.id, e.target.x(), e.target.y())}
@@ -2923,6 +4528,47 @@ useEffect(() => {
               )}
             </div>
           </div>
+          {importModeDialogOpen && pendingImportData && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2100,
+              }}
+            >
+              <div style={{ background: 'white', padding: 18, borderRadius: 10, width: 460 }}>
+                <h4 style={{ marginTop: 0 }}>
+                  {pendingImportSource === 'transcript' ? 'Transcript Processed' : 'Import Data'}
+                </h4>
+                <p style={{ marginTop: 8, marginBottom: 14, color: '#333' }}>
+                  Source: <strong>{pendingImportFileName || 'Imported data'}</strong>
+                  <br />
+                  Choose whether to replace the current family or merge this data into it.
+                </p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => completePendingImport('replace')}>
+                    Create New Family
+                  </button>
+                  <button onClick={() => completePendingImport('merge')}>
+                    Add To Existing Family
+                  </button>
+                  <button
+                    onClick={() => {
+                      setImportModeDialogOpen(false);
+                      setPendingImportData(null);
+                      setPendingImportFileName('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {settingsOpen && (
             <div
               style={{

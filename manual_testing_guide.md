@@ -77,3 +77,8 @@ I have run the application, and I believe that all of the above features should 
 9.  **Canvas Notes:**
     *   Enable notes on a person and confirm the floating card background matches their gender (blue-ish for male, pink-ish for female, pale neutral otherwise); PRL and EPL notes should remain white.
     *   Check that the dashed leader line from each note to its anchor is visibly thicker/longer than before and that dragging the note keeps the line connected.
+10. **Notes Layer + Overrides:**
+    *   Toggle the toolbar button `Notes Layer: On/Off` and confirm all non-pinned notes hide when Off and reappear when On.
+    *   Right-click a Person, PRL, and EPL that each have notes, choose `Show Note`, then switch Notes Layer Off. Those pinned notes should remain visible.
+    *   Right-click the same objects and choose `Hide Note (Use Layer)`, then confirm they follow the global Notes Layer state again.
+    *   With Notes Layer Off, hover over a person with notes and verify that note appears only during hover.

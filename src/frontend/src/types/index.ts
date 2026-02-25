@@ -56,6 +56,7 @@ export type Partnership = {
   divorceDate?: string;
   children: string[];
   notes?: string;
+  notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
   events?: EmotionalProcessEvent[];
 };
@@ -67,7 +68,7 @@ export type EmotionalLine = {
   startDate?: string;
   endDate?: string;
   status?: 'ongoing' | 'ended';
-  relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict';
+  relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict' | 'projection';
   lineStyle: 
     // Fusion
     'low' | 'medium' | 'high' | 
@@ -76,10 +77,13 @@ export type EmotionalLine = {
     // Cutoff
     'cutoff' |
     // Conflict
-    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
+    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth' |
+    // Projection
+    'projection-flow';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   color?: string;
   notes?: string;
+  notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
   events?: EmotionalProcessEvent[];
 };

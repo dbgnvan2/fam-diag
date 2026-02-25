@@ -12,6 +12,7 @@ describe('PersonNode', () => {
         onDragMove: () => {},
         onDragEnd: () => {},
         onContextMenu: () => {},
+        onHoverChange: () => {},
     };
     const definitions: FunctionalIndicatorDefinition[] = [];
     const person: Person = { id: 'p1', name: 'p1', x: 0, y: 0, gender: 'male', partnerships: [] };

@@ -11,6 +11,7 @@ interface PersonNodeProps {
   onDragMove: (e: KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, person: Person) => void;
+  onHoverChange: (personId: string | null) => void;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
 }
 
@@ -123,6 +124,7 @@ const PersonNode = ({
   onDragMove,
   onDragEnd,
   onContextMenu,
+  onHoverChange,
   functionalIndicatorDefinitions,
 }: PersonNodeProps) => {
   const isMale = person.gender === 'male';
@@ -239,6 +241,31 @@ const PersonNode = ({
     }
   };
 
+  const renderDeathOverlay = () => {
+    if (!person.deathDate) return null;
+    if (lifeStatus === 'miscarriage' || lifeStatus === 'stillbirth') return null;
+    // Keep the X fully inside each shape. Circles need inset endpoints.
+    const half = shapeSize / 2;
+    const inset = isMale ? 0 : Math.max(1, shapeSize * 0.06);
+    const extent = Math.max(0, half - inset);
+    return (
+      <>
+        <Line
+          points={[-extent, -extent, extent, extent]}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          listening={false}
+        />
+        <Line
+          points={[-extent, extent, extent, -extent]}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          listening={false}
+        />
+      </>
+    );
+  };
+
   const parseDate = (iso?: string) => {
     if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
     const date = new Date(iso);
@@ -297,6 +324,8 @@ const PersonNode = ({
       onClick={(e) => onSelect(person.id, e.evt.shiftKey)}
       onTap={() => onSelect(person.id, false)}
       onContextMenu={(e) => onContextMenu(e, person)}
+      onMouseEnter={() => onHoverChange(person.id)}
+      onMouseLeave={() => onHoverChange(null)}
     >
       {showBackground && (
         <Rect
@@ -311,6 +340,7 @@ const PersonNode = ({
         />
       )}
       {renderLifeStatus()}
+      {renderDeathOverlay()}
       <Text
         text={displayName}
         {...nameProps}
