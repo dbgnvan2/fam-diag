@@ -11,9 +11,20 @@ interface SessionNotesPanelProps {
   autosaveInfo: { primary?: string | null; backup?: string | null };
   targetOptions: { value: string; label: string }[];
   selectedTarget: string | null;
+  diagramFileName: string;
+  focusPersonName: string;
+  locationLabel: string;
+  openCandidates: { id: string; label: string }[];
+  selectedOpenCandidateId: string | null;
   onClose: () => void;
   onFieldChange: (field: 'coach' | 'client' | 'fileName' | 'issue' | 'content', value: string) => void;
   onTargetChange: (value: string) => void;
+  onNewNote: () => void;
+  onOpenCandidateChange: (id: string) => void;
+  onOpenNote: () => void;
+  onSaveNote: () => void;
+  onSaveAsNote: () => void;
+  onChooseLocation: () => void;
   onSaveJson: () => void;
   onSaveMarkdown: () => void;
   onMakeEvent: (selectedText: string) => void;
@@ -30,9 +41,20 @@ const SessionNotesPanel = ({
   autosaveInfo,
   targetOptions,
   selectedTarget,
+  diagramFileName,
+  focusPersonName,
+  locationLabel,
+  openCandidates,
+  selectedOpenCandidateId,
   onClose,
   onFieldChange,
   onTargetChange,
+  onNewNote,
+  onOpenCandidateChange,
+  onOpenNote,
+  onSaveNote,
+  onSaveAsNote,
+  onChooseLocation,
   onSaveJson,
   onSaveMarkdown,
   onMakeEvent,
@@ -112,6 +134,34 @@ const SessionNotesPanel = ({
           </button>
         </div>
         <div style={{ padding: '14px 18px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            <button onClick={onNewNote}>New</button>
+            <select
+              value={selectedOpenCandidateId ?? ''}
+              onChange={(e) => onOpenCandidateChange(e.target.value)}
+              style={{ minWidth: 230 }}
+            >
+              <option value="">Open previous session notes…</option>
+              {openCandidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.label}
+                </option>
+              ))}
+            </select>
+            <button onClick={onOpenNote} disabled={!selectedOpenCandidateId}>
+              Open
+            </button>
+            <button onClick={onSaveNote}>Save</button>
+            <button onClick={onSaveAsNote}>Save As</button>
+            <button onClick={onChooseLocation}>Location</button>
+          </div>
+          <div style={{ marginBottom: 10, fontSize: 12, color: '#4a4a4a' }}>
+            Diagram: <strong>{diagramFileName || 'Unnamed diagram'}</strong>
+            {' · '}
+            Focus: <strong>{focusPersonName || 'General'}</strong>
+            {' · '}
+            Location: <strong>{locationLabel}</strong>
+          </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <label style={{ flex: 1 }}>
               <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#4b4b4b' }}>Coach Name</span>
@@ -211,7 +261,7 @@ const SessionNotesPanel = ({
                 cursor: 'pointer',
               }}
             >
-              Save Session Note
+              Export JSON
             </button>
             <button
               onClick={onSaveMarkdown}
@@ -223,7 +273,7 @@ const SessionNotesPanel = ({
                 cursor: 'pointer',
               }}
             >
-              Save as Markdown
+              Export Markdown
             </button>
           </div>
           <div style={{ marginTop: 16, fontSize: 12, color: '#555' }}>

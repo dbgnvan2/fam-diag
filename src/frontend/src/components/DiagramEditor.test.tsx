@@ -90,4 +90,15 @@ describe('DiagramEditor', () => {
         fireEvent.click(playBtn);
         expect(playBtn).toHaveTextContent(/pause/i);
     });
+
+    it('renders transcripts and timeline dropdown menus', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /transcripts/i }));
+        expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Import Data' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /timeline/i }));
+        expect(screen.getByRole('button', { name: 'Export Person Events' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Import Person Events' })).toBeInTheDocument();
+    });
 });

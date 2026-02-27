@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fam-diag.local/schema/session-capture-v1.json",
+  "title": "Family Diagram Session Capture Import",
+  "type": "object",
+  "required": ["kind", "version", "operations"],
+  "properties": {
+    "kind": { "const": "fam-diag-session-capture" },
+    "version": { "const": 1 },
+    "sessionId": { "type": "string" },
+    "transcriptName": { "type": "string" },
+    "baseDiagramFileName": { "type": "string" },
+    "ambiguityNotes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" }
+    }
+  },
+  "$defs": {
+    "matchHints": {
+      "type": "object",
+      "properties": {
+        "personId": { "type": "string" },
+        "personName": { "type": "string" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "birthYear": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "sourceSpan": {
+      "type": "object",
+      "properties": {
+        "startLine": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "quote": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "operation": {
+      "type": "object",
+      "required": ["id", "type", "payload"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["upsert_person", "add_person_event", "upsert_partnership"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "recommendedAction": {
+          "type": "string",
+          "enum": ["apply", "review", "skip"]
+        },
+        "ambiguity": { "type": "string" },
+        "matchHints": { "$ref": "#/$defs/matchHints" },
+        "source": { "$ref": "#/$defs/sourceSpan" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

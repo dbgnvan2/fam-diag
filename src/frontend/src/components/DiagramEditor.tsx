@@ -102,6 +102,7 @@ const STORAGE_KEYS = {
   eventCategories: 'family-diagram-event-categories',
   indicatorDefinitions: 'family-diagram-functional-indicators',
   ideas: 'family-diagram-ideas',
+  sessionNotesLibrary: 'family-diagram-session-notes-library',
 } as const;
 const EVENT_CLASS_LABELS: Record<EventClass, string> = {
   individual: 'Individual',
@@ -117,6 +118,19 @@ const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
 const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS[key], value);
+};
+
+type SessionNoteFileRecord = {
+  id: string;
+  noteFileName: string;
+  diagramFileName: string;
+  focusPersonName: string;
+  coachName: string;
+  clientName: string;
+  presentingIssue: string;
+  noteContent: string;
+  startedAt: number;
+  updatedAt: number;
 };
 
 type TimelineEntry = {
@@ -145,7 +159,7 @@ const HELP_SECTIONS = [
       'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
       'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay births, deaths, PRL milestones, EPL start/end dates, and logged events. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
-      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Person Event export/import, Event Creator launch, or Quit; every drawing shows “Family Diagram Maker” plus the active file name.',
+      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Event Creator launch, or Quit. Use Transcripts ▾ for Process + Import Data, and Timeline ▾ for Export/Import Person Events.',
     ],
   },
   {
@@ -179,7 +193,7 @@ const HELP_SECTIONS = [
   {
     title: 'Session Notes & Timelines',
     tips: [
-      'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes that auto-save primary/backup files every 5 minutes.',
+      'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes. Use New/Open/Save/Save As/Location to manage note files separately from diagram JSON.',
       'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
       'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
     ],
@@ -299,6 +313,34 @@ type FactsImportData = {
     events?: Array<{ person?: string; type?: string; year?: number }>;
   };
   uncertainties?: string[];
+};
+
+type SessionCaptureMatchHints = {
+  personId?: string;
+  personName?: string;
+  aliases?: string[];
+  birthYear?: number;
+};
+
+type SessionCaptureOperation = {
+  id: string;
+  type: 'upsert_person' | 'add_person_event' | 'upsert_partnership';
+  confidence?: number;
+  ambiguity?: string;
+  recommendedAction?: 'apply' | 'review' | 'skip';
+  source?: { startLine?: number; endLine?: number; quote?: string };
+  matchHints?: SessionCaptureMatchHints;
+  payload?: Record<string, any>;
+};
+
+type SessionCaptureImportData = {
+  kind: 'fam-diag-session-capture';
+  version: 1;
+  sessionId?: string;
+  transcriptName?: string;
+  baseDiagramFileName?: string;
+  ambiguityNotes?: string[];
+  operations: SessionCaptureOperation[];
 };
 
 const sentenceCaseName = (value: string) =>
@@ -1129,6 +1171,16 @@ const isFactsImportData = (data: unknown): data is FactsImportData => {
   return !!typed && typeof typed === 'object' && (Array.isArray(typed.relationships) || !!typed.family);
 };
 
+const isSessionCaptureImportData = (data: unknown): data is SessionCaptureImportData => {
+  if (!data || typeof data !== 'object') return false;
+  const raw = data as SessionCaptureImportData;
+  if (raw.kind !== 'fam-diag-session-capture' || raw.version !== 1) return false;
+  if (!Array.isArray(raw.operations)) return false;
+  return raw.operations.every(
+    (operation) => operation && typeof operation.id === 'string' && typeof operation.type === 'string'
+  );
+};
+
 const normalizeRelationshipType = (value?: string): Partnership['relationshipType'] => {
   const raw = (value || '').toLowerCase();
   if (raw.includes('married')) return 'married';
@@ -1406,6 +1458,8 @@ const DiagramEditor = () => {
   const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
   const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [transcriptsMenuOpen, setTranscriptsMenuOpen] = useState(false);
+  const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] =
     useState<FunctionalIndicatorDefinition[]>(initialIndicatorDefinitions);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
@@ -1444,6 +1498,9 @@ const DiagramEditor = () => {
   const [sessionNoteIssue, setSessionNoteIssue] = useState('');
   const [sessionNoteContent, setSessionNoteContent] = useState('');
   const [sessionNoteStartedAt, setSessionNoteStartedAt] = useState<number | null>(null);
+  const [sessionNoteRecordId, setSessionNoteRecordId] = useState<string | null>(null);
+  const [sessionSaveLocationLabel, setSessionSaveLocationLabel] = useState('Browser Downloads');
+  const [sessionOpenCandidateId, setSessionOpenCandidateId] = useState<string | null>(null);
   const [sessionAutosaveInfo, setSessionAutosaveInfo] = useState<{ primary?: string | null; backup?: string | null }>({ primary: null, backup: null });
   const [sessionNotesTarget, setSessionNotesTarget] = useState<string | null>(null);
   const [sessionEventDraft, setSessionEventDraft] = useState<EmotionalProcessEvent | null>(null);
@@ -1454,6 +1511,10 @@ const DiagramEditor = () => {
   const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
   const [pendingImportFileName, setPendingImportFileName] = useState('');
   const [pendingImportSource, setPendingImportSource] = useState<'import' | 'transcript' | 'facts'>('import');
+  const [sessionCaptureDialogOpen, setSessionCaptureDialogOpen] = useState(false);
+  const [pendingSessionCaptureData, setPendingSessionCaptureData] = useState<SessionCaptureImportData | null>(null);
+  const [pendingSessionCaptureFileName, setPendingSessionCaptureFileName] = useState('');
+  const [sessionCaptureSelections, setSessionCaptureSelections] = useState<Record<string, boolean>>({});
   const stageRef = useRef<StageType>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 360;
@@ -1481,6 +1542,8 @@ const DiagramEditor = () => {
     })
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
+  const transcriptsMenuRef = useRef<HTMLDivElement | null>(null);
+  const timelineMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importPersonEventsInputRef = useRef<HTMLInputElement | null>(null);
@@ -1535,7 +1598,6 @@ const DiagramEditor = () => {
     });
     return options;
   }, [people, partnerships, emotionalLines]);
-
   const timelineEntries = useMemo(() => {
     const entries: TimelineEntry[] = [];
     const addEntry = (date: string | undefined | null, label: string) => {
@@ -1861,20 +1923,90 @@ const DiagramEditor = () => {
     });
     return meta;
   }, [allEmotionalLines]);
+  function parseSessionTargetValue(value: string | null) {
+    if (!value) return null;
+    const [type, id] = value.split(':');
+    if (!type || !id) return null;
+    if (type === 'person' || type === 'partnership' || type === 'emotional') {
+      return { type: type as 'person' | 'partnership' | 'emotional', id };
+    }
+    return null;
+  }
+  const sessionFocusPersonName = useMemo(() => {
+    const target = sessionNotesTarget ? parseSessionTargetValue(sessionNotesTarget) : null;
+    if (!target) return '';
+    if (target.type === 'person') {
+      return people.find((person) => person.id === target.id)?.name || '';
+    }
+    if (target.type === 'partnership') {
+      const prl = partnerships.find((entry) => entry.id === target.id);
+      const p1 = people.find((person) => person.id === prl?.partner1_id)?.name || '';
+      const p2 = people.find((person) => person.id === prl?.partner2_id)?.name || '';
+      return [p1, p2].filter(Boolean).join(' + ');
+    }
+    const line = emotionalLines.find((entry) => entry.id === target.id);
+    const p1 = people.find((person) => person.id === line?.person1_id)?.name || '';
+    const p2 = people.find((person) => person.id === line?.person2_id)?.name || '';
+    return [p1, p2].filter(Boolean).join(' ↔ ');
+  }, [sessionNotesTarget, people, partnerships, emotionalLines]);
+
+  const getSessionNotesLibrary = useCallback((): SessionNoteFileRecord[] => {
+    const raw = getStoredValue('sessionNotesLibrary');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as SessionNoteFileRecord[]) : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const setSessionNotesLibrary = useCallback((records: SessionNoteFileRecord[]) => {
+    setStoredValue('sessionNotesLibrary', JSON.stringify(records));
+  }, []);
+  const sessionOpenCandidates = (() => {
+    const library = getSessionNotesLibrary();
+    const focus = sessionFocusPersonName.trim().toLowerCase();
+    const filtered = library.filter((entry) => {
+      if ((entry.diagramFileName || '').trim() !== (fileName || '').trim()) return false;
+      if (!focus) return true;
+      return (entry.focusPersonName || '').trim().toLowerCase() === focus;
+    });
+    filtered.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    return filtered.map((entry) => ({
+      id: entry.id,
+      label: `${entry.noteFileName} · ${new Date(entry.updatedAt || Date.now()).toLocaleString()}`,
+    }));
+  })();
+
   const composeSessionNotePayload = useCallback(
     () => ({
+      id: sessionNoteRecordId || nanoid(),
       coachName: sessionNoteCoachName,
       clientName: sessionNoteClientName,
       noteFileName: sessionNoteFileName,
+      diagramFileName: fileName,
+      focusPersonName: sessionFocusPersonName,
       presentingIssue: sessionNoteIssue,
       noteContent: sessionNoteContent,
       startedAt: sessionNoteStartedAt ?? Date.now(),
       updatedAt: Date.now(),
     }),
-    [sessionNoteCoachName, sessionNoteClientName, sessionNoteFileName, sessionNoteIssue, sessionNoteContent, sessionNoteStartedAt]
+    [
+      sessionNoteRecordId,
+      sessionNoteCoachName,
+      sessionNoteClientName,
+      sessionNoteFileName,
+      fileName,
+      sessionFocusPersonName,
+      sessionNoteIssue,
+      sessionNoteContent,
+      sessionNoteStartedAt,
+    ]
   );
   const sessionAutosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionAutosavePhaseRef = useRef<'backup' | 'file'>('backup');
+  const sessionSaveDirectoryHandleRef = useRef<any>(null);
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
   const serializeDiagram = useCallback(
     (
@@ -1924,15 +2056,22 @@ const DiagramEditor = () => {
   }, [people, partnerships, emotionalLines, triangles, isDirty, serializeDiagram]);
 
   useEffect(() => {
-    if (!fileMenuOpen) return;
+    if (!fileMenuOpen && !transcriptsMenuOpen && !timelineMenuOpen) return;
     const handleClick = (event: MouseEvent) => {
-      if (fileMenuRef.current && !fileMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (fileMenuRef.current && !fileMenuRef.current.contains(target)) {
         setFileMenuOpen(false);
+      }
+      if (transcriptsMenuRef.current && !transcriptsMenuRef.current.contains(target)) {
+        setTranscriptsMenuOpen(false);
+      }
+      if (timelineMenuRef.current && !timelineMenuRef.current.contains(target)) {
+        setTimelineMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [fileMenuOpen]);
+  }, [fileMenuOpen, transcriptsMenuOpen, timelineMenuOpen]);
 
   useEffect(() => {
     setStoredValue('fileName', fileName);
@@ -1995,6 +2134,7 @@ const DiagramEditor = () => {
       setSessionNoteStartedAt(Date.now());
       return;
     }
+    if (sessionNoteRecordId) return;
     const expected = buildSessionNoteFileName(sessionNoteCoachName, sessionNoteClientName, sessionNoteStartedAt);
     if (sessionNoteFileName !== expected) {
       setSessionNoteFileName(expected);
@@ -2005,6 +2145,7 @@ const DiagramEditor = () => {
     sessionNoteClientName,
     sessionNoteStartedAt,
     sessionNoteFileName,
+    sessionNoteRecordId,
     buildSessionNoteFileName,
   ]);
   useEffect(() => {
@@ -2045,6 +2186,18 @@ const DiagramEditor = () => {
   }, [sessionNotesTarget, sessionTargetOptions]);
   useEffect(() => {
     if (!sessionNotesOpen) return;
+    if (!sessionOpenCandidates.length) {
+      setSessionOpenCandidateId(null);
+      return;
+    }
+    if (!sessionOpenCandidateId) {
+      setSessionOpenCandidateId(sessionOpenCandidates[0].id);
+    } else if (!sessionOpenCandidates.some((candidate) => candidate.id === sessionOpenCandidateId)) {
+      setSessionOpenCandidateId(sessionOpenCandidates[0].id);
+    }
+  }, [sessionNotesOpen, sessionOpenCandidates, sessionOpenCandidateId]);
+  useEffect(() => {
+    if (!sessionNotesOpen) return;
     if (selectedPeopleIds.length === 1) {
       setSessionNotesTarget(`person:${selectedPeopleIds[0]}`);
     } else if (selectedPartnershipId) {
@@ -2053,16 +2206,6 @@ const DiagramEditor = () => {
       setSessionNotesTarget(`emotional:${selectedEmotionalLineId}`);
     }
   }, [sessionNotesOpen, selectedPeopleIds, selectedPartnershipId, selectedEmotionalLineId]);
-
-  const parseSessionTargetValue = (value: string | null) => {
-    if (!value) return null;
-    const [type, id] = value.split(':');
-    if (!type || !id) return null;
-    if (type === 'person' || type === 'partnership' || type === 'emotional') {
-      return { type: type as 'person' | 'partnership' | 'emotional', id };
-    }
-    return null;
-  };
 
   const handleSessionFieldChange = (field: 'coach' | 'client' | 'fileName' | 'issue' | 'content', value: string) => {
     switch (field) {
@@ -2086,6 +2229,115 @@ const DiagramEditor = () => {
 
   const handleSessionNotesTargetChange = (value: string) => {
     setSessionNotesTarget(value || null);
+  };
+
+  const writeSessionNoteToLocation = async (fileNameValue: string, content: string, mimeType: string) => {
+    const handle = sessionSaveDirectoryHandleRef.current;
+    if (!handle) return false;
+    try {
+      const fileHandle = await handle.getFileHandle(fileNameValue, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(new Blob([content], { type: mimeType }));
+      await writable.close();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const persistSessionNoteRecord = async (saveAs = false) => {
+    const payload = composeSessionNotePayload();
+    let nextFileName = payload.noteFileName || 'session-note.json';
+    if (saveAs) {
+      const entered = prompt('Session note filename (.json):', nextFileName) || '';
+      if (!entered.trim()) return null;
+      nextFileName = entered.trim().toLowerCase().endsWith('.json')
+        ? entered.trim()
+        : `${entered.trim()}.json`;
+      setSessionNoteFileName(nextFileName);
+    }
+    const record: SessionNoteFileRecord = {
+      id: saveAs || !sessionNoteRecordId ? nanoid() : sessionNoteRecordId,
+      noteFileName: nextFileName,
+      diagramFileName: fileName,
+      focusPersonName: sessionFocusPersonName || '',
+      coachName: payload.coachName || '',
+      clientName: payload.clientName || '',
+      presentingIssue: payload.presentingIssue || '',
+      noteContent: payload.noteContent || '',
+      startedAt: payload.startedAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+    const library = getSessionNotesLibrary();
+    const withoutCurrent = library.filter((entry) => entry.id !== record.id);
+    setSessionNotesLibrary([...withoutCurrent, record]);
+    setSessionNoteRecordId(record.id);
+
+    const serialized = JSON.stringify(record, null, 2);
+    const savedToLocation = await writeSessionNoteToLocation(record.noteFileName, serialized, 'application/json');
+    if (!savedToLocation) {
+      const blob = new Blob([serialized], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = record.noteFileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+    return record;
+  };
+
+  const handleSessionNotesNew = () => {
+    const startedAt = Date.now();
+    setSessionNoteRecordId(null);
+    setSessionNoteCoachName('');
+    setSessionNoteClientName('');
+    setSessionNoteIssue('');
+    setSessionNoteContent('');
+    setSessionNoteStartedAt(startedAt);
+    setSessionNoteFileName(buildSessionNoteFileName('', '', startedAt));
+    setSessionOpenCandidateId(null);
+  };
+
+  const handleSessionOpenCandidateChange = (id: string) => {
+    setSessionOpenCandidateId(id || null);
+  };
+
+  const handleSessionOpenNote = () => {
+    if (!sessionOpenCandidateId) return;
+    const library = getSessionNotesLibrary();
+    const record = library.find((entry) => entry.id === sessionOpenCandidateId);
+    if (!record) return;
+    setSessionNoteRecordId(record.id);
+    setSessionNoteCoachName(record.coachName || '');
+    setSessionNoteClientName(record.clientName || '');
+    setSessionNoteIssue(record.presentingIssue || '');
+    setSessionNoteContent(record.noteContent || '');
+    setSessionNoteStartedAt(record.startedAt || Date.now());
+    setSessionNoteFileName(record.noteFileName || 'session-note.json');
+  };
+
+  const handleSessionChooseLocation = async () => {
+    const picker = (window as any).showDirectoryPicker;
+    if (typeof picker !== 'function') {
+      alert('Directory picker is not supported in this browser. Files will download to your default location.');
+      return;
+    }
+    try {
+      const handle = await picker();
+      sessionSaveDirectoryHandleRef.current = handle;
+      setSessionSaveLocationLabel(handle.name || 'Selected folder');
+    } catch {
+      // user cancelled
+    }
+  };
+
+  const handleSessionSave = async () => {
+    await persistSessionNoteRecord(false);
+  };
+
+  const handleSessionSaveAs = async () => {
+    await persistSessionNoteRecord(true);
   };
 
   const handleSaveSessionNoteJson = () => {
@@ -3109,6 +3361,215 @@ useEffect(() => {
     setImportModeDialogOpen(true);
   };
 
+  const beginSessionCaptureFlow = (data: SessionCaptureImportData, sourceFileName: string) => {
+    const defaults: Record<string, boolean> = {};
+    data.operations.forEach((operation) => {
+      const confidence = operation.confidence ?? 0.5;
+      const recommendApply = operation.recommendedAction ? operation.recommendedAction !== 'skip' : true;
+      defaults[operation.id] = recommendApply && confidence >= 0.7 && !operation.ambiguity;
+    });
+    setPendingSessionCaptureData(data);
+    setPendingSessionCaptureFileName(sourceFileName);
+    setSessionCaptureSelections(defaults);
+    setSessionCaptureDialogOpen(true);
+  };
+
+  const findPersonIndexForSessionOp = (
+    peopleList: Person[],
+    operation: SessionCaptureOperation
+  ): number => {
+    const normalize = (value?: string) =>
+      (value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    const hints = operation.matchHints;
+    const payloadName =
+      (operation.payload?.personName as string | undefined) ||
+      (operation.payload?.name as string | undefined);
+    if (hints?.personId) {
+      const byId = peopleList.findIndex((person) => person.id === hints.personId);
+      if (byId >= 0) return byId;
+    }
+    const targetNames = [
+      hints?.personName,
+      ...(hints?.aliases || []),
+      payloadName,
+    ]
+      .filter(Boolean)
+      .map((entry) => normalize(entry as string))
+      .filter(Boolean);
+    if (!targetNames.length) return -1;
+    return peopleList.findIndex((person) => {
+      const personName = normalize(person.name || [person.firstName, person.lastName].filter(Boolean).join(' '));
+      return targetNames.some((name) => name === personName || personName.startsWith(`${name} `));
+    });
+  };
+
+  const completeSessionCaptureImport = () => {
+    if (!pendingSessionCaptureData) return;
+    const selectedOps = pendingSessionCaptureData.operations.filter(
+      (operation) => sessionCaptureSelections[operation.id]
+    );
+    if (!selectedOps.length) {
+      setSessionCaptureDialogOpen(false);
+      setPendingSessionCaptureData(null);
+      setPendingSessionCaptureFileName('');
+      setSessionCaptureSelections({});
+      return;
+    }
+
+    const dedupeEventFingerprint = (personId: string, event: EmotionalProcessEvent) =>
+      `${personId}|${event.date || ''}|${(event.category || '').trim().toLowerCase()}|${(event.observations || '').trim().toLowerCase()}`;
+
+    const nextPeople = [...people];
+    const existingFingerprints = new Set<string>();
+    nextPeople.forEach((person) => {
+      (person.events || []).forEach((event) => {
+        existingFingerprints.add(dedupeEventFingerprint(person.id, event));
+      });
+    });
+
+    selectedOps.forEach((operation) => {
+      if (operation.type === 'upsert_person') {
+        const matchedIndex = findPersonIndexForSessionOp(nextPeople, operation);
+        const payload = operation.payload || {};
+        if (matchedIndex >= 0) {
+          const existing = nextPeople[matchedIndex];
+          const incomingNotes = typeof payload.notes === 'string' ? payload.notes.trim() : '';
+          const mergedNotes =
+            incomingNotes && existing.notes && !existing.notes.includes(incomingNotes)
+              ? `${existing.notes}\n${incomingNotes}`
+              : existing.notes || incomingNotes || undefined;
+          nextPeople[matchedIndex] = {
+            ...existing,
+            name: existing.name || payload.name || payload.personName || existing.name,
+            firstName: existing.firstName || payload.firstName,
+            lastName: existing.lastName || payload.lastName,
+            birthDate: existing.birthDate || payload.birthDate,
+            deathDate: existing.deathDate || payload.deathDate,
+            gender: existing.gender || payload.gender,
+            notes: mergedNotes,
+          };
+          return;
+        }
+        const baseName = (payload.name || payload.personName || operation.matchHints?.personName || '').trim();
+        if (!baseName) return;
+        const newPerson: Person = {
+          id: (operation.matchHints?.personId as string) || nanoid(),
+          name: baseName,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          birthDate: payload.birthDate,
+          deathDate: payload.deathDate,
+          gender: payload.gender || inferGenderFromName(baseName) || 'female',
+          notes: payload.notes,
+          x: 120 + (nextPeople.length % 10) * 90,
+          y: 140 + Math.floor(nextPeople.length / 10) * 90,
+          partnerships: [],
+          events: [],
+        };
+        nextPeople.push(newPerson);
+        return;
+      }
+
+      if (operation.type === 'add_person_event') {
+        const matchedIndex = findPersonIndexForSessionOp(nextPeople, operation);
+        const payload = operation.payload || {};
+        let personIndex = matchedIndex;
+        if (personIndex < 0) {
+          const fallbackName =
+            (operation.matchHints?.personName || payload.personName || payload.name || '').trim();
+          if (!fallbackName) return;
+          const newPerson: Person = {
+            id: (operation.matchHints?.personId as string) || nanoid(),
+            name: fallbackName,
+            gender: inferGenderFromName(fallbackName) || 'female',
+            x: 120 + (nextPeople.length % 10) * 90,
+            y: 140 + Math.floor(nextPeople.length / 10) * 90,
+            partnerships: [],
+            events: [],
+          };
+          nextPeople.push(newPerson);
+          personIndex = nextPeople.length - 1;
+        }
+        const target = nextPeople[personIndex];
+        const event: EmotionalProcessEvent = {
+          id: payload.id || nanoid(),
+          date: payload.date || new Date().toISOString().slice(0, 10),
+          category: payload.category || 'Session Event',
+          statusLabel: payload.statusLabel || '',
+          intensity: typeof payload.intensity === 'number' ? payload.intensity : 0,
+          frequency: typeof payload.frequency === 'number' ? payload.frequency : 0,
+          impact: typeof payload.impact === 'number' ? payload.impact : 0,
+          howWell: typeof payload.howWell === 'number' ? payload.howWell : 5,
+          otherPersonName: payload.otherPersonName || '',
+          primaryPersonName: target.name || payload.primaryPersonName || '',
+          wwwwh: payload.wwwwh || '',
+          observations: payload.observations || payload.notes || '',
+          priorEventsNote: payload.priorEventsNote || '',
+          reflectionsNote: payload.reflectionsNote || '',
+          isNodalEvent: !!payload.isNodalEvent,
+          createdAt: payload.createdAt || Date.now(),
+          eventClass: 'individual',
+        };
+        const fingerprint = dedupeEventFingerprint(target.id, event);
+        if (existingFingerprints.has(fingerprint)) return;
+        existingFingerprints.add(fingerprint);
+        nextPeople[personIndex] = {
+          ...target,
+          events: [...(target.events || []), event],
+        };
+        return;
+      }
+
+      if (operation.type === 'upsert_partnership') {
+        const payload = operation.payload || {};
+        const p1Op: SessionCaptureOperation = {
+          ...operation,
+          type: 'upsert_person',
+          payload: { personName: payload.partner1Name || payload.partner1 },
+          matchHints: { personName: payload.partner1Name || payload.partner1 },
+        };
+        const p2Op: SessionCaptureOperation = {
+          ...operation,
+          type: 'upsert_person',
+          payload: { personName: payload.partner2Name || payload.partner2 },
+          matchHints: { personName: payload.partner2Name || payload.partner2 },
+        };
+        [p1Op, p2Op].forEach((synthetic, syntheticIndex) => {
+          const matchedIndex = findPersonIndexForSessionOp(nextPeople, synthetic);
+          if (matchedIndex >= 0) return;
+          const name = (synthetic.payload?.personName as string | undefined)?.trim();
+          if (!name) return;
+          nextPeople.push({
+            id: nanoid(),
+            name,
+            gender: inferGenderFromName(name) || (syntheticIndex === 0 ? 'male' : 'female'),
+            x: 120 + (nextPeople.length % 10) * 90,
+            y: 140 + Math.floor(nextPeople.length / 10) * 90,
+            partnerships: [],
+            events: [],
+          });
+        });
+      }
+    });
+
+    setPeopleAligned(() => nextPeople);
+
+    if ((pendingSessionCaptureData.ambiguityNotes || []).length) {
+      const imported = pendingSessionCaptureData.ambiguityNotes!.join('\n');
+      setIdeasText((prev) => (prev.trim() ? `${prev}\n\nSession Import Ambiguities:\n${imported}` : `Session Import Ambiguities:\n${imported}`));
+    }
+
+    setSessionCaptureDialogOpen(false);
+    setPendingSessionCaptureData(null);
+    setPendingSessionCaptureFileName('');
+    setSessionCaptureSelections({});
+    alert(`Applied ${selectedOps.length} reviewed session operations.`);
+  };
+
   const mergeDiagramState = (data: DiagramImportData, options?: { allowNewPeople?: boolean }) => {
     const allowNewPeople = options?.allowNewPeople ?? true;
     if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
@@ -3576,6 +4037,9 @@ useEffect(() => {
           data = parsed;
           beginImportFlow(data, file.name, 'import');
           return;
+        } else if (isSessionCaptureImportData(parsed)) {
+          beginSessionCaptureFlow(parsed, file.name);
+          return;
         } else if (isTimelineJson(parsed) || isPersonEventBundle(parsed)) {
           const bundle = isTimelineJson(parsed) ? timelineJsonToBundle(parsed) : parsed;
           const result = mergePersonEventsFromBundle(people, bundle);
@@ -3597,7 +4061,7 @@ useEffect(() => {
           throw new Error('Unsupported import format');
         }
       } catch (error) {
-        alert('Error parsing import JSON. Expected diagram JSON, timeline/person-events JSON, or facts JSON.');
+        alert('Error parsing import JSON. Expected diagram JSON, session-capture JSON, timeline/person-events JSON, or facts JSON.');
       }
     };
     reader.readAsText(file);
@@ -5076,8 +5540,18 @@ useEffect(() => {
         { label: 'Export SVG', action: handleExportSVG },
         { label: 'Quit', action: handleQuit },
       ];
+      const transcriptsMenuItems = [
+        { label: 'Process', action: handleProcessTranscriptPicker },
+        { label: 'Import Data', action: handleImportDataPicker },
+      ];
+      const timelineMenuItems = [
+        { label: 'Export Person Events', action: handleExportPersonEvents },
+        { label: 'Import Person Events', action: handleImportPersonEventsPicker },
+      ];
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
+        setTranscriptsMenuOpen(false);
+        setTimelineMenuOpen(false);
         action();
       };
 
@@ -5238,10 +5712,110 @@ useEffect(() => {
             </div>
             <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
             <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
-            <button onClick={handleProcessTranscriptPicker}>Process Transcript</button>
-            <button onClick={handleImportDataPicker}>Import Data</button>
-            <button onClick={handleImportPersonEventsPicker}>Import Person Events</button>
-            <button onClick={handleExportPersonEvents}>Export Person Events</button>
+            <div style={{ position: 'relative' }} ref={transcriptsMenuRef}>
+              <button
+                onClick={() => {
+                  setTranscriptsMenuOpen((prev) => !prev);
+                  setTimelineMenuOpen(false);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 4,
+                  border: '1px solid #b0b0b0',
+                  background: '#fff',
+                  cursor: 'pointer',
+                }}
+                aria-haspopup="menu"
+                aria-expanded={transcriptsMenuOpen}
+              >
+                Transcripts ▾
+              </button>
+              {transcriptsMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    background: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                    minWidth: 170,
+                    zIndex: 1000,
+                  }}
+                >
+                  {transcriptsMenuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleFileMenuAction(item.action)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ position: 'relative' }} ref={timelineMenuRef}>
+              <button
+                onClick={() => {
+                  setTimelineMenuOpen((prev) => !prev);
+                  setTranscriptsMenuOpen(false);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 4,
+                  border: '1px solid #b0b0b0',
+                  background: '#fff',
+                  cursor: 'pointer',
+                }}
+                aria-haspopup="menu"
+                aria-expanded={timelineMenuOpen}
+              >
+                Timeline ▾
+              </button>
+              {timelineMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    background: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                    minWidth: 220,
+                    zIndex: 1000,
+                  }}
+                >
+                  {timelineMenuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleFileMenuAction(item.action)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={handleOpenEventCreator}>Event Creator</button>
             <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
               Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
@@ -5653,6 +6227,141 @@ useEffect(() => {
                       setImportModeDialogOpen(false);
                       setPendingImportData(null);
                       setPendingImportFileName('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {sessionCaptureDialogOpen && pendingSessionCaptureData && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2105,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 10, width: 760, maxHeight: '84vh', overflow: 'auto' }}>
+                <h4 style={{ marginTop: 0 }}>Session Capture Import Review</h4>
+                <p style={{ marginTop: 6, color: '#333', fontSize: 13 }}>
+                  Source: <strong>{pendingSessionCaptureFileName || 'Session capture JSON'}</strong>
+                  <br />
+                  Review each extracted operation before applying to this family. Low-confidence or ambiguous items default to off.
+                </p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <button
+                    onClick={() =>
+                      setSessionCaptureSelections(
+                        Object.fromEntries(
+                          pendingSessionCaptureData.operations.map((operation) => [operation.id, true])
+                        )
+                      )
+                    }
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={() =>
+                      setSessionCaptureSelections(
+                        Object.fromEntries(
+                          pendingSessionCaptureData.operations.map((operation) => [operation.id, false])
+                        )
+                      )
+                    }
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {pendingSessionCaptureData.operations.map((operation) => {
+                    const confidence = operation.confidence ?? 0.5;
+                    const payloadPreview = JSON.stringify(operation.payload || {}, null, 2);
+                    return (
+                      <label
+                        key={operation.id}
+                        style={{
+                          border: '1px solid #d6dbe8',
+                          borderRadius: 8,
+                          padding: 10,
+                          background: sessionCaptureSelections[operation.id] ? '#f7fbff' : '#fff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 6,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!sessionCaptureSelections[operation.id]}
+                            onChange={(event) =>
+                              setSessionCaptureSelections((prev) => ({
+                                ...prev,
+                                [operation.id]: event.target.checked,
+                              }))
+                            }
+                          />
+                          <strong>{operation.type}</strong>
+                          <span style={{ fontSize: 12, color: '#555' }}>
+                            confidence {Math.round(confidence * 100)}%
+                          </span>
+                          {operation.recommendedAction && (
+                            <span style={{ fontSize: 12, color: '#37527a' }}>
+                              recommended: {operation.recommendedAction}
+                            </span>
+                          )}
+                        </div>
+                        {operation.ambiguity && (
+                          <div style={{ color: '#8a4b00', fontSize: 12 }}>
+                            Ambiguity: {operation.ambiguity}
+                          </div>
+                        )}
+                        {operation.source?.quote && (
+                          <div style={{ fontSize: 12, color: '#444' }}>
+                            Source: "{operation.source.quote}"
+                          </div>
+                        )}
+                        <pre
+                          style={{
+                            margin: 0,
+                            fontSize: 11,
+                            background: '#f6f7fb',
+                            border: '1px solid #e2e7f2',
+                            borderRadius: 6,
+                            padding: 8,
+                            maxHeight: 120,
+                            overflow: 'auto',
+                          }}
+                        >
+                          {payloadPreview}
+                        </pre>
+                      </label>
+                    );
+                  })}
+                </div>
+                {(pendingSessionCaptureData.ambiguityNotes || []).length > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#8a4b00' }}>
+                    Global ambiguities:
+                    <ul style={{ margin: '6px 0 0 20px' }}>
+                      {pendingSessionCaptureData.ambiguityNotes!.map((note, index) => (
+                        <li key={`${note}-${index}`}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                  <button onClick={completeSessionCaptureImport}>Apply Selected</button>
+                  <button
+                    onClick={() => {
+                      setSessionCaptureDialogOpen(false);
+                      setPendingSessionCaptureData(null);
+                      setPendingSessionCaptureFileName('');
+                      setSessionCaptureSelections({});
                     }}
                   >
                     Cancel
@@ -6306,9 +7015,20 @@ useEffect(() => {
             autosaveInfo={sessionAutosaveInfo}
             targetOptions={sessionTargetOptions}
             selectedTarget={sessionNotesTarget}
+            diagramFileName={fileName}
+            focusPersonName={sessionFocusPersonName}
+            locationLabel={sessionSaveLocationLabel}
+            openCandidates={sessionOpenCandidates}
+            selectedOpenCandidateId={sessionOpenCandidateId}
             onClose={() => setSessionNotesOpen(false)}
             onFieldChange={handleSessionFieldChange}
             onTargetChange={handleSessionNotesTargetChange}
+            onNewNote={handleSessionNotesNew}
+            onOpenCandidateChange={handleSessionOpenCandidateChange}
+            onOpenNote={handleSessionOpenNote}
+            onSaveNote={handleSessionSave}
+            onSaveAsNote={handleSessionSaveAs}
+            onChooseLocation={handleSessionChooseLocation}
             onSaveJson={handleSaveSessionNoteJson}
             onSaveMarkdown={handleSaveSessionNoteMarkdown}
             onMakeEvent={handleSessionNotesMakeEvent}

@@ -70,10 +70,12 @@ I have run the application, and I believe that all of the above features should 
     *   Drag the zoom slider and confirm the percentage label updates; panning/zooming should not interfere with the header bar.
 8.  **Session Notes:**
     *   Click “Session Notes” in the toolbar to open the floating panel. Confirm coach name, client name, file name, and presenting-issue fields edit correctly and that the note timestamp reflects the time opened.
+    *   Validate file-style controls: click `New`, `Save`, `Save As`, and `Location`; confirm `Open` enables only when a prior note is selected in “Open previous session notes…”.
+    *   Confirm previous-note filtering uses the active diagram file name and focus target (person/PRL/EPL label).
     *   Type several lines of notes, highlight a line (or leave the cursor on the last line), pick a target (Person/PRL/EPL) from the dropdown, and hit “Make Event”. Verify the Session Note Event modal appears pre-filled with the text, inferred year (if any), and inferred person name.
     *   Modify the event fields—including the new Frequency/Impact dropdowns and the “Nodal Event” checkbox—and save; confirm the event shows up on the target object’s Events tab with those ratings populated.
     *   Leave the Session Notes panel open for more than five minutes and check that the “Primary save” and “Backup save” timestamps update in alternating fashion. Close and reopen the app to ensure the most recent primary note is restored.
-    *   Verify the filename automatically follows the `Session Note - Coach - Client - YYYY-MM-DD.json` pattern. Use “Save Session Note” to download JSON and “Save as Markdown” for the `.md` export; confirm both files include the latest text.
+    *   Verify the filename automatically follows the `Session Note - Coach - Client - YYYY-MM-DD.json` pattern. Use “Export JSON” and “Export Markdown” to download files and confirm both include the latest text.
 9.  **Canvas Notes:**
     *   Enable notes on a person and confirm the floating card background matches their gender (blue-ish for male, pink-ish for female, pale neutral otherwise); PRL and EPL notes should remain white.
     *   Check that the dashed leader line from each note to its anchor is visibly thicker/longer than before and that dragging the note keeps the line connected.
@@ -85,6 +87,6 @@ I have run the application, and I believe that all of the above features should 
 11. **Timeline + Event Creator Integration:**
     *   Right-click empty canvas and confirm `Add Event` appears. Use it with a single selected person and verify a new event is created and the right panel opens on the Events tab.
     *   Right-click a person and choose `Timeline`, then click any timeline block and verify the related object opens in the right-side Events tab.
-    *   Use `File -> Export Person Events` and verify a JSON file downloads.
-    *   Open `File -> Open Event Creator`, load the exported JSON, add/edit/delete events, save JSON, then import via `Import Person Events`.
+    *   Use `Timeline -> Export Person Events` and verify a JSON file downloads.
+    *   Open `File -> Open Event Creator`, load the exported JSON, add/edit/delete events, save JSON, then import via `Timeline -> Import Person Events`.
     *   Confirm event edits merge by event ID and baseline deletions are respected (deleted exported events are removed; unrelated local events remain).
