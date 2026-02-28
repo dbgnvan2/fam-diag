@@ -78,8 +78,11 @@ const EmotionalLineNode = ({
             : siblingCount > 1
                 ? (siblingIndex - (siblingCount - 1) / 2) * 10
                 : 0;
-    const laneDx = Math.cos(basePerpendicularAngle) * laneOffset;
-    const laneDy = Math.sin(basePerpendicularAngle) * laneOffset;
+    const canonicalPair = [person1.id, person2.id].sort();
+    const followsCanonicalDirection = person1.id === canonicalPair[0] && person2.id === canonicalPair[1];
+    const normalizedLaneOffset = followsCanonicalDirection ? laneOffset : -laneOffset;
+    const laneDx = Math.cos(basePerpendicularAngle) * normalizedLaneOffset;
+    const laneDy = Math.sin(basePerpendicularAngle) * normalizedLaneOffset;
 
     const p1_x_center = baseP1X + laneDx;
     const p1_y_center = baseP1Y + laneDy;

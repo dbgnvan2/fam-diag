@@ -79,6 +79,14 @@ describe('DiagramEditor', () => {
         expect(screen.getByRole('dialog', { name: /readme documentation/i })).toBeInTheDocument();
     });
 
+    it('opens training videos from the help modal', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /open training videos/i }));
+        expect(screen.getByRole('dialog', { name: /training videos/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /open in youtube/i })).toBeInTheDocument();
+    });
+
     it('renders timeline nudge buttons and play toggle', () => {
         render(<DiagramEditor />);
         const backBtn = screen.getByRole('button', { name: '-1 yr' });

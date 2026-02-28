@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Person,
   Partnership,
@@ -162,6 +162,7 @@ const PropertiesPanel = ({
   const [triangleIntensityDraft, setTriangleIntensityDraft] = useState<'low' | 'medium' | 'high'>(
     triangleIntensity || 'medium'
   );
+  const selectedPersonIdRef = useRef<string | null>(selectedPerson?.id ?? null);
   const deriveFallbackParts = (person: Person | null) => {
     if (!person) {
       return { first: '', last: '' };
@@ -198,9 +199,12 @@ const PropertiesPanel = ({
   }, [focusEventId, initialActiveTab]);
 
   useEffect(() => {
+    const nextId = selectedPerson?.id ?? null;
+    if (selectedPersonIdRef.current === nextId) return;
+    selectedPersonIdRef.current = nextId;
     setPersonPristine(true);
     setPersonDraft(selectedPerson ? { ...selectedPerson } : null);
-  }, [selectedPerson?.id, selectedPerson]);
+  }, [selectedPerson]);
 
   useEffect(() => {
     if (!personPristine) return;
@@ -410,14 +414,19 @@ const PropertiesPanel = ({
     const nextDraft = { ...personDraft, ...updates };
     if (name === 'firstName' || name === 'lastName') {
       updates = { ...updates, name: composeDisplayName({}, nextDraft) };
+    } else if (name === 'size' && selectedPerson) {
+      // Apply size changes immediately so node size updates live without Save.
+      onUpdatePerson(selectedPerson.id, { size: nextValue as number });
     }
     updatePersonDraftState(updates);
     setPersonPristine(false);
   };
 
   const adjustPersonSize = (delta: number) => {
-    if (!personDraft) return;
+    if (!personDraft || !selectedPerson) return;
     const next = Math.max(20, Math.min(400, (personDraft.size ?? 60) + delta));
+    // Apply size changes immediately so node size updates live without Save.
+    onUpdatePerson(selectedPerson.id, { size: next });
     updatePersonDraftState({ size: next });
     setPersonPristine(false);
   };
@@ -1282,58 +1291,6 @@ const PropertiesPanel = ({
         </div>
         )}
         {isEmotionalLine && selectedEmotionalLine && emotionalDraft && (() => {
-        if (triangleId) {
-          return (
-            <div>
-              <div style={rowStyle}>
-                <label htmlFor="triangleIntensity" style={labelStyle}>Intensity:</label>
-                <select
-                  id="triangleIntensity"
-                  value={triangleIntensityDraft}
-                  onChange={(e) => {
-                    setTriangleIntensityDraft(e.target.value as 'low' | 'medium' | 'high');
-                    setEmotionalPristine(false);
-                  }}
-                  style={{ width: 180 }}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-              <div style={{ ...rowStyle, alignItems: 'center' }}>
-                <label htmlFor="triangleColor" style={labelStyle}>Color:</label>
-                <input
-                  type="color"
-                  id="triangleColor"
-                  value={triangleColorDraft}
-                  onChange={(e) => {
-                    setTriangleColorDraft(e.target.value);
-                    setEmotionalPristine(false);
-                  }}
-                  style={{ width: 60 }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-                <button
-                  type="button"
-                  onClick={cancelEmotionalChanges}
-                  disabled={!triangleColorDirty && !triangleIntensityDirty}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveEmotionalLineProperties}
-                  disabled={!triangleColorDirty && !triangleIntensityDirty}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          );
-        }
-
         const relationshipType = emotionalDraft.relationshipType;
         const styleOptions = styleOptionMeta(relationshipType);
         const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict', 'projection'];
@@ -1462,19 +1419,37 @@ const PropertiesPanel = ({
               </div>
             </div>
             {triangleId && (
-              <div style={{ ...rowStyle, alignItems: 'center' }}>
-                <label htmlFor="triangleColor" style={labelStyle}>Triangle Color:</label>
-                <input
-                  type="color"
-                  id="triangleColor"
-                  value={triangleColorDraft}
-                  onChange={(e) => {
-                    setTriangleColorDraft(e.target.value);
-                    setEmotionalPristine(false);
-                  }}
-                  style={{ width: 60 }}
-                />
-              </div>
+              <>
+                <div style={rowStyle}>
+                  <label htmlFor="triangleIntensity" style={labelStyle}>Triangle Intensity:</label>
+                  <select
+                    id="triangleIntensity"
+                    value={triangleIntensityDraft}
+                    onChange={(e) => {
+                      setTriangleIntensityDraft(e.target.value as 'low' | 'medium' | 'high');
+                      setEmotionalPristine(false);
+                    }}
+                    style={{ width: 180 }}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div style={{ ...rowStyle, alignItems: 'center' }}>
+                  <label htmlFor="triangleColor" style={labelStyle}>Triangle Color:</label>
+                  <input
+                    type="color"
+                    id="triangleColor"
+                    value={triangleColorDraft}
+                    onChange={(e) => {
+                      setTriangleColorDraft(e.target.value);
+                      setEmotionalPristine(false);
+                    }}
+                    style={{ width: 60 }}
+                  />
+                </div>
+              </>
             )}
             <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
               <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
@@ -1488,8 +1463,20 @@ const PropertiesPanel = ({
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button type="button" onClick={cancelEmotionalChanges} disabled={!emotionalDirty && !triangleColorDirty}>Cancel</button>
-              <button type="button" onClick={saveEmotionalLineProperties} disabled={!emotionalDirty && !triangleColorDirty}>Save</button>
+              <button
+                type="button"
+                onClick={cancelEmotionalChanges}
+                disabled={!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEmotionalLineProperties}
+                disabled={!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty}
+              >
+                Save
+              </button>
             </div>
           </div>
         );

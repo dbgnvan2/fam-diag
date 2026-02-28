@@ -22,6 +22,8 @@ I need you to act as the "tester" and manually verify that the application is wo
 
 3.  **Child Connections:**
     *   Can you add a child to a partnership?
+    *   Click a PRL, then click a non-partner person; verify the person is added as that PRL child immediately (without right-click).
+    *   Repeat the same PRL+person click and confirm no duplicate child link is created.
     *   **Can you select the line connecting the child to the partnership by clicking on it?**
     *   **Can you right-click on the child connection line to bring up a context menu with a "Remove as Child" option?**
 
@@ -36,6 +38,7 @@ I need you to act as the "tester" and manually verify that the application is wo
     *   **Do the `conflict` styles (`solid-saw-tooth`, `dotted-saw-tooth`, `double-saw-tooth`) render correctly as saw-tooth patterns?**
     *   **Set the Status to “Ended”, enter an End Date, click Save, and verify the line disappears from the canvas while its timeline/events remain accessible. Switch back to “Ongoing” (with Save) and confirm it reappears.**
     *   **Do the line endings render correctly?**
+    *   For a triangle TPL, open Properties and verify the same EPL controls are available (type, intensity/style, line ending, status/dates, color, notes), plus triangle-level intensity/color options.
 
 Please be as detailed as possible in your feedback. If you find a bug, please tell me exactly what you did, what you expected to happen, and what actually happened.
 
@@ -51,6 +54,7 @@ I have run the application, and I believe that all of the above features should 
     *   For any person with a birth date (and optional death date), confirm an “Age NN” label appears centered below the node—if a death date exists, the value reflects age at death; otherwise it reflects age as of today. Remove/clear the birth date and ensure the age badge goes away.
     *   Use the widened Timeline slider block (toolbar, left of Zoom) to move year-by-year. Drag the slider, tap the **-1 yr/+1 yr** buttons, and hit **Play** (should advance one year per second) to confirm people, PRLs, and EPLs only appear when their start date is on/before the currently selected year. Slide back to the minimum year to see only the very first event, then advance to watch the diagram repopulate chronologically.
     *   On an individual Person, edit Birth Date (or Death Date) but skip Save—confirm nothing changes. Click Save and ensure the nodal event appears; repeat for a PRL (Relationship Start/Marriage/Separation/Divorce) and an EPL (Start/End) to confirm Save is the only action that persists changes and logs events, and that Cancel discards staged edits.
+    *   In Person Properties, change `Size` and verify the node resizes immediately on canvas before pressing Save.
     *   Click through the Functional Facts tabs (Person, Indicators, Events) for a person to ensure each tab renders the expected controls and that the header reads “Individual Functional Facts.” Do the same for PRLs (“Relationship Functional Facts”) and EPLs (“Emotional Pattern Functional Facts”)—Person should show core properties, Indicators should grey out when not applicable, and Events should always list/add/edit Emotional Process Events.
     *   On the Events tab, confirm each entry now displays as a two-line summary (category + date on the first line, then ratings and participants plus the Edit/Delete buttons on the second line) and that Frequency/Impact values appear alongside Intensity and “How well”.
     *   In the Relationship Functional Facts panel, populate Relationship Start, Marriage Start, Separation Date, and Divorce Date. After each date entry, verify that two Emotional Process Events (one per partner) appear with Category equal to the relationship type, Intensity derived from the relationship status, WWWWH showing the date label, Observations copied from the notes field, and the Nodal Event flag checked.
@@ -90,3 +94,7 @@ I have run the application, and I believe that all of the above features should 
     *   Use `Timeline -> Export Person Events` and verify a JSON file downloads.
     *   Open `File -> Open Event Creator`, load the exported JSON, add/edit/delete events, save JSON, then import via `Timeline -> Import Person Events`.
     *   Confirm event edits merge by event ID and baseline deletions are respected (deleted exported events are removed; unrelated local events remain).
+12. **Help + Training Videos:**
+    *   Click `Help` and verify the Quick Start dialog opens with section cards.
+    *   Click `Open Training Videos` and verify a `Training videos` dialog opens.
+    *   Select each lesson card and confirm the embedded player source changes and `Open in YouTube` launches a new tab.

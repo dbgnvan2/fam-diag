@@ -126,6 +126,7 @@ describe('PropertiesPanel', () => {
     it('shows Triangle Properties and saves triangle settings for TPL', () => {
         const updateTriangleColor = vi.fn();
         const updateTriangleIntensity = vi.fn();
+        const updateEmotionalLine = vi.fn();
         const emotionalLine: EmotionalLine = {
             id: 'tpl-1',
             person1_id: 'p1',
@@ -144,7 +145,7 @@ describe('PropertiesPanel', () => {
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
-                onUpdateEmotionalLine={() => {}}
+                onUpdateEmotionalLine={updateEmotionalLine}
                 triangleId="tri-1"
                 triangleColor="#8a5a00"
                 triangleIntensity="medium"
@@ -155,11 +156,43 @@ describe('PropertiesPanel', () => {
         );
 
         expect(screen.getByText('Triangle Properties')).toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText('Intensity:'), { target: { value: 'high' } });
-        fireEvent.change(screen.getByLabelText('Color:'), { target: { value: '#123456' } });
+        expect(screen.getByLabelText('Relationship Type:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Line Ending:')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Triangle Intensity:'), { target: { value: 'high' } });
+        fireEvent.change(screen.getByLabelText('Triangle Color:'), { target: { value: '#123456' } });
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
         expect(updateTriangleColor).toHaveBeenCalledWith('tri-1', '#123456');
         expect(updateTriangleIntensity).toHaveBeenCalledWith('tri-1', 'high');
+        expect(updateEmotionalLine).not.toHaveBeenCalled();
+    });
+
+    it('applies person size changes immediately without pressing Save', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-size',
+            name: 'Size Person',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            size: 60,
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText('Size:'), { target: { value: '72' } });
+        expect(updatePerson).toHaveBeenCalledWith('p-size', { size: 72 });
     });
 
     it('updates functional indicator status and impact for a person', () => {

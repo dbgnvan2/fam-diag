@@ -166,7 +166,7 @@ const HELP_SECTIONS = [
     title: 'People & Partnerships',
     tips: [
       'Right-click the canvas to Add Person; drag a person to move both their node and any attached notes.',
-      'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL again to add child, twin, triplet, miscarriage, or stillbirth symbols; the Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
+      'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL to add child/twin/triplet/miscarriage/stillbirth symbols, or click the PRL then click any non-partner person to attach that person as a child. Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
       'Each person’s right-click menu always ends with Delete, plus “Add as Child”/“Remove as Child” when appropriate.',
       'Birth dates automatically render an “Age NN” label centered under the person (using death date if present, otherwise today), so you can scan generations without opening Properties.',
     ],
@@ -197,6 +197,34 @@ const HELP_SECTIONS = [
       'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
       'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
     ],
+  },
+];
+
+// Replace these URLs with your own training library as videos are produced.
+const TRAINING_VIDEOS = [
+  {
+    id: 'intro',
+    title: 'Getting Started',
+    duration: '6 min',
+    topic: 'Canvas basics, file workflow, and object editing',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/ysz5S6PUM-U',
+    url: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+  },
+  {
+    id: 'transcript',
+    title: 'Transcript Session Capture',
+    duration: '8 min',
+    topic: 'Process transcript, review operations, and import data safely',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ',
+    url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+  },
+  {
+    id: 'timeline',
+    title: 'Timeline and Event Creator',
+    duration: '7 min',
+    topic: 'Export person events, edit in timeline mode, and merge back',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/jNQXAC9IVRw',
+    url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
   },
 ];
 
@@ -1507,6 +1535,10 @@ const DiagramEditor = () => {
   const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
+  const [trainingVideosOpen, setTrainingVideosOpen] = useState(false);
+  const [selectedTrainingVideoId, setSelectedTrainingVideoId] = useState(
+    TRAINING_VIDEOS[0]?.id || ''
+  );
   const [importModeDialogOpen, setImportModeDialogOpen] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
   const [pendingImportFileName, setPendingImportFileName] = useState('');
@@ -3257,10 +3289,28 @@ useEffect(() => {
       return;
     }
 
+    const targetPartnership = partnerships.find((p) => p.id === partnershipId);
+    if (!targetPartnership) return;
+    if (targetPartnership.partner1_id === childId || targetPartnership.partner2_id === childId) {
+      alert('A PRL partner cannot also be added as that PRL child.');
+      return;
+    }
+    if (targetPartnership.children.includes(childId)) {
+      setSelectedPeopleIds([childId]);
+      setSelectedPartnershipId(partnershipId);
+      return;
+    }
+
     setPartnerships((prev) =>
-      prev.map((p) =>
-        p.id === partnershipId ? { ...p, children: [...p.children, childId] } : p
-      )
+      prev.map((p) => {
+        if (p.id === partnershipId) {
+          return { ...p, children: [...p.children, childId] };
+        }
+        if (p.children.includes(childId)) {
+          return { ...p, children: p.children.filter((id) => id !== childId) };
+        }
+        return p;
+      })
     );
 
     setPeopleAligned((prev) =>
@@ -3272,7 +3322,8 @@ useEffect(() => {
     );
 
     setSelectedPeopleIds((ids) => ids.filter((id) => id !== childId));
-    setSelectedPartnershipId((current) => (current === partnershipId ? null : current));
+    setSelectedPartnershipId(partnershipId);
+    setPropertiesPanelItem(targetPartnership);
   };
 
   const buildDiagramPayload = () => ({
@@ -5031,6 +5082,19 @@ useEffect(() => {
     const selectedPerson = people.find((person) => person.id === personId);
     if (!selectedPerson) return;
 
+    if (!additive && selectedPartnershipId) {
+      const selectedPartnership = partnerships.find((p) => p.id === selectedPartnershipId);
+      if (selectedPartnership) {
+        const isPartner =
+          selectedPartnership.partner1_id === personId ||
+          selectedPartnership.partner2_id === personId;
+        if (!isPartner) {
+          addChildToPartnership(personId, selectedPartnershipId);
+          return;
+        }
+      }
+    }
+
     if (additive) {
       const alreadySelected = selectedPeopleIds.includes(personId);
       const next = alreadySelected
@@ -5548,6 +5612,8 @@ useEffect(() => {
         { label: 'Export Person Events', action: handleExportPersonEvents },
         { label: 'Import Person Events', action: handleImportPersonEventsPicker },
       ];
+      const selectedTrainingVideo =
+        TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
         setTranscriptsMenuOpen(false);
@@ -7109,20 +7175,36 @@ useEffect(() => {
                   ))}
                 </div>
                 <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => setReadmeViewerOpen(true)}
-                    style={{
-                      border: '1px solid #1976d2',
-                      color: '#1976d2',
-                      background: '#fff',
-                      borderRadius: 6,
-                      padding: '8px 14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Open README Viewer
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setReadmeViewerOpen(true)}
+                      style={{
+                        border: '1px solid #1976d2',
+                        color: '#1976d2',
+                        background: '#fff',
+                        borderRadius: 6,
+                        padding: '8px 14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Open README Viewer
+                    </button>
+                    <button
+                      onClick={() => setTrainingVideosOpen(true)}
+                      style={{
+                        border: '1px solid #1976d2',
+                        color: '#1976d2',
+                        background: '#fff',
+                        borderRadius: 6,
+                        padding: '8px 14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Open Training Videos
+                    </button>
+                  </div>
                   <button
                     onClick={() => setHelpOpen(false)}
                     style={{
@@ -7137,6 +7219,126 @@ useEffect(() => {
                   >
                     Close
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {trainingVideosOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Training videos"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2460,
+              }}
+              onClick={() => setTrainingVideosOpen(false)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 14,
+                  padding: '20px 24px',
+                  width: 'min(78vw, 1080px)',
+                  maxHeight: '82vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <h2 style={{ margin: 0 }}>Training Videos</h2>
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6b7a' }}>
+                      Open a lesson to review workflows inside the app.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setTrainingVideosOpen(false)}
+                    style={{ border: 'none', background: 'transparent', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}
+                    aria-label="Close training videos"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(260px, 320px) 1fr',
+                    gap: 14,
+                    overflow: 'hidden',
+                    minHeight: 0,
+                    flex: 1,
+                  }}
+                >
+                  <div style={{ overflowY: 'auto', paddingRight: 6 }}>
+                    {TRAINING_VIDEOS.map((video) => (
+                      <button
+                        key={video.id}
+                        onClick={() => setSelectedTrainingVideoId(video.id)}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          border:
+                            video.id === selectedTrainingVideo?.id
+                              ? '1px solid #1976d2'
+                              : '1px solid #d0d7e2',
+                          background:
+                            video.id === selectedTrainingVideo?.id ? '#eef5ff' : '#fff',
+                          cursor: 'pointer',
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: '#1f2d3d' }}>{video.title}</div>
+                        <div style={{ fontSize: 12, color: '#4d627a', marginTop: 3 }}>{video.topic}</div>
+                        <div style={{ fontSize: 12, color: '#7a8796', marginTop: 4 }}>
+                          Duration: {video.duration}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    {selectedTrainingVideo ? (
+                      <>
+                        <div style={{ fontWeight: 700, marginBottom: 8 }}>{selectedTrainingVideo.title}</div>
+                        <div style={{ color: '#4d627a', fontSize: 13, marginBottom: 10 }}>
+                          {selectedTrainingVideo.topic}
+                        </div>
+                        <div style={{ flex: 1, minHeight: 260, border: '1px solid #d0d7e2', borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+                          <iframe
+                            title={selectedTrainingVideo.title}
+                            src={selectedTrainingVideo.embedUrl}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0, minHeight: 260 }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                          />
+                        </div>
+                        <div style={{ marginTop: 10 }}>
+                          <a
+                            href={selectedTrainingVideo.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: '#1976d2', fontWeight: 600 }}
+                          >
+                            Open in YouTube
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ color: '#555' }}>No videos configured.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -335,4 +335,59 @@ describe('EmotionalLineNode', () => {
         expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
     });
 
+    it('keeps sibling lanes separated when the second line reverses person order', () => {
+        const stageRef = React.createRef<Stage>();
+        const forward: EmotionalLine = {
+            id: 'el-forward',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'distance',
+            lineStyle: 'dotted',
+            lineEnding: 'none',
+        };
+        const reverse: EmotionalLine = {
+            ...forward,
+            id: 'el-reverse',
+            person1_id: 'p2',
+            person2_id: 'p1',
+        };
+        const person1: Person = { id: 'p1', x: 60, y: 60, name: 'p1', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 180, y: 60, name: 'p2', partnerships: [] };
+
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={forward}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                        siblingIndex={0}
+                        siblingCount={2}
+                    />
+                    <EmotionalLineNode
+                        emotionalLine={reverse}
+                        person1={person2}
+                        person2={person1}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                        siblingIndex={1}
+                        siblingCount={2}
+                    />
+                </Layer>
+            </Stage>
+        );
+
+        const stage = stageRef.current;
+        const layer = stage.getLayers()[0];
+        const groups = layer.getChildren();
+        const firstLine = groups[0].getChildren()[0];
+        const secondLine = groups[1].getChildren()[0];
+
+        expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
+    });
+
 });
