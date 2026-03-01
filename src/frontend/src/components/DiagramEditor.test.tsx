@@ -18,7 +18,7 @@ describe('DiagramEditor', () => {
         const stage = screen.getByRole('presentation');
         fireEvent.contextMenu(stage);
         expect(screen.getByText('Add Person')).toBeInTheDocument();
-        expect(screen.getByText('Add Event')).toBeInTheDocument();
+        expect(screen.getByText('Add Event...')).toBeInTheDocument();
     });
 
     // Note on testing Konva with React Testing Library:
@@ -70,7 +70,7 @@ describe('DiagramEditor', () => {
 
     it('shows a quick start modal when Help is clicked', () => {
         render(<DiagramEditor />);
-        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
         expect(screen.getByRole('dialog', { name: /quick start help/i })).toBeInTheDocument();
         expect(screen.getByText(/Canvas & Navigation/i)).toBeInTheDocument();
         const openReadmeBtn = screen.getByRole('button', { name: /open readme viewer/i });
@@ -81,7 +81,7 @@ describe('DiagramEditor', () => {
 
     it('opens training videos from the help modal', () => {
         render(<DiagramEditor />);
-        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
         fireEvent.click(screen.getByRole('button', { name: /open training videos/i }));
         expect(screen.getByRole('dialog', { name: /training videos/i })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /open in youtube/i })).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('DiagramEditor', () => {
 
     it('starts interactive demo from help and supports next/previous navigation', () => {
         render(<DiagramEditor />);
-        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
         fireEvent.click(screen.getByRole('button', { name: /^Demo$/i }));
         expect(screen.getByRole('dialog', { name: /interactive demo/i })).toBeInTheDocument();
         expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
@@ -97,11 +97,15 @@ describe('DiagramEditor', () => {
         expect(screen.getByText(/Demo Step 2 of/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /^Previous$/i }));
         expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
+        for (let i = 0; i < 9; i += 1) {
+            fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+        }
+        expect(screen.getByText(/Ribbon · File Menu/i)).toBeInTheDocument();
     });
 
     it('starts build demo from help and supports next/previous navigation', () => {
         render(<DiagramEditor />);
-        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
         fireEvent.click(screen.getByRole('button', { name: /build demo/i }));
         expect(screen.getByRole('dialog', { name: /build demo walkthrough/i })).toBeInTheDocument();
         expect(screen.getByText(/Build Step 1 of/i)).toBeInTheDocument();
@@ -125,12 +129,19 @@ describe('DiagramEditor', () => {
 
     it('renders transcripts and timeline dropdown menus', () => {
         render(<DiagramEditor />);
-        fireEvent.click(screen.getByRole('button', { name: /transcripts/i }));
+        fireEvent.click(screen.getByRole('button', { name: /transcripts ▾/i }));
         expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Import Data' })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /timeline/i }));
+        fireEvent.click(screen.getByRole('button', { name: /timeline ▾/i }));
         expect(screen.getByRole('button', { name: 'Export Person Events' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Import Person Events' })).toBeInTheDocument();
+    });
+
+    it('opens ribbon help from the File question button', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /file help/i }));
+        expect(screen.getByRole('dialog', { name: /ribbon help/i })).toBeInTheDocument();
+        expect(screen.getByDisplayValue(/new, open, save\/save as, import, export/i)).toBeInTheDocument();
     });
 });

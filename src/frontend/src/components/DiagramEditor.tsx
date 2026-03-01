@@ -38,6 +38,11 @@ import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
+import {
+  HELP_SECTIONS,
+  RIBBON_HELP,
+  type RibbonHelpKey,
+} from '../data/helpContent';
 import demoDiagramDataJson from '../data/demoDiagramData.json';
 import {
   buildTimelineJson,
@@ -152,55 +157,9 @@ type PropertiesPanelIntent = {
   targetId: string;
   tab?: 'properties' | 'functional' | 'events';
   focusEventId?: string;
+  openNewEventRequestId?: string;
+  newEventSeed?: Partial<EmotionalProcessEvent>;
 } | null;
-const HELP_SECTIONS = [
-  {
-    title: 'Canvas & Navigation',
-    tips: [
-      'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
-      'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay births, deaths, PRL milestones, EPL start/end dates, and logged events. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
-      'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
-      'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Event Creator launch, or Quit. Use Transcripts ▾ for Process + Import Data, and Timeline ▾ for Export/Import Person Events.',
-    ],
-  },
-  {
-    title: 'People & Partnerships',
-    tips: [
-      'Right-click the canvas to Add Person; drag a person to move both their node and any attached notes.',
-      'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL to add child/twin/triplet/miscarriage/stillbirth symbols, or click the PRL then click any non-partner person to attach that person as a child. Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
-      'Each person’s right-click menu always ends with Delete, plus “Add as Child”/“Remove as Child” when appropriate.',
-      'Birth dates automatically render an “Age NN” label centered under the person (using death date if present, otherwise today), so you can scan generations without opening Properties.',
-    ],
-  },
-  {
-    title: 'Styling & Properties',
-    tips: [
-      'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
-      'Use the Notes Layer toggle in the toolbar to hide/show notes globally. Right-click a Person/PRL/EPL and choose Show Note to pin that note on even when the global layer is off.',
-      'Hovering a person temporarily reveals that person’s note, regardless of Notes Layer state.',
-      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node and every change also logs (or updates) an event for that indicator once per hour.',
-      'Events tab now shows compact two-line tiles (Category/Date then ratings + participants + actions) and its editor mirrors the layout with Frequency/Impact dropdowns, WWWWH, Observations, Prior Events, Reflections, and the Nodal Event checkbox.',
-    ],
-  },
-  {
-    title: 'Emotional Pattern Lines (EPLs)',
-    tips: [
-      'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
-      'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
-      'Select three people, then right-click one of them and choose Add Triangle to draw a Bowen triangle between those three people.',
-      'Fusion intensities render as double dotted (Low), double solid (Medium), or triple solid (High) lines while distance/conflict keep their dotted/dashed/sawtooth variants. Notes for EPLs float like person notes and can be enabled/disabled per line.',
-    ],
-  },
-  {
-    title: 'Session Notes & Timelines',
-    tips: [
-      'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes. Use New/Open/Save/Save As/Location to manage note files separately from diagram JSON.',
-      'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
-      'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
-    ],
-  },
-];
-
 // Replace these URLs with your own training library as videos are produced.
 const TRAINING_VIDEOS = [
   {
@@ -242,7 +201,8 @@ type DemoTourStep = {
     | { kind: 'person'; personId: string; tab?: 'properties' | 'functional' | 'events' }
     | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
     | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' }
-    | { kind: 'timeline'; personIds: string[] };
+    | { kind: 'timeline'; personIds: string[] }
+    | { kind: 'toolbar'; target: string };
 };
 
 type BuildDemoStep = {
@@ -358,6 +318,85 @@ const DEMO_TOUR_STEPS: DemoTourStep[] = [
       'Delete Emotional Line (or Delete Triangle if EPL belongs to a triangle)',
     ],
     focus: { kind: 'emotional', lineId: 'demo-epl-conflict', tab: 'properties' },
+  },
+  {
+    itemNumber: 10,
+    title: RIBBON_HELP['file-menu'].demoTitle,
+    body: RIBBON_HELP['file-menu'].demoBody,
+    clickToSelectHint: 'Click File ▾ to open file-level operations.',
+    focus: { kind: 'toolbar', target: 'file-menu' },
+  },
+  {
+    itemNumber: 11,
+    title: RIBBON_HELP.save.demoTitle,
+    body: RIBBON_HELP.save.demoBody,
+    focus: { kind: 'toolbar', target: 'save' },
+  },
+  {
+    itemNumber: 12,
+    title: RIBBON_HELP['timeline-controls'].demoTitle,
+    body: RIBBON_HELP['timeline-controls'].demoBody,
+    focus: { kind: 'toolbar', target: 'timeline-controls' },
+  },
+  {
+    itemNumber: 13,
+    title: RIBBON_HELP.zoom.demoTitle,
+    body: RIBBON_HELP.zoom.demoBody,
+    focus: { kind: 'toolbar', target: 'zoom' },
+  },
+  {
+    itemNumber: 14,
+    title: RIBBON_HELP['event-categories'].demoTitle,
+    body: RIBBON_HELP['event-categories'].demoBody,
+    focus: { kind: 'toolbar', target: 'event-categories' },
+  },
+  {
+    itemNumber: 15,
+    title: RIBBON_HELP['functional-indicators'].demoTitle,
+    body: RIBBON_HELP['functional-indicators'].demoBody,
+    focus: { kind: 'toolbar', target: 'functional-indicators' },
+  },
+  {
+    itemNumber: 16,
+    title: RIBBON_HELP['transcripts-menu'].demoTitle,
+    body: RIBBON_HELP['transcripts-menu'].demoBody,
+    focus: { kind: 'toolbar', target: 'transcripts-menu' },
+  },
+  {
+    itemNumber: 17,
+    title: RIBBON_HELP['timeline-menu'].demoTitle,
+    body: RIBBON_HELP['timeline-menu'].demoBody,
+    focus: { kind: 'toolbar', target: 'timeline-menu' },
+  },
+  {
+    itemNumber: 18,
+    title: RIBBON_HELP['event-creator'].demoTitle,
+    body: RIBBON_HELP['event-creator'].demoBody,
+    focus: { kind: 'toolbar', target: 'event-creator' },
+  },
+  {
+    itemNumber: 19,
+    title: RIBBON_HELP['notes-layer'].demoTitle,
+    body: RIBBON_HELP['notes-layer'].demoBody,
+    focus: { kind: 'toolbar', target: 'notes-layer' },
+  },
+  {
+    itemNumber: 20,
+    title: RIBBON_HELP.ideas.demoTitle,
+    body: RIBBON_HELP.ideas.demoBody,
+    focus: { kind: 'toolbar', target: 'ideas' },
+  },
+  {
+    itemNumber: 21,
+    title: RIBBON_HELP['session-notes'].demoTitle,
+    body: RIBBON_HELP['session-notes'].demoBody,
+    focus: { kind: 'toolbar', target: 'session-notes' },
+  },
+  {
+    itemNumber: 22,
+    title: RIBBON_HELP.help.demoTitle,
+    body: RIBBON_HELP.help.demoBody,
+    focus: { kind: 'toolbar', target: 'help' },
   },
 ];
 
@@ -1882,6 +1921,7 @@ const DiagramEditor = () => {
   const [sessionEventDraft, setSessionEventDraft] = useState<EmotionalProcessEvent | null>(null);
   const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [ribbonHelpKey, setRibbonHelpKey] = useState<RibbonHelpKey | null>(null);
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
   const [trainingVideosOpen, setTrainingVideosOpen] = useState(false);
   const [selectedTrainingVideoId, setSelectedTrainingVideoId] = useState(
@@ -2916,7 +2956,12 @@ const DiagramEditor = () => {
 
   const focusItemInPropertiesPanel = (
     item: Person | Partnership | EmotionalLine,
-    intent?: { tab?: 'properties' | 'functional' | 'events'; focusEventId?: string }
+    intent?: {
+      tab?: 'properties' | 'functional' | 'events';
+      focusEventId?: string;
+      openNewEventRequestId?: string;
+      newEventSeed?: Partial<EmotionalProcessEvent>;
+    }
   ) => {
     setPropertiesPanelItem(item);
     if (intent) {
@@ -2924,40 +2969,89 @@ const DiagramEditor = () => {
         targetId: item.id,
         tab: intent.tab,
         focusEventId: intent.focusEventId,
+        openNewEventRequestId: intent.openNewEventRequestId,
+        newEventSeed: intent.newEventSeed,
       });
     } else {
       setPropertiesPanelIntent(null);
     }
   };
 
-  const createDefaultPersonEvent = (person: Person): EmotionalProcessEvent => ({
-    id: nanoid(),
-    date: new Date().toISOString().slice(0, 10),
-    category: eventCategories[0] || 'Individual',
-    statusLabel: '',
-    intensity: 0,
-    frequency: 0,
-    impact: 0,
-    howWell: 5,
-    otherPersonName: '',
-    primaryPersonName: person.name || '',
-    wwwwh: '',
-    observations: '',
-    priorEventsNote: '',
-    reflectionsNote: '',
-    isNodalEvent: false,
-    createdAt: Date.now(),
-    eventClass: 'individual',
-  });
-
-  const addEventToPersonAndOpenPanel = (person: Person) => {
-    const event = createDefaultPersonEvent(person);
-    appendEventToTarget({ type: 'person', id: person.id }, event);
-    setSelectedPeopleIds([person.id]);
+  const openContextualEventCreator = (
+    target: { type: 'person' | 'partnership' | 'emotional'; id: string },
+    targetItem: Person | Partnership | EmotionalLine,
+    seed?: Partial<EmotionalProcessEvent>
+  ) => {
+    const anchorType =
+      target.type === 'person'
+        ? 'PERSON'
+        : target.type === 'partnership'
+        ? 'RELATIONSHIP_PRL'
+        : 'EMOTIONAL_PROCESS_EP';
+    const eventType = seed?.eventType || (target.type === 'emotional' ? 'EPE' : 'FF');
+    const baseSeed: Partial<EmotionalProcessEvent> = {
+      ...seed,
+      eventType,
+      anchorType,
+      anchorId: target.id,
+      eventClass: getEventClassForTargetType(target.type),
+      date: seed?.date || new Date().toISOString().slice(0, 10),
+      startDate: seed?.startDate || seed?.date || new Date().toISOString().slice(0, 10),
+    };
+    if (target.type === 'person') {
+      const person = targetItem as Person;
+      setSelectedPeopleIds([person.id]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      focusItemInPropertiesPanel(person, {
+        tab: 'events',
+        openNewEventRequestId: nanoid(),
+        newEventSeed: {
+          ...baseSeed,
+          primaryPersonName: person.name || '',
+        },
+      });
+      return;
+    }
+    if (target.type === 'partnership') {
+      const partnership = targetItem as Partnership;
+      const partner1 = people.find((p) => p.id === partnership.partner1_id);
+      const partner2 = people.find((p) => p.id === partnership.partner2_id);
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(partnership.id);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      focusItemInPropertiesPanel(partnership, {
+        tab: 'events',
+        openNewEventRequestId: nanoid(),
+        newEventSeed: {
+          ...baseSeed,
+          primaryPersonName: partner1?.name || '',
+          otherPersonName: partner2?.name || '',
+        },
+      });
+      return;
+    }
+    const line = targetItem as EmotionalLine;
+    const person1 = people.find((p) => p.id === line.person1_id);
+    const person2 = people.find((p) => p.id === line.person2_id);
+    setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
-    setSelectedEmotionalLineId(null);
+    setSelectedEmotionalLineId(line.id);
     setSelectedChildId(null);
-    focusItemInPropertiesPanel(person, { tab: 'events', focusEventId: event.id });
+    focusItemInPropertiesPanel(line, {
+      tab: 'events',
+      openNewEventRequestId: nanoid(),
+      newEventSeed: {
+        ...baseSeed,
+        eventType: 'EPE',
+        emotionalProcessType: line.relationshipType,
+        category: seed?.category || line.relationshipType,
+        primaryPersonName: person1?.name || '',
+        otherPersonName: person2?.name || '',
+      },
+    });
   };
 
   const commitSessionEventFromNotes = () => {
@@ -4815,6 +4909,18 @@ useEffect(() => {
       return;
     }
 
+    if (step.focus.kind === 'toolbar') {
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(null);
+      setTimelineSelectionIds([]);
+      setTimelineBoardSelection(null);
+      setTimelineBoardEventDraft(null);
+      return;
+    }
+
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
@@ -4842,7 +4948,8 @@ useEffect(() => {
     const shouldBlink =
       step?.focus.kind === 'person' ||
       step?.focus.kind === 'partnership' ||
-      step?.focus.kind === 'emotional';
+      step?.focus.kind === 'emotional' ||
+      step?.focus.kind === 'toolbar';
     if (!shouldBlink) {
       setDemoBlinkVisible(true);
       return;
@@ -5156,6 +5263,13 @@ useEffect(() => {
             }
           },
           {
+            label: 'Add Event...',
+            onClick: () => {
+              openContextualEventCreator({ type: 'person', id: person.id }, person);
+              setContextMenu(null);
+            }
+          },
+          {
             label: 'Add Partner',
             onClick: () => {
                 addPartnerForPerson(person);
@@ -5330,6 +5444,13 @@ useEffect(() => {
               }
             },
             {
+              label: 'Add Event...',
+              onClick: () => {
+                openContextualEventCreator({ type: 'partnership', id: partnershipId }, partnership);
+                setContextMenu(null);
+              }
+            },
+            {
               label: 'Delete Partnership',
               onClick: () => removePartnership(partnershipId)
             },
@@ -5358,7 +5479,7 @@ useEffect(() => {
             }
         },
         {
-            label: 'Add Event',
+            label: 'Add Event...',
             onClick: () => {
                 const selectedId =
                   selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null;
@@ -5386,7 +5507,7 @@ useEffect(() => {
                   setContextMenu(null);
                   return;
                 }
-                addEventToPersonAndOpenPanel(targetPerson);
+                openContextualEventCreator({ type: 'person', id: targetPerson.id }, targetPerson);
                 setContextMenu(null);
             }
         },
@@ -5688,6 +5809,17 @@ useEffect(() => {
         onClick: () => {
             setPropertiesPanelItem(emotionalLine);
             setContextMenu(null);
+        }
+      },
+      {
+        label: 'Add Event...',
+        onClick: () => {
+          openContextualEventCreator({ type: 'emotional', id: emotionalLineId }, emotionalLine, {
+            eventType: 'EPE',
+            emotionalProcessType: emotionalLine.relationshipType,
+            category: emotionalLine.relationshipType,
+          });
+          setContextMenu(null);
         }
       },
     ];
@@ -6477,6 +6609,7 @@ useEffect(() => {
       ];
       const selectedTrainingVideo =
         TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
+      const selectedRibbonHelp = ribbonHelpKey ? RIBBON_HELP[ribbonHelpKey] : null;
       const currentDemoStep = DEMO_TOUR_STEPS[demoTourStepIndex] || DEMO_TOUR_STEPS[0];
       const currentBuildDemoStep =
         BUILD_DEMO_STEPS[buildDemoStepIndex] || BUILD_DEMO_STEPS[0];
@@ -6492,6 +6625,31 @@ useEffect(() => {
         demoTourOpen &&
         currentDemoStep?.focus.kind === 'emotional' &&
         currentDemoStep.focus.lineId === lineId;
+      const isDemoFocusedToolbar = (target: string) =>
+        demoTourOpen &&
+        currentDemoStep?.focus.kind === 'toolbar' &&
+        currentDemoStep.focus.target === target;
+      const toolbarHighlightStyle = (target: string): React.CSSProperties =>
+        isDemoFocusedToolbar(target)
+          ? {
+              outline: demoBlinkVisible ? '3px solid #ff9800' : '3px solid transparent',
+              borderRadius: 6,
+              boxShadow: demoBlinkVisible ? '0 0 0 2px rgba(255,152,0,0.25)' : 'none',
+            }
+          : {};
+      const helpBadgeStyle: React.CSSProperties = {
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        border: '1px solid #8ba1bd',
+        background: '#fff',
+        color: '#38557a',
+        fontWeight: 700,
+        fontSize: 12,
+        lineHeight: '18px',
+        padding: 0,
+        cursor: 'pointer',
+      };
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
         setTranscriptsMenuOpen(false);
@@ -6512,7 +6670,10 @@ useEffect(() => {
               gap: 12,
             }}
           >
-            <div style={{ position: 'relative' }} ref={fileMenuRef}>
+            <div
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('file-menu') }}
+              ref={fileMenuRef}
+            >
               <button
                 onClick={() => setFileMenuOpen((prev) => !prev)}
                 style={{
@@ -6526,6 +6687,13 @@ useEffect(() => {
                 aria-expanded={fileMenuOpen}
               >
                 File ▾
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('file-menu')}
+                aria-label="File help"
+                style={helpBadgeStyle}
+              >
+                ?
               </button>
               {fileMenuOpen && (
                 <div
@@ -6561,9 +6729,21 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            <button onClick={() => handleFileMenuAction(() => handleSave(false))} style={saveButtonStyle}>
-              Save
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('save') }}>
+              <button
+                onClick={() => handleFileMenuAction(() => handleSave(false))}
+                style={saveButtonStyle}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('save')}
+                aria-label="Save help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <label htmlFor="autosave-minutes" style={{ fontWeight: 500 }}>Auto-Save (min)</label>
               <input
@@ -6578,7 +6758,15 @@ useEffect(() => {
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginLeft: 'auto' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 260 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  minWidth: 260,
+                  ...toolbarHighlightStyle('timeline-controls'),
+                }}
+              >
                 <input
                   type="range"
                   min={timelineYearBounds.min}
@@ -6639,7 +6827,22 @@ useEffect(() => {
                   </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 140 }}>
+              <button
+                onClick={() => setRibbonHelpKey('timeline-controls')}
+                aria-label="Timeline controls help"
+                style={{ ...helpBadgeStyle, alignSelf: 'center' }}
+              >
+                ?
+              </button>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  minWidth: 140,
+                  ...toolbarHighlightStyle('zoom'),
+                }}
+              >
                 <input
                   type="range"
                   min={0.25}
@@ -6653,10 +6856,42 @@ useEffect(() => {
                   Zoom ({Math.round(zoom * 100)}%)
                 </div>
               </div>
+              <button
+                onClick={() => setRibbonHelpKey('zoom')}
+                aria-label="Zoom help"
+                style={{ ...helpBadgeStyle, alignSelf: 'center' }}
+              >
+                ?
+              </button>
             </div>
-            <button onClick={() => setSettingsOpen(true)}>Event Categories</button>
-            <button onClick={() => setIndicatorSettingsOpen(true)}>Functional Indicators</button>
-            <div style={{ position: 'relative' }} ref={transcriptsMenuRef}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-categories') }}>
+              <button onClick={() => setSettingsOpen(true)}>
+                Event Categories
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('event-categories')}
+                aria-label="Event Categories help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('functional-indicators') }}>
+              <button onClick={() => setIndicatorSettingsOpen(true)}>
+                Functional Indicators
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('functional-indicators')}
+                aria-label="Functional Indicators help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('transcripts-menu') }}
+              ref={transcriptsMenuRef}
+            >
               <button
                 onClick={() => {
                   setTranscriptsMenuOpen((prev) => !prev);
@@ -6673,6 +6908,13 @@ useEffect(() => {
                 aria-expanded={transcriptsMenuOpen}
               >
                 Transcripts ▾
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('transcripts-menu')}
+                aria-label="Transcripts help"
+                style={helpBadgeStyle}
+              >
+                ?
               </button>
               {transcriptsMenuOpen && (
                 <div
@@ -6708,7 +6950,10 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            <div style={{ position: 'relative' }} ref={timelineMenuRef}>
+            <div
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('timeline-menu') }}
+              ref={timelineMenuRef}
+            >
               <button
                 onClick={() => {
                   setTimelineMenuOpen((prev) => !prev);
@@ -6725,6 +6970,13 @@ useEffect(() => {
                 aria-expanded={timelineMenuOpen}
               >
                 Timeline ▾
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('timeline-menu')}
+                aria-label="Timeline menu help"
+                style={helpBadgeStyle}
+              >
+                ?
               </button>
               {timelineMenuOpen && (
                 <div
@@ -6760,13 +7012,66 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            <button onClick={handleOpenEventCreator}>Event Creator</button>
-            <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
-              Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
-            </button>
-            <button onClick={() => setIdeasOpen(true)}>Ideas</button>
-            <button onClick={() => setSessionNotesOpen(true)}>Session Notes</button>
-            <button onClick={() => setHelpOpen(true)}>Help</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-creator') }}>
+              <button onClick={handleOpenEventCreator}>
+                Event Creator
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('event-creator')}
+                aria-label="Event Creator help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('notes-layer') }}>
+              <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
+                Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('notes-layer')}
+                aria-label="Notes Layer help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('ideas') }}>
+              <button onClick={() => setIdeasOpen(true)}>
+                Ideas
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('ideas')}
+                aria-label="Ideas help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('session-notes') }}>
+              <button onClick={() => setSessionNotesOpen(true)}>
+                Session Notes
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('session-notes')}
+                aria-label="Session Notes help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('help') }}>
+              <button onClick={() => setHelpOpen(true)}>
+                Help
+              </button>
+              <button
+                onClick={() => setRibbonHelpKey('help')}
+                aria-label="Help button help"
+                style={helpBadgeStyle}
+              >
+                ?
+              </button>
+            </div>
             <input
               ref={loadInputRef}
               type="file"
@@ -7265,6 +7570,16 @@ useEffect(() => {
                       focusEventId={
                         propertiesPanelIntent?.targetId === propertiesPanelItem.id
                           ? propertiesPanelIntent.focusEventId
+                          : undefined
+                      }
+                      openNewEventRequestId={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.openNewEventRequestId
+                          : undefined
+                      }
+                      newEventSeed={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.newEventSeed
                           : undefined
                       }
                       onClose={() => {
@@ -8116,6 +8431,70 @@ useEffect(() => {
             onSaveMarkdown={handleSaveSessionNoteMarkdown}
             onMakeEvent={handleSessionNotesMakeEvent}
           />
+          {selectedRibbonHelp && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Ribbon help"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2420,
+              }}
+              onClick={() => setRibbonHelpKey(null)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 12,
+                  padding: '18px 20px',
+                  width: 'min(460px, 92vw)',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.28)',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0 }}>{selectedRibbonHelp.title}</h3>
+                  <button
+                    onClick={() => setRibbonHelpKey(null)}
+                    aria-label="Close ribbon help"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 22,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <textarea
+                  value={selectedRibbonHelp.body}
+                  readOnly
+                  style={{
+                    marginTop: 10,
+                    width: '100%',
+                    minHeight: 120,
+                    borderRadius: 8,
+                    border: '1px solid #c8d3e4',
+                    padding: 10,
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    lineHeight: 1.4,
+                  }}
+                />
+                <div style={{ marginTop: 8, fontSize: 12, color: '#596b86' }}>
+                  To edit this text, update <code>src/frontend/src/data/helpContent.ts</code>.
+                </div>
+              </div>
+            </div>
+          )}
           {helpOpen && (
             <div
               role="dialog"

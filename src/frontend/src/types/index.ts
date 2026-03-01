@@ -100,11 +100,21 @@ export type Triangle = {
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern';
+export type EventType = 'NODAL' | 'FF' | 'EPE';
+export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP';
+export type EventContinuationState = 'discrete' | 'start' | 'middle' | 'end';
 
 export type EmotionalProcessEvent = {
   id: string;
   date: string;
+  startDate?: string;
+  endDate?: string;
   category: string;
+  eventType?: EventType;
+  nodalEventSubtype?: string;
+  emotionalProcessType?: string;
+  anchorType?: EventAnchorType;
+  anchorId?: string;
   statusLabel?: string;
   intensity: number;
   howWell: number;
@@ -117,6 +127,8 @@ export type EmotionalProcessEvent = {
   impact?: number;
   priorEventsNote?: string;
   reflectionsNote?: string;
+  continuesFromPrevious?: boolean;
+  continuesToNext?: boolean;
   createdAt?: number;
   sourceIndicatorId?: string;
   eventClass: EventClass;

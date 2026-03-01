@@ -504,6 +504,7 @@ describe('PropertiesPanel', () => {
             />
         );
         expect(screen.getByRole('button', { name: 'Events' })).toBeInTheDocument();
-        expect(screen.getByText(/Primary: Event Person/i)).toBeInTheDocument();
+        expect(screen.getByText(/2024-04-01/i)).toBeInTheDocument();
+        expect(screen.getByText('FF')).toBeInTheDocument();
     });
 });

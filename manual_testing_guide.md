@@ -94,8 +94,17 @@ I have run the application, and I believe that all of the above features should 
     *   Use `Timeline -> Export Person Events` and verify a JSON file downloads.
     *   Open `File -> Open Event Creator`, load the exported JSON, add/edit/delete events, save JSON, then import via `Timeline -> Import Person Events`.
     *   Confirm event edits merge by event ID and baseline deletions are respected (deleted exported events are removed; unrelated local events remain).
-12. **Help + Training Videos:**
+12. **Contextual Event Creation + Continuation States:**
+    *   Right-click a Person, PRL, and EPL; verify each context menu includes `Add Event...`.
+    *   Click `Add Event...` and confirm the pop-up opens on the anchored object Events tab with anchor/person fields prefilled.
+    *   Create an EPE twice for the same EPL/process type and confirm the second event pre-fills date/Frequency/Intensity/Impact from the most recent similar event.
+    *   In Events tab, verify `View` toggle switches between `Compact` and `Expanded`.
+    *   In Compact mode, verify continuation badges (`D/S/M/E`) display.
+    *   Right-click an event row and test `Attach to Previous`, `Attach to Next`, `Detach Previous`, `Detach Next`, and create-and-attach actions.
+    *   Delete a middle linked event and confirm adjacent continuation flags are safely reset (no broken links).
+13. **Help + Training Videos:**
     *   Click `Help` and verify the Quick Start dialog opens with section cards.
+    *   Click a ribbon `?` button (for example, beside `File`) and verify the `Ribbon help` dialog opens with a read-only text box.
     *   Click `Demo` and verify the interactive demo dialog opens, shows `Demo Step X of Y`, and that `Next`/`Previous` change steps.
     *   Click `Build Demo` and verify the build walkthrough dialog opens from a blank diagram, shows `Build Step X of Y`, and that `Next`/`Previous` load each progressive construction step.
     *   Click `Open Training Videos` and verify a `Training videos` dialog opens.
