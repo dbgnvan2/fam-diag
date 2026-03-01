@@ -96,5 +96,7 @@ I have run the application, and I believe that all of the above features should 
     *   Confirm event edits merge by event ID and baseline deletions are respected (deleted exported events are removed; unrelated local events remain).
 12. **Help + Training Videos:**
     *   Click `Help` and verify the Quick Start dialog opens with section cards.
+    *   Click `Demo` and verify the interactive demo dialog opens, shows `Demo Step X of Y`, and that `Next`/`Previous` change steps.
+    *   Click `Build Demo` and verify the build walkthrough dialog opens from a blank diagram, shows `Build Step X of Y`, and that `Next`/`Previous` load each progressive construction step.
     *   Click `Open Training Videos` and verify a `Training videos` dialog opens.
     *   Select each lesson card and confirm the embedded player source changes and `Open in YouTube` launches a new tab.

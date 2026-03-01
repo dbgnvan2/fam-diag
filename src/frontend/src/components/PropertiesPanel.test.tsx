@@ -306,7 +306,7 @@ describe('PropertiesPanel', () => {
         }));
     });
 
-    it('updates first and last name fields while keeping display name in sync', () => {
+    it('updates first and last name fields immediately while keeping display name in sync', () => {
         const updatePerson = vi.fn();
         const person: Person = {
             id: 'p2',
@@ -332,7 +332,6 @@ describe('PropertiesPanel', () => {
         );
         const firstInput = screen.getByLabelText('First Name:');
         fireEvent.change(firstInput, { target: { value: 'Mary' } });
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
         expect(updatePerson).toHaveBeenCalledWith('p2', expect.objectContaining({ firstName: 'Mary', name: 'Mary Doe' }));
 
         const updatedAfterFirst: Person = { ...person, firstName: 'Mary', name: 'Mary Doe' };
@@ -351,8 +350,45 @@ describe('PropertiesPanel', () => {
 
         const lastInput = screen.getByLabelText('Last Name:');
         fireEvent.change(lastInput, { target: { value: 'Smith' } });
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
         expect(updatePerson).toHaveBeenLastCalledWith('p2', expect.objectContaining({ lastName: 'Smith', name: 'Mary Smith' }));
+    });
+
+    it('only saves birth/death dates when Save is clicked', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-date',
+            name: 'Date Person',
+            x: 0,
+            y: 0,
+            gender: 'female',
+            birthDate: '2000-01-01',
+            partnerships: [],
+            events: [],
+        };
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={[]}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText('Birth Date:'), { target: { value: '2001-02-03' } });
+        expect(updatePerson).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updatePerson).toHaveBeenCalledWith(
+            'p-date',
+            expect.objectContaining({
+                birthDate: '2001-02-03',
+                events: expect.any(Array),
+            })
+        );
     });
 
     it('creates person events when partnership dates are saved', () => {

@@ -1,0 +1,222 @@
+{
+  "fileMeta": {
+    "fileName": "Demo Family Diagram.json",
+    "exportedAt": "2026-03-01T04:24:52.373Z"
+  },
+  "people": [
+    {
+      "id": "demo-dad",
+      "name": "Alex Carter",
+      "firstName": "Alex",
+      "lastName": "Carter",
+      "gender": "male",
+      "x": 622,
+      "y": 178,
+      "birthDate": "1978-04-14",
+      "partnerships": [
+        "demo-prl-parents"
+      ],
+      "notes": "[1] Father. Use right-click to open person actions.",
+      "notesEnabled": true,
+      "events": [
+        {
+          "id": "demo-ev-alex-job",
+          "date": "2021-06-10",
+          "category": "Career",
+          "statusLabel": "Promotion",
+          "intensity": 2,
+          "howWell": 4,
+          "otherPersonName": "",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "Promoted to regional manager.",
+          "eventClass": "individual"
+        }
+      ],
+      "size": 60
+    },
+    {
+      "id": "demo-mom",
+      "name": "Renee Carter",
+      "firstName": "Renee",
+      "lastName": "Carter",
+      "gender": "female",
+      "x": 1235,
+      "y": 187,
+      "birthDate": "1980-09-05",
+      "partnerships": [
+        "demo-prl-parents"
+      ],
+      "notes": "[2] Mother. Toggle notes layer to hide/show notes.",
+      "notesEnabled": true,
+      "events": [],
+      "size": 60
+    },
+    {
+      "id": "demo-son",
+      "name": "Liam Carter",
+      "firstName": "Liam",
+      "lastName": "Carter",
+      "gender": "male",
+      "x": 714,
+      "y": 482,
+      "birthDate": "2007-08-12",
+      "partnerships": [],
+      "parentPartnership": "demo-prl-parents",
+      "notes": "[3] Son. Drag to move and keep lines attached.",
+      "notesEnabled": true,
+      "events": [],
+      "size": 54,
+      "notesPosition": {
+        "x": 631,
+        "y": 554
+      }
+    },
+    {
+      "id": "demo-daughter",
+      "name": "Emma Carter",
+      "firstName": "Emma",
+      "lastName": "Carter",
+      "gender": "female",
+      "x": 1076,
+      "y": 509,
+      "birthDate": "1996-01-30",
+      "partnerships": [
+        "demo-prl-emma"
+      ],
+      "parentPartnership": "demo-prl-parents",
+      "notes": "[4] Daughter. Selected in the tour for child/partner examples.",
+      "notesEnabled": true,
+      "events": [],
+      "size": 54,
+      "notesPosition": {
+        "x": 1165,
+        "y": 510
+      }
+    },
+    {
+      "id": "demo-emma-partner",
+      "name": "Noah Reed",
+      "firstName": "Noah",
+      "lastName": "Reed",
+      "gender": "male",
+      "x": 894,
+      "y": 506,
+      "birthDate": "1994-03-19",
+      "partnerships": [
+        "demo-prl-emma"
+      ],
+      "notes": "[5] Partner for second generation PRL.",
+      "notesEnabled": true,
+      "events": [],
+      "size": 54,
+      "notesPosition": {
+        "x": 862,
+        "y": 702
+      }
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "demo-prl-parents",
+      "partner1_id": "demo-dad",
+      "partner2_id": "demo-mom",
+      "horizontalConnectorY": 318,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "relationshipStartDate": "2003-05-20",
+      "children": [
+        "demo-son",
+        "demo-daughter"
+      ],
+      "notes": "[6] Parents PRL. Right-click this line to add child/twins/triplets.",
+      "notesEnabled": true,
+      "events": [],
+      "notesPosition": {
+        "x": 882,
+        "y": 181
+      }
+    },
+    {
+      "id": "demo-prl-emma",
+      "partner1_id": "demo-emma-partner",
+      "partner2_id": "demo-daughter",
+      "horizontalConnectorY": 596,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "relationshipStartDate": "2024-03-01",
+      "children": [],
+      "notes": "[7] Second generation PRL with same-level spouse layout.",
+      "notesEnabled": true,
+      "events": [],
+      "notesPosition": {
+        "x": 1147,
+        "y": 665
+      }
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "demo-epl-distance",
+      "person1_id": "demo-dad",
+      "person2_id": "demo-son",
+      "relationshipType": "distance",
+      "lineStyle": "dashed",
+      "lineEnding": "none",
+      "startDate": "2022-01-01",
+      "status": "ongoing",
+      "notes": "[8] Example EPL: distance.",
+      "notesEnabled": true,
+      "events": [],
+      "color": "#444444",
+      "notesPosition": {
+        "x": 498,
+        "y": 363
+      }
+    },
+    {
+      "id": "demo-epl-conflict",
+      "person1_id": "demo-mom",
+      "person2_id": "demo-daughter",
+      "relationshipType": "conflict",
+      "lineStyle": "dotted-saw-tooth",
+      "lineEnding": "none",
+      "startDate": "2023-04-10",
+      "status": "ongoing",
+      "notes": "[9] Example EPL: conflict.",
+      "notesEnabled": true,
+      "events": [],
+      "color": "#444444"
+    }
+  ],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "indicator-affair",
+      "label": "Affair"
+    },
+    {
+      "id": "indicator-su",
+      "label": "Substance Use"
+    },
+    {
+      "id": "indicator-gambling",
+      "label": "Gambling"
+    },
+    {
+      "id": "eD9gKPjti-3j_MBsiw_24",
+      "label": "Alcohol"
+    }
+  ],
+  "eventCategories": [
+    "Job",
+    "School",
+    "Health",
+    "Relationship",
+    "Other",
+    "Move",
+    "Finance"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "Demo mode loaded. Use Next/Previous to walk through core features."
+}

@@ -65,17 +65,9 @@ const RELATIONSHIP_STATUS_INTENSITY: Record<NonNullable<Partnership['relationshi
   ended: 4,
   ongoing: 3,
 };
-const PERSON_STRING_FIELDS: (keyof Pick<Person, 'firstName' | 'lastName' | 'maidenName' | 'borderColor' | 'backgroundColor' | 'birthDate' | 'deathDate' | 'adoptionStatus' | 'notes' | 'name'>)[] = [
-  'firstName',
-  'lastName',
-  'maidenName',
-  'borderColor',
-  'backgroundColor',
+const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate'>)[] = [
   'birthDate',
   'deathDate',
-  'adoptionStatus',
-  'notes',
-  'name',
 ];
 const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'notes'>)[] = [
   'relationshipType',
@@ -179,9 +171,6 @@ const PropertiesPanel = ({
     [selectedPerson]
   );
   const stringDiffers = (a?: string | null, b?: string | null) => (a ?? '') !== (b ?? '');
-  const booleanDiffers = (a?: boolean | null, b?: boolean | null) => !!a !== !!b;
-  const numberDiffers = (a?: number | null, b?: number | null, fallback?: number) =>
-    (a ?? fallback ?? null) !== (b ?? fallback ?? null);
   const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
   const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
 
@@ -414,12 +403,17 @@ const PropertiesPanel = ({
     const nextDraft = { ...personDraft, ...updates };
     if (name === 'firstName' || name === 'lastName') {
       updates = { ...updates, name: composeDisplayName({}, nextDraft) };
-    } else if (name === 'size' && selectedPerson) {
-      // Apply size changes immediately so node size updates live without Save.
-      onUpdatePerson(selectedPerson.id, { size: nextValue as number });
     }
     updatePersonDraftState(updates);
-    setPersonPristine(false);
+    const isDeferredDateField = name === 'birthDate' || name === 'deathDate';
+    if (!selectedPerson) return;
+    if (isDeferredDateField) {
+      setPersonPristine(false);
+      return;
+    }
+    // All non-date person properties auto-save and update live.
+    onUpdatePerson(selectedPerson.id, updates);
+    setPersonPristine(true);
   };
 
   const adjustPersonSize = (delta: number) => {
@@ -428,7 +422,7 @@ const PropertiesPanel = ({
     // Apply size changes immediately so node size updates live without Save.
     onUpdatePerson(selectedPerson.id, { size: next });
     updatePersonDraftState({ size: next });
-    setPersonPristine(false);
+    setPersonPristine(true);
   };
 
   const updatePartnershipDraftState = (updates: Partial<Partnership>) => {
@@ -616,35 +610,16 @@ const PropertiesPanel = ({
 
   const personDirty = useMemo(() => {
     if (!selectedPerson || !personDraft) return false;
-    if (PERSON_STRING_FIELDS.some((field) => stringDiffers(personDraft[field], selectedPerson[field]))) {
-      return true;
-    }
-    if (numberDiffers(personDraft.size, selectedPerson.size, 60)) return true;
-    if (booleanDiffers(personDraft.backgroundEnabled, selectedPerson.backgroundEnabled)) return true;
-    if (booleanDiffers(personDraft.notesEnabled, selectedPerson.notesEnabled)) return true;
-    return false;
+    return PERSON_DEFERRED_DATE_FIELDS.some((field) =>
+      stringDiffers(personDraft[field], selectedPerson[field])
+    );
   }, [selectedPerson, personDraft]);
 
   const savePersonProperties = () => {
     if (!selectedPerson || !personDraft || !personDirty) return;
     const updates: Partial<Person> = {};
-    PERSON_STRING_FIELDS.forEach((field) => {
-      if (stringDiffers(personDraft[field], selectedPerson[field])) {
-        const value = personDraft[field];
-        (updates as any)[field] = value && value !== '' ? value : undefined;
-      }
-    });
-    if (numberDiffers(personDraft.size, selectedPerson.size, 60)) {
-      updates.size = personDraft.size ?? 60;
-    }
-    if (booleanDiffers(personDraft.backgroundEnabled, selectedPerson.backgroundEnabled)) {
-      updates.backgroundEnabled = !!personDraft.backgroundEnabled;
-    }
-    if (booleanDiffers(personDraft.notesEnabled, selectedPerson.notesEnabled)) {
-      updates.notesEnabled = !!personDraft.notesEnabled;
-    }
     const newEvents: EmotionalProcessEvent[] = [];
-    (Object.keys(PERSON_DATE_LABELS) as (keyof typeof PERSON_DATE_LABELS)[]).forEach((field) => {
+    PERSON_DEFERRED_DATE_FIELDS.forEach((field) => {
       const prev = selectedPerson[field] ?? '';
       const next = personDraft[field] ?? '';
       if (prev !== next) {
@@ -1065,6 +1040,68 @@ const PropertiesPanel = ({
             </div>
           </div>
           <div style={rowStyle}>
+            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
+            <select
+              id="adoptionStatus"
+              name="adoptionStatus"
+              value={personDraft.adoptionStatus || 'biological'}
+              onChange={handlePersonChange}
+              style={{ width: 160 }}
+            >
+              <option value="biological">Biological</option>
+              <option value="adopted">Adopted</option>
+            </select>
+          </div>
+          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+              <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={personDraft.notes || ''}
+                onChange={handlePersonChange}
+                rows={6}
+                style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
+              />
+            </div>
+          <div style={rowStyle}>
+            <label htmlFor="notesEnabled" style={labelStyle}>Notes Enabled:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                id="notesEnabled"
+                name="notesEnabled"
+                checked={personDraft.notesEnabled ?? false}
+                onChange={handlePersonChange}
+              />
+            </div>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
+            <DatePickerField
+              id="birthDate"
+              name="birthDate"
+              value={personDraft.birthDate}
+              placeholder="YYYY-MM-DD"
+              onChange={handlePersonChange}
+              pickerLabel="Select birth date"
+            />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
+            <DatePickerField
+              id="deathDate"
+              name="deathDate"
+              value={personDraft.deathDate}
+              placeholder="YYYY-MM-DD"
+              onChange={handlePersonChange}
+              pickerLabel="Select death date"
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+            <button type="button" onClick={cancelPersonChanges} disabled={!personDirty}>Cancel</button>
+            <button type="button" onClick={savePersonProperties} disabled={!personDirty}>Save</button>
+          </div>
+          <div style={rowStyle}>
             <label htmlFor="size" style={labelStyle}>Size:</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button
@@ -1128,68 +1165,6 @@ const PropertiesPanel = ({
               disabled={!(personDraft.backgroundEnabled ?? false)}
               style={{ width: 80 }}
             />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
-            <DatePickerField
-              id="birthDate"
-              name="birthDate"
-              value={personDraft.birthDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePersonChange}
-              pickerLabel="Select birth date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
-            <DatePickerField
-              id="deathDate"
-              name="deathDate"
-              value={personDraft.deathDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePersonChange}
-              pickerLabel="Select death date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
-            <select
-              id="adoptionStatus"
-              name="adoptionStatus"
-              value={personDraft.adoptionStatus || 'biological'}
-              onChange={handlePersonChange}
-              style={{ width: 160 }}
-            >
-              <option value="biological">Biological</option>
-              <option value="adopted">Adopted</option>
-            </select>
-          </div>
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-              <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={personDraft.notes || ''}
-                onChange={handlePersonChange}
-                rows={6}
-                style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
-              />
-            </div>
-          <div style={rowStyle}>
-            <label htmlFor="notesEnabled" style={labelStyle}>Notes Enabled:</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                type="checkbox"
-                id="notesEnabled"
-                name="notesEnabled"
-                checked={personDraft.notesEnabled ?? false}
-                onChange={handlePersonChange}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-            <button type="button" onClick={cancelPersonChanges} disabled={!personDirty}>Cancel</button>
-            <button type="button" onClick={savePersonProperties} disabled={!personDirty}>Save</button>
           </div>
         </div>
         )}

@@ -87,6 +87,30 @@ describe('DiagramEditor', () => {
         expect(screen.getByRole('link', { name: /open in youtube/i })).toBeInTheDocument();
     });
 
+    it('starts interactive demo from help and supports next/previous navigation', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Demo$/i }));
+        expect(screen.getByRole('dialog', { name: /interactive demo/i })).toBeInTheDocument();
+        expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+        expect(screen.getByText(/Demo Step 2 of/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Previous$/i }));
+        expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
+    });
+
+    it('starts build demo from help and supports next/previous navigation', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /build demo/i }));
+        expect(screen.getByRole('dialog', { name: /build demo walkthrough/i })).toBeInTheDocument();
+        expect(screen.getByText(/Build Step 1 of/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+        expect(screen.getByText(/Build Step 2 of/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Previous$/i }));
+        expect(screen.getByText(/Build Step 1 of/i)).toBeInTheDocument();
+    });
+
     it('renders timeline nudge buttons and play toggle', () => {
         render(<DiagramEditor />);
         const backBtn = screen.getByRole('button', { name: '-1 yr' });

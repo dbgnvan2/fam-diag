@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Stage, Layer } from 'react-konva';
+import { Stage, Layer, Rect } from 'react-konva';
 import type {
   Person,
   Partnership,
@@ -38,6 +38,7 @@ import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
+import demoDiagramDataJson from '../data/demoDiagramData.json';
 import {
   buildTimelineJson,
   isPersonEventBundle,
@@ -225,6 +226,353 @@ const TRAINING_VIDEOS = [
     topic: 'Export person events, edit in timeline mode, and merge back',
     embedUrl: 'https://www.youtube-nocookie.com/embed/jNQXAC9IVRw',
     url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
+  },
+];
+
+const DEMO_DIAGRAM_DATA: DiagramImportData = demoDiagramDataJson as DiagramImportData;
+
+type DemoTourStep = {
+  itemNumber: number;
+  title: string;
+  body: string;
+  clickToSelectHint?: string;
+  rightClickOptions?: string[];
+  focus:
+    | { kind: 'none' }
+    | { kind: 'person'; personId: string; tab?: 'properties' | 'functional' | 'events' }
+    | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
+    | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' }
+    | { kind: 'timeline'; personIds: string[] };
+};
+
+type BuildDemoStep = {
+  title: string;
+  instruction: string;
+  focus:
+    | { kind: 'none' }
+    | { kind: 'person'; personId: string; tab?: 'properties' | 'events' }
+    | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
+    | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' };
+};
+
+const DEMO_TOUR_STEPS: DemoTourStep[] = [
+  {
+    itemNumber: 1,
+    title: 'Item 1 · Alex Carter',
+    body: '[1] Alex Carter person note. Person blinks with note 4 times, then remains selected.',
+    clickToSelectHint: 'Click Alex Carter to select the person and open properties.',
+    rightClickOptions: ['Change sex', 'Show/Hide Note', 'Properties', 'Timeline', 'Add Partner', 'Add as Child / Remove as Child', 'Delete Person'],
+    focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
+  },
+  {
+    itemNumber: 2,
+    title: 'Item 2 · Renee Carter',
+    body: '[2] Renee Carter person note. Person blinks with note 4 times, then remains selected.',
+    clickToSelectHint: 'Click Renee Carter to select the person and open properties.',
+    rightClickOptions: [
+      'Change sex',
+      'Show/Hide Note',
+      'Properties',
+      'Timeline',
+      'Add Partner',
+      'Add as Child / Remove as Child',
+      'Delete Person',
+    ],
+    focus: { kind: 'person', personId: 'demo-mom', tab: 'properties' },
+  },
+  {
+    itemNumber: 3,
+    title: 'Item 3 · Liam Carter',
+    body: '[3] Liam Carter person note. Person blinks with note 4 times, then remains selected.',
+    clickToSelectHint: 'Click Liam Carter to select the person and open properties.',
+    focus: { kind: 'person', personId: 'demo-son', tab: 'properties' },
+  },
+  {
+    itemNumber: 4,
+    title: 'Item 4 · Emma Carter',
+    body: '[4] Emma Carter person note. Person blinks with note 4 times, then remains selected.',
+    clickToSelectHint: 'Click Emma Carter to select the person and open properties.',
+    focus: { kind: 'person', personId: 'demo-daughter', tab: 'properties' },
+  },
+  {
+    itemNumber: 5,
+    title: 'Item 5 · Noah Reed',
+    body: '[5] Noah Reed person note. Person blinks with note 4 times, then remains selected.',
+    clickToSelectHint: 'Click Noah Reed to select the person and open properties.',
+    focus: { kind: 'person', personId: 'demo-emma-partner', tab: 'properties' },
+  },
+  {
+    itemNumber: 6,
+    title: 'Item 6 · Parent PRL',
+    body: '[6] PRL means Partner Relationship Line. This parent PRL blinks with its note 4 times, then remains selected.',
+    clickToSelectHint: 'Click the parent PRL line to open relationship properties.',
+    rightClickOptions: [
+      'Add Child',
+      'Add Twins',
+      'Add Triplets',
+      'Add Miscarriage',
+      'Add Stillbirth',
+      'Show/Hide Note',
+      'Properties',
+      'Delete Partnership',
+    ],
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-parents', tab: 'properties' },
+  },
+  {
+    itemNumber: 7,
+    title: 'Item 7 · Emma-Noah PRL',
+    body: '[7] PRL means Partner Relationship Line. This second-generation PRL blinks with its note 4 times, then remains selected.',
+    clickToSelectHint: 'Click the Emma-Noah PRL to open relationship properties.',
+    rightClickOptions: [
+      'Add Child',
+      'Add Twins',
+      'Add Triplets',
+      'Add Miscarriage',
+      'Add Stillbirth',
+      'Show/Hide Note',
+      'Properties',
+      'Delete Partnership',
+    ],
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' },
+  },
+  {
+    itemNumber: 8,
+    title: 'Item 8 · Distance EPL',
+    body: '[8] EPL means Emotional Process Line. This distance EPL blinks with its note 4 times, then remains selected.',
+    clickToSelectHint: 'Click the distance EPL to open EPL properties.',
+    rightClickOptions: [
+      'Show/Hide Note',
+      'Properties',
+      'Delete Emotional Line (or Delete Triangle if EPL belongs to a triangle)',
+    ],
+    focus: { kind: 'emotional', lineId: 'demo-epl-distance', tab: 'properties' },
+  },
+  {
+    itemNumber: 9,
+    title: 'Item 9 · Conflict EPL',
+    body: '[9] EPL means Emotional Process Line. This conflict EPL blinks with its note 4 times, then remains selected.',
+    clickToSelectHint: 'Click the conflict EPL to open EPL properties.',
+    rightClickOptions: [
+      'Show/Hide Note',
+      'Properties',
+      'Delete Emotional Line (or Delete Triangle if EPL belongs to a triangle)',
+    ],
+    focus: { kind: 'emotional', lineId: 'demo-epl-conflict', tab: 'properties' },
+  },
+];
+
+const deepCloneDiagramImport = (data: DiagramImportData): DiagramImportData =>
+  JSON.parse(JSON.stringify(data));
+
+const buildCreationDemoSnapshots = (base: DiagramImportData): DiagramImportData[] => {
+  const basePeople = Array.isArray(base.people) ? base.people : [];
+  const basePartnerships = Array.isArray(base.partnerships) ? base.partnerships : [];
+  const baseLines = Array.isArray(base.emotionalLines) ? base.emotionalLines : [];
+  const byPersonId = new Map(basePeople.map((person) => [person.id, person]));
+  const byPartnershipId = new Map(basePartnerships.map((prl) => [prl.id, prl]));
+  const byLineId = new Map(baseLines.map((line) => [line.id, line]));
+  const clonePerson = (id: string) => deepCloneDiagramImport({ people: [byPersonId.get(id)!] }).people![0];
+  const clonePartnership = (id: string) =>
+    deepCloneDiagramImport({ partnerships: [byPartnershipId.get(id)!] }).partnerships![0];
+  const cloneLine = (id: string) => deepCloneDiagramImport({ emotionalLines: [byLineId.get(id)!] }).emotionalLines![0];
+
+  const buildSnapshot = (
+    people: Person[],
+    partnerships: Partnership[],
+    emotionalLines: EmotionalLine[],
+    fileName: string
+  ): DiagramImportData => ({
+    fileMeta: { fileName },
+    people,
+    partnerships,
+    emotionalLines,
+    triangles: [],
+    functionalIndicatorDefinitions: base.functionalIndicatorDefinitions || [],
+    eventCategories: base.eventCategories || [],
+    autoSaveMinutes: base.autoSaveMinutes || 1,
+    ideasText: 'Build Demo mode: follow step instructions to construct the full diagram.',
+  });
+
+  const alexFinal = clonePerson('demo-dad');
+  const reneeFinal = clonePerson('demo-mom');
+  const liamFinal = clonePerson('demo-son');
+  const emmaFinal = clonePerson('demo-daughter');
+  const noahFinal = clonePerson('demo-emma-partner');
+  const parentPrlFinal = clonePartnership('demo-prl-parents');
+  const emmaPrlFinal = clonePartnership('demo-prl-emma');
+  const distanceEplFinal = cloneLine('demo-epl-distance');
+  const conflictEplFinal = cloneLine('demo-epl-conflict');
+
+  const alexStart: Person = {
+    ...alexFinal,
+    x: 120,
+    y: 140,
+    partnerships: [],
+    notesEnabled: false,
+    notes: undefined,
+    events: [],
+  };
+  const alexMoved: Person = {
+    ...alexFinal,
+    partnerships: [],
+    notesEnabled: false,
+    notes: undefined,
+    events: [],
+  };
+  const reneeAdded: Person = {
+    ...reneeFinal,
+    partnerships: ['demo-prl-parents'],
+    notesEnabled: false,
+    notes: undefined,
+    events: [],
+  };
+  const parentPrlDating: Partnership = {
+    ...parentPrlFinal,
+    relationshipType: 'dating',
+    relationshipStatus: 'married',
+    notesEnabled: false,
+    notes: undefined,
+    children: [],
+  };
+  const parentPrlMarriedNoKids: Partnership = {
+    ...parentPrlFinal,
+    notesEnabled: false,
+    notes: undefined,
+    children: [],
+  };
+  const liamNoNote: Person = {
+    ...liamFinal,
+    notesEnabled: false,
+    notes: undefined,
+  };
+  const emmaNoNote: Person = {
+    ...emmaFinal,
+    notesEnabled: false,
+    notes: undefined,
+    partnerships: [],
+  };
+  const noahNoNote: Person = {
+    ...noahFinal,
+    notesEnabled: false,
+    notes: undefined,
+  };
+  const emmaPrlInitial: Partnership = {
+    ...emmaPrlFinal,
+    relationshipType: 'dating',
+    relationshipStatus: 'married',
+    notesEnabled: false,
+    notes: undefined,
+  };
+
+  return [
+    buildSnapshot([], [], [], 'Build Demo Step 1 - Blank'),
+    buildSnapshot([alexStart], [], [], 'Build Demo Step 2 - Add Alex'),
+    buildSnapshot([alexMoved], [], [], 'Build Demo Step 3 - Move Alex'),
+    buildSnapshot([alexMoved, reneeAdded], [parentPrlDating], [], 'Build Demo Step 4 - Add Partner'),
+    buildSnapshot([alexMoved, reneeAdded], [parentPrlMarriedNoKids], [], 'Build Demo Step 5 - Set Married'),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son'] }],
+      [],
+      'Build Demo Step 6 - Add Liam'
+    ),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote, emmaNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }],
+      [],
+      'Build Demo Step 7 - Add Emma'
+    ),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, emmaPrlInitial],
+      [],
+      'Build Demo Step 8 - Add Noah + PRL'
+    ),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }],
+      [],
+      'Build Demo Step 9 - Configure Emma/Noah PRL'
+    ),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }],
+      [{ ...distanceEplFinal, notes: undefined, notesEnabled: false }],
+      'Build Demo Step 10 - Add Distance EPL'
+    ),
+    buildSnapshot(
+      [alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote],
+      [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }],
+      [
+        { ...distanceEplFinal, notes: undefined, notesEnabled: false },
+        { ...conflictEplFinal, notes: undefined, notesEnabled: false },
+      ],
+      'Build Demo Step 11 - Add Conflict EPL'
+    ),
+    deepCloneDiagramImport(base),
+  ];
+};
+
+const BUILD_DEMO_STEPS: BuildDemoStep[] = [
+  {
+    title: 'Step 1 - Blank Canvas',
+    instruction: 'Start on a blank screen. Right-click empty canvas and choose Add Person.',
+    focus: { kind: 'none' },
+  },
+  {
+    title: 'Step 2 - Add Alex Carter',
+    instruction: 'Rename New Person to Alex Carter in Person Properties.',
+    focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
+  },
+  {
+    title: 'Step 3 - Move Alex',
+    instruction: 'Click and drag Alex Carter to the target top-left parent position.',
+    focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
+  },
+  {
+    title: 'Step 4 - Add Partner',
+    instruction: 'Right-click Alex Carter and choose Add Partner (creates partner + PRL). Rename partner to Renee Carter.',
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-parents', tab: 'properties' },
+  },
+  {
+    title: 'Step 5 - Set PRL Married',
+    instruction: 'Click the parent PRL, then set Relationship Type to married.',
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-parents', tab: 'properties' },
+  },
+  {
+    title: 'Step 6 - Add Liam',
+    instruction: 'Right-click the parent PRL and Add Child, then edit child name to Liam Carter and position him.',
+    focus: { kind: 'person', personId: 'demo-son', tab: 'properties' },
+  },
+  {
+    title: 'Step 7 - Add Emma',
+    instruction: 'Add another child from the same parent PRL and rename to Emma Carter.',
+    focus: { kind: 'person', personId: 'demo-daughter', tab: 'properties' },
+  },
+  {
+    title: 'Step 8 - Add Noah + PRL',
+    instruction: 'Right-click Emma Carter and Add Partner. Rename to Noah Reed and place beside Emma.',
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' },
+  },
+  {
+    title: 'Step 9 - Configure Emma/Noah PRL',
+    instruction: 'Set Emma-Noah PRL fields (type/status/start date) to match the demo.',
+    focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' },
+  },
+  {
+    title: 'Step 10 - Add Distance EPL',
+    instruction: 'Select Alex + Liam and add EPL. Set type distance and style dashed.',
+    focus: { kind: 'emotional', lineId: 'demo-epl-distance', tab: 'properties' },
+  },
+  {
+    title: 'Step 11 - Add Conflict EPL',
+    instruction: 'Select Renee + Emma and add EPL. Set type conflict and style dotted-saw-tooth.',
+    focus: { kind: 'emotional', lineId: 'demo-epl-conflict', tab: 'properties' },
+  },
+  {
+    title: 'Step 12 - Finalize Notes',
+    instruction: 'Add numbered notes [1]-[9] on people, PRLs, and EPLs to complete the same demo diagram.',
+    focus: { kind: 'none' },
   },
 ];
 
@@ -1539,6 +1887,11 @@ const DiagramEditor = () => {
   const [selectedTrainingVideoId, setSelectedTrainingVideoId] = useState(
     TRAINING_VIDEOS[0]?.id || ''
   );
+  const [demoTourOpen, setDemoTourOpen] = useState(false);
+  const [demoTourStepIndex, setDemoTourStepIndex] = useState(0);
+  const [demoBlinkVisible, setDemoBlinkVisible] = useState(true);
+  const [buildDemoOpen, setBuildDemoOpen] = useState(false);
+  const [buildDemoStepIndex, setBuildDemoStepIndex] = useState(0);
   const [importModeDialogOpen, setImportModeDialogOpen] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
   const [pendingImportFileName, setPendingImportFileName] = useState('');
@@ -1552,9 +1905,25 @@ const DiagramEditor = () => {
   const DEFAULT_PANEL_WIDTH = 360;
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
-  const [zoom, setZoom] = useState(1);
+ const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [marqueeSelection, setMarqueeSelection] = useState<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const marqueeDidDragRef = useRef(false);
+  const suppressStageClickRef = useRef(false);
+  const groupResizeStateRef = useRef<{
+    selectionIds: string[];
+    bounds: { x: number; y: number; width: number; height: number };
+    people: Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>;
+    partnerships: Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>;
+    emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
+  } | null>(null);
   const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
  const dragGroupRef = useRef<{
     personId: string;
@@ -1585,6 +1954,10 @@ const DiagramEditor = () => {
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
+  );
+  const buildDemoSnapshots = useMemo(
+    () => buildCreationDemoSnapshots(DEMO_DIAGRAM_DATA),
+    []
   );
 
   useEffect(() => {
@@ -3382,10 +3755,15 @@ useEffect(() => {
     ideasText,
   });
 
-  const replaceDiagramState = (data: any, sourceFileName?: string) => {
+  const replaceDiagramState = (
+    data: any,
+    sourceFileName?: string,
+    options?: { normalizeLayout?: boolean }
+  ) => {
     if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
       throw new Error('Invalid file format');
     }
+    const normalizeLayout = options?.normalizeLayout ?? false;
     const nextDefinitions: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
       ? data.functionalIndicatorDefinitions
       : functionalIndicatorDefinitions;
@@ -3393,10 +3771,12 @@ useEffect(() => {
     const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
     const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
-    const normalizedImportedPeople = normalizeImportedChildLayout(cleaned.people, cleaned.partnerships, {
-      expandParentSpan: true,
-      autoResizeDenseFamilies: true,
-    });
+    const normalizedImportedPeople = normalizeLayout
+      ? normalizeImportedChildLayout(cleaned.people, cleaned.partnerships, {
+          expandParentSpan: true,
+          autoResizeDenseFamilies: true,
+        })
+      : cleaned.people;
     const aligned = alignAllAnchors(normalizedImportedPeople, cleaned.partnerships);
     const sanitizedPeople = sanitizePeopleIndicators(aligned, nextDefinitions);
     const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
@@ -4046,7 +4426,8 @@ useEffect(() => {
     if (!pendingImportData) return;
     try {
       if (mode === 'replace') {
-        replaceDiagramState(pendingImportData, pendingImportFileName);
+        const normalizeLayout = pendingImportSource === 'transcript' || pendingImportSource === 'facts';
+        replaceDiagramState(pendingImportData, pendingImportFileName, { normalizeLayout });
       } else {
         const allowNewPeople = pendingImportSource !== 'facts';
         mergeDiagramState(pendingImportData, { allowNewPeople });
@@ -4253,6 +4634,234 @@ useEffect(() => {
   const handleProcessTranscriptPicker = () => {
     transcriptInputRef.current?.click();
   };
+
+  const handleStartDemoTour = () => {
+    if (isDirty) {
+      const confirmReset = window.confirm(
+        'Start the interactive demo? Current unsaved diagram changes will be replaced.'
+      );
+      if (!confirmReset) return;
+    }
+    replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram');
+    setHelpOpen(false);
+    setTrainingVideosOpen(false);
+    setBuildDemoOpen(false);
+    setBuildDemoStepIndex(0);
+    setDemoTourStepIndex(0);
+    setDemoTourOpen(true);
+  };
+
+  const applyBuildDemoStep = (stepIndex: number) => {
+    const boundedIndex = Math.max(0, Math.min(stepIndex, buildDemoSnapshots.length - 1));
+    const snapshot = buildDemoSnapshots[boundedIndex];
+    if (!snapshot) return;
+    replaceDiagramState(
+      snapshot,
+      snapshot.fileMeta?.fileName || `Build Demo Step ${boundedIndex + 1}`,
+      { normalizeLayout: false }
+    );
+    const step = BUILD_DEMO_STEPS[boundedIndex];
+    if (!step) return;
+
+    if (step.focus.kind === 'none') {
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(null);
+      setPropertiesPanelIntent(null);
+      return;
+    }
+
+    if (step.focus.kind === 'person') {
+      const person = (snapshot.people || []).find((entry) => entry.id === step.focus.personId);
+      if (!person) return;
+      setSelectedPeopleIds([person.id]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(person);
+      setPropertiesPanelIntent({
+        targetId: person.id,
+        tab: step.focus.tab,
+      });
+      return;
+    }
+
+    if (step.focus.kind === 'partnership') {
+      const partnership = (snapshot.partnerships || []).find(
+        (entry) => entry.id === step.focus.partnershipId
+      );
+      if (!partnership) return;
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(partnership.id);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(partnership);
+      setPropertiesPanelIntent({
+        targetId: partnership.id,
+        tab: step.focus.tab,
+      });
+      return;
+    }
+
+    const line = (snapshot.emotionalLines || []).find((entry) => entry.id === step.focus.lineId);
+    if (!line) return;
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(line.id);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(line);
+    setPropertiesPanelIntent({
+      targetId: line.id,
+      tab: step.focus.tab,
+    });
+  };
+
+  const handleStartBuildDemo = () => {
+    if (isDirty) {
+      const confirmReset = window.confirm(
+        'Start the build demo? Current unsaved diagram changes will be replaced.'
+      );
+      if (!confirmReset) return;
+    }
+    setHelpOpen(false);
+    setTrainingVideosOpen(false);
+    setDemoTourOpen(false);
+    setDemoTourStepIndex(0);
+    setBuildDemoOpen(true);
+    setBuildDemoStepIndex(0);
+    applyBuildDemoStep(0);
+  };
+
+  const handleCloseBuildDemo = () => {
+    setBuildDemoOpen(false);
+    setBuildDemoStepIndex(0);
+  };
+
+  const handleBuildDemoStepChange = (nextIndex: number) => {
+    const boundedIndex = Math.max(0, Math.min(nextIndex, BUILD_DEMO_STEPS.length - 1));
+    setBuildDemoStepIndex(boundedIndex);
+    applyBuildDemoStep(boundedIndex);
+  };
+
+  const handleCloseDemoTour = () => {
+    setDemoTourOpen(false);
+    setDemoTourStepIndex(0);
+  };
+
+  useEffect(() => {
+    if (!demoTourOpen) return;
+    const step = DEMO_TOUR_STEPS[demoTourStepIndex];
+    if (!step) return;
+
+    if (step.focus.kind === 'none') {
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(null);
+      setTimelineSelectionIds([]);
+      setTimelineBoardSelection(null);
+      setTimelineBoardEventDraft(null);
+      return;
+    }
+
+    if (step.focus.kind === 'person') {
+      const person = people.find((entry) => entry.id === step.focus.personId);
+      if (!person) return;
+      setSelectedPeopleIds([person.id]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(person);
+      setPropertiesPanelIntent({
+        targetId: person.id,
+        tab: step.focus.tab,
+      });
+      setTimelineSelectionIds([]);
+      return;
+    }
+
+    if (step.focus.kind === 'partnership') {
+      const partnership = partnerships.find((entry) => entry.id === step.focus.partnershipId);
+      if (!partnership) return;
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(partnership.id);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(partnership);
+      setPropertiesPanelIntent({
+        targetId: partnership.id,
+        tab: step.focus.tab,
+      });
+      setTimelineSelectionIds([]);
+      return;
+    }
+
+    if (step.focus.kind === 'emotional') {
+      const line = allEmotionalLines.find((entry) => entry.id === step.focus.lineId);
+      if (!line) return;
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(line.id);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(line);
+      setPropertiesPanelIntent({
+        targetId: line.id,
+        tab: step.focus.tab,
+      });
+      setTimelineSelectionIds([]);
+      return;
+    }
+
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(null);
+    setTimelineSelectionIds(step.focus.personIds);
+    setTimelineYearPickTarget(null);
+    setTimelineYearDrag(null);
+    setTimelineFilterStartYear(null);
+    setTimelineFilterEndYear(null);
+  }, [
+    allEmotionalLines,
+    demoTourOpen,
+    demoTourStepIndex,
+    people,
+    partnerships,
+  ]);
+
+  useEffect(() => {
+    if (!demoTourOpen) {
+      setDemoBlinkVisible(true);
+      return;
+    }
+    const step = DEMO_TOUR_STEPS[demoTourStepIndex];
+    const shouldBlink =
+      step?.focus.kind === 'person' ||
+      step?.focus.kind === 'partnership' ||
+      step?.focus.kind === 'emotional';
+    if (!shouldBlink) {
+      setDemoBlinkVisible(true);
+      return;
+    }
+    setDemoBlinkVisible(true);
+    let toggles = 0;
+    const interval = window.setInterval(() => {
+      toggles += 1;
+      setDemoBlinkVisible((prev) => !prev);
+      if (toggles >= 8) {
+        window.clearInterval(interval);
+        setDemoBlinkVisible(true);
+      }
+    }, 220);
+    return () => {
+      window.clearInterval(interval);
+      setDemoBlinkVisible(true);
+    };
+  }, [demoTourOpen, demoTourStepIndex]);
 
   const handleExportPersonEvents = () => {
     const payload = buildTimelineJson(people, fileName);
@@ -5192,6 +5801,199 @@ useEffect(() => {
     }
   };
 
+  const getPersonSelectionBounds = useCallback((person: Person) => {
+    const size = person.size ?? 60;
+    const half = size / 2;
+    return {
+      x: person.x - half,
+      y: person.y - half,
+      width: size,
+      height: size,
+    };
+  }, []);
+
+  const selectedGroupBounds = useMemo(() => {
+    const selected = people.filter((person) => selectedPeopleIds.includes(person.id));
+    if (selected.length < 2) return null;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    selected.forEach((person) => {
+      const bounds = getPersonSelectionBounds(person);
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.width);
+      maxY = Math.max(maxY, bounds.y + bounds.height);
+    });
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return null;
+    }
+    return {
+      x: minX,
+      y: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+    };
+  }, [people, selectedPeopleIds, getPersonSelectionBounds]);
+
+  const toCanvasPoint = useCallback(
+    (pointer: { x: number; y: number }) => ({
+      x: pointer.x / zoom,
+      y: pointer.y / zoom,
+    }),
+    [zoom]
+  );
+
+  const selectPeopleByMarquee = useCallback(
+    (selectionRect: { x: number; y: number; width: number; height: number }) => {
+      const selected = people
+        .filter((person) => personVisibility.get(person.id))
+        .filter((person) => {
+          const bounds = getPersonSelectionBounds(person);
+          return (
+            bounds.x < selectionRect.x + selectionRect.width &&
+            bounds.x + bounds.width > selectionRect.x &&
+            bounds.y < selectionRect.y + selectionRect.height &&
+            bounds.y + bounds.height > selectionRect.y
+          );
+        })
+        .map((person) => person.id);
+
+      setSelectedPeopleIds(selected);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setSelectedChildId(null);
+      if (selected.length === 1) {
+        const only = people.find((person) => person.id === selected[0]) || null;
+        setPropertiesPanelItem(only);
+      } else {
+        setPropertiesPanelItem(null);
+      }
+    },
+    [people, personVisibility, getPersonSelectionBounds]
+  );
+
+  const beginGroupResize = useCallback(() => {
+    if (!selectedGroupBounds || selectedPeopleIds.length < 2) return;
+    const selectionIds = [...selectedPeopleIds];
+    const peopleMap = new Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>();
+    people.forEach((person) => {
+      if (!selectionIds.includes(person.id)) return;
+      peopleMap.set(person.id, {
+        x: person.x,
+        y: person.y,
+        notesPosition: person.notesPosition ? { ...person.notesPosition } : undefined,
+      });
+    });
+
+    const partnershipsMap = new Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>();
+    partnerships.forEach((partnership) => {
+      if (!selectionIds.includes(partnership.partner1_id) || !selectionIds.includes(partnership.partner2_id)) return;
+      partnershipsMap.set(partnership.id, {
+        horizontalConnectorY: partnership.horizontalConnectorY,
+        notesPosition: partnership.notesPosition ? { ...partnership.notesPosition } : undefined,
+      });
+    });
+
+    const emotionalLinesMap = new Map<string, { notesPosition?: { x: number; y: number } }>();
+    allEmotionalLines.forEach((line) => {
+      if (!selectionIds.includes(line.person1_id) || !selectionIds.includes(line.person2_id)) return;
+      emotionalLinesMap.set(line.id, {
+        notesPosition: line.notesPosition ? { ...line.notesPosition } : undefined,
+      });
+    });
+
+    groupResizeStateRef.current = {
+      selectionIds,
+      bounds: { ...selectedGroupBounds },
+      people: peopleMap,
+      partnerships: partnershipsMap,
+      emotionalLines: emotionalLinesMap,
+    };
+  }, [allEmotionalLines, partnerships, people, selectedGroupBounds, selectedPeopleIds]);
+
+  const applyGroupResize = (nextBounds: { width: number; height: number }) => {
+    const state = groupResizeStateRef.current;
+    if (!state) return;
+    const base = state.bounds;
+    const baseWidth = Math.max(1, base.width);
+    const baseHeight = Math.max(1, base.height);
+    const scaleX = Math.max(0.1, nextBounds.width / baseWidth);
+    const scaleY = Math.max(0.1, nextBounds.height / baseHeight);
+
+    const scaleFromTopLeft = (x: number, y: number) => ({
+      x: base.x + (x - base.x) * scaleX,
+      y: base.y + (y - base.y) * scaleY,
+    });
+
+    setPeopleAligned((prev) =>
+      prev.map((person) => {
+        const source = state.people.get(person.id);
+        if (!source) return person;
+        const scaled = scaleFromTopLeft(source.x, source.y);
+        return {
+          ...person,
+          x: scaled.x,
+          y: scaled.y,
+          notesPosition: source.notesPosition
+            ? scaleFromTopLeft(source.notesPosition.x, source.notesPosition.y)
+            : person.notesPosition,
+        };
+      })
+    );
+
+    setPartnerships((prev) =>
+      prev.map((partnership) => {
+        const source = state.partnerships.get(partnership.id);
+        if (!source) return partnership;
+        return {
+          ...partnership,
+          horizontalConnectorY: base.y + (source.horizontalConnectorY - base.y) * scaleY,
+          notesPosition: source.notesPosition
+            ? scaleFromTopLeft(source.notesPosition.x, source.notesPosition.y)
+            : partnership.notesPosition,
+        };
+      })
+    );
+
+    setEmotionalLines((prev) =>
+      prev.map((line) => {
+        const source = state.emotionalLines.get(line.id);
+        if (!source) return line;
+        return {
+          ...line,
+          notesPosition: source.notesPosition
+            ? scaleFromTopLeft(source.notesPosition.x, source.notesPosition.y)
+            : line.notesPosition,
+        };
+      })
+    );
+
+    setTriangles((prev) =>
+      prev.map((triangle) => {
+        if (!triangle.tpls?.length) return triangle;
+        let changed = false;
+        const nextTpls = triangle.tpls.map((tpl) => {
+          const source = state.emotionalLines.get(tpl.id);
+          if (!source) return tpl;
+          changed = true;
+          return {
+            ...tpl,
+            notesPosition: source.notesPosition
+              ? scaleFromTopLeft(source.notesPosition.x, source.notesPosition.y)
+              : tpl.notesPosition,
+          };
+        });
+        return changed ? { ...triangle, tpls: nextTpls } : triangle;
+      })
+    );
+  };
+
+  const endGroupResize = () => {
+    groupResizeStateRef.current = null;
+  };
+
       type TimelineBlockItem = {
         id: string;
         label: string;
@@ -5675,6 +6477,21 @@ useEffect(() => {
       ];
       const selectedTrainingVideo =
         TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
+      const currentDemoStep = DEMO_TOUR_STEPS[demoTourStepIndex] || DEMO_TOUR_STEPS[0];
+      const currentBuildDemoStep =
+        BUILD_DEMO_STEPS[buildDemoStepIndex] || BUILD_DEMO_STEPS[0];
+      const isDemoFocusedPerson = (personId: string) =>
+        demoTourOpen &&
+        currentDemoStep?.focus.kind === 'person' &&
+        currentDemoStep.focus.personId === personId;
+      const isDemoFocusedPartnership = (partnershipId: string) =>
+        demoTourOpen &&
+        currentDemoStep?.focus.kind === 'partnership' &&
+        currentDemoStep.focus.partnershipId === partnershipId;
+      const isDemoFocusedEmotionalLine = (lineId: string) =>
+        demoTourOpen &&
+        currentDemoStep?.focus.kind === 'emotional' &&
+        currentDemoStep.focus.lineId === lineId;
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
         setTranscriptsMenuOpen(false);
@@ -6007,17 +6824,50 @@ useEffect(() => {
                 scaleY={zoom}
                 onMouseDown={(e) => {
                   if (e.target === e.target.getStage()) {
-                    setIsPanning(true);
                     const pointer = e.target.getStage()?.getPointerPosition();
                     if (pointer) {
-                      panStartRef.current = { x: pointer.x, y: pointer.y };
+                      if (e.evt.altKey || e.evt.button === 1) {
+                        setIsPanning(true);
+                        panStartRef.current = { x: pointer.x, y: pointer.y };
+                        setMarqueeSelection(null);
+                        marqueeDidDragRef.current = false;
+                        return;
+                      }
+                      const canvasPoint = toCanvasPoint(pointer);
+                      setMarqueeSelection({
+                        active: true,
+                        startX: canvasPoint.x,
+                        startY: canvasPoint.y,
+                        currentX: canvasPoint.x,
+                        currentY: canvasPoint.y,
+                      });
+                      marqueeDidDragRef.current = false;
                     }
                   }
                 }}
                 onMouseMove={(e) => {
-                  if (!isPanning || !panStartRef.current) return;
                   const pointer = e.target.getStage()?.getPointerPosition();
                   if (!pointer) return;
+                  if (marqueeSelection?.active) {
+                    const canvasPoint = toCanvasPoint(pointer);
+                    const moved =
+                      Math.abs(canvasPoint.x - marqueeSelection.startX) > 3 ||
+                      Math.abs(canvasPoint.y - marqueeSelection.startY) > 3;
+                    if (moved) {
+                      marqueeDidDragRef.current = true;
+                    }
+                    setMarqueeSelection((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            currentX: canvasPoint.x,
+                            currentY: canvasPoint.y,
+                          }
+                        : prev
+                    );
+                    return;
+                  }
+                  if (!isPanning || !panStartRef.current) return;
                   const dx = (pointer.x - panStartRef.current.x) / zoom;
                   const dy = (pointer.y - panStartRef.current.y) / zoom;
                   translateDiagram(dx, dy);
@@ -6026,10 +6876,21 @@ useEffect(() => {
                 onMouseUp={() => {
                   setIsPanning(false);
                   panStartRef.current = null;
+                  if (!marqueeSelection?.active) return;
+                  const minX = Math.min(marqueeSelection.startX, marqueeSelection.currentX);
+                  const minY = Math.min(marqueeSelection.startY, marqueeSelection.currentY);
+                  const width = Math.abs(marqueeSelection.currentX - marqueeSelection.startX);
+                  const height = Math.abs(marqueeSelection.currentY - marqueeSelection.startY);
+                  if (marqueeDidDragRef.current && width > 1 && height > 1) {
+                    selectPeopleByMarquee({ x: minX, y: minY, width, height });
+                    suppressStageClickRef.current = true;
+                  }
+                  setMarqueeSelection(null);
                 }}
                 onMouseLeave={() => {
                   setIsPanning(false);
                   panStartRef.current = null;
+                  setMarqueeSelection(null);
                 }}
                 onTouchStart={(e) => {
                   if (e.target === e.target.getStage()) {
@@ -6052,8 +6913,13 @@ useEffect(() => {
                 onTouchEnd={() => {
                   setIsPanning(false);
                   panStartRef.current = null;
+                  setMarqueeSelection(null);
                 }}
                 onClick={(e) => {
+                  if (suppressStageClickRef.current) {
+                    suppressStageClickRef.current = false;
+                    return;
+                  }
                   if (e.target === e.target.getStage()) {
                     setSelectedPeopleIds([]);
                     setSelectedPartnershipId(null);
@@ -6094,6 +6960,9 @@ useEffect(() => {
                   {/* Render Emotional Lines */}
                   {allEmotionalLines.map((el) => {
                       if (!emotionalVisibility.get(el.id)) return null;
+                      if (isDemoFocusedEmotionalLine(el.id) && !demoBlinkVisible) {
+                        return null;
+                      }
                       const person1 = people.find(person => person.id === el.person1_id);
                       const person2 = people.find(person => person.id === el.person2_id);
                       if (!person1 || !person2) return null;
@@ -6118,6 +6987,9 @@ useEffect(() => {
                   {/* Render Connections */}
                   {partnerships.map((p) => {
                       if (!partnershipVisibility.get(p.id)) return null;
+                      if (isDemoFocusedPartnership(p.id) && !demoBlinkVisible) {
+                        return null;
+                      }
                       const partner1 = people.find(person => person.id === p.partner1_id);
                       const partner2 = people.find(person => person.id === p.partner2_id);
                       if (!partner1 || !partner2) return null;
@@ -6148,6 +7020,9 @@ useEffect(() => {
                   {/* Render People */}
                   {people.map((person) => {
                     if (!personVisibility.get(person.id)) return null;
+                    if (isDemoFocusedPerson(person.id) && !demoBlinkVisible) {
+                      return null;
+                    }
                     return (
                       <PersonNode
                         key={person.id}
@@ -6167,10 +7042,68 @@ useEffect(() => {
                     );
                   })}
 
+                  {marqueeSelection?.active && (
+                    <Rect
+                      x={Math.min(marqueeSelection.startX, marqueeSelection.currentX)}
+                      y={Math.min(marqueeSelection.startY, marqueeSelection.currentY)}
+                      width={Math.abs(marqueeSelection.currentX - marqueeSelection.startX)}
+                      height={Math.abs(marqueeSelection.currentY - marqueeSelection.startY)}
+                      stroke="#1976d2"
+                      strokeWidth={1.5}
+                      dash={[6, 4]}
+                      fill="rgba(25,118,210,0.12)"
+                      listening={false}
+                    />
+                  )}
+
+                  {selectedGroupBounds && (
+                    <>
+                      <Rect
+                        x={selectedGroupBounds.x}
+                        y={selectedGroupBounds.y}
+                        width={selectedGroupBounds.width}
+                        height={selectedGroupBounds.height}
+                        stroke="#1565c0"
+                        strokeWidth={1.5}
+                        dash={[8, 6]}
+                        fillEnabled={false}
+                        listening={false}
+                      />
+                      <Rect
+                        x={selectedGroupBounds.x + selectedGroupBounds.width - 10}
+                        y={selectedGroupBounds.y + selectedGroupBounds.height - 10}
+                        width={10}
+                        height={10}
+                        fill="#e3f2fd"
+                        stroke="#1565c0"
+                        strokeWidth={1.2}
+                        draggable
+                        onDragStart={(e) => {
+                          e.cancelBubble = true;
+                          beginGroupResize();
+                        }}
+                        onDragMove={(e) => {
+                          e.cancelBubble = true;
+                          const localX = e.target.x() - selectedGroupBounds.x + 10;
+                          const localY = e.target.y() - selectedGroupBounds.y + 10;
+                          applyGroupResize({
+                            width: Math.max(20, localX),
+                            height: Math.max(20, localY),
+                          });
+                        }}
+                        onDragEnd={(e) => {
+                          e.cancelBubble = true;
+                          endGroupResize();
+                        }}
+                      />
+                    </>
+                  )}
+
                   {/* Render Notes */}
                   {people.map((person) => {
                     if (!shouldShowPersonNote(person, notesLayerEnabled, hoveredPersonId)) return null;
                     if (!personVisibility.get(person.id)) return null;
+                    if (isDemoFocusedPerson(person.id) && !demoBlinkVisible) return null;
                     const x = person.notesPosition?.x || person.x + 50;
                     const y = person.notesPosition?.y || person.y;
                     const genderFill =
@@ -6206,6 +7139,7 @@ useEffect(() => {
                   {partnerships.map((p) => {
                     if (!shouldShowPartnershipNote(p, notesLayerEnabled)) return null;
                     if (!partnershipVisibility.get(p.id)) return null;
+                    if (isDemoFocusedPartnership(p.id) && !demoBlinkVisible) return null;
                     const partner1 = people.find(person => person.id === p.partner1_id);
                     const partner2 = people.find(person => person.id === p.partner2_id);
                     if (!partner1 || !partner2) return null;
@@ -6238,6 +7172,7 @@ useEffect(() => {
                   {allEmotionalLines.map((el) => {
                     if (!shouldShowEmotionalNote(el, notesLayerEnabled)) return null;
                     if (!emotionalVisibility.get(el.id)) return null;
+                    if (isDemoFocusedEmotionalLine(el.id) && !demoBlinkVisible) return null;
                     const person1 = people.find(person => person.id === el.person1_id);
                     const person2 = people.find(person => person.id === el.person2_id);
                     if (!person1 || !person2) return null;
@@ -7230,19 +8165,49 @@ useEffect(() => {
                     </div>
                     <h2 style={{ margin: '4px 0 0', fontSize: 22 }}>Family Diagram Maker</h2>
                   </div>
-                  <button
-                    onClick={() => setHelpOpen(false)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      fontSize: 24,
-                      cursor: 'pointer',
-                      lineHeight: 1,
-                    }}
-                    aria-label="Close help"
-                  >
-                    ×
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      onClick={handleStartDemoTour}
+                      style={{
+                        border: '1px solid #1976d2',
+                        color: '#1976d2',
+                        background: '#fff',
+                        borderRadius: 6,
+                        padding: '6px 12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Demo
+                    </button>
+                    <button
+                      onClick={handleStartBuildDemo}
+                      style={{
+                        border: '1px solid #1976d2',
+                        color: '#1976d2',
+                        background: '#fff',
+                        borderRadius: 6,
+                        padding: '6px 12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Build Demo
+                    </button>
+                    <button
+                      onClick={() => setHelpOpen(false)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: 24,
+                        cursor: 'pointer',
+                        lineHeight: 1,
+                      }}
+                      aria-label="Close help"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
                   {HELP_SECTIONS.map((section) => (
@@ -7421,6 +8386,185 @@ useEffect(() => {
                       <div style={{ color: '#555' }}>No videos configured.</div>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {demoTourOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Interactive demo"
+              style={{
+                position: 'fixed',
+                right: 20,
+                bottom: 20,
+                zIndex: 2480,
+                width: 'min(420px, calc(100vw - 40px))',
+              }}
+            >
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #c8d3e4',
+                  borderRadius: 12,
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 12, color: '#4a5b73', fontWeight: 600 }}>
+                    Demo Step {demoTourStepIndex + 1} of {DEMO_TOUR_STEPS.length}
+                  </div>
+                  <button
+                    onClick={handleCloseDemoTour}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 20,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                    }}
+                    aria-label="Close interactive demo"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: '#1f2d3d' }}>
+                  {currentDemoStep.title}
+                </div>
+                <div style={{ fontSize: 14, color: '#2a3950', lineHeight: 1.45 }}>
+                  {currentDemoStep.body}
+                </div>
+                {currentDemoStep.clickToSelectHint && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: '#1f4f8f',
+                      background: '#eef5ff',
+                      border: '1px solid #c6dbff',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                    }}
+                  >
+                    <strong>Click to Select:</strong> {currentDemoStep.clickToSelectHint}
+                  </div>
+                )}
+                {currentDemoStep.rightClickOptions && currentDemoStep.rightClickOptions.length > 0 && (
+                  <div
+                    style={{
+                      border: '1px solid #d8dfe8',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      background: '#fafcff',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#33475b', marginBottom: 4 }}>
+                      Right-click options shown
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#3c4f63', lineHeight: 1.4 }}>
+                      {currentDemoStep.rightClickOptions.map((option) => (
+                        <li key={option}>{option}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <button
+                    onClick={() => setDemoTourStepIndex((idx) => Math.max(0, idx - 1))}
+                    disabled={demoTourStepIndex === 0}
+                  >
+                    Previous
+                  </button>
+                  {demoTourStepIndex < DEMO_TOUR_STEPS.length - 1 ? (
+                    <button onClick={() => setDemoTourStepIndex((idx) => Math.min(DEMO_TOUR_STEPS.length - 1, idx + 1))}>
+                      Next
+                    </button>
+                  ) : (
+                    <button onClick={handleCloseDemoTour}>Finish</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {buildDemoOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Build demo walkthrough"
+              style={{
+                position: 'fixed',
+                right: 20,
+                bottom: 20,
+                zIndex: 2485,
+                width: 'min(460px, calc(100vw - 40px))',
+              }}
+            >
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #c8d3e4',
+                  borderRadius: 12,
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 12, color: '#4a5b73', fontWeight: 600 }}>
+                    Build Step {buildDemoStepIndex + 1} of {BUILD_DEMO_STEPS.length}
+                  </div>
+                  <button
+                    onClick={handleCloseBuildDemo}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 20,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                    }}
+                    aria-label="Close build demo walkthrough"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: '#1f2d3d' }}>
+                  {currentBuildDemoStep.title}
+                </div>
+                <div style={{ fontSize: 14, color: '#2a3950', lineHeight: 1.45 }}>
+                  {currentBuildDemoStep.instruction}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: '#335177',
+                    background: '#eef5ff',
+                    border: '1px solid #c6dbff',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                  }}
+                >
+                  Each step loads the expected result state. Use this to learn what action created it.
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <button
+                    onClick={() => handleBuildDemoStepChange(buildDemoStepIndex - 1)}
+                    disabled={buildDemoStepIndex === 0}
+                  >
+                    Previous
+                  </button>
+                  {buildDemoStepIndex < BUILD_DEMO_STEPS.length - 1 ? (
+                    <button onClick={() => handleBuildDemoStepChange(buildDemoStepIndex + 1)}>
+                      Next
+                    </button>
+                  ) : (
+                    <button onClick={handleCloseBuildDemo}>Finish</button>
+                  )}
                 </div>
               </div>
             </div>
