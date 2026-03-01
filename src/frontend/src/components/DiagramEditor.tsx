@@ -3280,6 +3280,47 @@ useEffect(() => {
     setPartnerships([...partnerships, newPartnership]);
   };
 
+  const addPartnerForPerson = (person: Person) => {
+    const partnerGender = person.gender === 'male' ? 'female' : 'male';
+    const partnerOffsetX = person.gender === 'female' ? -140 : 140;
+    const newPartnerId = nanoid();
+    const newPartnershipId = nanoid();
+    const newPartnership: Partnership = {
+      id: newPartnershipId,
+      partner1_id: person.id,
+      partner2_id: newPartnerId,
+      horizontalConnectorY: Math.max(person.y, person.y) + 100,
+      relationshipType: 'dating',
+      relationshipStatus: 'married',
+      children: [],
+      events: [],
+    };
+
+    const newPartner: Person = {
+      id: newPartnerId,
+      name: 'New Partner',
+      x: person.x + partnerOffsetX,
+      y: person.y,
+      gender: partnerGender,
+      partnerships: [newPartnershipId],
+      events: [],
+    };
+
+    setPartnerships((prev) => [...prev, newPartnership]);
+    setPeopleAligned((prev) =>
+      prev.map((entry) =>
+        entry.id === person.id
+          ? { ...entry, partnerships: [...new Set([...(entry.partnerships || []), newPartnershipId])] }
+          : entry
+      ).concat(newPartner)
+    );
+    setSelectedPeopleIds([person.id, newPartnerId]);
+    setSelectedPartnershipId(newPartnershipId);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(newPartnership);
+  };
+
   const addChildToPartnership = (childIdOverride?: string, partnershipIdOverride?: string) => {
     const childId =
       childIdOverride ?? (selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null);
@@ -4502,6 +4543,13 @@ useEffect(() => {
                 setTimelineFilterEndYear(null);
                 setTimelineBoardSelection(null);
                 setTimelineBoardEventDraft(null);
+                setContextMenu(null);
+            }
+          },
+          {
+            label: 'Add Partner',
+            onClick: () => {
+                addPartnerForPerson(person);
                 setContextMenu(null);
             }
           }
@@ -6132,6 +6180,13 @@ useEffect(() => {
                         fillColor={genderFill}
                         onDragEnd={(e) => handlePersonNoteDragEnd(person.id, e.target.x(), e.target.y())}
                         onResizeEnd={(w, h) => handlePersonNoteResizeEnd(person.id, w, h)}
+                        onSelect={() => {
+                          setSelectedPeopleIds([person.id]);
+                          setSelectedPartnershipId(null);
+                          setSelectedEmotionalLineId(null);
+                          setSelectedChildId(null);
+                          setPropertiesPanelItem(person);
+                        }}
                       />
                     );
                   })}
@@ -6157,6 +6212,13 @@ useEffect(() => {
                         anchorY={p.horizontalConnectorY}
                         onDragEnd={(e) => handlePartnershipNoteDragEnd(p.id, e.target.x(), e.target.y())}
                         onResizeEnd={(w, h) => handlePartnershipNoteResizeEnd(p.id, w, h)}
+                        onSelect={() => {
+                          setSelectedPeopleIds([]);
+                          setSelectedPartnershipId(p.id);
+                          setSelectedEmotionalLineId(null);
+                          setSelectedChildId(null);
+                          setPropertiesPanelItem(p);
+                        }}
                       />
                     );
                   })}
@@ -6182,6 +6244,13 @@ useEffect(() => {
                         anchorY={(person1.y + person2.y) / 2}
                         onDragEnd={(e) => handleEmotionalLineNoteDragEnd(el.id, e.target.x(), e.target.y())}
                         onResizeEnd={(w, h) => handleEmotionalLineNoteResizeEnd(el.id, w, h)}
+                        onSelect={() => {
+                          setSelectedPeopleIds([]);
+                          setSelectedPartnershipId(null);
+                          setSelectedEmotionalLineId(el.id);
+                          setSelectedChildId(null);
+                          setPropertiesPanelItem(el);
+                        }}
                       />
                     );
                   })}
