@@ -4783,6 +4783,19 @@ useEffect(() => {
         },
     ];
 
+    if (selectedPeopleIds.length === 1) {
+      const selectedPerson = people.find((person) => person.id === selectedPeopleIds[0]);
+      if (selectedPerson) {
+        baseItems.push({
+          label: 'Add Partner',
+          onClick: () => {
+            addPartnerForPerson(selectedPerson);
+            setContextMenu(null);
+          },
+        });
+      }
+    }
+
     setContextMenu({
         x: e.evt.clientX,
         y: e.evt.clientY,
