@@ -7116,6 +7116,14 @@ useEffect(() => {
                 ?
               </button>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                onClick={() => setTrainingVideosOpen(true)}
+                style={ribbonButtonStyle}
+              >
+                Help Video
+              </button>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...toolbarHighlightStyle('help') }}>
               <button
                 onClick={() => setHelpOpen(true)}
