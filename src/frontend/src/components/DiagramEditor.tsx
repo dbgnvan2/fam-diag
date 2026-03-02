@@ -3467,6 +3467,11 @@ const DiagramEditor = () => {
     } else {
       setTriangles(initialTriangles);
       markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
+      try {
+        replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram', { normalizeLayout: false });
+      } catch {
+        // keep fallback defaults if demo payload is ever malformed
+      }
     }
 
     if (savedCategories) {
