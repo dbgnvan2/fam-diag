@@ -6673,6 +6673,9 @@ useEffect(() => {
       const selectedTrainingVideo =
         TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
       const selectedRibbonHelp = ribbonHelpKey ? RIBBON_HELP[ribbonHelpKey] : null;
+      const isDemoFamilyLoaded = (fileName || '').trim() === 'Demo Family Diagram';
+      const shouldBlinkHelpOnDemo = isDemoFamilyLoaded && !helpOpen;
+      const helpBlinkOn = shouldBlinkHelpOnDemo ? Math.floor(now / 500) % 2 === 0 : false;
       const currentDemoStep = DEMO_TOUR_STEPS[demoTourStepIndex] || DEMO_TOUR_STEPS[0];
       const currentBuildDemoStep =
         BUILD_DEMO_STEPS[buildDemoStepIndex] || BUILD_DEMO_STEPS[0];
@@ -7105,8 +7108,18 @@ useEffect(() => {
                 ?
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('help') }}>
-              <button onClick={() => setHelpOpen(true)} style={ribbonButtonStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...toolbarHighlightStyle('help') }}>
+              <button
+                onClick={() => setHelpOpen(true)}
+                style={{
+                  ...ribbonButtonStyle,
+                  borderColor: shouldBlinkHelpOnDemo ? '#1976d2' : '#b0b0b0',
+                  boxShadow:
+                    shouldBlinkHelpOnDemo && helpBlinkOn
+                      ? '0 0 0 3px rgba(25,118,210,0.35)'
+                      : 'none',
+                }}
+              >
                 Help
               </button>
               <button
@@ -7116,6 +7129,22 @@ useEffect(() => {
               >
                 ?
               </button>
+              {shouldBlinkHelpOnDemo && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.25,
+                    color: '#133a63',
+                    background: '#e9f3ff',
+                    border: '1px solid #9fc4ea',
+                    borderRadius: 6,
+                    padding: '5px 7px',
+                    maxWidth: 360,
+                  }}
+                >
+                  Click here to read help, run a demo, or watch a video on how the program works.
+                </div>
+              )}
             </div>
             <input
               ref={loadInputRef}
