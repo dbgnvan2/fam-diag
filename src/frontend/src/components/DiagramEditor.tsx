@@ -159,6 +159,7 @@ type PropertiesPanelIntent = {
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent>;
+  openNewEventPosition?: { x: number; y: number };
 } | null;
 // Replace these URLs with your own training library as videos are produced.
 const TRAINING_VIDEOS = [
@@ -2003,6 +2004,7 @@ const DiagramEditor = () => {
   useEffect(() => {
     if (!propertiesPanelIntent || !propertiesPanelItem) return;
     if (propertiesPanelIntent.targetId !== propertiesPanelItem.id) return;
+    if (propertiesPanelIntent.openNewEventRequestId) return;
     const timer = window.setTimeout(() => setPropertiesPanelIntent(null), 0);
     return () => window.clearTimeout(timer);
   }, [propertiesPanelIntent, propertiesPanelItem]);
@@ -2980,7 +2982,8 @@ const DiagramEditor = () => {
   const openContextualEventCreator = (
     target: { type: 'person' | 'partnership' | 'emotional'; id: string },
     targetItem: Person | Partnership | EmotionalLine,
-    seed?: Partial<EmotionalProcessEvent>
+    seed?: Partial<EmotionalProcessEvent>,
+    popupPosition?: { x: number; y: number }
   ) => {
     const anchorType =
       target.type === 'person'
@@ -3007,6 +3010,7 @@ const DiagramEditor = () => {
       focusItemInPropertiesPanel(person, {
         tab: 'events',
         openNewEventRequestId: nanoid(),
+        openNewEventPosition: popupPosition,
         newEventSeed: {
           ...baseSeed,
           primaryPersonName: person.name || '',
@@ -3025,6 +3029,7 @@ const DiagramEditor = () => {
       focusItemInPropertiesPanel(partnership, {
         tab: 'events',
         openNewEventRequestId: nanoid(),
+        openNewEventPosition: popupPosition,
         newEventSeed: {
           ...baseSeed,
           primaryPersonName: partner1?.name || '',
@@ -3043,6 +3048,7 @@ const DiagramEditor = () => {
     focusItemInPropertiesPanel(line, {
       tab: 'events',
       openNewEventRequestId: nanoid(),
+      openNewEventPosition: popupPosition,
       newEventSeed: {
         ...baseSeed,
         eventType: 'EPE',
@@ -5208,8 +5214,6 @@ useEffect(() => {
 
   const handlePersonContextMenu = (e: KonvaEventObject<PointerEvent>, person: Person) => {
       e.evt.preventDefault();
-      console.log('selectedPeopleIds:', selectedPeopleIds);
-      console.log('selectedPartnershipId:', selectedPartnershipId);
       if (!selectedPeopleIds.includes(person.id) || selectedPeopleIds.length === 0) {
         setSelectedPeopleIds([person.id]);
         setPropertiesPanelItem(person);
@@ -5241,7 +5245,12 @@ useEffect(() => {
           {
             label: 'Properties',
             onClick: () => {
+                setSelectedPeopleIds([person.id]);
+                setSelectedPartnershipId(null);
+                setSelectedEmotionalLineId(null);
+                setSelectedChildId(null);
                 setPropertiesPanelItem(person);
+                setPropertiesPanelIntent(null);
                 setContextMenu(null);
             }
           },
@@ -5265,7 +5274,12 @@ useEffect(() => {
           {
             label: 'Add Event...',
             onClick: () => {
-              openContextualEventCreator({ type: 'person', id: person.id }, person);
+              openContextualEventCreator(
+                { type: 'person', id: person.id },
+                person,
+                undefined,
+                { x: e.evt.clientX, y: e.evt.clientY }
+              );
               setContextMenu(null);
             }
           },
@@ -5446,7 +5460,12 @@ useEffect(() => {
             {
               label: 'Add Event...',
               onClick: () => {
-                openContextualEventCreator({ type: 'partnership', id: partnershipId }, partnership);
+                openContextualEventCreator(
+                  { type: 'partnership', id: partnershipId },
+                  partnership,
+                  undefined,
+                  { x: e.evt.clientX, y: e.evt.clientY }
+                );
                 setContextMenu(null);
               }
             },
@@ -5507,7 +5526,12 @@ useEffect(() => {
                   setContextMenu(null);
                   return;
                 }
-                openContextualEventCreator({ type: 'person', id: targetPerson.id }, targetPerson);
+                openContextualEventCreator(
+                  { type: 'person', id: targetPerson.id },
+                  targetPerson,
+                  undefined,
+                  { x: e.evt.clientX, y: e.evt.clientY }
+                );
                 setContextMenu(null);
             }
         },
@@ -5814,11 +5838,16 @@ useEffect(() => {
       {
         label: 'Add Event...',
         onClick: () => {
-          openContextualEventCreator({ type: 'emotional', id: emotionalLineId }, emotionalLine, {
-            eventType: 'EPE',
-            emotionalProcessType: emotionalLine.relationshipType,
-            category: emotionalLine.relationshipType,
-          });
+          openContextualEventCreator(
+            { type: 'emotional', id: emotionalLineId },
+            emotionalLine,
+            {
+              eventType: 'EPE',
+              emotionalProcessType: emotionalLine.relationshipType,
+              category: emotionalLine.relationshipType,
+            },
+            { x: e.evt.clientX, y: e.evt.clientY }
+          );
           setContextMenu(null);
         }
       },
@@ -7580,6 +7609,11 @@ useEffect(() => {
                       newEventSeed={
                         propertiesPanelIntent?.targetId === propertiesPanelItem.id
                           ? propertiesPanelIntent.newEventSeed
+                          : undefined
+                      }
+                      openNewEventPosition={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.openNewEventPosition
                           : undefined
                       }
                       onClose={() => {

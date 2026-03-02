@@ -139,6 +139,7 @@ interface PropertiesPanelProps {
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent> | null;
+  openNewEventPosition?: { x: number; y: number };
   onClose: () => void;
 }
 
@@ -159,6 +160,7 @@ const PropertiesPanel = ({
   focusEventId,
   openNewEventRequestId,
   newEventSeed,
+  openNewEventPosition,
   onClose,
 }: PropertiesPanelProps) => {
   const isPerson = 'name' in selectedItem;
@@ -175,6 +177,9 @@ const PropertiesPanel = ({
     x: number;
     y: number;
   } | null>(null);
+  const [eventModalPosition, setEventModalPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
@@ -1026,6 +1031,7 @@ const PropertiesPanel = ({
   const openNewEvent = (seed?: Partial<EmotionalProcessEvent> | null) => {
     const eventType = (seed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, seed));
+    setEventModalPosition(openNewEventPosition || null);
     setEventModalOpen(true);
   };
 
@@ -1054,6 +1060,7 @@ const PropertiesPanel = ({
       createdAt: event.createdAt ?? Date.now(),
       eventClass: event.eventClass || resolveEventClass(),
     });
+    setEventModalPosition(null);
     setEventModalOpen(true);
   };
 
@@ -1063,8 +1070,9 @@ const PropertiesPanel = ({
     setActiveTab('events');
     const eventType = (newEventSeed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, newEventSeed || null));
+    setEventModalPosition(openNewEventPosition || null);
     setEventModalOpen(true);
-  }, [openNewEventRequestId, newEventSeed, resolveDefaultEventType, buildEventDraft]);
+  }, [openNewEventRequestId, newEventSeed, openNewEventPosition, resolveDefaultEventType, buildEventDraft]);
 
   const handleEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     if (!eventDraft) return;
@@ -1227,6 +1235,14 @@ const PropertiesPanel = ({
     : isPartnership
     ? 'Relationship Functional Facts'
     : 'Individual Functional Facts';
+  const popupLeft =
+    eventModalPosition && typeof window !== 'undefined'
+      ? Math.max(12, Math.min(eventModalPosition.x + 8, window.innerWidth - 560))
+      : undefined;
+  const popupTop =
+    eventModalPosition && typeof window !== 'undefined'
+      ? Math.max(12, Math.min(eventModalPosition.y + 8, window.innerHeight - 560))
+      : undefined;
 
   return (
     <div
@@ -2080,12 +2096,22 @@ const PropertiesPanel = ({
             inset: 0,
             background: 'rgba(0,0,0,0.35)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: eventModalPosition ? 'stretch' : 'center',
+            justifyContent: eventModalPosition ? 'stretch' : 'center',
             zIndex: 2000,
           }}
         >
-          <div style={{ background: 'white', padding: 20, borderRadius: 10, width: 520 }}>
+          <div
+            style={{
+              background: 'white',
+              padding: 20,
+              borderRadius: 10,
+              width: 520,
+              position: eventModalPosition ? 'absolute' : 'relative',
+              left: popupLeft,
+              top: popupTop,
+            }}
+          >
             <h4 style={{ marginTop: 0 }}>
               {getEvents().some((event) => event.id === eventDraft.id) ? 'Edit Event' : 'New Event'}
             </h4>
