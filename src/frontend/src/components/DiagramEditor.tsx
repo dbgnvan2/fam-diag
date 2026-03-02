@@ -2963,6 +2963,7 @@ const DiagramEditor = () => {
       focusEventId?: string;
       openNewEventRequestId?: string;
       newEventSeed?: Partial<EmotionalProcessEvent>;
+      openNewEventPosition?: { x: number; y: number };
     }
   ) => {
     setPropertiesPanelItem(item);
@@ -2973,6 +2974,7 @@ const DiagramEditor = () => {
         focusEventId: intent.focusEventId,
         openNewEventRequestId: intent.openNewEventRequestId,
         newEventSeed: intent.newEventSeed,
+        openNewEventPosition: intent.openNewEventPosition,
       });
     } else {
       setPropertiesPanelIntent(null);
