@@ -267,6 +267,17 @@ const PropertiesPanel = ({
   }, [focusEventId, initialActiveTab]);
 
   useEffect(() => {
+    if (!eventModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setEventModalOpen(false);
+      setEventDraft(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [eventModalOpen]);
+
+  useEffect(() => {
     const nextId = selectedPerson?.id ?? null;
     if (selectedPersonIdRef.current === nextId) return;
     selectedPersonIdRef.current = nextId;
@@ -1274,6 +1285,12 @@ const PropertiesPanel = ({
     eventModalPosition && typeof window !== 'undefined'
       ? Math.max(12, Math.min(eventModalPosition.y + 8, window.innerHeight - 560))
       : undefined;
+  const popupMaxHeight =
+    typeof window !== 'undefined'
+      ? eventModalPosition && typeof popupTop === 'number'
+        ? Math.max(260, window.innerHeight - popupTop - 12)
+        : window.innerHeight - 24
+      : undefined;
 
   return (
     <div
@@ -2173,7 +2190,7 @@ const PropertiesPanel = ({
               borderRadius: 10,
               width: 520,
               maxWidth: 'calc(100vw - 24px)',
-              maxHeight: 'calc(100vh - 24px)',
+              maxHeight: popupMaxHeight ? `${popupMaxHeight}px` : 'calc(100vh - 24px)',
               overflowY: 'auto',
               boxSizing: 'border-box',
               position: eventModalPosition ? 'absolute' : 'relative',
