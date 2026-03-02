@@ -168,8 +168,8 @@ const TRAINING_VIDEOS = [
     title: 'Getting Started',
     duration: '6 min',
     topic: 'Canvas basics, file workflow, and object editing',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/ysz5S6PUM-U',
-    url: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/hQlVAUm8DdM',
+    url: 'https://youtu.be/hQlVAUm8DdM',
   },
   {
     id: 'transcript',
@@ -186,14 +186,6 @@ const TRAINING_VIDEOS = [
     topic: 'Export person events, edit in timeline mode, and merge back',
     embedUrl: 'https://www.youtube-nocookie.com/embed/jNQXAC9IVRw',
     url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
-  },
-  {
-    id: 'family-diagram-demo',
-    title: 'Family Diagram Demo',
-    duration: 'Video',
-    topic: 'Program walkthrough and usage demo',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/hQlVAUm8DdM',
-    url: 'https://youtu.be/hQlVAUm8DdM',
   },
 ];
 
