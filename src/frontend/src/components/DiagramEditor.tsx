@@ -187,6 +187,14 @@ const TRAINING_VIDEOS = [
     embedUrl: 'https://www.youtube-nocookie.com/embed/jNQXAC9IVRw',
     url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
   },
+  {
+    id: 'family-diagram-demo',
+    title: 'Family Diagram Demo',
+    duration: 'Video',
+    topic: 'Program walkthrough and usage demo',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/hQlVAUm8DdM',
+    url: 'https://youtu.be/hQlVAUm8DdM',
+  },
 ];
 
 const DEMO_DIAGRAM_DATA: DiagramImportData = demoDiagramDataJson as DiagramImportData;
