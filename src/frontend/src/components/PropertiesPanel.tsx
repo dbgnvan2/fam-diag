@@ -1939,7 +1939,7 @@ const PropertiesPanel = ({
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
             <strong>Events</strong>
-            <button onClick={openNewEvent}>Add Event</button>
+            <button onClick={() => openNewEvent()}>Add Event</button>
           </div>
           <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <label htmlFor="eventListMode">View: </label>

@@ -4764,8 +4764,9 @@ useEffect(() => {
     );
     const step = BUILD_DEMO_STEPS[boundedIndex];
     if (!step) return;
+    const focus = step.focus;
 
-    if (step.focus.kind === 'none') {
+    if (focus.kind === 'none') {
       setSelectedPeopleIds([]);
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
@@ -4775,8 +4776,8 @@ useEffect(() => {
       return;
     }
 
-    if (step.focus.kind === 'person') {
-      const person = (snapshot.people || []).find((entry) => entry.id === step.focus.personId);
+    if (focus.kind === 'person') {
+      const person = (snapshot.people || []).find((entry) => entry.id === focus.personId);
       if (!person) return;
       setSelectedPeopleIds([person.id]);
       setSelectedPartnershipId(null);
@@ -4785,14 +4786,14 @@ useEffect(() => {
       setPropertiesPanelItem(person);
       setPropertiesPanelIntent({
         targetId: person.id,
-        tab: step.focus.tab,
+        tab: focus.tab,
       });
       return;
     }
 
-    if (step.focus.kind === 'partnership') {
+    if (focus.kind === 'partnership') {
       const partnership = (snapshot.partnerships || []).find(
-        (entry) => entry.id === step.focus.partnershipId
+        (entry) => entry.id === focus.partnershipId
       );
       if (!partnership) return;
       setSelectedPeopleIds([]);
@@ -4802,22 +4803,24 @@ useEffect(() => {
       setPropertiesPanelItem(partnership);
       setPropertiesPanelIntent({
         targetId: partnership.id,
-        tab: step.focus.tab,
+        tab: focus.tab,
       });
       return;
     }
 
-    const line = (snapshot.emotionalLines || []).find((entry) => entry.id === step.focus.lineId);
-    if (!line) return;
-    setSelectedPeopleIds([]);
-    setSelectedPartnershipId(null);
-    setSelectedEmotionalLineId(line.id);
-    setSelectedChildId(null);
-    setPropertiesPanelItem(line);
-    setPropertiesPanelIntent({
-      targetId: line.id,
-      tab: step.focus.tab,
-    });
+    if (focus.kind === 'emotional') {
+      const line = (snapshot.emotionalLines || []).find((entry) => entry.id === focus.lineId);
+      if (!line) return;
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(line.id);
+      setSelectedChildId(null);
+      setPropertiesPanelItem(line);
+      setPropertiesPanelIntent({
+        targetId: line.id,
+        tab: focus.tab,
+      });
+    }
   };
 
   const handleStartBuildDemo = () => {
@@ -4856,8 +4859,9 @@ useEffect(() => {
     if (!demoTourOpen) return;
     const step = DEMO_TOUR_STEPS[demoTourStepIndex];
     if (!step) return;
+    const focus = step.focus;
 
-    if (step.focus.kind === 'none') {
+    if (focus.kind === 'none') {
       setSelectedPeopleIds([]);
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
@@ -4869,8 +4873,8 @@ useEffect(() => {
       return;
     }
 
-    if (step.focus.kind === 'person') {
-      const person = people.find((entry) => entry.id === step.focus.personId);
+    if (focus.kind === 'person') {
+      const person = people.find((entry) => entry.id === focus.personId);
       if (!person) return;
       setSelectedPeopleIds([person.id]);
       setSelectedPartnershipId(null);
@@ -4879,14 +4883,14 @@ useEffect(() => {
       setPropertiesPanelItem(person);
       setPropertiesPanelIntent({
         targetId: person.id,
-        tab: step.focus.tab,
+        tab: focus.tab,
       });
       setTimelineSelectionIds([]);
       return;
     }
 
-    if (step.focus.kind === 'partnership') {
-      const partnership = partnerships.find((entry) => entry.id === step.focus.partnershipId);
+    if (focus.kind === 'partnership') {
+      const partnership = partnerships.find((entry) => entry.id === focus.partnershipId);
       if (!partnership) return;
       setSelectedPeopleIds([]);
       setSelectedPartnershipId(partnership.id);
@@ -4895,14 +4899,14 @@ useEffect(() => {
       setPropertiesPanelItem(partnership);
       setPropertiesPanelIntent({
         targetId: partnership.id,
-        tab: step.focus.tab,
+        tab: focus.tab,
       });
       setTimelineSelectionIds([]);
       return;
     }
 
-    if (step.focus.kind === 'emotional') {
-      const line = allEmotionalLines.find((entry) => entry.id === step.focus.lineId);
+    if (focus.kind === 'emotional') {
+      const line = allEmotionalLines.find((entry) => entry.id === focus.lineId);
       if (!line) return;
       setSelectedPeopleIds([]);
       setSelectedPartnershipId(null);
@@ -4911,13 +4915,13 @@ useEffect(() => {
       setPropertiesPanelItem(line);
       setPropertiesPanelIntent({
         targetId: line.id,
-        tab: step.focus.tab,
+        tab: focus.tab,
       });
       setTimelineSelectionIds([]);
       return;
     }
 
-    if (step.focus.kind === 'toolbar') {
+    if (focus.kind === 'toolbar') {
       setSelectedPeopleIds([]);
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
@@ -4934,7 +4938,9 @@ useEffect(() => {
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
     setPropertiesPanelItem(null);
-    setTimelineSelectionIds(step.focus.personIds);
+    if (focus.kind === 'timeline') {
+      setTimelineSelectionIds(focus.personIds);
+    }
     setTimelineYearPickTarget(null);
     setTimelineYearDrag(null);
     setTimelineFilterStartYear(null);
