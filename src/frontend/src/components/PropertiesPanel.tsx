@@ -239,6 +239,19 @@ const PropertiesPanel = ({
   const stringDiffers = (a?: string | null, b?: string | null) => (a ?? '') !== (b ?? '');
   const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
   const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
+  const helpBadgeStyle: React.CSSProperties = {
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    border: '1px solid #8ba1bd',
+    background: '#fff',
+    color: '#38557a',
+    fontWeight: 700,
+    fontSize: 12,
+    lineHeight: '18px',
+    padding: 0,
+    cursor: 'pointer',
+  };
 
   useEffect(() => {
     setEventModalOpen(false);
@@ -1279,19 +1292,18 @@ const PropertiesPanel = ({
           <div style={{ fontSize: 11, color: '#555' }}>{termLabel()}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         {(['properties', 'functional', 'events'] as const).map((tab) => {
           const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
           const isActive = tab === activeTab;
           const tabLabel = tab === 'properties' ? 'Person' : tab === 'functional' ? 'Indicators' : 'Events';
           return (
-            <div key={tab} style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'stretch' }}>
+            <div key={tab} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
               <button
                 disabled={disabled}
                 onClick={() => setActiveTab(tab)}
                 style={{
-                  flex: 1,
-                  padding: '8px 4px',
+                  padding: '8px 12px',
                   borderRadius: 6,
                   border: isActive ? '2px solid #3f51b5' : '1px solid #bdbdbd',
                   background: isActive ? '#e8eaf6' : '#fff',
@@ -1307,15 +1319,7 @@ const PropertiesPanel = ({
                 onClick={() => setTabHelpOpen(tab)}
                 aria-label={`Help for ${tabLabel} tab`}
                 title={`Help for ${tabLabel}`}
-                style={{
-                  width: 28,
-                  minWidth: 28,
-                  borderRadius: 6,
-                  border: '1px solid #bdbdbd',
-                  background: '#fff',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                style={helpBadgeStyle}
               >
                 ?
               </button>
