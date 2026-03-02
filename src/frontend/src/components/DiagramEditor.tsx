@@ -3433,20 +3433,33 @@ const DiagramEditor = () => {
     const savedTriangles = getStoredValue('triangles');
     const savedCategories = getStoredValue('eventCategories');
     const savedIndicators = getStoredValue('indicatorDefinitions');
-    let indicatorDefs = initialIndicatorDefinitions;
-    if (savedIndicators) {
+    const hasSavedDiagram = Boolean(savedPeople && savedPartnerships && savedEmotionalLines);
+    let shouldLoadSavedDiagram = false;
+    if (hasSavedDiagram) {
+      const savedName = getStoredValue('fileName') || 'your saved diagram';
       try {
-        const parsed = JSON.parse(savedIndicators);
-        if (Array.isArray(parsed)) {
-          indicatorDefs = parsed;
-        }
+        shouldLoadSavedDiagram = window.confirm(
+          `Load your saved diagram "${savedName}"?\n\nChoose Cancel to start with Demo Family Diagram.`
+        );
       } catch {
-        // ignore malformed indicator definitions
+        shouldLoadSavedDiagram = true;
       }
     }
-    applyIndicatorDefinitionArray(indicatorDefs);
 
-    if (savedPeople && savedPartnerships && savedEmotionalLines) {
+    if (shouldLoadSavedDiagram && savedPeople && savedPartnerships && savedEmotionalLines) {
+      let indicatorDefs = initialIndicatorDefinitions;
+      if (savedIndicators) {
+        try {
+          const parsed = JSON.parse(savedIndicators);
+          if (Array.isArray(parsed)) {
+            indicatorDefs = parsed;
+          }
+        } catch {
+          // ignore malformed indicator definitions
+        }
+      }
+      applyIndicatorDefinitionArray(indicatorDefs);
+
       const parsedPeople: Person[] = JSON.parse(savedPeople);
       const parsedPartnerships: Partnership[] = JSON.parse(savedPartnerships);
       const parsedLines: EmotionalLine[] = JSON.parse(savedEmotionalLines);
@@ -3465,16 +3478,17 @@ const DiagramEditor = () => {
       setTriangles(normalizedTriangles);
       markSnapshotClean(sanitizedPeople, cleaned.partnerships, normalizedLines, normalizedTriangles);
     } else {
-      setTriangles(initialTriangles);
-      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
       try {
+        applyIndicatorDefinitionArray(initialIndicatorDefinitions);
         replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram', { normalizeLayout: false });
       } catch {
         // keep fallback defaults if demo payload is ever malformed
+        setTriangles(initialTriangles);
+        markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
       }
     }
 
-    if (savedCategories) {
+    if (shouldLoadSavedDiagram && savedCategories) {
       try {
         const parsed = JSON.parse(savedCategories);
         if (Array.isArray(parsed) && parsed.length > 0) {
