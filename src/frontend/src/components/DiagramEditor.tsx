@@ -187,6 +187,14 @@ const TRAINING_VIDEOS = [
     embedUrl: 'https://www.youtube-nocookie.com/embed/jNQXAC9IVRw',
     url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
   },
+  {
+    id: 'family-systems-overview',
+    title: 'Family Systems Overview',
+    duration: 'Video',
+    topic: 'Additional training video',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/T7EsqTwpukc',
+    url: 'https://www.youtube.com/watch?v=T7EsqTwpukc',
+  },
 ];
 
 const DEMO_DIAGRAM_DATA: DiagramImportData = demoDiagramDataJson as DiagramImportData;
