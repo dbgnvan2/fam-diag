@@ -6617,9 +6617,16 @@ useEffect(() => {
         color: '#fff',
         border: 'none',
         borderRadius: 4,
-        padding: '8px 16px',
+        padding: '8px 10px',
         fontWeight: 600,
         boxShadow: isSaveDirty ? '0 0 0 2px rgba(198,40,40,0.35)' : 'none',
+        cursor: 'pointer',
+      };
+      const ribbonButtonStyle: React.CSSProperties = {
+        padding: '8px 10px',
+        borderRadius: 4,
+        border: '1px solid #b0b0b0',
+        background: '#fff',
         cursor: 'pointer',
       };
       const fileMenuItems = [
@@ -6713,13 +6720,7 @@ useEffect(() => {
             >
               <button
                 onClick={() => setFileMenuOpen((prev) => !prev)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 4,
-                  border: '1px solid #b0b0b0',
-                  background: '#fff',
-                  cursor: 'pointer',
-                }}
+                style={ribbonButtonStyle}
                 aria-haspopup="menu"
                 aria-expanded={fileMenuOpen}
               >
@@ -6822,7 +6823,7 @@ useEffect(() => {
                     onClick={() => adjustTimelineYear(-1)}
                     disabled={timelineSliderDisabled}
                     style={{
-                      padding: '2px 10px',
+                      padding: '2px 8px',
                       borderRadius: 4,
                       border: '1px solid #b0b0b0',
                       background: '#fff',
@@ -6836,7 +6837,7 @@ useEffect(() => {
                     onClick={() => adjustTimelineYear(1)}
                     disabled={timelineSliderDisabled}
                     style={{
-                      padding: '2px 10px',
+                      padding: '2px 8px',
                       borderRadius: 4,
                       border: '1px solid #b0b0b0',
                       background: '#fff',
@@ -6850,7 +6851,7 @@ useEffect(() => {
                     onClick={handleTimelinePlayToggle}
                     disabled={timelineSliderDisabled}
                     style={{
-                      padding: '2px 12px',
+                      padding: '2px 10px',
                       borderRadius: 4,
                       border: '1px solid #1976d2',
                       background: timelinePlaying ? '#1976d2' : '#fff',
@@ -6902,7 +6903,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-categories') }}>
-              <button onClick={() => setSettingsOpen(true)}>
+              <button onClick={() => setSettingsOpen(true)} style={ribbonButtonStyle}>
                 Event Categories
               </button>
               <button
@@ -6914,7 +6915,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('functional-indicators') }}>
-              <button onClick={() => setIndicatorSettingsOpen(true)}>
+              <button onClick={() => setIndicatorSettingsOpen(true)} style={ribbonButtonStyle}>
                 Functional Indicators
               </button>
               <button
@@ -6934,13 +6935,7 @@ useEffect(() => {
                   setTranscriptsMenuOpen((prev) => !prev);
                   setTimelineMenuOpen(false);
                 }}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 4,
-                  border: '1px solid #b0b0b0',
-                  background: '#fff',
-                  cursor: 'pointer',
-                }}
+                style={ribbonButtonStyle}
                 aria-haspopup="menu"
                 aria-expanded={transcriptsMenuOpen}
               >
@@ -6996,13 +6991,7 @@ useEffect(() => {
                   setTimelineMenuOpen((prev) => !prev);
                   setTranscriptsMenuOpen(false);
                 }}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 4,
-                  border: '1px solid #b0b0b0',
-                  background: '#fff',
-                  cursor: 'pointer',
-                }}
+                style={ribbonButtonStyle}
                 aria-haspopup="menu"
                 aria-expanded={timelineMenuOpen}
               >
@@ -7050,7 +7039,7 @@ useEffect(() => {
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-creator') }}>
-              <button onClick={handleOpenEventCreator}>
+              <button onClick={handleOpenEventCreator} style={ribbonButtonStyle}>
                 Event Creator
               </button>
               <button
@@ -7062,7 +7051,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('notes-layer') }}>
-              <button onClick={() => setNotesLayerEnabled((prev) => !prev)}>
+              <button onClick={() => setNotesLayerEnabled((prev) => !prev)} style={ribbonButtonStyle}>
                 Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
               </button>
               <button
@@ -7074,7 +7063,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('ideas') }}>
-              <button onClick={() => setIdeasOpen(true)}>
+              <button onClick={() => setIdeasOpen(true)} style={ribbonButtonStyle}>
                 Ideas
               </button>
               <button
@@ -7086,7 +7075,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('session-notes') }}>
-              <button onClick={() => setSessionNotesOpen(true)}>
+              <button onClick={() => setSessionNotesOpen(true)} style={ribbonButtonStyle}>
                 Session Notes
               </button>
               <button
@@ -7098,7 +7087,7 @@ useEffect(() => {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('help') }}>
-              <button onClick={() => setHelpOpen(true)}>
+              <button onClick={() => setHelpOpen(true)} style={ribbonButtonStyle}>
                 Help
               </button>
               <button
