@@ -57,6 +57,23 @@ const NODAL_SUBTYPE_OPTIONS = [
   'School Change',
   'Illness',
 ];
+const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events', { title: string; body: string }> = {
+  properties: {
+    title: 'Person Tab Help',
+    body:
+      'Persons have basic nodal events of Birth and Death. Other Functional Facts can be added as Events. Persons can be given background colors and border colors to designate whatever is needed (e.g., people living at the same location).',
+  },
+  functional: {
+    title: 'Indicators Tab Help',
+    body:
+      'Indicators of functioning specific to symptom development can be created on this tab. Ongoing changes to Frequency, Intensity, and Impact can be captured as events.',
+  },
+  events: {
+    title: 'Events Tab Help',
+    body:
+      'The Events tab lists the events related to the Person, Relationship, or Emotional Process. Add events by right-clicking on the item and choosing "Add Event...".',
+  },
+};
 const toTitleCase = (value: string) =>
   value.replace(/\b\w/g, (char) => char.toUpperCase());
 const cloneEventForPerson = (
@@ -181,6 +198,7 @@ const PropertiesPanel = ({
     null
   );
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
+  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | null>(null);
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
@@ -1265,29 +1283,72 @@ const PropertiesPanel = ({
         {(['properties', 'functional', 'events'] as const).map((tab) => {
           const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
           const isActive = tab === activeTab;
+          const tabLabel = tab === 'properties' ? 'Person' : tab === 'functional' ? 'Indicators' : 'Events';
           return (
-            <button
-              key={tab}
-              disabled={disabled}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                padding: '8px 4px',
-                borderRadius: 6,
-                border: isActive ? '2px solid #3f51b5' : '1px solid #bdbdbd',
-                background: isActive ? '#e8eaf6' : '#fff',
-                fontWeight: 600,
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                opacity: disabled ? 0.5 : 1,
-              }}
-            >
-              {tab === 'properties' && 'Person'}
-              {tab === 'functional' && 'Indicators'}
-              {tab === 'events' && 'Events'}
-            </button>
+            <div key={tab} style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'stretch' }}>
+              <button
+                disabled={disabled}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  flex: 1,
+                  padding: '8px 4px',
+                  borderRadius: 6,
+                  border: isActive ? '2px solid #3f51b5' : '1px solid #bdbdbd',
+                  background: isActive ? '#e8eaf6' : '#fff',
+                  fontWeight: 600,
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+              >
+                {tabLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTabHelpOpen(tab)}
+                aria-label={`Help for ${tabLabel} tab`}
+                title={`Help for ${tabLabel}`}
+                style={{
+                  width: 28,
+                  minWidth: 28,
+                  borderRadius: 6,
+                  border: '1px solid #bdbdbd',
+                  background: '#fff',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ?
+              </button>
+            </div>
           );
         })}
       </div>
+      {tabHelpOpen && (
+        <div
+          role="dialog"
+          aria-label="Tab help"
+          style={{
+            marginTop: 8,
+            border: '1px solid #b7c6df',
+            borderRadius: 8,
+            background: '#f8fbff',
+            padding: 10,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+            <strong>{TAB_HELP_COPY[tabHelpOpen].title}</strong>
+            <button
+              type="button"
+              onClick={() => setTabHelpOpen(null)}
+              aria-label="Close tab help"
+              style={{ border: '1px solid #bdbdbd', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+            >
+              Close
+            </button>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.4 }}>{TAB_HELP_COPY[tabHelpOpen].body}</div>
+        </div>
+      )}
       {activeTab === 'properties' && (
         <>
         {isPerson && selectedPerson && personDraft && (
