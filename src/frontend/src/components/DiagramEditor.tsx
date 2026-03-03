@@ -224,7 +224,7 @@ type BuildDemoStep = {
     | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' };
 };
 
-const DEMO_TOUR_STEPS: DemoTourStep[] = [
+const BASE_DEMO_TOUR_STEPS: DemoTourStep[] = [
   {
     itemNumber: 1,
     title: 'Item 1 · Alex Carter',
@@ -408,6 +408,80 @@ const DEMO_TOUR_STEPS: DemoTourStep[] = [
     focus: { kind: 'toolbar', target: 'help' },
   },
 ];
+
+const parseDemoStepNumber = (notes?: string): number | null => {
+  if (!notes) return null;
+  const match = notes.match(/\[(\d+)\]|\((\d+)\)/);
+  if (!match) return null;
+  const parsed = Number(match[1] || match[2]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const stripLeadingStepNumber = (notes?: string): string => {
+  if (!notes) return '';
+  return notes.replace(/^\s*(?:\[\d+\]|\(\d+\))\s*/u, '').trim();
+};
+
+const buildDemoTourStepsFromNotes = (base: DiagramImportData): DemoTourStep[] => {
+  const people = Array.isArray(base.people) ? base.people : [];
+  const partnerships = Array.isArray(base.partnerships) ? base.partnerships : [];
+  const lines = Array.isArray(base.emotionalLines) ? base.emotionalLines : [];
+  const personNameById = new Map(people.map((person) => [person.id, person.name || 'Person']));
+
+  const noteSteps: DemoTourStep[] = [];
+  people.forEach((person) => {
+    const itemNumber = parseDemoStepNumber(person.notes);
+    if (itemNumber == null) return;
+    noteSteps.push({
+      itemNumber,
+      title: `Item ${itemNumber} · ${person.name || 'Person'}`,
+      body: stripLeadingStepNumber(person.notes) || 'Person walkthrough step.',
+      clickToSelectHint: 'Click this person to select and open properties.',
+      focus: { kind: 'person', personId: person.id, tab: 'properties' },
+    });
+  });
+
+  partnerships.forEach((partnership) => {
+    const itemNumber = parseDemoStepNumber(partnership.notes);
+    if (itemNumber == null) return;
+    const p1 = personNameById.get(partnership.partner1_id) || 'Partner 1';
+    const p2 = personNameById.get(partnership.partner2_id) || 'Partner 2';
+    noteSteps.push({
+      itemNumber,
+      title: `Item ${itemNumber} · ${p1}-${p2} PRL`,
+      body: stripLeadingStepNumber(partnership.notes) || 'PRL walkthrough step.',
+      clickToSelectHint: 'Click the PRL line to select and open relationship properties.',
+      focus: { kind: 'partnership', partnershipId: partnership.id, tab: 'properties' },
+    });
+  });
+
+  lines.forEach((line) => {
+    const itemNumber = parseDemoStepNumber(line.notes);
+    if (itemNumber == null) return;
+    const p1 = personNameById.get(line.person1_id) || 'Person 1';
+    const p2 = personNameById.get(line.person2_id) || 'Person 2';
+    noteSteps.push({
+      itemNumber,
+      title: `Item ${itemNumber} · ${p1}-${p2} EPL`,
+      body: stripLeadingStepNumber(line.notes) || 'EPL walkthrough step.',
+      clickToSelectHint: 'Click the EPL line to select and open emotional process properties.',
+      focus: { kind: 'emotional', lineId: line.id, tab: 'properties' },
+    });
+  });
+
+  noteSteps.sort((a, b) => a.itemNumber - b.itemNumber);
+  const toolbarSteps = BASE_DEMO_TOUR_STEPS.filter((step) => step.focus.kind === 'toolbar').map(
+    (step, index) => ({
+      ...step,
+      itemNumber: noteSteps.length + index + 1,
+    })
+  );
+
+  if (!noteSteps.length) return BASE_DEMO_TOUR_STEPS;
+  return [...noteSteps, ...toolbarSteps];
+};
+
+const DEMO_TOUR_STEPS: DemoTourStep[] = buildDemoTourStepsFromNotes(DEMO_DIAGRAM_DATA);
 
 const deepCloneDiagramImport = (data: DiagramImportData): DiagramImportData =>
   JSON.parse(JSON.stringify(data));
