@@ -481,7 +481,7 @@ const buildDemoTourStepsFromNotes = (base: DiagramImportData): DemoTourStep[] =>
   return [...noteSteps, ...toolbarSteps];
 };
 
-const DEMO_TOUR_STEPS: DemoTourStep[] = buildDemoTourStepsFromNotes(DEMO_DIAGRAM_DATA);
+const DEFAULT_DEMO_TOUR_STEPS: DemoTourStep[] = buildDemoTourStepsFromNotes(DEMO_DIAGRAM_DATA);
 
 const deepCloneDiagramImport = (data: DiagramImportData): DiagramImportData =>
   JSON.parse(JSON.stringify(data));
@@ -2077,6 +2077,35 @@ const DiagramEditor = () => {
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
+  );
+  const demoTourSteps = useMemo(
+    () => {
+      const generated = buildDemoTourStepsFromNotes({
+        people,
+        partnerships,
+        emotionalLines,
+        triangles,
+        functionalIndicatorDefinitions,
+        eventCategories,
+        autoSaveMinutes,
+        fileMeta: { fileName },
+      });
+      return generated.length ? generated : DEFAULT_DEMO_TOUR_STEPS;
+    },
+    [
+      people,
+      partnerships,
+      emotionalLines,
+      triangles,
+      functionalIndicatorDefinitions,
+      eventCategories,
+      autoSaveMinutes,
+      fileName,
+    ]
+  );
+  const isCurrentDemoDiagram = useMemo(
+    () => (fileName || '').trim().toLowerCase().includes('demo family diagram'),
+    [fileName]
   );
   const buildDemoSnapshots = useMemo(
     () => buildCreationDemoSnapshots(DEMO_DIAGRAM_DATA),
@@ -4839,13 +4868,15 @@ useEffect(() => {
   };
 
   const handleStartDemoTour = () => {
-    if (isDirty) {
+    if (isDirty && !isCurrentDemoDiagram) {
       const confirmReset = window.confirm(
         'Start the interactive demo? Current unsaved diagram changes will be replaced.'
       );
       if (!confirmReset) return;
     }
-    replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram');
+    if (!isCurrentDemoDiagram) {
+      replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram');
+    }
     setHelpOpen(false);
     setTrainingVideosOpen(false);
     setBuildDemoOpen(false);
@@ -4958,7 +4989,7 @@ useEffect(() => {
 
   useEffect(() => {
     if (!demoTourOpen) return;
-    const step = DEMO_TOUR_STEPS[demoTourStepIndex];
+    const step = demoTourSteps[demoTourStepIndex];
     if (!step) return;
     const focus = step.focus;
 
@@ -5050,6 +5081,7 @@ useEffect(() => {
     allEmotionalLines,
     demoTourOpen,
     demoTourStepIndex,
+    demoTourSteps,
     people,
     partnerships,
   ]);
@@ -5059,7 +5091,7 @@ useEffect(() => {
       setDemoBlinkVisible(true);
       return;
     }
-    const step = DEMO_TOUR_STEPS[demoTourStepIndex];
+    const step = demoTourSteps[demoTourStepIndex];
     const shouldBlink =
       step?.focus.kind === 'person' ||
       step?.focus.kind === 'partnership' ||
@@ -5083,7 +5115,7 @@ useEffect(() => {
       window.clearInterval(interval);
       setDemoBlinkVisible(true);
     };
-  }, [demoTourOpen, demoTourStepIndex]);
+  }, [demoTourOpen, demoTourStepIndex, demoTourSteps]);
 
   const handleExportPersonEvents = () => {
     const payload = buildTimelineJson(people, fileName);
@@ -6758,7 +6790,7 @@ useEffect(() => {
       const isDemoFamilyLoaded = (fileName || '').trim() === 'Demo Family Diagram';
       const shouldBlinkHelpOnDemo = isDemoFamilyLoaded && !helpOpen;
       const helpBlinkOn = shouldBlinkHelpOnDemo ? Math.floor(now / 500) % 2 === 0 : false;
-      const currentDemoStep = DEMO_TOUR_STEPS[demoTourStepIndex] || DEMO_TOUR_STEPS[0];
+      const currentDemoStep = demoTourSteps[demoTourStepIndex] || demoTourSteps[0];
       const currentBuildDemoStep =
         BUILD_DEMO_STEPS[buildDemoStepIndex] || BUILD_DEMO_STEPS[0];
       const isDemoFocusedPerson = (personId: string) =>
@@ -8965,7 +8997,7 @@ useEffect(() => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 12, color: '#4a5b73', fontWeight: 600 }}>
-                    Demo Step {demoTourStepIndex + 1} of {DEMO_TOUR_STEPS.length}
+                    Demo Step {demoTourStepIndex + 1} of {demoTourSteps.length}
                   </div>
                   <button
                     onClick={handleCloseDemoTour}
@@ -9027,8 +9059,8 @@ useEffect(() => {
                   >
                     Previous
                   </button>
-                  {demoTourStepIndex < DEMO_TOUR_STEPS.length - 1 ? (
-                    <button onClick={() => setDemoTourStepIndex((idx) => Math.min(DEMO_TOUR_STEPS.length - 1, idx + 1))}>
+                  {demoTourStepIndex < demoTourSteps.length - 1 ? (
+                    <button onClick={() => setDemoTourStepIndex((idx) => Math.min(demoTourSteps.length - 1, idx + 1))}>
                       Next
                     </button>
                   ) : (
