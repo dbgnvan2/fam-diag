@@ -1,7 +1,7 @@
 {
   "fileMeta": {
-    "fileName": "demofamilydiagram.json",
-    "exportedAt": "2026-03-01T04:24:52.373Z"
+    "fileName": "Demo Family Diagram.json",
+    "exportedAt": "2026-03-04T02:29:25.954Z"
   },
   "people": [
     {
@@ -12,11 +12,11 @@
       "gender": "male",
       "x": 622,
       "y": 178,
-      "birthDate": "1978-04-14",
+      "birthDate": "1978-04-16",
       "partnerships": [
         "demo-prl-parents"
       ],
-      "notes": "[1] Father. Use right-click to open person actions.",
+      "notes": "[1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
       "notesEnabled": true,
       "events": [
         {
@@ -31,9 +31,51 @@
           "wwwwh": "",
           "observations": "Promoted to regional manager.",
           "eventClass": "individual"
+        },
+        {
+          "id": "1772584284527-9cbe428ac33bf8",
+          "date": "1978-04-15",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[1] [1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772584284527
+        },
+        {
+          "id": "1772585212171-f02d16c9ca419",
+          "date": "1978-04-16",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772585212171
         }
       ],
-      "size": 60
+      "size": 60,
+      "notesSize": {
+        "width": 157,
+        "height": 93
+      },
+      "notesPosition": {
+        "x": 677,
+        "y": 146
+      }
     },
     {
       "id": "demo-mom",
@@ -41,16 +83,38 @@
       "firstName": "Renee",
       "lastName": "Carter",
       "gender": "female",
-      "x": 1235,
-      "y": 187,
-      "birthDate": "1980-09-05",
+      "x": 1178,
+      "y": 188,
+      "birthDate": "1980-09-06",
       "partnerships": [
         "demo-prl-parents"
       ],
-      "notes": "[2] Mother. Toggle notes layer to hide/show notes.",
+      "notes": "[2] Female Person. Right Click on a person to change sex / gender",
       "notesEnabled": true,
-      "events": [],
-      "size": 60
+      "events": [
+        {
+          "id": "1772584371602-c09cb02654c6a8",
+          "date": "1980-09-06",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[2] Female Person. Right Click on a person to change sex / gender",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772584371602
+        }
+      ],
+      "size": 60,
+      "notesPosition": {
+        "x": 1232,
+        "y": 147
+      }
     },
     {
       "id": "demo-son",
@@ -60,16 +124,38 @@
       "gender": "male",
       "x": 714,
       "y": 482,
-      "birthDate": "2007-08-12",
+      "birthDate": "2007-08-13",
       "partnerships": [],
       "parentPartnership": "demo-prl-parents",
-      "notes": "[3] Son. Drag to move and keep lines attached.",
+      "notes": "[4] Male. children are added by right clicking on the Partner Relationship Line and select Add Child. Clicka nd Drag to move a child objeect.",
       "notesEnabled": true,
-      "events": [],
+      "events": [
+        {
+          "id": "1772585174714-9fbf3d84c5799",
+          "date": "2007-08-13",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Liam Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[4] Male. children are added by right clicking on the Partner Relationship Line and select Add Child. Clicka nd Drag to move a child objeect.",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772585174714
+        }
+      ],
       "size": 54,
       "notesPosition": {
-        "x": 631,
-        "y": 554
+        "x": 639,
+        "y": 584
+      },
+      "notesSize": {
+        "width": 154,
+        "height": 101
       }
     },
     {
@@ -80,18 +166,36 @@
       "gender": "female",
       "x": 1076,
       "y": 509,
-      "birthDate": "1996-01-30",
+      "birthDate": "1996-01-29",
       "partnerships": [
         "demo-prl-emma"
       ],
       "parentPartnership": "demo-prl-parents",
-      "notes": "[4] Daughter. Selected in the tour for child/partner examples.",
+      "notes": "[5] Female.  Partner Relationship Line to Noah.  Emotional Process Line to Renee. ",
       "notesEnabled": true,
-      "events": [],
+      "events": [
+        {
+          "id": "1772585277847-5866b1eff2cd08",
+          "date": "1996-01-29",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[5] Female.  Partner Relationship Line to Noah.  Emotional Process Line to Renee. ",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772585277847
+        }
+      ],
       "size": 54,
       "notesPosition": {
-        "x": 1165,
-        "y": 510
+        "x": 1147,
+        "y": 475
       }
     },
     {
@@ -102,17 +206,39 @@
       "gender": "male",
       "x": 894,
       "y": 506,
-      "birthDate": "1994-03-19",
+      "birthDate": "1994-03-18",
       "partnerships": [
         "demo-prl-emma"
       ],
-      "notes": "[5] Partner for second generation PRL.",
+      "notes": "[6] Partner Relationship Line to Emma.  Males default to the LEFT side of a relationship. ",
       "notesEnabled": true,
-      "events": [],
+      "events": [
+        {
+          "id": "1772585357444-7c1711e7db81a8",
+          "date": "1994-03-18",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Noah Reed",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[6] Partner Relationship Line to Emma.  Males default to the LEFT side of a relationship. ",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772585357444
+        }
+      ],
       "size": 54,
       "notesPosition": {
-        "x": 862,
-        "y": 702
+        "x": 873,
+        "y": 609
+      },
+      "notesSize": {
+        "width": 145,
+        "height": 77
       }
     }
   ],
@@ -129,12 +255,16 @@
         "demo-son",
         "demo-daughter"
       ],
-      "notes": "[6] Parents PRL. Right-click this line to add child/twins/triplets.",
+      "notes": "[3] Partner Relationship Line. Click on the line, it turns blue and the Properties Panel opens on the right.  Right-click this line to add child/twins/triplets.",
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 882,
-        "y": 181
+        "x": 862,
+        "y": 145
+      },
+      "notesSize": {
+        "width": 206,
+        "height": 107
       }
     },
     {
@@ -146,12 +276,16 @@
       "relationshipStatus": "ongoing",
       "relationshipStartDate": "2024-03-01",
       "children": [],
-      "notes": "[7] Second generation PRL with same-level spouse layout.",
+      "notes": "[7] Partner Relationship Line - PRL. Click on the line to see Properties Panel. Relationship is Dating, Status is ongoing. ",
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 1147,
-        "y": 665
+        "x": 1150,
+        "y": 586
+      },
+      "notesSize": {
+        "width": 187,
+        "height": 99
       }
     }
   ],
@@ -165,7 +299,7 @@
       "lineEnding": "none",
       "startDate": "2022-01-01",
       "status": "ongoing",
-      "notes": "[8] Example EPL: distance.",
+      "notes": "[8] Example Emotional Process Line.  Click on the line - it turns blue - the Properties Panel shows on the right.",
       "notesEnabled": true,
       "events": [],
       "color": "#444444",
@@ -183,10 +317,18 @@
       "lineEnding": "none",
       "startDate": "2023-04-10",
       "status": "ongoing",
-      "notes": "[9] Example EPL: conflict.",
+      "notes": "[9] Example Emotional Process Line EPL: Conflict with Low Intensity",
       "notesEnabled": true,
       "events": [],
-      "color": "#444444"
+      "color": "#444444",
+      "notesSize": {
+        "width": 184,
+        "height": 88
+      },
+      "notesPosition": {
+        "x": 1144,
+        "y": 372.5
+      }
     }
   ],
   "triangles": [],
