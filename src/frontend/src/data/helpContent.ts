@@ -29,8 +29,12 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: 'Canvas & Navigation',
     tips: [
-      'Drag on an empty canvas area (or hold space + drag) to pan the entire diagram; use the zoom slider (25–300%) to focus on different generations.',
-      'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay births, deaths, PRL milestones, EPL start/end dates, and logged events. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
+      'The white on the screen is the "CANVAS". A right-click anywere on the screen will pop up a small window where you can "add person"',
+      'You can click and drag the cursor across the screen to select mulitiple items. Alt - Click drag will pan the whole diagram; use the zoom slider (25–300%) to focus on different generations.',
+      ' ',
+      'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay all items on the screen provided they are dated.',
+      'Events like births, deaths, PRL milestones, EPL start/end dates, and logged events all need dates for the timeline to work well. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
+      '  ',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
       'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Event Creator launch, or Quit. Use Transcripts ▾ for Process + Import Data, and Timeline ▾ for Export/Import Person Events.',
     ],

@@ -97,7 +97,7 @@ describe('DiagramEditor', () => {
         expect(screen.getByText(/Demo Step 2 of/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /^Previous$/i }));
         expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
-        for (let i = 0; i < 9; i += 1) {
+        for (let i = 0; i < 20 && !screen.queryByText(/Ribbon · File Menu/i); i += 1) {
             fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
         }
         expect(screen.getByText(/Ribbon · File Menu/i)).toBeInTheDocument();

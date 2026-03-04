@@ -105,7 +105,13 @@ I have run the application, and I believe that all of the above features should 
 13. **Help + Training Videos:**
     *   Click `Help` and verify the Quick Start dialog opens with section cards.
     *   Click a ribbon `?` button (for example, beside `File`) and verify the `Ribbon help` dialog opens with a read-only text box.
-    *   Click `Demo` and verify the interactive demo dialog opens, shows `Demo Step X of Y`, and that `Next`/`Previous` change steps.
+    *   Click `Demo` and verify the interactive demo dialog opens and starts with orientation steps for `Canvas`, `Menu Ribbon`, `Person Objects`, `Parent Relationship Lines (PRL)`, and `Emotional Process Lines (EPL)` before the numbered note walkthrough.
+    *   Confirm each of those orientation targets visibly blinks during its step.
     *   Click `Build Demo` and verify the build walkthrough dialog opens from a blank diagram, shows `Build Step X of Y`, and that `Next`/`Previous` load each progressive construction step.
+    *   In Build Demo, confirm instruction text reflects notes from `demofamilydiagram.json` rather than only static hardcoded copy.
     *   Click `Open Training Videos` and verify a `Training videos` dialog opens.
     *   Select each lesson card and confirm the embedded player source changes and `Open in YouTube` launches a new tab.
+
+14. **Properties Panel + Events Tab Density:**
+    *   Confirm the right-side inspector displays a persistent `Properties Panel` title.
+    *   In Events tab (Compact and Expanded), verify `Edit` and `Delete` buttons are visibly smaller with reduced horizontal padding.

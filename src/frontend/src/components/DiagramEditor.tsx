@@ -43,7 +43,7 @@ import {
   RIBBON_HELP,
   type RibbonHelpKey,
 } from '../data/helpContent';
-import demoDiagramDataJson from '../data/demoDiagramData.json';
+import demoDiagramDataJson from '../data/demofamilydiagram.json';
 import {
   buildTimelineJson,
   isPersonEventBundle,
@@ -198,6 +198,17 @@ const TRAINING_VIDEOS = [
 ];
 
 const DEMO_DIAGRAM_DATA: DiagramImportData = demoDiagramDataJson as DiagramImportData;
+const DEFAULT_DEMO_FILE_NAME = 'demofamilydiagram.json';
+const LEGACY_DEMO_FILE_NAMES = new Set([
+  'demo family diagram',
+  'demo family diagram.json',
+  DEFAULT_DEMO_FILE_NAME,
+]);
+
+const isDemoDiagramFileName = (value?: string | null) => {
+  const normalized = (value || '').trim().toLowerCase();
+  return LEGACY_DEMO_FILE_NAMES.has(normalized);
+};
 
 type DemoTourStep = {
   itemNumber: number;
@@ -207,6 +218,7 @@ type DemoTourStep = {
   rightClickOptions?: string[];
   focus:
     | { kind: 'none' }
+    | { kind: 'canvas' }
     | { kind: 'person'; personId: string; tab?: 'properties' | 'functional' | 'events' }
     | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
     | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' }
@@ -222,6 +234,10 @@ type BuildDemoStep = {
     | { kind: 'person'; personId: string; tab?: 'properties' | 'events' }
     | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
     | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' };
+};
+
+type BuildDemoStepSpec = Omit<BuildDemoStep, 'instruction'> & {
+  fallbackInstruction: string;
 };
 
 const BASE_DEMO_TOUR_STEPS: DemoTourStep[] = [
@@ -635,68 +651,104 @@ const buildCreationDemoSnapshots = (base: DiagramImportData): DiagramImportData[
   ];
 };
 
-const BUILD_DEMO_STEPS: BuildDemoStep[] = [
+const BUILD_DEMO_STEP_SPECS: BuildDemoStepSpec[] = [
   {
     title: 'Step 1 - Blank Canvas',
-    instruction: 'Start on a blank screen. Right-click empty canvas and choose Add Person.',
+    fallbackInstruction: 'Start on a blank screen. Right-click empty canvas and choose Add Person.',
     focus: { kind: 'none' },
   },
   {
     title: 'Step 2 - Add Alex Carter',
-    instruction: 'Rename New Person to Alex Carter in Person Properties.',
+    fallbackInstruction: 'Rename New Person to Alex Carter in Person Properties.',
     focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
   },
   {
     title: 'Step 3 - Move Alex',
-    instruction: 'Click and drag Alex Carter to the target top-left parent position.',
+    fallbackInstruction: 'Click and drag Alex Carter to the target top-left parent position.',
     focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
   },
   {
     title: 'Step 4 - Add Partner',
-    instruction: 'Right-click Alex Carter and choose Add Partner (creates partner + PRL). Rename partner to Renee Carter.',
+    fallbackInstruction: 'Right-click Alex Carter and choose Add Partner (creates partner + PRL). Rename partner to Renee Carter.',
     focus: { kind: 'partnership', partnershipId: 'demo-prl-parents', tab: 'properties' },
   },
   {
     title: 'Step 5 - Set PRL Married',
-    instruction: 'Click the parent PRL, then set Relationship Type to married.',
+    fallbackInstruction: 'Click the parent PRL, then set Relationship Type to married.',
     focus: { kind: 'partnership', partnershipId: 'demo-prl-parents', tab: 'properties' },
   },
   {
     title: 'Step 6 - Add Liam',
-    instruction: 'Right-click the parent PRL and Add Child, then edit child name to Liam Carter and position him.',
+    fallbackInstruction: 'Right-click the parent PRL and Add Child, then edit child name to Liam Carter and position him.',
     focus: { kind: 'person', personId: 'demo-son', tab: 'properties' },
   },
   {
     title: 'Step 7 - Add Emma',
-    instruction: 'Add another child from the same parent PRL and rename to Emma Carter.',
+    fallbackInstruction: 'Add another child from the same parent PRL and rename to Emma Carter.',
     focus: { kind: 'person', personId: 'demo-daughter', tab: 'properties' },
   },
   {
     title: 'Step 8 - Add Noah + PRL',
-    instruction: 'Right-click Emma Carter and Add Partner. Rename to Noah Reed and place beside Emma.',
+    fallbackInstruction: 'Right-click Emma Carter and Add Partner. Rename to Noah Reed and place beside Emma.',
     focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' },
   },
   {
     title: 'Step 9 - Configure Emma/Noah PRL',
-    instruction: 'Set Emma-Noah PRL fields (type/status/start date) to match the demo.',
+    fallbackInstruction: 'Set Emma-Noah PRL fields (type/status/start date) to match the demo.',
     focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' },
   },
   {
     title: 'Step 10 - Add Distance EPL',
-    instruction: 'Select Alex + Liam and add EPL. Set type distance and style dashed.',
+    fallbackInstruction: 'Select Alex + Liam and add EPL. Set type distance and style dashed.',
     focus: { kind: 'emotional', lineId: 'demo-epl-distance', tab: 'properties' },
   },
   {
     title: 'Step 11 - Add Conflict EPL',
-    instruction: 'Select Renee + Emma and add EPL. Set type conflict and style dotted-saw-tooth.',
+    fallbackInstruction: 'Select Renee + Emma and add EPL. Set type conflict and style dotted-saw-tooth.',
     focus: { kind: 'emotional', lineId: 'demo-epl-conflict', tab: 'properties' },
   },
   {
     title: 'Step 12 - Finalize Notes',
-    instruction: 'Add numbered notes [1]-[9] on people, PRLs, and EPLs to complete the same demo diagram.',
+    fallbackInstruction: 'Add numbered notes [1]-[9] on people, PRLs, and EPLs to complete the same demo diagram.',
     focus: { kind: 'none' },
   },
 ];
+
+const buildBuildDemoStepsFromNotes = (base: DiagramImportData): BuildDemoStep[] => {
+  const people = Array.isArray(base.people) ? base.people : [];
+  const partnerships = Array.isArray(base.partnerships) ? base.partnerships : [];
+  const lines = Array.isArray(base.emotionalLines) ? base.emotionalLines : [];
+
+  const noteById = new Map<string, string>();
+  const orderedNotes: string[] = [];
+  const collectNote = (id: string, notes?: string) => {
+    const normalized = stripLeadingStepNumber(notes);
+    if (!normalized) return;
+    noteById.set(id, normalized);
+    orderedNotes.push(normalized);
+  };
+  people.forEach((person) => collectNote(person.id, person.notes));
+  partnerships.forEach((partnership) => collectNote(partnership.id, partnership.notes));
+  lines.forEach((line) => collectNote(line.id, line.notes));
+
+  return BUILD_DEMO_STEP_SPECS.map((spec, index) => {
+    let instruction = spec.fallbackInstruction;
+    if (spec.focus.kind === 'person') {
+      instruction = noteById.get(spec.focus.personId) || instruction;
+    } else if (spec.focus.kind === 'partnership') {
+      instruction = noteById.get(spec.focus.partnershipId) || instruction;
+    } else if (spec.focus.kind === 'emotional') {
+      instruction = noteById.get(spec.focus.lineId) || instruction;
+    } else if (index === BUILD_DEMO_STEP_SPECS.length - 1 && orderedNotes.length) {
+      instruction = `Finalize by confirming demo notes:\n- ${orderedNotes.join('\n- ')}`;
+    }
+    return {
+      title: spec.title,
+      instruction,
+      focus: spec.focus,
+    };
+  });
+};
 
 const buildAllowedIndicatorSet = (defs: FunctionalIndicatorDefinition[]) =>
   new Set(defs.map((def) => def.id));
@@ -2090,7 +2142,70 @@ const DiagramEditor = () => {
         autoSaveMinutes,
         fileMeta: { fileName },
       });
-      return generated.length ? generated : DEFAULT_DEMO_TOUR_STEPS;
+      const baseSteps = generated.length ? generated : DEFAULT_DEMO_TOUR_STEPS;
+      const fallbackPersonStep = baseSteps.find((step) => step.focus.kind === 'person');
+      const fallbackPartnershipStep = baseSteps.find((step) => step.focus.kind === 'partnership');
+      const fallbackLineStep = baseSteps.find((step) => step.focus.kind === 'emotional');
+      const representativePersonId =
+        people[0]?.id ||
+        (fallbackPersonStep && fallbackPersonStep.focus.kind === 'person'
+          ? fallbackPersonStep.focus.personId
+          : null);
+      const representativePartnershipId =
+        partnerships[0]?.id ||
+        (fallbackPartnershipStep && fallbackPartnershipStep.focus.kind === 'partnership'
+          ? fallbackPartnershipStep.focus.partnershipId
+          : null) ||
+        null;
+      const representativeLineId =
+        emotionalLines[0]?.id ||
+        triangles.flatMap((triangle) => triangle.tpls || [])[0]?.id ||
+        (fallbackLineStep && fallbackLineStep.focus.kind === 'emotional'
+          ? fallbackLineStep.focus.lineId
+          : null) ||
+        null;
+
+      const introSteps: DemoTourStep[] = [
+        {
+          itemNumber: 0,
+          title: 'A) Canvas',
+          body: 'This is the Canvas where you place and connect family diagram objects.',
+          clickToSelectHint: 'Right-click on the canvas to add a person.',
+          focus: { kind: 'canvas' },
+        },
+        {
+          itemNumber: 0,
+          title: 'B) Menu Ribbon',
+          body: 'This is the Menu Ribbon with file, timeline, transcript, help, and editing controls.',
+          focus: { kind: 'toolbar', target: 'menu-ribbon' },
+        },
+        {
+          itemNumber: 0,
+          title: 'C) Person Objects',
+          body: 'This is a Person object. Click to select it; right-click for person options.',
+          focus: representativePersonId
+            ? { kind: 'person', personId: representativePersonId, tab: 'properties' }
+            : { kind: 'none' },
+        },
+        {
+          itemNumber: 0,
+          title: 'D) Parent Relationship Lines (PRL)',
+          body: 'This is a Partner Relationship Line (PRL). It connects partners and anchors children.',
+          focus: representativePartnershipId
+            ? { kind: 'partnership', partnershipId: representativePartnershipId, tab: 'properties' }
+            : { kind: 'none' },
+        },
+        {
+          itemNumber: 0,
+          title: 'E) Emotional Process Lines (EPL)',
+          body: 'This is an Emotional Process Line (EPL). It represents emotional process between two people.',
+          focus: representativeLineId
+            ? { kind: 'emotional', lineId: representativeLineId, tab: 'properties' }
+            : { kind: 'none' },
+        },
+      ];
+
+      return [...introSteps, ...baseSteps];
     },
     [
       people,
@@ -2103,14 +2218,12 @@ const DiagramEditor = () => {
       fileName,
     ]
   );
-  const isCurrentDemoDiagram = useMemo(
-    () => (fileName || '').trim().toLowerCase().includes('demo family diagram'),
-    [fileName]
-  );
+  const isCurrentDemoDiagram = useMemo(() => isDemoDiagramFileName(fileName), [fileName]);
   const buildDemoSnapshots = useMemo(
     () => buildCreationDemoSnapshots(DEMO_DIAGRAM_DATA),
     []
   );
+  const buildDemoSteps = useMemo(() => buildBuildDemoStepsFromNotes(DEMO_DIAGRAM_DATA), []);
 
   useEffect(() => {
     if (!propertiesPanelIntent || !propertiesPanelItem) return;
@@ -3544,20 +3657,49 @@ const DiagramEditor = () => {
     const savedTriangles = getStoredValue('triangles');
     const savedCategories = getStoredValue('eventCategories');
     const savedIndicators = getStoredValue('indicatorDefinitions');
-    const hasSavedDiagram = Boolean(savedPeople && savedPartnerships && savedEmotionalLines);
+    const savedName = getStoredValue('fileName') || '';
     let shouldLoadSavedDiagram = false;
-    if (hasSavedDiagram) {
-      const savedName = getStoredValue('fileName') || 'your saved diagram';
+    let parsedPeople: Person[] | null = null;
+    let parsedPartnerships: Partnership[] | null = null;
+    let parsedLines: EmotionalLine[] | null = null;
+    let parsedTriangles: Triangle[] = [];
+    const hasSavedDiagram = Boolean(savedPeople && savedPartnerships && savedEmotionalLines);
+    if (hasSavedDiagram && savedPeople && savedPartnerships && savedEmotionalLines) {
       try {
-        shouldLoadSavedDiagram = window.confirm(
-          `Load your saved diagram "${savedName}"?\n\nChoose Cancel to start with Demo Family Diagram.`
+        parsedPeople = JSON.parse(savedPeople) as Person[];
+        parsedPartnerships = JSON.parse(savedPartnerships) as Partnership[];
+        parsedLines = JSON.parse(savedEmotionalLines) as EmotionalLine[];
+        parsedTriangles = savedTriangles ? (JSON.parse(savedTriangles) as Triangle[]) : [];
+        const savedSnapshot = serializeDiagram(
+          parsedPeople,
+          parsedPartnerships,
+          normalizeEmotionalLines(parsedLines),
+          normalizeTriangles(parsedTriangles)
         );
+        const demoSnapshot = serializeDiagram(
+          Array.isArray(DEMO_DIAGRAM_DATA.people) ? (DEMO_DIAGRAM_DATA.people as Person[]) : [],
+          Array.isArray(DEMO_DIAGRAM_DATA.partnerships)
+            ? (DEMO_DIAGRAM_DATA.partnerships as Partnership[])
+            : [],
+          normalizeEmotionalLines(
+            Array.isArray(DEMO_DIAGRAM_DATA.emotionalLines)
+              ? (DEMO_DIAGRAM_DATA.emotionalLines as EmotionalLine[])
+              : []
+          ),
+          normalizeTriangles(
+            Array.isArray(DEMO_DIAGRAM_DATA.triangles)
+              ? (DEMO_DIAGRAM_DATA.triangles as Triangle[])
+              : []
+          )
+        );
+        const hasDiagramChanges = savedSnapshot !== demoSnapshot;
+        shouldLoadSavedDiagram = !isDemoDiagramFileName(savedName) || hasDiagramChanges;
       } catch {
-        shouldLoadSavedDiagram = true;
+        shouldLoadSavedDiagram = false;
       }
     }
 
-    if (shouldLoadSavedDiagram && savedPeople && savedPartnerships && savedEmotionalLines) {
+    if (shouldLoadSavedDiagram && parsedPeople && parsedPartnerships && parsedLines) {
       let indicatorDefs = initialIndicatorDefinitions;
       if (savedIndicators) {
         try {
@@ -3571,10 +3713,6 @@ const DiagramEditor = () => {
       }
       applyIndicatorDefinitionArray(indicatorDefs);
 
-      const parsedPeople: Person[] = JSON.parse(savedPeople);
-      const parsedPartnerships: Partnership[] = JSON.parse(savedPartnerships);
-      const parsedLines: EmotionalLine[] = JSON.parse(savedEmotionalLines);
-      const parsedTriangles: Triangle[] = savedTriangles ? JSON.parse(savedTriangles) : [];
       const cleaned = removeOrphanedMiscarriages(parsedPeople, parsedPartnerships);
       const aligned = alignAllAnchors(cleaned.people);
       const normalizedLines = normalizeEmotionalLines(parsedLines);
@@ -3591,7 +3729,7 @@ const DiagramEditor = () => {
     } else {
       try {
         applyIndicatorDefinitionArray(initialIndicatorDefinitions);
-        replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram', { normalizeLayout: false });
+        replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
       } catch {
         // keep fallback defaults if demo payload is ever malformed
         setTriangles(initialTriangles);
@@ -4875,7 +5013,7 @@ useEffect(() => {
       if (!confirmReset) return;
     }
     if (!isCurrentDemoDiagram) {
-      replaceDiagramState(DEMO_DIAGRAM_DATA, 'Demo Family Diagram');
+      replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME);
     }
     setHelpOpen(false);
     setTrainingVideosOpen(false);
@@ -4894,7 +5032,7 @@ useEffect(() => {
       snapshot.fileMeta?.fileName || `Build Demo Step ${boundedIndex + 1}`,
       { normalizeLayout: false }
     );
-    const step = BUILD_DEMO_STEPS[boundedIndex];
+    const step = buildDemoSteps[boundedIndex];
     if (!step) return;
     const focus = step.focus;
 
@@ -4907,7 +5045,6 @@ useEffect(() => {
       setPropertiesPanelIntent(null);
       return;
     }
-
     if (focus.kind === 'person') {
       const person = (snapshot.people || []).find((entry) => entry.id === focus.personId);
       if (!person) return;
@@ -4977,7 +5114,7 @@ useEffect(() => {
   };
 
   const handleBuildDemoStepChange = (nextIndex: number) => {
-    const boundedIndex = Math.max(0, Math.min(nextIndex, BUILD_DEMO_STEPS.length - 1));
+    const boundedIndex = Math.max(0, Math.min(nextIndex, buildDemoSteps.length - 1));
     setBuildDemoStepIndex(boundedIndex);
     applyBuildDemoStep(boundedIndex);
   };
@@ -5093,6 +5230,7 @@ useEffect(() => {
     }
     const step = demoTourSteps[demoTourStepIndex];
     const shouldBlink =
+      step?.focus.kind === 'canvas' ||
       step?.focus.kind === 'person' ||
       step?.focus.kind === 'partnership' ||
       step?.focus.kind === 'emotional' ||
@@ -6787,12 +6925,12 @@ useEffect(() => {
       const selectedTrainingVideo =
         TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
       const selectedRibbonHelp = ribbonHelpKey ? RIBBON_HELP[ribbonHelpKey] : null;
-      const isDemoFamilyLoaded = (fileName || '').trim() === 'Demo Family Diagram';
+      const isDemoFamilyLoaded = isDemoDiagramFileName(fileName);
       const shouldBlinkHelpOnDemo = isDemoFamilyLoaded && !helpOpen;
       const helpBlinkOn = shouldBlinkHelpOnDemo ? Math.floor(now / 500) % 2 === 0 : false;
       const currentDemoStep = demoTourSteps[demoTourStepIndex] || demoTourSteps[0];
       const currentBuildDemoStep =
-        BUILD_DEMO_STEPS[buildDemoStepIndex] || BUILD_DEMO_STEPS[0];
+        buildDemoSteps[buildDemoStepIndex] || buildDemoSteps[0];
       const isDemoFocusedPerson = (personId: string) =>
         demoTourOpen &&
         currentDemoStep?.focus.kind === 'person' &&
@@ -6809,6 +6947,7 @@ useEffect(() => {
         demoTourOpen &&
         currentDemoStep?.focus.kind === 'toolbar' &&
         currentDemoStep.focus.target === target;
+      const isDemoFocusedCanvas = demoTourOpen && currentDemoStep?.focus.kind === 'canvas';
       const toolbarHighlightStyle = (target: string): React.CSSProperties =>
         isDemoFocusedToolbar(target)
           ? {
@@ -6848,6 +6987,12 @@ useEffect(() => {
               flexWrap: 'wrap',
               alignItems: 'center',
               gap: 12,
+              ...(isDemoFocusedToolbar('menu-ribbon')
+                ? {
+                    outline: demoBlinkVisible ? '3px solid #ff9800' : '3px solid transparent',
+                    boxShadow: demoBlinkVisible ? '0 0 0 2px rgba(255,152,0,0.25)' : 'none',
+                  }
+                : {}),
             }}
           >
             <div
@@ -7300,6 +7445,19 @@ useEffect(() => {
           <div style={{ display: 'flex' }}>
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
             <div style={{ flex: 1, position: 'relative' }}>
+              {isDemoFocusedCanvas && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 8,
+                    border: demoBlinkVisible ? '3px solid #ff9800' : '3px solid transparent',
+                    borderRadius: 8,
+                    boxShadow: demoBlinkVisible ? '0 0 0 2px rgba(255,152,0,0.25)' : 'none',
+                    pointerEvents: 'none',
+                    zIndex: 20,
+                  }}
+                />
+              )}
               <div
                 style={{
                   position: 'absolute',
@@ -7733,6 +7891,22 @@ useEffect(() => {
                   borderRight: '1px solid #c7c7c7',
                 }}
               />
+              <div
+                style={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 2,
+                  marginLeft: 6,
+                  padding: '10px 12px',
+                  borderBottom: '1px solid #d5d5d5',
+                  background: '#f6f7fb',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: '#1f3248',
+                }}
+              >
+                Properties Panel
+              </div>
               {(showMultiPersonPanel || propertiesPanelItem) && (
                 showMultiPersonPanel ? (
                   <MultiPersonPropertiesPanel
@@ -9097,7 +9271,7 @@ useEffect(() => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 12, color: '#4a5b73', fontWeight: 600 }}>
-                    Build Step {buildDemoStepIndex + 1} of {BUILD_DEMO_STEPS.length}
+                    Build Step {buildDemoStepIndex + 1} of {buildDemoSteps.length}
                   </div>
                   <button
                     onClick={handleCloseBuildDemo}
@@ -9138,7 +9312,7 @@ useEffect(() => {
                   >
                     Previous
                   </button>
-                  {buildDemoStepIndex < BUILD_DEMO_STEPS.length - 1 ? (
+                  {buildDemoStepIndex < buildDemoSteps.length - 1 ? (
                     <button onClick={() => handleBuildDemoStepChange(buildDemoStepIndex + 1)}>
                       Next
                     </button>

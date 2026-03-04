@@ -239,6 +239,12 @@ const PropertiesPanel = ({
   const stringDiffers = (a?: string | null, b?: string | null) => (a ?? '') !== (b ?? '');
   const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
   const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
+  const eventActionButtonStyle: React.CSSProperties = {
+    padding: '1px 4px',
+    fontSize: 11,
+    lineHeight: 1.1,
+    minHeight: 20,
+  };
   const helpBadgeStyle: React.CSSProperties = {
     width: 20,
     height: 20,
@@ -2053,9 +2059,9 @@ const PropertiesPanel = ({
                           {continuationBadge(event)}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => openEditEvent(event)}>Edit</button>
-                        <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
+                        <button style={eventActionButtonStyle} onClick={() => deleteEvent(event.id)}>Delete</button>
                       </div>
                     </div>
                   ) : (
@@ -2108,9 +2114,9 @@ const PropertiesPanel = ({
                           <span>Impact: {event.impact ?? '—'}</span>
                           <span>{continuationLabel(event)}</span>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => openEditEvent(event)}>Edit</button>
-                          <button onClick={() => deleteEvent(event.id)}>Delete</button>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
+                          <button style={eventActionButtonStyle} onClick={() => deleteEvent(event.id)}>Delete</button>
                         </div>
                       </div>
                       {event.observations && (

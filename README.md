@@ -34,6 +34,8 @@ This is a web-based application for drawing family diagrams. A family diagram is
 *   **Session Notes workspace:** Launch a floating Session Notes window from the toolbar to capture coach/client details, presenting issues, and running notes. Session notes are now managed separately from diagram JSON with a file-style flow (`New`, `Open`, `Save`, `Save As`, `Location`) and can reopen prior notes by active diagram file name plus focus person/target. Notes still auto-save to a primary/backup rotation every five minutes, support explicit JSON/Markdown export, and let you highlight a line (or use the last line) to pre-populate an Emotional Process Event for any person, partnership, or EPL—complete with inferred names/years and a dedicated event editor.
 *   **Contextual Event Creation + Continuation markers:** Right-click a Person, PRL, or EPL and choose `Add Event...` to open the event creator already anchored to that object. New events now support `NODAL`, `FF`, and `EPE` types, Start/End dates, optional nodal subtype, and continuation state (Discrete/Start/Middle/End). The Events tab now includes Compact/Expanded list modes, type/anchor filters, and right-click row actions to attach/detach or create-and-attach previous/next events in a series.
 *   **Quick Start help + in-app Training Videos + Build Demo:** Tap the Help button any time to launch a modal with curated tips, an embedded scrollable copy of `README.md`, and an in-app Training Videos panel with selectable lessons and inline playback. Help also includes `Demo` (guided feature tour of the finished sample) and `Build Demo` (step-by-step walkthrough from blank canvas to the same final sample diagram).
+*   **Demo intro orientation + note-driven walkthrough text:** `Help -> Demo` now begins with a five-step orientation pass (Canvas, Menu Ribbon, Person Object, PRL, EPL) with blinking highlights, then continues through the note-driven walkthrough content.
+*   **Properties panel title + compact event row actions:** The right inspector now shows a persistent `Properties Panel` title, and Events-tab `Edit`/`Delete` buttons use tighter padding for denser lists.
 *   **Ribbon `?` help popovers:** Every top ribbon control includes a `?` button that opens a focused help text box. These help snippets and ribbon demo descriptions are sourced from one file: `src/frontend/src/data/helpContent.ts`.
 *   **File-aware toolbar:** The drawing surface now shows a “Family Diagram Maker” heading with the active file name, provides a File dropdown (New, Open, Save, Save As, Export PNG/SVG, Quit), exposes an Auto-Save minutes control, and highlights the Save button red whenever there are unsaved edits (blinking red if changes are more than ten minutes old).
 *   **Vocabulary:** Person Nodes represent individuals; Partner Descending Lines (PDLs) drop vertically from each partner into the shared Partner Relationship Line (PRL); PRLs connect couples; Parent-Child Lines (PCLs) link children to PRLs; Emotional Pattern Lines (EPLs) visualize emotional dynamics. These terms appear in the Properties panel to keep language consistent.
@@ -45,13 +47,17 @@ This is a web-based application for drawing family diagrams. A family diagram is
 3.  Run the application in development mode: `npm run dev`
 4.  Open a web browser and navigate to `http://localhost:5173/`.
 
-## Default Dataset
+## Default Diagram + Demo Dataset
 
-The editor now ships with the full *Myfamily1* sample diagram stored at `src/frontend/src/data/defaultDiagramData.json`. When the app boots (and there is no prior `localStorage` state) the UI hydrates from that JSON file—people, partnerships, emotional process lines, functional indicator definitions, and event categories all come from this data. If the file is removed or empty, the app gracefully falls back to the simple three-person demo that used to ship with the tool. To customize the out-of-the-box view for other beta testers, adjust that JSON file and commit the new data.
+The shipped default diagram is `src/frontend/src/data/demofamilydiagram.json`.
 
-## Demo Dataset
+Startup behavior:
+*   If there is a newer/different diagram already in `localStorage`, that saved diagram opens.
+*   Otherwise, the app opens `demofamilydiagram.json`.
 
-The guided demo features load from `src/frontend/src/data/demoDiagramData.json` so data is separated from UI logic. `Help -> Demo` loads this file and steps through numbered notes/features on the completed diagram. `Help -> Build Demo` uses incremental snapshots derived from the same file so users can learn the creation workflow from a blank canvas without hardcoding positions in component code.
+Demo behavior:
+*   `Help -> Demo` loads the demo diagram and runs the guided walkthrough using numbered notes from the diagram data.
+*   `Help -> Build Demo` uses progressive snapshots derived from the same demo file, and the step instructions are sourced from the demo file notes (with fallback text only when a note is missing).
 
 ## Functional Indicator Rating Table
 
