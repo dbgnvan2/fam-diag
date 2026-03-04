@@ -1,7 +1,7 @@
 {
   "fileMeta": {
     "fileName": "Demo Family Diagram.json",
-    "exportedAt": "2026-03-04T02:29:25.954Z"
+    "exportedAt": "2026-03-04T03:45:54.682Z"
   },
   "people": [
     {
@@ -299,7 +299,7 @@
       "lineEnding": "none",
       "startDate": "2022-01-01",
       "status": "ongoing",
-      "notes": "[8] Example Emotional Process Line.  Click on the line - it turns blue - the Properties Panel shows on the right.",
+      "notes": "[8] Example Emotional Pattern Line. Click on the line - it turns blue - the Properties Panel shows on the right.",
       "notesEnabled": true,
       "events": [],
       "color": "#444444",
@@ -317,7 +317,7 @@
       "lineEnding": "none",
       "startDate": "2023-04-10",
       "status": "ongoing",
-      "notes": "[9] Example Emotional Process Line EPL: Conflict with Low Intensity",
+      "notes": "[9] Example Emotional Pattern Line EPL: Conflict with Low Intensity",
       "notesEnabled": true,
       "events": [],
       "color": "#444444",

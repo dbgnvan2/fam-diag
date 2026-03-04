@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Group, Rect, Text, Circle, Line, Image } from 'react-konva';
-import type { Person, FunctionalIndicatorDefinition, PersonFunctionalIndicator } from '../types';
+import { Group, Rect, Text, Circle, Line, Image, Star } from 'react-konva';
+import type {
+  Person,
+  FunctionalIndicatorDefinition,
+  PersonFunctionalIndicator,
+  GenderSymbol,
+  BirthSex,
+  GenderIdentity,
+} from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
 interface PersonNodeProps {
@@ -116,6 +123,44 @@ const IndicatorBadge = ({
   );
 };
 
+const deriveGenderSymbol = (person: Person): GenderSymbol => {
+  if (person.genderSymbol) return person.genderSymbol;
+  if (person.birthSex && person.genderIdentity) {
+    if (person.birthSex === 'female' && person.genderIdentity === 'feminine') return 'female_cis';
+    if (person.birthSex === 'male' && person.genderIdentity === 'masculine') return 'male_cis';
+    if (person.birthSex === 'intersex' && person.genderIdentity === 'feminine') return 'intersex_feminine';
+    if (person.birthSex === 'intersex' && person.genderIdentity === 'masculine') return 'intersex_masculine';
+    if (person.birthSex === 'intersex' && person.genderIdentity === 'nonbinary') return 'intersex_nonbinary';
+    if (person.birthSex === 'intersex' && person.genderIdentity === 'agender') return 'intersex_agender';
+    if (person.genderIdentity === 'nonbinary') return 'nonbinary';
+    if (person.genderIdentity === 'agender') return 'agender';
+    return person.genderIdentity === 'feminine' ? 'female_trans' : 'male_trans';
+  }
+  if (person.gender === 'male') return 'male_cis';
+  if (person.gender === 'intersex') return 'intersex';
+  return 'female_cis';
+};
+
+const deriveBirthSex = (person: Person, symbol: GenderSymbol): BirthSex => {
+  if (person.birthSex) return person.birthSex;
+  if (symbol.startsWith('intersex_') || symbol === 'intersex') return 'intersex';
+  if (person.gender === 'male') return 'male';
+  return 'female';
+};
+
+const deriveGenderIdentity = (person: Person, symbol: GenderSymbol): GenderIdentity => {
+  if (person.genderIdentity) return person.genderIdentity;
+  if (symbol === 'female_cis') return 'feminine';
+  if (symbol === 'male_cis') return 'masculine';
+  if (symbol === 'nonbinary' || symbol === 'intersex_nonbinary') return 'nonbinary';
+  if (symbol === 'agender' || symbol === 'intersex_agender') return 'agender';
+  if (symbol === 'intersex_feminine') return 'feminine';
+  if (symbol === 'intersex_masculine') return 'masculine';
+  if (symbol === 'female_trans') return 'feminine';
+  if (symbol === 'male_trans') return 'masculine';
+  return person.gender === 'male' ? 'masculine' : 'feminine';
+};
+
 const PersonNode = ({
   person,
   isSelected,
@@ -127,7 +172,10 @@ const PersonNode = ({
   onHoverChange,
   functionalIndicatorDefinitions,
 }: PersonNodeProps) => {
-  const isMale = person.gender === 'male';
+  const genderSymbol = deriveGenderSymbol(person);
+  const birthSex = deriveBirthSex(person, genderSymbol);
+  const genderIdentity = deriveGenderIdentity(person, genderSymbol);
+  const isMale = birthSex === 'male';
   const lifeStatus = person.lifeStatus ?? 'alive';
   const shapeSize = person.size ?? 60;
   const personBorderColor = person.borderColor ?? DEFAULT_BORDER_COLOR;
@@ -201,26 +249,115 @@ const PersonNode = ({
   };
 
   const renderAliveBody = () => {
-    if (isMale) {
+    const cisColor = '#e7b676';
+    const transColor = '#9fdce6';
+    const isCis =
+      (birthSex === 'female' && genderIdentity === 'feminine') ||
+      (birthSex === 'male' && genderIdentity === 'masculine');
+    const fillColor = isCis ? cisColor : transColor;
+    const hybridStroke = strokeColor;
+    const renderShape = (kind: 'circle' | 'square' | 'triangle-up' | 'triangle-down' | 'star') => {
+      if (kind === 'circle') {
+        return <Circle radius={shapeSize / 2} fill={fillColor} stroke={hybridStroke} strokeWidth={strokeWidth} />;
+      }
+      if (kind === 'square') {
+        return (
+          <Rect
+            width={shapeSize}
+            height={shapeSize}
+            offsetX={shapeSize / 2}
+            offsetY={shapeSize / 2}
+            fill={fillColor}
+            stroke={hybridStroke}
+            strokeWidth={strokeWidth}
+          />
+        );
+      }
+      if (kind === 'star') {
+        return (
+          <Star
+            x={0}
+            y={0}
+            numPoints={5}
+            innerRadius={shapeSize * 0.19}
+            outerRadius={shapeSize * 0.5}
+            fill={fillColor}
+            stroke={hybridStroke}
+            strokeWidth={strokeWidth}
+          />
+        );
+      }
+      if (kind === 'triangle-down') {
+        return (
+          <Line
+            points={[
+              0,
+              shapeSize * 0.5,
+              -shapeSize * 0.45,
+              -shapeSize * 0.45,
+              shapeSize * 0.45,
+              -shapeSize * 0.45,
+            ]}
+            closed
+            fill={fillColor}
+            stroke={hybridStroke}
+            strokeWidth={strokeWidth}
+          />
+        );
+      }
       return (
-        <Rect
-          width={shapeSize}
-          height={shapeSize}
-          offsetX={shapeSize / 2}
-          offsetY={shapeSize / 2}
-          fill={'lightblue'}
-          stroke={strokeColor}
+        <Line
+          points={[
+            0,
+            -shapeSize * 0.5,
+            -shapeSize * 0.45,
+            shapeSize * 0.45,
+            shapeSize * 0.45,
+            shapeSize * 0.45,
+          ]}
+          closed
+          fill={fillColor}
+          stroke={hybridStroke}
           strokeWidth={strokeWidth}
         />
       );
+    };
+    const birthShape: 'circle' | 'square' | 'triangle-up' =
+      birthSex === 'female' ? 'circle' : birthSex === 'male' ? 'square' : 'triangle-up';
+    const identityShape: 'circle' | 'square' | 'triangle-down' | 'star' =
+      genderIdentity === 'feminine'
+        ? 'circle'
+        : genderIdentity === 'masculine'
+        ? 'square'
+        : genderIdentity === 'nonbinary'
+        ? 'triangle-down'
+        : 'star';
+
+    if (isCis) {
+      return renderShape(birthShape);
     }
+
     return (
-      <Circle
-        radius={shapeSize / 2}
-        fill={'lightpink'}
-        stroke={strokeColor}
-        strokeWidth={strokeWidth}
-      />
+      <>
+        <Group
+          clipFunc={(ctx) => {
+            ctx.beginPath();
+            ctx.rect(-shapeSize / 2, -shapeSize / 2, shapeSize / 2, shapeSize);
+            ctx.closePath();
+          }}
+        >
+          {renderShape(birthShape)}
+        </Group>
+        <Group
+          clipFunc={(ctx) => {
+            ctx.beginPath();
+            ctx.rect(0, -shapeSize / 2, shapeSize / 2, shapeSize);
+            ctx.closePath();
+          }}
+        >
+          {renderShape(identityShape)}
+        </Group>
+      </>
     );
   };
 

@@ -8,6 +8,9 @@ import type {
   FunctionalIndicatorDefinition,
   EmotionalProcessEvent,
   EventClass,
+  GenderSymbol,
+  BirthSex,
+  GenderIdentity,
 } from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
@@ -921,6 +924,26 @@ const GENDER_NAME_OVERRIDES: Record<string, Person['gender']> = {
   noni: 'female',
   betty: 'female',
 };
+
+const GENDER_SYMBOL_OPTIONS: Array<{
+  label: string;
+  symbol: GenderSymbol;
+  birthSex: BirthSex;
+  genderIdentity: GenderIdentity;
+}> = [
+  { label: 'Female × Feminine (Cis)', symbol: 'female_cis', birthSex: 'female', genderIdentity: 'feminine' },
+  { label: 'Female × Masculine', symbol: 'female_trans', birthSex: 'female', genderIdentity: 'masculine' },
+  { label: 'Female × Non-Binary', symbol: 'nonbinary', birthSex: 'female', genderIdentity: 'nonbinary' },
+  { label: 'Female × Agender', symbol: 'agender', birthSex: 'female', genderIdentity: 'agender' },
+  { label: 'Male × Feminine', symbol: 'female_trans', birthSex: 'male', genderIdentity: 'feminine' },
+  { label: 'Male × Masculine (Cis)', symbol: 'male_cis', birthSex: 'male', genderIdentity: 'masculine' },
+  { label: 'Male × Non-Binary', symbol: 'nonbinary', birthSex: 'male', genderIdentity: 'nonbinary' },
+  { label: 'Male × Agender', symbol: 'agender', birthSex: 'male', genderIdentity: 'agender' },
+  { label: 'Intersex × Feminine', symbol: 'intersex_feminine', birthSex: 'intersex', genderIdentity: 'feminine' },
+  { label: 'Intersex × Masculine', symbol: 'intersex_masculine', birthSex: 'intersex', genderIdentity: 'masculine' },
+  { label: 'Intersex × Non-Binary', symbol: 'intersex_nonbinary', birthSex: 'intersex', genderIdentity: 'nonbinary' },
+  { label: 'Intersex × Agender', symbol: 'intersex_agender', birthSex: 'intersex', genderIdentity: 'agender' },
+];
 
 const inferGenderFromName = (value: string): Person['gender'] | undefined => {
   const normalized = value.trim().toLowerCase();
@@ -3910,14 +3933,6 @@ useEffect(() => {
     );
   };
 
-  const changeSex = (personId: string) => {
-    setPeopleAligned(prev =>
-      prev.map(p =>
-        p.id === personId ? { ...p, gender: p.gender === 'male' ? 'female' : 'male' } : p
-      )
-    );
-  };
-
   const addPartnership = () => {
     if (selectedPeopleIds.length !== 2) return;
 
@@ -3933,6 +3948,24 @@ useEffect(() => {
         events: [],
     };
     setPartnerships([...partnerships, newPartnership]);
+  };
+
+  const changeSex = (personId: string) => {
+    setPeopleAligned((prev) =>
+      prev.map((p) => {
+        if (p.id !== personId) return p;
+        const currentSex = (p.birthSex || (p.gender === 'male' ? 'male' : 'female')) as BirthSex;
+        const nextSex: BirthSex = currentSex === 'male' ? 'female' : 'male';
+        const nextIdentity: GenderIdentity = nextSex === 'male' ? 'masculine' : 'feminine';
+        return {
+          ...p,
+          gender: nextSex,
+          birthSex: nextSex,
+          genderIdentity: nextIdentity,
+          genderSymbol: nextSex === 'male' ? 'male_cis' : 'female_cis',
+        };
+      })
+    );
   };
 
   const addPartnerForPerson = (person: Person) => {
@@ -4666,12 +4699,19 @@ useEffect(() => {
       const remappedParent = person.parentPartnership
         ? partnershipIdMap.get(person.parentPartnership) ?? person.parentPartnership
         : undefined;
+      const remappedBirthParent = person.birthParentPartnership
+        ? partnershipIdMap.get(person.birthParentPartnership) ?? person.birthParentPartnership
+        : undefined;
       const parentExists = remappedParent
         ? mergedPartnerships.some((partnership) => partnership.id === remappedParent)
+        : false;
+      const birthParentExists = remappedBirthParent
+        ? mergedPartnerships.some((partnership) => partnership.id === remappedBirthParent)
         : false;
       return {
         ...person,
         parentPartnership: parentExists ? remappedParent : person.parentPartnership,
+        birthParentPartnership: birthParentExists ? remappedBirthParent : person.birthParentPartnership,
         partnerships: [...new Set([...(person.partnerships || []), ...personPartnerships])],
       };
     });
@@ -5247,6 +5287,7 @@ useEffect(() => {
       gender: overrides.gender ?? 'female',
       partnerships: overrides.partnerships ?? [],
       parentPartnership: overrides.parentPartnership,
+      birthParentPartnership: overrides.birthParentPartnership,
       lifeStatus: overrides.lifeStatus ?? 'alive',
       connectionAnchorX: overrides.connectionAnchorX,
       multipleBirthGroupId: overrides.multipleBirthGroupId,
@@ -5259,7 +5300,82 @@ useEffect(() => {
     return newPerson;
   };
 
-  const createChildrenForPartnership = (partnershipId: string, variant: 'single' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth') => {
+  const addParentsForPerson = (
+    person: Person,
+    options?: { forceBirthParents?: boolean; parentLabelPrefix?: string; parentSize?: number }
+  ) => {
+    if (person.birthParentPartnership && person.parentPartnership && options?.forceBirthParents) {
+      alert('This person already has a birth-parent linkage.');
+      return;
+    }
+    const verticalOffset = 170;
+    const horizontalOffset = 90;
+    const fatherX = person.x - horizontalOffset;
+    const motherX = person.x + horizontalOffset;
+    const parentY = person.y - verticalOffset;
+    const partnershipId = nanoid();
+    const fatherId = nanoid();
+    const motherId = nanoid();
+    const prefix = options?.parentLabelPrefix ? `${options.parentLabelPrefix} ` : '';
+    const fatherName = `${prefix}Birth Father`.trim();
+    const motherName = `${prefix}Birth Mother`.trim();
+    const parentPartnership: Partnership = {
+      id: partnershipId,
+      partner1_id: fatherId,
+      partner2_id: motherId,
+      horizontalConnectorY: parentY + 70,
+      relationshipType: 'dating',
+      relationshipStatus: 'ongoing',
+      children: [person.id],
+      events: [],
+    };
+    const father: Person = {
+      id: fatherId,
+      name: fatherName,
+      x: fatherX,
+      y: parentY,
+      gender: 'male',
+      size: options?.parentSize,
+      partnerships: [partnershipId],
+      events: [],
+    };
+    const mother: Person = {
+      id: motherId,
+      name: motherName,
+      x: motherX,
+      y: parentY,
+      gender: 'female',
+      size: options?.parentSize,
+      partnerships: [partnershipId],
+      events: [],
+    };
+    setPartnerships((prev) => [...prev, parentPartnership]);
+    setPeopleAligned((prev) =>
+      prev
+        .map((entry) => {
+          if (entry.id !== person.id) return entry;
+          const next = { ...entry };
+          if (options?.forceBirthParents || !!entry.parentPartnership) {
+            next.birthParentPartnership = partnershipId;
+            next.adoptionStatus = 'adopted';
+          } else {
+            next.parentPartnership = partnershipId;
+          }
+          return next;
+        })
+        .concat([father, mother])
+    );
+    setSelectedPeopleIds([fatherId, motherId]);
+    setSelectedPartnershipId(partnershipId);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(parentPartnership);
+  };
+
+  const createChildrenForPartnership = (
+    partnershipId: string,
+    variant: 'single' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth'
+  ) => {
     const partnership = partnerships.find(p => p.id === partnershipId);
     if (!partnership) return;
     const partner1 = people.find(person => person.id === partnership.partner1_id);
@@ -5316,6 +5432,34 @@ useEffect(() => {
     );
   };
 
+  const createAdoptedChildForPartnership = (partnershipId: string) => {
+    const partnership = partnerships.find((p) => p.id === partnershipId);
+    if (!partnership) return;
+    const partner1 = people.find((person) => person.id === partnership.partner1_id);
+    const partner2 = people.find((person) => person.id === partnership.partner2_id);
+    if (!partner1 || !partner2) return;
+    const anchorX = (partner1.x + partner2.x) / 2;
+    const baseY = partnership.horizontalConnectorY + 120;
+    const child: Person = {
+      id: nanoid(),
+      name: 'Adopted Child',
+      x: anchorX,
+      y: baseY,
+      gender: 'female',
+      partnerships: [],
+      parentPartnership: partnershipId,
+      adoptionStatus: 'adopted',
+      events: [],
+    };
+    setPeopleAligned((prev) => [...prev, child]);
+    setPartnerships((prev) =>
+      prev.map((p) =>
+        p.id === partnershipId ? { ...p, children: [...p.children, child.id] } : p
+      )
+    );
+    addParentsForPerson(child, { forceBirthParents: true, parentSize: 30 });
+  };
+
   const removePartnership = (partnershipId: string) => {
     const partnershipToRemove = partnerships.find(p => p.id === partnershipId);
     if (!partnershipToRemove) return;
@@ -5329,8 +5473,13 @@ useEffect(() => {
         }
         if (partnershipToRemove.children.includes(p.id)) {
           const newP = { ...p };
-          delete newP.parentPartnership;
-          delete newP.connectionAnchorX;
+          if (newP.parentPartnership === partnershipId) {
+            delete newP.parentPartnership;
+            delete newP.connectionAnchorX;
+          }
+          if (newP.birthParentPartnership === partnershipId) {
+            delete newP.birthParentPartnership;
+          }
           return newP;
         }
         return p;
@@ -5363,6 +5512,14 @@ useEffect(() => {
               const copy = { ...p };
               delete copy.parentPartnership;
               delete copy.connectionAnchorX;
+              if (copy.birthParentPartnership && childrenNeedingCleanup.has(copy.birthParentPartnership)) {
+                delete copy.birthParentPartnership;
+              }
+              return copy;
+            }
+            if (p.birthParentPartnership && childrenNeedingCleanup.has(p.birthParentPartnership)) {
+              const copy = { ...p };
+              delete copy.birthParentPartnership;
               return copy;
             }
             return p;
@@ -5403,8 +5560,13 @@ useEffect(() => {
       prev.map(p => {
         if (p.id === childId) {
           const newP = { ...p };
-          delete newP.parentPartnership;
-          delete newP.connectionAnchorX;
+          if (newP.parentPartnership === partnershipId) {
+            delete newP.parentPartnership;
+            delete newP.connectionAnchorX;
+          }
+          if (newP.birthParentPartnership === partnershipId) {
+            delete newP.birthParentPartnership;
+          }
           return newP;
         }
         return p;
@@ -5429,6 +5591,33 @@ useEffect(() => {
               onClick: () => {
                   changeSex(person.id);
                   setContextMenu(null);
+              }
+          },
+          {
+              label: 'Edit Gender',
+              onClick: () => {
+                  setContextMenu({
+                    x: e.evt.clientX,
+                    y: e.evt.clientY,
+                    items: [
+                      ...GENDER_SYMBOL_OPTIONS.map((option) => ({
+                        label: option.label,
+                        onClick: () => {
+                          handleUpdatePerson(person.id, {
+                            gender: option.birthSex,
+                            birthSex: option.birthSex,
+                            genderIdentity: option.genderIdentity,
+                            genderSymbol: option.symbol,
+                          });
+                          setContextMenu(null);
+                        },
+                      })),
+                      {
+                        label: 'Cancel',
+                        onClick: () => setContextMenu(null),
+                      },
+                    ],
+                  });
               }
           },
           {
@@ -5490,6 +5679,13 @@ useEffect(() => {
                 addPartnerForPerson(person);
                 setContextMenu(null);
             }
+          },
+          {
+            label: 'Add Parents',
+            onClick: () => {
+                addParentsForPerson(person);
+                setContextMenu(null);
+            }
           }
       ];
       
@@ -5537,8 +5733,11 @@ useEffect(() => {
     menuItems.push({
         label: 'Remove as Child',
         onClick: () => {
-            if (person.parentPartnership) {
-                removeChildFromPartnership(person.id, person.parentPartnership!); 
+            if (person.parentPartnership || person.birthParentPartnership) {
+                removeChildFromPartnership(
+                  person.id,
+                  person.parentPartnership || person.birthParentPartnership!
+                );
                 setContextMenu(null);
             } else {
                 alert('This person is not currently linked as a child.');
@@ -5636,6 +5835,13 @@ useEffect(() => {
                 label: 'Add Stillbirth',
                 onClick: () => {
                     createChildrenForPartnership(partnershipId, 'stillbirth');
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Add Adopted Child',
+                onClick: () => {
+                    createAdoptedChildForPartnership(partnershipId);
                     setContextMenu(null);
                 }
             },

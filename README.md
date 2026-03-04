@@ -15,6 +15,8 @@ This is a web-based application for drawing family diagrams. A family diagram is
 *   **Emotional Pattern Lines (EPLs):** Users can create and style emotional pattern lines between individuals to represent different types of emotional bonds (e.g., fusion, conflict, distance, cutoff). Fusion intensities render as double dotted, double solid, or triple solid parallel lines (Low/Medium/High), distance intensities map to short vs. longer dashes, and conflict keeps its single/double sawtooth variants. Every EPL supports custom colors for triangle highlighting plus configurable endings (arrows, perpendicular), and now tracks a Status (Ongoing/Ended) with optional End Date so you can archive resolved triangles—only ongoing lines stay on the canvas while ended ones remain in the data/timeline.
 *   **Triangle TPL editing parity:** Triangle process lines (TPLs) now use full EPL editing controls (relationship type, intensity/style, line endings, status/dates, color, and notes), while still supporting triangle-level color/intensity settings.
 *   **Contextual creation tools:** Right-clicking a Partner Relationship Line (PRL) offers quick actions to add single children, twin/triplet sets, miscarriages (triangle with X), and stillbirth markers (mini person icon with X) so charts can represent perinatal events without manual drawing, while the canvas menu focuses on adding standalone people.
+*   **Adoption and parent-generation shortcuts:** Right-click a PRL to `Add Adopted Child` (child links to adopting PRL and also gets a birth-parent PRL above), and right-click any person to `Add Parents` so parent nodes/PRL are generated above the selected person quickly.
+*   **Gender matrix symbols:** Person context menu now supports both quick `Change sex to ...` and `Edit Gender` (second popup). `Edit Gender` uses a Birth-Sex × Gender-Identity option list and applies the corresponding composed symbol on the canvas.
 *   **Direct PRL child linking:** Click a PRL, then click a non-partner person to attach that person as a child immediately; duplicate links are prevented and prior parent-link cleanup is handled automatically.
 *   **Floating notes:** Person notes inherit soft male/female shading (or a neutral tone) and connect back to their owner with heavier dashed leader lines for quick visual association, while PRL/EPL notes keep a neutral white card.
 *   **Notes Layer + overrides:** A global `Notes Layer` toolbar toggle can hide/show all notes. Right-click any person/PRL/EPL to `Show Note` (pin that note on), and person-note hover still reveals the note temporarily even when the global layer is off. Object-level note pins override the global layer state.
@@ -52,8 +54,8 @@ This is a web-based application for drawing family diagrams. A family diagram is
 The shipped default diagram is `src/frontend/src/data/demofamilydiagram.json`.
 
 Startup behavior:
-*   If there is a newer/different diagram already in `localStorage`, that saved diagram opens.
-*   Otherwise, the app opens `demofamilydiagram.json`.
+*   On app startup, the editor auto-loads `demofamilydiagram.json`.
+*   Use `File -> Load Demo Diagram` to force-reload it at any time.
 
 Demo behavior:
 *   `Help -> Demo` loads the demo diagram and runs the guided walkthrough using numbered notes from the diagram data.

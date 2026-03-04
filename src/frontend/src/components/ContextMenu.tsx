@@ -13,8 +13,16 @@ interface ContextMenuProps {
 }
 
 const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+
   React.useEffect(() => {
-    const handleClickOutside = () => onClose();
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (menuRef.current && target && menuRef.current.contains(target)) {
+        return;
+      }
+      onClose();
+    };
     window.addEventListener('click', handleClickOutside);
     return () => {
       window.removeEventListener('click', handleClickOutside);
@@ -23,6 +31,7 @@ const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
 
   return (
     <div
+      ref={menuRef}
       style={{
         position: 'absolute',
         top: y,

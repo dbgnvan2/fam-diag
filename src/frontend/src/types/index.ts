@@ -9,6 +9,22 @@ export type PersonFunctionalIndicator = {
   lastUpdatedAt?: number;
 };
 
+export type BirthSex = 'female' | 'male' | 'intersex';
+export type GenderIdentity = 'feminine' | 'masculine' | 'nonbinary' | 'agender';
+
+export type GenderSymbol =
+  | 'female_cis'
+  | 'male_cis'
+  | 'intersex'
+  | 'female_trans'
+  | 'male_trans'
+  | 'nonbinary'
+  | 'agender'
+  | 'intersex_feminine'
+  | 'intersex_masculine'
+  | 'intersex_nonbinary'
+  | 'intersex_agender';
+
 export type FunctionalIndicatorDefinition = {
   id: string;
   label: string;
@@ -26,8 +42,12 @@ export type Person = {
   birthDate?: string;
   deathDate?: string;
   gender?: string;
+  birthSex?: BirthSex;
+  genderIdentity?: GenderIdentity;
+  genderSymbol?: GenderSymbol;
   partnerships: string[];
   parentPartnership?: string;
+  birthParentPartnership?: string;
   notes?: string;
   size?: number;
   notesPosition?: { x: number; y: number };

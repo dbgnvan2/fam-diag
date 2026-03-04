@@ -22,6 +22,8 @@ I need you to act as the "tester" and manually verify that the application is wo
 
 3.  **Child Connections:**
     *   Can you add a child to a partnership?
+    *   Right-click a PRL and choose `Add Adopted Child`; verify the child is linked to the adopting PRL and a separate birth-parent pair/PRL is created above that child.
+    *   Verify birth parents created from `Add Adopted Child` are size 30.
     *   Click a PRL, then click a non-partner person; verify the person is added as that PRL child immediately (without right-click).
     *   Repeat the same PRL+person click and confirm no duplicate child link is created.
     *   **Can you select the line connecting the child to the partnership by clicking on it?**
@@ -48,6 +50,10 @@ I have run the application, and I believe that all of the above features should 
     *   Click a person, then a partnership line, then an emotional process line. After each click, only that most recent object should remain highlighted.
     *   Confirm that the properties panel swaps to the clicked object (or hides if that object has no editable properties, such as a child connector).
     *   Right-click each object type (person, PRL, EPL, child connector) and verify the context menu matches the object you targeted.
+    *   On person context menu, confirm both `Change sex to ...` and `Edit Gender` are present.
+    *   Click `Edit Gender` and verify a second popup menu appears with Birth-Sex × Gender-Identity options.
+    *   Pick several options (e.g., Female × Feminine, Male × Masculine, Female × Non-Binary, Intersex × Agender) and verify the node symbol updates each time.
+    *   Right-click a person and choose `Add Parents`; verify two parents plus a PRL are created above the selected person and linked as parents.
     *   After panning or clicking the empty canvas, ensure no objects stay highlighted and the properties panel closes.
     *   Shift-click two or more people to open the Shared Properties panel. Toggle “Shaded Background Enabled” and verify only the selected people gain/lose the lightly tinted square— the overall canvas color should not change.
     *   While still multi-selected, change the border color and confirm the person outlines use the thicker stroke so the new color remains obvious.
