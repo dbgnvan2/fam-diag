@@ -129,6 +129,11 @@ describe('DiagramEditor', () => {
 
     it('renders transcripts and timeline dropdown menus', () => {
         render(<DiagramEditor />);
+        const fileMenuButton = screen.getByRole('button', { name: /file ▾/i });
+        fireEvent.click(fileMenuButton);
+        expect(screen.getByRole('button', { name: 'Load Demo Diagram' })).toBeInTheDocument();
+        fireEvent.click(fileMenuButton);
+
         fireEvent.click(screen.getByRole('button', { name: /transcripts ▾/i }));
         expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Import Data' })).toBeInTheDocument();

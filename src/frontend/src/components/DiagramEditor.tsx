@@ -5005,6 +5005,16 @@ useEffect(() => {
     transcriptInputRef.current?.click();
   };
 
+  const handleLoadDemoDiagram = () => {
+    if (isDirty && !isCurrentDemoDiagram) {
+      const confirmReset = window.confirm(
+        'Load Demo Diagram? Current unsaved diagram changes will be replaced.'
+      );
+      if (!confirmReset) return;
+    }
+    replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
+  };
+
   const handleStartDemoTour = () => {
     if (isDirty && !isCurrentDemoDiagram) {
       const confirmReset = window.confirm(
@@ -6902,6 +6912,7 @@ useEffect(() => {
       };
       const fileMenuItems = [
         { label: 'New', action: handleNewFile },
+        { label: 'Load Demo Diagram', action: handleLoadDemoDiagram },
         { label: 'Open', action: handleOpenFilePicker },
         { label: 'Import Data', action: handleImportDataPicker },
         { label: 'Import Person Events', action: handleImportPersonEventsPicker },
