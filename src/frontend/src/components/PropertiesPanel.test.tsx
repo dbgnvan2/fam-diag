@@ -391,6 +391,56 @@ describe('PropertiesPanel', () => {
         );
     });
 
+    it('saves Birth Sex, Gender Date, and Gender with events on Save', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-gender',
+            name: 'Gender Person',
+            x: 0,
+            y: 0,
+            gender: 'female',
+            birthSex: 'female',
+            genderIdentity: 'feminine',
+            birthDate: '1990-01-01',
+            partnerships: [],
+            events: [],
+        };
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={[]}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText('Birth Sex:'), { target: { value: 'male' } });
+        fireEvent.change(screen.getByLabelText('Gender Date:'), { target: { value: '2020-05-01' } });
+        fireEvent.change(screen.getByLabelText('Gender:'), { target: { value: 'masculine' } });
+        expect(updatePerson).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+        expect(updatePerson).toHaveBeenCalledWith(
+            'p-gender',
+            expect.objectContaining({
+                birthSex: 'male',
+                gender: 'male',
+                genderDate: '2020-05-01',
+                genderIdentity: 'masculine',
+                events: expect.arrayContaining([
+                    expect.objectContaining({ statusLabel: 'Birth Sex: Male' }),
+                    expect.objectContaining({ statusLabel: 'Gender Date' }),
+                    expect.objectContaining({ statusLabel: 'Gender: Masculine' }),
+                ]),
+            })
+        );
+    });
+
     it('creates person events when partnership dates are saved', () => {
         const updatePerson = vi.fn();
         const updatePartnership = vi.fn();
@@ -537,7 +587,7 @@ describe('PropertiesPanel', () => {
         );
 
         fireEvent.click(screen.getByRole('button', { name: /help for person tab/i }));
-        expect(screen.getByText(/Persons have basic nodal events of Birth and Death/i)).toBeInTheDocument();
+        expect(screen.getByText(/Persons have basic nodal events of Birth, Death, Birth Sex, and Gender/i)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /help for indicators tab/i }));
         expect(screen.getByText(/Indicators of functioning specific to symptom development/i)).toBeInTheDocument();

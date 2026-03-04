@@ -249,12 +249,8 @@ const PersonNode = ({
   };
 
   const renderAliveBody = () => {
-    const cisColor = '#e7b676';
-    const transColor = '#9fdce6';
-    const isCis =
-      (birthSex === 'female' && genderIdentity === 'feminine') ||
-      (birthSex === 'male' && genderIdentity === 'masculine');
-    const fillColor = isCis ? cisColor : transColor;
+    const fillColor =
+      birthSex === 'male' ? '#ADD8E6' : birthSex === 'female' ? '#FFC0CB' : '#D9D9D9';
     const hybridStroke = strokeColor;
     const renderShape = (kind: 'circle' | 'square' | 'triangle-up' | 'triangle-down' | 'star') => {
       if (kind === 'circle') {
@@ -333,6 +329,9 @@ const PersonNode = ({
         ? 'triangle-down'
         : 'star';
 
+    const isCis =
+      (birthSex === 'female' && genderIdentity === 'feminine') ||
+      (birthSex === 'male' && genderIdentity === 'masculine');
     if (isCis) {
       return renderShape(birthShape);
     }

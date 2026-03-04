@@ -40,9 +40,10 @@ const PARTNERSHIP_DATE_LABELS: Record<
   separationDate: 'Separation Date',
   divorceDate: 'Divorce Date',
 };
-const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate', string> = {
+const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', string> = {
   birthDate: 'Birth Date',
   deathDate: 'Death Date',
+  genderDate: 'Gender Date',
 };
 const DEFAULT_OBSERVATION = 'Not recorded - ask client';
 const DEFAULT_HOW_WELL = 1;
@@ -61,7 +62,7 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events', { title: str
   properties: {
     title: 'Person Tab Help',
     body:
-      'Persons have basic nodal events of Birth and Death. Other Functional Facts can be added as Events. Persons can be given background colors and border colors to designate whatever is needed (e.g., people living at the same location).',
+      'Persons have basic nodal events of Birth, Death, Birth Sex, and Gender (with Gender Date). Other Functional Facts can be added as Events. Persons can be given background colors and border colors to designate whatever is needed (e.g., people living at the same location).',
   },
   functional: {
     title: 'Indicators Tab Help',
@@ -76,6 +77,18 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events', { title: str
 };
 const toTitleCase = (value: string) =>
   value.replace(/\b\w/g, (char) => char.toUpperCase());
+const normalizePersonEventDate = (value?: string) =>
+  value && DATE_PATTERN.test(value) ? value : new Date().toISOString().slice(0, 10);
+const getBirthSexLabel = (value?: Person['birthSex']) =>
+  value === 'male' ? 'Male' : value === 'intersex' ? 'Intersex' : 'Female';
+const getGenderIdentityLabel = (value?: Person['genderIdentity']) => {
+  if (value === 'masculine') return 'Masculine';
+  if (value === 'nonbinary') return 'Non-Binary';
+  if (value === 'agender') return 'Agender';
+  return 'Feminine';
+};
+const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
+  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' ? 'nonbinary' : 'feminine';
 const cloneEventForPerson = (
   base: EmotionalProcessEvent,
   personName: string,
@@ -96,9 +109,14 @@ const RELATIONSHIP_STATUS_INTENSITY: Record<NonNullable<Partnership['relationshi
   ended: 4,
   ongoing: 3,
 };
-const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate'>)[] = [
+const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate' | 'genderDate'>)[] = [
   'birthDate',
   'deathDate',
+  'genderDate',
+];
+const PERSON_DEFERRED_IDENTITY_FIELDS: (keyof Pick<Person, 'birthSex' | 'genderIdentity'>)[] = [
+  'birthSex',
+  'genderIdentity',
 ];
 const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'notes'>)[] = [
   'relationshipType',
@@ -496,14 +514,31 @@ const PropertiesPanel = ({
       nextValue = Math.max(20, Math.min(400, numericValue));
     }
     let updates: Partial<Person> = { [name]: nextValue };
+    if (name === 'birthSex') {
+      const birthSex = nextValue as Person['birthSex'];
+      updates = {
+        ...updates,
+        birthSex,
+        gender: birthSex,
+      };
+      if (!personDraft.genderIdentity) {
+        updates.genderIdentity = defaultGenderIdentityForBirthSex(birthSex);
+      }
+    } else if (name === 'genderIdentity') {
+      updates = {
+        ...updates,
+        genderIdentity: nextValue as Person['genderIdentity'],
+      };
+    }
     const nextDraft = { ...personDraft, ...updates };
     if (name === 'firstName' || name === 'lastName') {
       updates = { ...updates, name: composeDisplayName({}, nextDraft) };
     }
     updatePersonDraftState(updates);
-    const isDeferredDateField = name === 'birthDate' || name === 'deathDate';
+    const isDeferredDateField = name === 'birthDate' || name === 'deathDate' || name === 'genderDate';
+    const isDeferredIdentityField = name === 'birthSex' || name === 'genderIdentity';
     if (!selectedPerson) return;
-    if (isDeferredDateField) {
+    if (isDeferredDateField || isDeferredIdentityField) {
       setPersonPristine(false);
       return;
     }
@@ -632,6 +667,35 @@ const PropertiesPanel = ({
       createdAt: Date.now(),
     };
   };
+  const buildPersonIdentityEvent = (
+    person: Person,
+    field: keyof Pick<Person, 'birthSex' | 'genderIdentity'>,
+    value: string,
+    dateValue: string
+  ): EmotionalProcessEvent => {
+    const displayName = composeDisplayName({}, person) || person.name || '';
+    const isBirthSex = field === 'birthSex';
+    const statusLabel = isBirthSex
+      ? `Birth Sex: ${getBirthSexLabel(value as Person['birthSex'])}`
+      : `Gender: ${getGenderIdentityLabel(value as Person['genderIdentity'])}`;
+    return {
+      id: createEventId(),
+      date: normalizePersonEventDate(dateValue),
+      category: 'Individual',
+      statusLabel,
+      intensity: 0,
+      frequency: 0,
+      impact: 0,
+      howWell: DEFAULT_HOW_WELL,
+      otherPersonName: '',
+      primaryPersonName: displayName,
+      wwwwh: DEFAULT_OBSERVATION,
+      observations: person.notes || DEFAULT_OBSERVATION,
+      isNodalEvent: true,
+      eventClass: 'individual',
+      createdAt: Date.now(),
+    };
+  };
 
   type PartnershipDateField = keyof typeof PARTNERSHIP_DATE_LABELS;
 
@@ -706,9 +770,15 @@ const PropertiesPanel = ({
 
   const personDirty = useMemo(() => {
     if (!selectedPerson || !personDraft) return false;
-    return PERSON_DEFERRED_DATE_FIELDS.some((field) =>
+    const hasDeferredDateChanges = PERSON_DEFERRED_DATE_FIELDS.some((field) =>
       stringDiffers(personDraft[field], selectedPerson[field])
     );
+    const hasIdentityChanges = PERSON_DEFERRED_IDENTITY_FIELDS.some((field) => {
+      const draftValue = personDraft[field] ?? '';
+      const selectedValue = selectedPerson[field] ?? '';
+      return draftValue !== selectedValue;
+    });
+    return hasDeferredDateChanges || hasIdentityChanges;
   }, [selectedPerson, personDraft]);
 
   const savePersonProperties = () => {
@@ -723,6 +793,23 @@ const PropertiesPanel = ({
         if (next && DATE_PATTERN.test(next)) {
           const event = buildPersonDateEvent(personDraft, field, next);
           if (event) newEvents.push(event);
+        }
+      }
+    });
+    PERSON_DEFERRED_IDENTITY_FIELDS.forEach((field) => {
+      const prev = selectedPerson[field];
+      const next = personDraft[field];
+      if ((prev ?? '') !== (next ?? '')) {
+        (updates as any)[field] = next || undefined;
+        if (field === 'birthSex') {
+          updates.gender = next || undefined;
+        }
+        if (next) {
+          const eventDate =
+            field === 'birthSex'
+              ? personDraft.birthDate || selectedPerson.birthDate || ''
+              : personDraft.genderDate || selectedPerson.genderDate || '';
+          newEvents.push(buildPersonIdentityEvent(personDraft, field, next, eventDate));
         }
       }
     });
@@ -1461,6 +1548,63 @@ const PropertiesPanel = ({
               onChange={handlePersonChange}
               pickerLabel="Select birth date"
             />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="birthSex" style={labelStyle}>Birth Sex:</label>
+            <select
+              id="birthSex"
+              name="birthSex"
+              value={
+                personDraft.birthSex ||
+                (personDraft.gender === 'male'
+                  ? 'male'
+                  : personDraft.gender === 'intersex'
+                  ? 'intersex'
+                  : 'female')
+              }
+              onChange={handlePersonChange}
+              style={{ width: 160 }}
+            >
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="intersex">Intersex</option>
+            </select>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="genderDate" style={labelStyle}>Gender Date:</label>
+            <DatePickerField
+              id="genderDate"
+              name="genderDate"
+              value={personDraft.genderDate}
+              placeholder="YYYY-MM-DD"
+              onChange={handlePersonChange}
+              pickerLabel="Select gender date"
+            />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="genderIdentity" style={labelStyle}>Gender:</label>
+            <select
+              id="genderIdentity"
+              name="genderIdentity"
+              value={
+                personDraft.genderIdentity ||
+                defaultGenderIdentityForBirthSex(
+                  personDraft.birthSex ||
+                    (personDraft.gender === 'male'
+                      ? 'male'
+                      : personDraft.gender === 'intersex'
+                      ? 'intersex'
+                      : 'female')
+                )
+              }
+              onChange={handlePersonChange}
+              style={{ width: 180 }}
+            >
+              <option value="feminine">Feminine</option>
+              <option value="masculine">Masculine</option>
+              <option value="nonbinary">Non-Binary</option>
+              <option value="agender">Agender</option>
+            </select>
           </div>
           <div style={rowStyle}>
             <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>

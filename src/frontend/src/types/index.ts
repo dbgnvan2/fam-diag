@@ -41,6 +41,7 @@ export type Person = {
   maidenName?: string;
   birthDate?: string;
   deathDate?: string;
+  genderDate?: string;
   gender?: string;
   birthSex?: BirthSex;
   genderIdentity?: GenderIdentity;
