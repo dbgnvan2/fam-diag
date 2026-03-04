@@ -3651,101 +3651,13 @@ const DiagramEditor = () => {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const savedPeople = getStoredValue('people');
-    const savedPartnerships = getStoredValue('partnerships');
-    const savedEmotionalLines = getStoredValue('emotionalLines');
-    const savedTriangles = getStoredValue('triangles');
-    const savedCategories = getStoredValue('eventCategories');
-    const savedIndicators = getStoredValue('indicatorDefinitions');
-    const savedName = getStoredValue('fileName') || '';
-    let shouldLoadSavedDiagram = false;
-    let parsedPeople: Person[] | null = null;
-    let parsedPartnerships: Partnership[] | null = null;
-    let parsedLines: EmotionalLine[] | null = null;
-    let parsedTriangles: Triangle[] = [];
-    const hasSavedDiagram = Boolean(savedPeople && savedPartnerships && savedEmotionalLines);
-    if (hasSavedDiagram && savedPeople && savedPartnerships && savedEmotionalLines) {
-      try {
-        parsedPeople = JSON.parse(savedPeople) as Person[];
-        parsedPartnerships = JSON.parse(savedPartnerships) as Partnership[];
-        parsedLines = JSON.parse(savedEmotionalLines) as EmotionalLine[];
-        parsedTriangles = savedTriangles ? (JSON.parse(savedTriangles) as Triangle[]) : [];
-        const savedSnapshot = serializeDiagram(
-          parsedPeople,
-          parsedPartnerships,
-          normalizeEmotionalLines(parsedLines),
-          normalizeTriangles(parsedTriangles)
-        );
-        const demoSnapshot = serializeDiagram(
-          Array.isArray(DEMO_DIAGRAM_DATA.people) ? (DEMO_DIAGRAM_DATA.people as Person[]) : [],
-          Array.isArray(DEMO_DIAGRAM_DATA.partnerships)
-            ? (DEMO_DIAGRAM_DATA.partnerships as Partnership[])
-            : [],
-          normalizeEmotionalLines(
-            Array.isArray(DEMO_DIAGRAM_DATA.emotionalLines)
-              ? (DEMO_DIAGRAM_DATA.emotionalLines as EmotionalLine[])
-              : []
-          ),
-          normalizeTriangles(
-            Array.isArray(DEMO_DIAGRAM_DATA.triangles)
-              ? (DEMO_DIAGRAM_DATA.triangles as Triangle[])
-              : []
-          )
-        );
-        const hasDiagramChanges = savedSnapshot !== demoSnapshot;
-        shouldLoadSavedDiagram = !isDemoDiagramFileName(savedName) || hasDiagramChanges;
-      } catch {
-        shouldLoadSavedDiagram = false;
-      }
-    }
-
-    if (shouldLoadSavedDiagram && parsedPeople && parsedPartnerships && parsedLines) {
-      let indicatorDefs = initialIndicatorDefinitions;
-      if (savedIndicators) {
-        try {
-          const parsed = JSON.parse(savedIndicators);
-          if (Array.isArray(parsed)) {
-            indicatorDefs = parsed;
-          }
-        } catch {
-          // ignore malformed indicator definitions
-        }
-      }
-      applyIndicatorDefinitionArray(indicatorDefs);
-
-      const cleaned = removeOrphanedMiscarriages(parsedPeople, parsedPartnerships);
-      const aligned = alignAllAnchors(cleaned.people);
-      const normalizedLines = normalizeEmotionalLines(parsedLines);
-      const normalizedTriangles = normalizeTriangles(parsedTriangles).filter((triangle) => {
-        const ids = new Set(cleaned.people.map((person) => person.id));
-        return ids.has(triangle.person1_id) && ids.has(triangle.person2_id) && ids.has(triangle.person3_id);
-      });
-      const sanitizedPeople = sanitizePeopleIndicators(aligned, indicatorDefs);
-      setPeople(sanitizedPeople);
-      setPartnerships(cleaned.partnerships);
-      setEmotionalLines(normalizedLines);
-      setTriangles(normalizedTriangles);
-      markSnapshotClean(sanitizedPeople, cleaned.partnerships, normalizedLines, normalizedTriangles);
-    } else {
-      try {
-        applyIndicatorDefinitionArray(initialIndicatorDefinitions);
-        replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
-      } catch {
-        // keep fallback defaults if demo payload is ever malformed
-        setTriangles(initialTriangles);
-        markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
-      }
-    }
-
-    if (shouldLoadSavedDiagram && savedCategories) {
-      try {
-        const parsed = JSON.parse(savedCategories);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setEventCategories(parsed);
-        }
-      } catch {
-        // ignore invalid categories
-      }
+    try {
+      applyIndicatorDefinitionArray(initialIndicatorDefinitions);
+      replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
+    } catch {
+      // keep fallback defaults if demo payload is ever malformed
+      setTriangles(initialTriangles);
+      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
