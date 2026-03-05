@@ -62,6 +62,16 @@ export type Person = {
   backgroundColor?: string;
   backgroundEnabled?: boolean;
   functionalIndicators?: PersonFunctionalIndicator[];
+  isClient?: boolean;
+  clientProfile?: {
+    presentingIssue1?: string;
+    presentingIssue2?: string;
+    presentingIssue3?: string;
+    desiredOutcome1?: string;
+    desiredOutcome2?: string;
+    desiredOutcome3?: string;
+    conceptualization?: string;
+  };
   events?: EmotionalProcessEvent[];
 };
 

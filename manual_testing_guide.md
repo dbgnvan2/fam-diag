@@ -54,6 +54,8 @@ I have run the application, and I believe that all of the above features should 
     *   Click `Edit Gender` and verify a second popup menu appears with Birth-Sex × Gender-Identity options.
     *   Pick several options (e.g., Female × Feminine, Male × Masculine, Female × Non-Binary, Intersex × Agender) and verify the node symbol updates each time.
     *   Right-click a person and choose `Add Parents`; verify two parents plus a PRL are created above the selected person and linked as parents.
+    *   Right-click a person and choose `Make Client`; verify a modal opens with Presenting Issue 1/2/3, Desired Outcome 1/2/3, and a “Client's Conceptualization of the Situation” notes field.
+    *   In that `Make Client` modal, change the color selector and save. Confirm the selected person node now renders with shaded background in that chosen color.
     *   After panning or clicking the empty canvas, ensure no objects stay highlighted and the properties panel closes.
     *   Shift-click two or more people to open the Shared Properties panel. Toggle “Shaded Background Enabled” and verify only the selected people gain/lose the lightly tinted square— the overall canvas color should not change.
     *   While still multi-selected, change the border color and confirm the person outlines use the thicker stroke so the new color remains obvious.

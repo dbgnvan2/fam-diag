@@ -233,6 +233,30 @@ const PropertiesPanel = ({
   const [emotionalDraft, setEmotionalDraft] = useState<EmotionalLine | null>(
     selectedEmotionalLine ? { ...selectedEmotionalLine } : null
   );
+  const deriveEmotionalMetricDraft = (line: EmotionalLine | null) => {
+    const latest = [...(line?.events || [])]
+      .filter((event) => (event.eventType || (event.eventClass === 'emotional-pattern' ? 'EPE' : '')) === 'EPE')
+      .sort((a, b) => {
+        const aTs = (a.startDate || a.date) ? new Date(a.startDate || a.date).getTime() : 0;
+        const bTs = (b.startDate || b.date) ? new Date(b.startDate || b.date).getTime() : 0;
+        return bTs - aTs;
+      })[0];
+    return {
+      intensity: typeof latest?.intensity === 'number' ? latest.intensity : 0,
+      frequency: typeof latest?.frequency === 'number' ? latest.frequency : 0,
+      impact: typeof latest?.impact === 'number' ? latest.impact : 0,
+    };
+  };
+  const initialEmotionalMetrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
+  const [emotionalIntensityDraft, setEmotionalIntensityDraft] = useState<number>(
+    initialEmotionalMetrics.intensity
+  );
+  const [emotionalFrequencyDraft, setEmotionalFrequencyDraft] = useState<number>(
+    initialEmotionalMetrics.frequency
+  );
+  const [emotionalImpactDraft, setEmotionalImpactDraft] = useState<number>(
+    initialEmotionalMetrics.impact
+  );
   const [triangleColorDraft, setTriangleColorDraft] = useState(triangleColor || '#8a5a00');
   const [triangleIntensityDraft, setTriangleIntensityDraft] = useState<'low' | 'medium' | 'high'>(
     triangleIntensity || 'medium'
@@ -327,11 +351,19 @@ const PropertiesPanel = ({
   useEffect(() => {
     setEmotionalPristine(true);
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
+    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
+    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalFrequencyDraft(metrics.frequency);
+    setEmotionalImpactDraft(metrics.impact);
   }, [selectedEmotionalLine?.id, selectedEmotionalLine]);
 
   useEffect(() => {
     if (!emotionalPristine) return;
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
+    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
+    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalFrequencyDraft(metrics.frequency);
+    setEmotionalImpactDraft(metrics.impact);
   }, [selectedEmotionalLine, emotionalPristine]);
 
   useEffect(() => {
@@ -759,6 +791,42 @@ const PropertiesPanel = ({
       createdAt: Date.now(),
     };
   };
+  const buildEmotionalPatternMeasurementEvent = (
+    line: EmotionalLine,
+    intensity: number,
+    frequency: number,
+    impact: number
+  ): EmotionalProcessEvent | null => {
+    const person1 = people.find((person) => person.id === line.person1_id);
+    const person2 = people.find((person) => person.id === line.person2_id);
+    if (!person1 || !person2) return null;
+    const start = line.startDate && DATE_PATTERN.test(line.startDate)
+      ? line.startDate
+      : new Date().toISOString().slice(0, 10);
+    return {
+      id: createEventId(),
+      date: start,
+      startDate: start,
+      endDate: line.endDate || undefined,
+      category: 'Emotional Pattern',
+      eventType: 'EPE',
+      emotionalProcessType: line.relationshipType,
+      anchorType: 'EMOTIONAL_PROCESS_EP',
+      anchorId: line.id,
+      statusLabel: toTitleCase(line.status || 'ongoing'),
+      intensity,
+      frequency,
+      impact,
+      howWell: DEFAULT_HOW_WELL,
+      otherPersonName: person2.name || '',
+      primaryPersonName: person1.name || '',
+      wwwwh: DEFAULT_OBSERVATION,
+      observations: line.notes || DEFAULT_OBSERVATION,
+      isNodalEvent: false,
+      eventClass: 'emotional-pattern',
+      createdAt: Date.now(),
+    };
+  };
 
   const appendEventsToPerson = (personId: string, events: EmotionalProcessEvent[]) => {
     if (!events.length) return;
@@ -901,6 +969,20 @@ const PropertiesPanel = ({
       stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
     );
   }, [selectedEmotionalLine, emotionalDraft]);
+  const emotionalMetricDirty = useMemo(() => {
+    if (!selectedEmotionalLine) return false;
+    const baseline = deriveEmotionalMetricDraft(selectedEmotionalLine);
+    return (
+      emotionalIntensityDraft !== baseline.intensity ||
+      emotionalFrequencyDraft !== baseline.frequency ||
+      emotionalImpactDraft !== baseline.impact
+    );
+  }, [
+    selectedEmotionalLine,
+    emotionalIntensityDraft,
+    emotionalFrequencyDraft,
+    emotionalImpactDraft,
+  ]);
   const triangleColorDirty = useMemo(() => {
     if (!triangleId) return false;
     return triangleColorDraft !== (triangleColor || '#8a5a00');
@@ -914,7 +996,7 @@ const PropertiesPanel = ({
     if (
       !selectedEmotionalLine ||
       !emotionalDraft ||
-      (!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty)
+      (!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty)
     ) {
       return;
     }
@@ -937,6 +1019,15 @@ const PropertiesPanel = ({
         }
       }
     });
+    if (emotionalMetricDirty) {
+      const metricEvent = buildEmotionalPatternMeasurementEvent(
+        { ...selectedEmotionalLine, ...emotionalDraft },
+        emotionalIntensityDraft,
+        emotionalFrequencyDraft,
+        emotionalImpactDraft
+      );
+      if (metricEvent) newEvents.push(metricEvent);
+    }
     if (newEvents.length) {
       updates.events = [...(selectedEmotionalLine.events || []), ...newEvents];
     }
@@ -953,12 +1044,20 @@ const PropertiesPanel = ({
     }
     onUpdateEmotionalLine(selectedEmotionalLine.id, updates);
     setEmotionalDraft((prev) => (prev ? { ...prev, ...updates } : prev));
+    const metrics = deriveEmotionalMetricDraft({ ...selectedEmotionalLine, ...updates });
+    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalFrequencyDraft(metrics.frequency);
+    setEmotionalImpactDraft(metrics.impact);
     setEmotionalPristine(true);
   };
 
   const cancelEmotionalChanges = () => {
     if (!selectedEmotionalLine) return;
     setEmotionalDraft({ ...selectedEmotionalLine });
+    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
+    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalFrequencyDraft(metrics.frequency);
+    setEmotionalImpactDraft(metrics.impact);
     setTriangleColorDraft(triangleColor || '#8a5a00');
     setTriangleIntensityDraft(triangleIntensity || 'medium');
     setEmotionalPristine(true);
@@ -1129,7 +1228,14 @@ const PropertiesPanel = ({
       date: baseDate,
       startDate: baseDate,
       endDate: baseEndDate,
-      category: seed?.category || latest?.category || eventCategories[0] || (eventType === 'EPE' ? 'Emotional Process' : 'Functional Fact'),
+      category:
+        seed?.category ||
+        latest?.category ||
+        (eventType === 'EPE'
+          ? isEmotionalLine
+            ? 'Emotional Pattern'
+            : 'Emotional Process'
+          : eventCategories[0] || 'Functional Fact'),
       eventType,
       nodalEventSubtype: seed?.nodalEventSubtype || latest?.nodalEventSubtype || '',
       emotionalProcessType: processType || latest?.emotionalProcessType || '',
@@ -1140,7 +1246,7 @@ const PropertiesPanel = ({
       frequency: typeof (seed?.frequency ?? latest?.frequency) === 'number' ? Number(seed?.frequency ?? latest?.frequency) : 0,
       impact: typeof (seed?.impact ?? latest?.impact) === 'number' ? Number(seed?.impact ?? latest?.impact) : 0,
       howWell: typeof (seed?.howWell ?? latest?.howWell) === 'number' ? Number(seed?.howWell ?? latest?.howWell) : 5,
-      otherPersonName: seed?.otherPersonName || latest?.otherPersonName || otherPersonOptions[0] || '',
+      otherPersonName: seed?.otherPersonName || latest?.otherPersonName || otherPersonOptions[0] || 'None',
       primaryPersonName: seed?.primaryPersonName || latest?.primaryPersonName || primaryPersonOptions[0] || '',
       wwwwh: seed?.wwwwh || latest?.wwwwh || '',
       observations: seed?.observations || latest?.observations || '',
@@ -1182,7 +1288,7 @@ const PropertiesPanel = ({
       emotionalProcessType: event.emotionalProcessType || '',
       anchorType: event.anchorType || resolveAnchorType(),
       anchorId: event.anchorId || selectedItem.id,
-      otherPersonName: event.otherPersonName || otherPersonOptions[0] || '',
+      otherPersonName: event.otherPersonName || otherPersonOptions[0] || 'None',
       primaryPersonName: event.primaryPersonName || primaryPersonOptions[0] || '',
       frequency: typeof event.frequency === 'number' ? event.frequency : 0,
       impact: typeof event.impact === 'number' ? event.impact : 0,
@@ -1239,7 +1345,7 @@ const PropertiesPanel = ({
       anchorId: eventDraft.anchorId || selectedItem.id,
       startDate: normalizedStart,
       date: normalizedStart,
-      otherPersonName: eventDraft.otherPersonName || otherPersonOptions[0] || '',
+      otherPersonName: (eventDraft.otherPersonName || '').trim() || 'None',
       primaryPersonName: eventDraft.primaryPersonName || primaryPersonOptions[0] || '',
       intensity: typeof eventDraft.intensity === 'number' ? eventDraft.intensity : 0,
       frequency: typeof eventDraft.frequency === 'number' ? eventDraft.frequency : 0,
@@ -1368,8 +1474,23 @@ const PropertiesPanel = ({
     : isEmotionalLine
     ? 'Emotional Pattern Functional Facts'
     : isPartnership
-    ? 'Relationship Functional Facts'
+    ? 'Partner Relationship Functional Facts'
     : 'Individual Functional Facts';
+  const addEventButtonLabel = isEmotionalLine
+    ? 'Add Emotional Pattern Event'
+    : isPartnership
+    ? 'Add Relationship Event'
+    : 'Add Event';
+  const newEventTitle = isEmotionalLine
+    ? 'New Emotional Pattern Event'
+    : isPartnership
+    ? 'New Relationship Event'
+    : 'New Event';
+  const editEventTitle = isEmotionalLine
+    ? 'Edit Emotional Pattern Event'
+    : isPartnership
+    ? 'Edit Relationship Event'
+    : 'Edit Event';
   const popupLeft =
     eventModalPosition && typeof window !== 'undefined'
       ? Math.max(12, Math.min(eventModalPosition.x + 8, window.innerWidth - 560))
@@ -1406,7 +1527,16 @@ const PropertiesPanel = ({
         {(['properties', 'functional', 'events'] as const).map((tab) => {
           const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
           const isActive = tab === activeTab;
-          const tabLabel = tab === 'properties' ? 'Person' : tab === 'functional' ? 'Indicators' : 'Events';
+          const tabLabel =
+            tab === 'properties'
+              ? isEmotionalLine
+                ? 'Emotional Pattern'
+                : isPartnership
+                ? 'Partner Relationship'
+                : 'Person'
+              : tab === 'functional'
+              ? 'Indicators'
+              : 'Events';
           return (
             <div key={tab} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
               <button
@@ -1788,50 +1918,12 @@ const PropertiesPanel = ({
         {isEmotionalLine && selectedEmotionalLine && emotionalDraft && (() => {
         const relationshipType = emotionalDraft.relationshipType;
         const styleOptions = styleOptionMeta(relationshipType);
-        const intensityTypes: EmotionalLine['relationshipType'][] = ['fusion', 'distance', 'conflict', 'projection'];
-        const lineStyleLabel = intensityTypes.includes(relationshipType) ? 'Intensity' : 'Line Style';
-
         const presetColors = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
 
         return (
           <div>
             <div style={rowStyle}>
-              <label htmlFor="startDate" style={labelStyle}>Start Date:</label>
-              <DatePickerField
-                id="startDate"
-                name="startDate"
-                value={emotionalDraft.startDate}
-                placeholder="YYYY-MM-DD"
-                onChange={handleEmotionalLineInputChange}
-                pickerLabel="Select emotional line start date"
-              />
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="endDate" style={labelStyle}>End Date:</label>
-              <DatePickerField
-                id="endDate"
-                name="endDate"
-                value={emotionalDraft.endDate}
-                placeholder="YYYY-MM-DD"
-                onChange={handleEmotionalLineInputChange}
-                pickerLabel="Select emotional line end date"
-              />
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="status" style={labelStyle}>Status:</label>
-              <select
-                id="status"
-                name="status"
-                value={emotionalDraft.status || 'ongoing'}
-                onChange={handleEmotionalLineChange}
-                style={{ width: 160 }}
-              >
-                <option value="ongoing">Ongoing</option>
-                <option value="ended">Ended</option>
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="relationshipType" style={labelStyle}>Relationship Type:</label>
+              <label htmlFor="relationshipType" style={labelStyle}>Emotional Pattern:</label>
               <select
                 id="relationshipType"
                 name="relationshipType"
@@ -1847,7 +1939,20 @@ const PropertiesPanel = ({
               </select>
             </div>
             <div style={rowStyle}>
-              <label htmlFor="lineStyle" style={labelStyle}>{lineStyleLabel}:</label>
+              <label htmlFor="status" style={labelStyle}>Status:</label>
+              <select
+                id="status"
+                name="status"
+                value={emotionalDraft.status || 'ongoing'}
+                onChange={handleEmotionalLineChange}
+                style={{ width: 160 }}
+              >
+                <option value="ongoing">Ongoing</option>
+                <option value="ended">Ended</option>
+              </select>
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="lineStyle" style={labelStyle}>Intensity:</label>
               <select
                 id="lineStyle"
                 name="lineStyle"
@@ -1861,23 +1966,91 @@ const PropertiesPanel = ({
               </select>
             </div>
             <div style={rowStyle}>
-              <label htmlFor="lineEnding" style={labelStyle}>Line Ending:</label>
+              <label htmlFor="startDate" style={labelStyle}>Start:</label>
+              <DatePickerField
+                id="startDate"
+                name="startDate"
+                value={emotionalDraft.startDate}
+                placeholder="YYYY-MM-DD"
+                onChange={handleEmotionalLineInputChange}
+                pickerLabel="Select emotional line start date"
+              />
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="emotionalIntensityLevel" style={labelStyle}>Intensity Level:</label>
               <select
-                id="lineEnding"
-                name="lineEnding"
-                value={emotionalDraft.lineEnding}
-                onChange={handleEmotionalLineChange}
-                style={{ width: 220 }}
+                id="emotionalIntensityLevel"
+                value={emotionalIntensityDraft}
+                onChange={(e) => {
+                  setEmotionalIntensityDraft(Number(e.target.value));
+                  setEmotionalPristine(false);
+                }}
+                style={{ width: 180 }}
               >
-                <option value="none">None</option>
-                <option value="arrow-p1-to-p2">Arrow (Person 1 to 2)</option>
-                <option value="arrow-p2-to-p1">Arrow (Person 2 to 1)</option>
-                <option value="arrow-bidirectional">Arrow (Bidirectional)</option>
-                <option value="perpendicular-p1">Perpendicular (Person 1)</option>
-                <option value="perpendicular-p2">Perpendicular (Person 2)</option>
-                <option value="double-perpendicular-p1">Double Perpendicular (Person 1)</option>
-                <option value="double-perpendicular-p2">Double Perpendicular (Person 2)</option>
+                {INTENSITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="emotionalImpact" style={labelStyle}>Impact:</label>
+              <select
+                id="emotionalImpact"
+                value={emotionalImpactDraft}
+                onChange={(e) => {
+                  setEmotionalImpactDraft(Number(e.target.value));
+                  setEmotionalPristine(false);
+                }}
+                style={{ width: 180 }}
+              >
+                {IMPACT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="emotionalFrequency" style={labelStyle}>Frequency:</label>
+              <select
+                id="emotionalFrequency"
+                value={emotionalFrequencyDraft}
+                onChange={(e) => {
+                  setEmotionalFrequencyDraft(Number(e.target.value));
+                  setEmotionalPristine(false);
+                }}
+                style={{ width: 180 }}
+              >
+                {FREQUENCY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={rowStyle}>
+              <label htmlFor="endDate" style={labelStyle}>End Date:</label>
+              <DatePickerField
+                id="endDate"
+                name="endDate"
+                value={emotionalDraft.endDate}
+                placeholder="YYYY-MM-DD"
+                onChange={handleEmotionalLineInputChange}
+                pickerLabel="Select emotional line end date"
+              />
+            </div>
+            <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+              <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
+              <textarea
+                id="emotionalNotes"
+                name="notes"
+                value={emotionalDraft.notes || ''}
+                onChange={handleEmotionalLineInputChange}
+                rows={5}
+                style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
+              />
             </div>
             <div style={{ ...rowStyle, alignItems: 'center' }}>
               <label htmlFor="lineColor" style={labelStyle}>Color:</label>
@@ -1946,29 +2119,18 @@ const PropertiesPanel = ({
                 </div>
               </>
             )}
-            <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-              <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-              <textarea
-                id="emotionalNotes"
-                name="notes"
-                value={emotionalDraft.notes || ''}
-                onChange={handleEmotionalLineInputChange}
-                rows={5}
-                style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
-              />
-            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
               <button
                 type="button"
                 onClick={cancelEmotionalChanges}
-                disabled={!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty}
+                disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={saveEmotionalLineProperties}
-                disabled={!emotionalDirty && !triangleColorDirty && !triangleIntensityDirty}
+                disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
               >
                 Save
               </button>
@@ -2110,7 +2272,7 @@ const PropertiesPanel = ({
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
             <strong>Events</strong>
-            <button onClick={() => openNewEvent()}>Add Event</button>
+            <button onClick={() => openNewEvent()}>{addEventButtonLabel}</button>
           </div>
           <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <label htmlFor="eventListMode">View: </label>
@@ -2349,7 +2511,7 @@ const PropertiesPanel = ({
             }}
           >
             <h4 style={{ marginTop: 0 }}>
-              {getEvents().some((event) => event.id === eventDraft.id) ? 'Edit Event' : 'New Event'}
+              {getEvents().some((event) => event.id === eventDraft.id) ? editEventTitle : newEventTitle}
             </h4>
             {(() => {
               const rowStyle: React.CSSProperties = {
@@ -2366,6 +2528,12 @@ const PropertiesPanel = ({
               return (
                 <>
                   <div style={rowStyle}>
+                    <label style={labelStyle}>Anchor:</label>
+                    <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
+                      {eventDraft.anchorType || resolveAnchorType()} · {eventDraft.anchorId || selectedItem.id}
+                    </div>
+                  </div>
+                  <div style={rowStyle}>
                     <label htmlFor="eventType" style={labelStyle}>Event Type:</label>
                     <select
                       id="eventType"
@@ -2377,12 +2545,6 @@ const PropertiesPanel = ({
                       <option value="FF">Functional Fact</option>
                       <option value="EPE">Emotional Process</option>
                     </select>
-                  </div>
-                  <div style={rowStyle}>
-                    <label style={labelStyle}>Anchor:</label>
-                    <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-                      {eventDraft.anchorType || resolveAnchorType()} · {eventDraft.anchorId || selectedItem.id}
-                    </div>
                   </div>
                   <div style={rowStyle}>
                     <label htmlFor="eventPrimaryPerson" style={labelStyle}>Primary Person:</label>
@@ -2414,6 +2576,8 @@ const PropertiesPanel = ({
                         style={{ width: '100%' }}
                       />
                       <datalist id="eventOtherPersonOptions">
+                        <option value="None" />
+                        <option value="nono" />
                         {otherPersonOptions.map((name) => (
                           <option key={name} value={name} />
                         ))}
@@ -2421,37 +2585,53 @@ const PropertiesPanel = ({
                     </div>
                   </div>
                   <div style={rowStyle}>
-                    <label htmlFor="eventStartDate" style={labelStyle}>Start Date:</label>
-                    <div style={controlStyle}>
-                      <DatePickerField
-                        id="eventStartDate"
-                        name="eventStartDate"
-                        value={eventDraft.startDate || eventDraft.date}
-                        placeholder="YYYY-MM-DD"
-                        onChange={(e) => {
-                          handleEventDraftChange('startDate', e.target.value);
-                          handleEventDraftChange('date', e.target.value);
-                        }}
-                        buttonLabel="Select start date"
-                      />
-                    </div>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventEndDate" style={labelStyle}>End Date:</label>
-                    <div style={controlStyle}>
-                      <DatePickerField
-                        id="eventEndDate"
-                        name="eventEndDate"
-                        value={eventDraft.endDate || ''}
-                        placeholder="YYYY-MM-DD"
-                        onChange={(e) => handleEventDraftChange('endDate', e.target.value)}
-                        buttonLabel="Select end date"
-                      />
+                    <label style={labelStyle}>Start / End:</label>
+                    <div style={{ ...controlStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div>
+                        <DatePickerField
+                          id="eventStartDate"
+                          name="eventStartDate"
+                          value={eventDraft.startDate || eventDraft.date}
+                          placeholder="YYYY-MM-DD"
+                          onChange={(e) => {
+                            handleEventDraftChange('startDate', e.target.value);
+                            handleEventDraftChange('date', e.target.value);
+                          }}
+                          buttonLabel="Select start"
+                        />
+                      </div>
+                      <div>
+                        <DatePickerField
+                          id="eventEndDate"
+                          name="eventEndDate"
+                          value={eventDraft.endDate || ''}
+                          placeholder="YYYY-MM-DD"
+                          onChange={(e) => handleEventDraftChange('endDate', e.target.value)}
+                          buttonLabel="Select end"
+                        />
+                      </div>
                     </div>
                   </div>
                   {eventType === 'NODAL' && (
                     <div style={rowStyle}>
-                      <label htmlFor="eventNodalSubtype" style={labelStyle}>Nodal Subtype:</label>
+                      <label htmlFor="eventCategory" style={labelStyle}>Nodal Category:</label>
+                      <select
+                        id="eventCategory"
+                        value={eventDraft.category}
+                        onChange={(e) => handleEventDraftChange('category', e.target.value)}
+                        style={{ ...controlStyle, width: '60%' }}
+                      >
+                        {eventCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {eventType === 'NODAL' && (
+                    <div style={rowStyle}>
+                      <label htmlFor="eventNodalSubtype" style={labelStyle}>Subtype:</label>
                       <div style={controlStyle}>
                         <input
                           type="text"
@@ -2482,21 +2662,23 @@ const PropertiesPanel = ({
                       />
                     </div>
                   )}
-                  <div style={rowStyle}>
-                    <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
-                    <select
-                      id="eventCategory"
-                      value={eventDraft.category}
-                      onChange={(e) => handleEventDraftChange('category', e.target.value)}
-                      style={{ ...controlStyle, width: '60%' }}
-                    >
-                      {eventCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {eventType !== 'NODAL' && (
+                    <div style={rowStyle}>
+                      <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
+                      <select
+                        id="eventCategory"
+                        value={eventDraft.category}
+                        onChange={(e) => handleEventDraftChange('category', e.target.value)}
+                        style={{ ...controlStyle, width: '60%' }}
+                      >
+                        {eventCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div style={rowStyle}>
                     <label htmlFor="eventStatusLabel" style={labelStyle}>Status:</label>
                     <input

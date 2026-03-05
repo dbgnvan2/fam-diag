@@ -31,9 +31,9 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByLabelText('Start Date:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Start:')).toBeInTheDocument();
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
-        expect((screen.getByLabelText('Start Date:') as HTMLInputElement).value).toBe('2024-01-01');
+        expect((screen.getByLabelText('Start:') as HTMLInputElement).value).toBe('2024-01-01');
         expect(screen.getByDisplayValue('Test notes')).toBeInTheDocument();
     });
 
@@ -156,8 +156,8 @@ describe('PropertiesPanel', () => {
         );
 
         expect(screen.getByText('Triangle Properties')).toBeInTheDocument();
-        expect(screen.getByLabelText('Relationship Type:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Line Ending:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Emotional Pattern:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Intensity Level:')).toBeInTheDocument();
         fireEvent.change(screen.getByLabelText('Triangle Intensity:'), { target: { value: 'high' } });
         fireEvent.change(screen.getByLabelText('Triangle Color:'), { target: { value: '#123456' } });
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));

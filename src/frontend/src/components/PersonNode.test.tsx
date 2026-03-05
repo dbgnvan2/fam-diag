@@ -86,6 +86,31 @@ describe('PersonNode', () => {
         expect(hasBackground).toBe(true);
     });
 
+    it('uses the configured shaded background color', () => {
+        const stageRef = React.createRef<Stage>();
+        const clientPerson: Person = {
+            id: 'p-client',
+            name: 'Client',
+            x: 0,
+            y: 0,
+            gender: 'female',
+            partnerships: [],
+            backgroundEnabled: true,
+            backgroundColor: '#22aa88',
+        };
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={clientPerson} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
+        expect(rects.some((rect: any) => rect.attrs.fill === '#22aa88')).toBe(true);
+    });
+
     it('renders functional indicator badges with fallback letters', () => {
         const stageRef = React.createRef<Stage>();
         const personWithIndicator: Person = {

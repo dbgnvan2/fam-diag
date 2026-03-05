@@ -38,6 +38,11 @@ import {
   shouldShowPersonNote,
 } from '../utils/noteVisibility';
 import {
+  FREQUENCY_OPTIONS,
+  INTENSITY_OPTIONS,
+  IMPACT_OPTIONS,
+} from '../constants/functionalIndicatorScales';
+import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
@@ -91,6 +96,49 @@ const markdownComponents: MarkdownComponents = {
 };
 
 const DEFAULT_LINE_COLOR = '#444444';
+const LINE_STYLE_VALUES: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
+  fusion: ['low', 'medium', 'high'],
+  distance: ['dotted', 'dashed', 'long-dash'],
+  cutoff: ['cutoff'],
+  conflict: ['dotted-saw-tooth', 'solid-saw-tooth', 'double-saw-tooth'],
+  projection: ['low', 'medium', 'high'],
+};
+const emotionalPatternIntensityOptions = (relationshipType: EmotionalLine['relationshipType']) => {
+  switch (relationshipType) {
+    case 'fusion':
+      return [
+        { value: 'low', label: 'Low (double dotted lines)' },
+        { value: 'medium', label: 'Medium (double solid lines)' },
+        { value: 'high', label: 'High (triple solid lines)' },
+      ] as const;
+    case 'distance':
+      return [
+        { value: 'dotted', label: 'Low (dotted)' },
+        { value: 'dashed', label: 'Medium (short dash)' },
+        { value: 'long-dash', label: 'High (long dash)' },
+      ] as const;
+    case 'conflict':
+      return [
+        { value: 'dotted-saw-tooth', label: 'Low (dotted sawtooth)' },
+        { value: 'solid-saw-tooth', label: 'Medium (solid sawtooth)' },
+        { value: 'double-saw-tooth', label: 'High (double sawtooth)' },
+      ] as const;
+    case 'projection':
+      return [
+        { value: 'low', label: 'Low (>...>)' },
+        { value: 'medium', label: 'Medium (>.>)' },
+        { value: 'high', label: 'High (>>>>)' },
+      ] as const;
+    default:
+      return [{ value: 'cutoff', label: 'Cutoff' }] as const;
+  }
+};
+const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']): number => {
+  if (lineStyle === 'low' || lineStyle === 'dotted' || lineStyle === 'dotted-saw-tooth') return 1;
+  if (lineStyle === 'medium' || lineStyle === 'dashed' || lineStyle === 'solid-saw-tooth') return 3;
+  if (lineStyle === 'high' || lineStyle === 'long-dash' || lineStyle === 'double-saw-tooth') return 5;
+  return 0;
+};
 
 const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
 const initialPartnerships: Partnership[] = DEFAULT_DIAGRAM_STATE.partnerships;
@@ -164,6 +212,33 @@ type PropertiesPanelIntent = {
   newEventSeed?: Partial<EmotionalProcessEvent>;
   openNewEventPosition?: { x: number; y: number };
 } | null;
+
+type EmotionalPatternDraft = {
+  person1Id: string;
+  person2Id: string;
+  relationshipType: EmotionalLine['relationshipType'];
+  status: NonNullable<EmotionalLine['status']>;
+  lineStyle: EmotionalLine['lineStyle'];
+  startDate: string;
+  endDate: string;
+  intensityLevel: number;
+  frequency: number;
+  impact: number;
+  notes: string;
+  color: string;
+};
+type ClientProfileDraft = {
+  personId: string;
+  personName: string;
+  clientColor: string;
+  presentingIssue1: string;
+  presentingIssue2: string;
+  presentingIssue3: string;
+  desiredOutcome1: string;
+  desiredOutcome2: string;
+  desiredOutcome3: string;
+  conceptualization: string;
+};
 // Replace these URLs with your own training library as videos are produced.
 const TRAINING_VIDEOS = [
   {
@@ -249,7 +324,7 @@ const BASE_DEMO_TOUR_STEPS: DemoTourStep[] = [
     title: 'Item 1 · Alex Carter',
     body: '[1] Alex Carter person note. Person blinks with note 4 times, then remains selected.',
     clickToSelectHint: 'Click Alex Carter to select the person and open properties.',
-    rightClickOptions: ['Change sex', 'Show/Hide Note', 'Properties', 'Timeline', 'Add Partner', 'Add as Child / Remove as Child', 'Delete Person'],
+    rightClickOptions: ['Change sex', 'Show/Hide Note', 'Properties', 'Make Client', 'Timeline', 'Add Partner', 'Add as Child / Remove as Child', 'Delete Person'],
     focus: { kind: 'person', personId: 'demo-dad', tab: 'properties' },
   },
   {
@@ -261,6 +336,7 @@ const BASE_DEMO_TOUR_STEPS: DemoTourStep[] = [
       'Change sex',
       'Show/Hide Note',
       'Properties',
+      'Make Client',
       'Timeline',
       'Add Partner',
       'Add as Child / Remove as Child',
@@ -2016,6 +2092,9 @@ const DiagramEditor = () => {
   const [selectedEmotionalLineId, setSelectedEmotionalLineId] = useState<string | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
+  const [emotionalPatternModalOpen, setEmotionalPatternModalOpen] = useState(false);
+  const [emotionalPatternDraft, setEmotionalPatternDraft] = useState<EmotionalPatternDraft | null>(null);
+  const [clientProfileDraft, setClientProfileDraft] = useState<ClientProfileDraft | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
   const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(initialEventCategories);
@@ -2031,6 +2110,7 @@ const DiagramEditor = () => {
   const [lastDirtyTimestamp, setLastDirtyTimestamp] = useState<number | null>(null);
   const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [transcriptsMenuOpen, setTranscriptsMenuOpen] = useState(false);
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] =
@@ -2141,6 +2221,7 @@ const DiagramEditor = () => {
     })
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const transcriptsMenuRef = useRef<HTMLDivElement | null>(null);
   const timelineMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
@@ -2750,11 +2831,14 @@ const DiagramEditor = () => {
   }, [people, partnerships, emotionalLines, triangles, isDirty, serializeDiagram]);
 
   useEffect(() => {
-    if (!fileMenuOpen && !transcriptsMenuOpen && !timelineMenuOpen) return;
+    if (!fileMenuOpen && !settingsMenuOpen && !transcriptsMenuOpen && !timelineMenuOpen) return;
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Node;
       if (fileMenuRef.current && !fileMenuRef.current.contains(target)) {
         setFileMenuOpen(false);
+      }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(target)) {
+        setSettingsMenuOpen(false);
       }
       if (transcriptsMenuRef.current && !transcriptsMenuRef.current.contains(target)) {
         setTranscriptsMenuOpen(false);
@@ -2765,7 +2849,28 @@ const DiagramEditor = () => {
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [fileMenuOpen, transcriptsMenuOpen, timelineMenuOpen]);
+  }, [fileMenuOpen, settingsMenuOpen, transcriptsMenuOpen, timelineMenuOpen]);
+
+  useEffect(() => {
+    if (!emotionalPatternModalOpen) return;
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setEmotionalPatternModalOpen(false);
+      setEmotionalPatternDraft(null);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [emotionalPatternModalOpen]);
+
+  useEffect(() => {
+    if (!clientProfileDraft) return;
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setClientProfileDraft(null);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [clientProfileDraft]);
 
   useEffect(() => {
     setStoredValue('fileName', fileName);
@@ -3281,6 +3386,7 @@ const DiagramEditor = () => {
         openNewEventPosition: popupPosition,
         newEventSeed: {
           ...baseSeed,
+          category: seed?.category || 'Relationship',
           primaryPersonName: partner1?.name || '',
           otherPersonName: partner2?.name || '',
         },
@@ -3302,7 +3408,7 @@ const DiagramEditor = () => {
         ...baseSeed,
         eventType: 'EPE',
         emotionalProcessType: line.relationshipType,
-        category: seed?.category || line.relationshipType,
+        category: seed?.category || 'Emotional Pattern',
         primaryPersonName: person1?.name || '',
         otherPersonName: person2?.name || '',
       },
@@ -3793,6 +3899,47 @@ useEffect(() => {
     });
   };
 
+  const openClientProfileModal = (person: Person) => {
+    setClientProfileDraft({
+      personId: person.id,
+      personName: person.name || '',
+      clientColor: person.backgroundColor || '#FFF7C2',
+      presentingIssue1: person.clientProfile?.presentingIssue1 || '',
+      presentingIssue2: person.clientProfile?.presentingIssue2 || '',
+      presentingIssue3: person.clientProfile?.presentingIssue3 || '',
+      desiredOutcome1: person.clientProfile?.desiredOutcome1 || '',
+      desiredOutcome2: person.clientProfile?.desiredOutcome2 || '',
+      desiredOutcome3: person.clientProfile?.desiredOutcome3 || '',
+      conceptualization: person.clientProfile?.conceptualization || '',
+    });
+  };
+
+  const updateClientProfileDraftField = (
+    field: keyof Omit<ClientProfileDraft, 'personId' | 'personName'>,
+    value: string
+  ) => {
+    setClientProfileDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const saveClientProfileDraft = () => {
+    if (!clientProfileDraft) return;
+    handleUpdatePerson(clientProfileDraft.personId, {
+      isClient: true,
+      backgroundEnabled: true,
+      backgroundColor: clientProfileDraft.clientColor || '#FFF7C2',
+      clientProfile: {
+        presentingIssue1: clientProfileDraft.presentingIssue1.trim(),
+        presentingIssue2: clientProfileDraft.presentingIssue2.trim(),
+        presentingIssue3: clientProfileDraft.presentingIssue3.trim(),
+        desiredOutcome1: clientProfileDraft.desiredOutcome1.trim(),
+        desiredOutcome2: clientProfileDraft.desiredOutcome2.trim(),
+        desiredOutcome3: clientProfileDraft.desiredOutcome3.trim(),
+        conceptualization: clientProfileDraft.conceptualization.trim(),
+      },
+    });
+    setClientProfileDraft(null);
+  };
+
   const handleBatchUpdatePersons = (personIds: string[], updatedProps: Partial<Person>) => {
     if (!personIds.length) return;
     const updater = (prev: Person[]) =>
@@ -3849,7 +3996,13 @@ useEffect(() => {
     });
   };
 
-  const addEmotionalLine = (person1_id: string, person2_id: string, relationshipType: EmotionalLine['relationshipType'], lineStyle: EmotionalLine['lineStyle'], lineEnding: EmotionalLine['lineEnding']) => {
+  const addEmotionalLine = (
+    person1_id: string,
+    person2_id: string,
+    relationshipType: EmotionalLine['relationshipType'],
+    lineStyle: EmotionalLine['lineStyle'],
+    lineEnding: EmotionalLine['lineEnding']
+  ) => {
     const newEmotionalLine: EmotionalLine = {
         id: nanoid(),
         person1_id,
@@ -3862,7 +4015,95 @@ useEffect(() => {
         color: DEFAULT_LINE_COLOR,
         events: [],
     };
-    setEmotionalLines([...emotionalLines, newEmotionalLine]);
+    setEmotionalLines((prev) => [...prev, newEmotionalLine]);
+    return newEmotionalLine;
+  };
+
+  const openAddEmotionalPatternModal = (person1Id: string, person2Id: string) => {
+    setEmotionalPatternDraft({
+      person1Id,
+      person2Id,
+      relationshipType: 'fusion',
+      status: 'ongoing',
+      lineStyle: 'low',
+      startDate: new Date().toISOString().slice(0, 10),
+      endDate: '',
+      intensityLevel: intensityValueForLineStyle('low'),
+      frequency: 0,
+      impact: 0,
+      notes: '',
+      color: DEFAULT_LINE_COLOR,
+    });
+    setEmotionalPatternModalOpen(true);
+  };
+
+  const updateEmotionalPatternDraft = (updates: Partial<EmotionalPatternDraft>) => {
+    setEmotionalPatternDraft((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
+
+  const saveAddEmotionalPattern = () => {
+    if (!emotionalPatternDraft) return;
+    const {
+      person1Id,
+      person2Id,
+      relationshipType,
+      status,
+      lineStyle,
+      startDate,
+      endDate,
+      intensityLevel,
+      frequency,
+      impact,
+      notes,
+      color,
+    } = emotionalPatternDraft;
+    const newEmotionalLine = addEmotionalLine(person1Id, person2Id, relationshipType, lineStyle, 'none');
+    const person1 = people.find((person) => person.id === person1Id);
+    const person2 = people.find((person) => person.id === person2Id);
+    const start = startDate || new Date().toISOString().slice(0, 10);
+    const seededEvent: EmotionalProcessEvent = {
+      id: nanoid(),
+      date: start,
+      startDate: start,
+      endDate: endDate || undefined,
+      category: 'Emotional Pattern',
+      eventType: 'EPE',
+      emotionalProcessType: relationshipType,
+      anchorType: 'EMOTIONAL_PROCESS_EP',
+      anchorId: newEmotionalLine.id,
+      statusLabel: status,
+      intensity: intensityLevel,
+      frequency,
+      impact,
+      howWell: 5,
+      otherPersonName: person2?.name || '',
+      primaryPersonName: person1?.name || '',
+      wwwwh: '',
+      observations: notes || '',
+      isNodalEvent: false,
+      eventClass: 'emotional-pattern',
+      createdAt: Date.now(),
+    };
+    const updatedLine: EmotionalLine = normalizeEmotionalLine({
+      ...newEmotionalLine,
+      status,
+      startDate: start,
+      endDate: endDate || undefined,
+      notes: notes || undefined,
+      color: color || DEFAULT_LINE_COLOR,
+      events: [seededEvent],
+    });
+    setEmotionalLines((prev) =>
+      prev.map((line) => (line.id === updatedLine.id ? updatedLine : line))
+    );
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(updatedLine.id);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(updatedLine);
+    setEmotionalPatternModalOpen(false);
+    setEmotionalPatternDraft(null);
+    setContextMenu(null);
   };
 
   const removeEmotionalLine = (emotionalLineId: string) => {
@@ -5584,6 +5825,45 @@ useEffect(() => {
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);
+
+      if (selectedPeopleIds.length === 2 && selectedPeopleIds.includes(person.id)) {
+        const [p1_id, p2_id] = selectedPeopleIds;
+        setContextMenu({
+          x: e.evt.clientX,
+          y: e.evt.clientY,
+          items: [
+            {
+              label: 'Timeline',
+              onClick: () => {
+                setTimelineSelectionIds(selectedPeopleIds);
+                setTimelineYearPickTarget(null);
+                setTimelineYearDrag(null);
+                setTimelineFilterStartYear(null);
+                setTimelineFilterEndYear(null);
+                setTimelineBoardSelection(null);
+                setTimelineBoardEventDraft(null);
+                setContextMenu(null);
+              },
+            },
+            {
+              label: 'Add Partnership',
+              onClick: () => {
+                addPartnership();
+                setContextMenu(null);
+                setSelectedPeopleIds([]);
+              },
+            },
+            {
+              label: 'Add Emotional Pattern',
+              onClick: () => {
+                openAddEmotionalPatternModal(p1_id, p2_id);
+                setContextMenu(null);
+              },
+            },
+          ],
+        });
+        return;
+      }
       
       const menuItems = [
           {
@@ -5645,6 +5925,19 @@ useEffect(() => {
             }
           },
           {
+            label: 'Make Client',
+            onClick: () => {
+              setSelectedPeopleIds([person.id]);
+              setSelectedPartnershipId(null);
+              setSelectedEmotionalLineId(null);
+              setSelectedChildId(null);
+              setPropertiesPanelItem(person);
+              setPropertiesPanelIntent(null);
+              openClientProfileModal(person);
+              setContextMenu(null);
+            }
+          },
+          {
             label: 'Timeline',
             onClick: () => {
                 const nextIds =
@@ -5689,25 +5982,6 @@ useEffect(() => {
           }
       ];
       
-      if (selectedPeopleIds.length === 2) {
-        const [p1_id, p2_id] = selectedPeopleIds;
-        menuItems.push({
-            label: 'Add Partnership',
-            onClick: () => {
-                addPartnership();
-                setContextMenu(null);
-                setSelectedPeopleIds([]);
-            }
-        });
-        menuItems.push({
-            label: 'Add Emotional Line',
-            onClick: () => {
-                addEmotionalLine(p1_id, p2_id, 'fusion', 'low', 'none');
-                setContextMenu(null);
-                setSelectedPeopleIds([]);
-            }
-        });
-      }
       if (selectedPeopleIds.length === 3) {
         menuItems.push({
           label: 'Add Triangle',
@@ -5858,14 +6132,14 @@ useEffect(() => {
               }
             },
             {
-              label: 'Properties',
+              label: 'Relationship Properties',
               onClick: () => {
                   setPropertiesPanelItem(partnership);
                   setContextMenu(null);
               }
             },
             {
-              label: 'Add Event...',
+              label: 'Add Relationship Event',
               onClick: () => {
                 openContextualEventCreator(
                   { type: 'partnership', id: partnershipId },
@@ -6251,7 +6525,7 @@ useEffect(() => {
             {
               eventType: 'EPE',
               emotionalProcessType: emotionalLine.relationshipType,
-              category: emotionalLine.relationshipType,
+              category: 'Emotional Pattern',
             },
             { x: e.evt.clientX, y: e.evt.clientY }
           );
@@ -7047,6 +7321,10 @@ useEffect(() => {
         { label: 'Process', action: handleProcessTranscriptPicker },
         { label: 'Import Data', action: handleImportDataPicker },
       ];
+      const settingsMenuItems = [
+        { label: 'Event Categories', action: () => setSettingsOpen(true) },
+        { label: 'Functional Indicators', action: () => setIndicatorSettingsOpen(true) },
+      ];
       const timelineMenuItems = [
         { label: 'Export Person Events', action: handleExportPersonEvents },
         { label: 'Import Person Events', action: handleImportPersonEventsPicker },
@@ -7077,8 +7355,8 @@ useEffect(() => {
         currentDemoStep?.focus.kind === 'toolbar' &&
         currentDemoStep.focus.target === target;
       const isDemoFocusedCanvas = demoTourOpen && currentDemoStep?.focus.kind === 'canvas';
-      const toolbarHighlightStyle = (target: string): React.CSSProperties =>
-        isDemoFocusedToolbar(target)
+      const toolbarHighlightStyle = (...targets: string[]): React.CSSProperties =>
+        targets.some((target) => isDemoFocusedToolbar(target))
           ? {
               outline: demoBlinkVisible ? '3px solid #ff9800' : '3px solid transparent',
               borderRadius: 6,
@@ -7100,6 +7378,7 @@ useEffect(() => {
       };
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
+        setSettingsMenuOpen(false);
         setTranscriptsMenuOpen(false);
         setTimelineMenuOpen(false);
         action();
@@ -7129,7 +7408,12 @@ useEffect(() => {
               ref={fileMenuRef}
             >
               <button
-                onClick={() => setFileMenuOpen((prev) => !prev)}
+                onClick={() => {
+                  setFileMenuOpen((prev) => !prev);
+                  setSettingsMenuOpen(false);
+                  setTranscriptsMenuOpen(false);
+                  setTimelineMenuOpen(false);
+                }}
                 style={ribbonButtonStyle}
                 aria-haspopup="menu"
                 aria-expanded={fileMenuOpen}
@@ -7312,29 +7596,69 @@ useEffect(() => {
                 ?
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-categories') }}>
-              <button onClick={() => setSettingsOpen(true)} style={ribbonButtonStyle}>
-                Event Categories
+            <div
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                ...toolbarHighlightStyle('event-categories', 'functional-indicators'),
+              }}
+              ref={settingsMenuRef}
+            >
+              <button
+                onClick={() => {
+                  setSettingsMenuOpen((prev) => !prev);
+                  setFileMenuOpen(false);
+                  setTranscriptsMenuOpen(false);
+                  setTimelineMenuOpen(false);
+                }}
+                style={ribbonButtonStyle}
+                aria-haspopup="menu"
+                aria-expanded={settingsMenuOpen}
+              >
+                Settings ▾
               </button>
               <button
                 onClick={() => setRibbonHelpKey('event-categories')}
-                aria-label="Event Categories help"
+                aria-label="Settings menu help"
                 style={helpBadgeStyle}
               >
                 ?
               </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('functional-indicators') }}>
-              <button onClick={() => setIndicatorSettingsOpen(true)} style={ribbonButtonStyle}>
-                Functional Indicators
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('functional-indicators')}
-                aria-label="Functional Indicators help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
+              {settingsMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    background: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 6,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                    minWidth: 200,
+                    zIndex: 1000,
+                  }}
+                >
+                  {settingsMenuItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleFileMenuAction(item.action)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div
               style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('transcripts-menu') }}
@@ -7343,6 +7667,8 @@ useEffect(() => {
               <button
                 onClick={() => {
                   setTranscriptsMenuOpen((prev) => !prev);
+                  setFileMenuOpen(false);
+                  setSettingsMenuOpen(false);
                   setTimelineMenuOpen(false);
                 }}
                 style={ribbonButtonStyle}
@@ -7399,6 +7725,8 @@ useEffect(() => {
               <button
                 onClick={() => {
                   setTimelineMenuOpen((prev) => !prev);
+                  setFileMenuOpen(false);
+                  setSettingsMenuOpen(false);
                   setTranscriptsMenuOpen(false);
                 }}
                 style={ribbonButtonStyle}
@@ -7593,6 +7921,7 @@ useEffect(() => {
                   top: 16,
                   left: '50%',
                   transform: 'translateX(-50%)',
+                  transformOrigin: 'top center',
                   textAlign: 'center',
                   pointerEvents: 'none',
                   zIndex: 5,
@@ -8272,6 +8601,433 @@ useEffect(() => {
               </div>
             </div>
           )}
+          {clientProfileDraft && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2070,
+              }}
+              onClick={() => setClientProfileDraft(null)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 10,
+                  padding: 16,
+                  width: 620,
+                  maxWidth: 'calc(100vw - 24px)',
+                  maxHeight: 'calc(100vh - 24px)',
+                  overflowY: 'auto',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h4 style={{ marginTop: 0, marginBottom: 10 }}>
+                  Client Properties · {clientProfileDraft.personName || 'Person'}
+                </h4>
+                {(() => {
+                  const modalRowStyle: React.CSSProperties = {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 12,
+                    marginTop: 8,
+                  };
+                  const modalLabelStyle: React.CSSProperties = {
+                    width: 230,
+                    textAlign: 'right',
+                    fontWeight: 600,
+                  };
+                  const modalControlStyle: React.CSSProperties = { width: '58%' };
+                  return (
+                    <>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientColor" style={modalLabelStyle}>Client Color:</label>
+                        <div style={{ ...modalControlStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            id="clientColor"
+                            type="color"
+                            value={clientProfileDraft.clientColor}
+                            onChange={(event) =>
+                              updateClientProfileDraftField('clientColor', event.target.value)
+                            }
+                            style={{ width: 64 }}
+                          />
+                        </div>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientIssue1" style={modalLabelStyle}>Presenting Issue 1:</label>
+                        <input
+                          id="clientIssue1"
+                          type="text"
+                          value={clientProfileDraft.presentingIssue1}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('presentingIssue1', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientIssue2" style={modalLabelStyle}>Presenting Issue 2:</label>
+                        <input
+                          id="clientIssue2"
+                          type="text"
+                          value={clientProfileDraft.presentingIssue2}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('presentingIssue2', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientIssue3" style={modalLabelStyle}>Presenting Issue 3:</label>
+                        <input
+                          id="clientIssue3"
+                          type="text"
+                          value={clientProfileDraft.presentingIssue3}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('presentingIssue3', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientOutcome1" style={modalLabelStyle}>Desired Outcome 1:</label>
+                        <input
+                          id="clientOutcome1"
+                          type="text"
+                          value={clientProfileDraft.desiredOutcome1}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('desiredOutcome1', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientOutcome2" style={modalLabelStyle}>Desired Outcome 2:</label>
+                        <input
+                          id="clientOutcome2"
+                          type="text"
+                          value={clientProfileDraft.desiredOutcome2}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('desiredOutcome2', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="clientOutcome3" style={modalLabelStyle}>Desired Outcome 3:</label>
+                        <input
+                          id="clientOutcome3"
+                          type="text"
+                          value={clientProfileDraft.desiredOutcome3}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('desiredOutcome3', event.target.value)
+                          }
+                          style={modalControlStyle}
+                        />
+                      </div>
+                      <div style={{ ...modalRowStyle, alignItems: 'flex-start' }}>
+                        <label htmlFor="clientConceptualization" style={{ ...modalLabelStyle, marginTop: 6 }}>
+                          Client&apos;s Conceptualization of the Situation:
+                        </label>
+                        <textarea
+                          id="clientConceptualization"
+                          value={clientProfileDraft.conceptualization}
+                          onChange={(event) =>
+                            updateClientProfileDraftField('conceptualization', event.target.value)
+                          }
+                          rows={5}
+                          style={{ ...modalControlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+                  <button onClick={() => setClientProfileDraft(null)}>Cancel</button>
+                  <button onClick={saveClientProfileDraft}>Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {emotionalPatternModalOpen && emotionalPatternDraft && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2075,
+              }}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 10,
+                  padding: 16,
+                  width: 560,
+                  maxWidth: 'calc(100vw - 24px)',
+                  maxHeight: 'calc(100vh - 24px)',
+                  overflowY: 'auto',
+                }}
+              >
+                <h4 style={{ marginTop: 0, marginBottom: 8 }}>Add Emotional Pattern</h4>
+                {(() => {
+                  const modalRowStyle: React.CSSProperties = {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 12,
+                    marginTop: 8,
+                  };
+                  const modalLabelStyle: React.CSSProperties = {
+                    width: 170,
+                    textAlign: 'right',
+                    fontWeight: 600,
+                  };
+                  const modalControlStyle: React.CSSProperties = { width: '60%' };
+                  const intensityOptions = emotionalPatternIntensityOptions(
+                    emotionalPatternDraft.relationshipType
+                  );
+                  const colorOptions = [
+                    '#444444',
+                    '#FF1744',
+                    '#2979FF',
+                    '#00C853',
+                    '#FF9100',
+                    '#E040FB',
+                  ];
+                  return (
+                    <>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternType" style={modalLabelStyle}>Emotional Pattern:</label>
+                        <select
+                          id="addPatternType"
+                          value={emotionalPatternDraft.relationshipType}
+                          onChange={(e) => {
+                            const relationshipType = e.target
+                              .value as EmotionalLine['relationshipType'];
+                            const validStyles = LINE_STYLE_VALUES[relationshipType] || ['low'];
+                            const nextStyle = validStyles.includes(emotionalPatternDraft.lineStyle)
+                              ? emotionalPatternDraft.lineStyle
+                              : validStyles[0];
+                            updateEmotionalPatternDraft({
+                              relationshipType,
+                              lineStyle: nextStyle,
+                            });
+                          }}
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          <option value="fusion">Fusion</option>
+                          <option value="distance">Distance</option>
+                          <option value="cutoff">Cutoff</option>
+                          <option value="conflict">Conflict</option>
+                          <option value="projection">Projection</option>
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternStatus" style={modalLabelStyle}>Status:</label>
+                        <select
+                          id="addPatternStatus"
+                          value={emotionalPatternDraft.status}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              status: e.target.value as NonNullable<EmotionalLine['status']>,
+                            })
+                          }
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          <option value="ongoing">Ongoing</option>
+                          <option value="ended">Ended</option>
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternIntensity" style={modalLabelStyle}>Intensity:</label>
+                        <select
+                          id="addPatternIntensity"
+                          value={emotionalPatternDraft.lineStyle}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              lineStyle: e.target.value as EmotionalLine['lineStyle'],
+                              intensityLevel: intensityValueForLineStyle(
+                                e.target.value as EmotionalLine['lineStyle']
+                              ),
+                            })
+                          }
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          {intensityOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternStart" style={modalLabelStyle}>Start:</label>
+                        <div style={modalControlStyle}>
+                          <DatePickerField
+                            id="addPatternStart"
+                            name="addPatternStart"
+                            value={emotionalPatternDraft.startDate}
+                            placeholder="YYYY-MM-DD"
+                            onChange={(e) =>
+                              updateEmotionalPatternDraft({
+                                startDate: e.target.value,
+                              })
+                            }
+                            pickerLabel="Select emotional pattern start"
+                          />
+                        </div>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternIntensityLevel" style={modalLabelStyle}>Intensity Level:</label>
+                        <select
+                          id="addPatternIntensityLevel"
+                          value={emotionalPatternDraft.intensityLevel}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              intensityLevel: Number(e.target.value),
+                            })
+                          }
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          {INTENSITY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternImpact" style={modalLabelStyle}>Impact:</label>
+                        <select
+                          id="addPatternImpact"
+                          value={emotionalPatternDraft.impact}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              impact: Number(e.target.value),
+                            })
+                          }
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          {IMPACT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternFrequency" style={modalLabelStyle}>Frequency:</label>
+                        <select
+                          id="addPatternFrequency"
+                          value={emotionalPatternDraft.frequency}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              frequency: Number(e.target.value),
+                            })
+                          }
+                          style={{ ...modalControlStyle, width: '60%' }}
+                        >
+                          {FREQUENCY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternEnd" style={modalLabelStyle}>End Date:</label>
+                        <div style={modalControlStyle}>
+                          <DatePickerField
+                            id="addPatternEnd"
+                            name="addPatternEnd"
+                            value={emotionalPatternDraft.endDate}
+                            placeholder="YYYY-MM-DD"
+                            onChange={(e) =>
+                              updateEmotionalPatternDraft({
+                                endDate: e.target.value,
+                              })
+                            }
+                            pickerLabel="Select emotional pattern end"
+                          />
+                        </div>
+                      </div>
+                      <div style={{ ...modalRowStyle, alignItems: 'flex-start' }}>
+                        <label htmlFor="addPatternNotes" style={{ ...modalLabelStyle, marginTop: 6 }}>
+                          Notes:
+                        </label>
+                        <textarea
+                          id="addPatternNotes"
+                          rows={4}
+                          value={emotionalPatternDraft.notes}
+                          onChange={(e) =>
+                            updateEmotionalPatternDraft({
+                              notes: e.target.value,
+                            })
+                          }
+                          style={{ ...modalControlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="addPatternColor" style={modalLabelStyle}>Color:</label>
+                        <div style={{ ...modalControlStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="color"
+                            id="addPatternColor"
+                            value={emotionalPatternDraft.color}
+                            onChange={(e) =>
+                              updateEmotionalPatternDraft({
+                                color: e.target.value,
+                              })
+                            }
+                            style={{ width: 60 }}
+                          />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {colorOptions.map((hex) => (
+                              <button
+                                key={hex}
+                                type="button"
+                                onClick={() => updateEmotionalPatternDraft({ color: hex })}
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: '50%',
+                                  border: '1px solid #ccc',
+                                  background: hex,
+                                  cursor: 'pointer',
+                                }}
+                                aria-label={`Set color ${hex}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+                  <button
+                    onClick={() => {
+                      setEmotionalPatternModalOpen(false);
+                      setEmotionalPatternDraft(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button onClick={saveAddEmotionalPattern}>Save</button>
+                </div>
+              </div>
+            </div>
+          )}
           {settingsOpen && (
             <div
               style={{
@@ -8286,6 +9042,9 @@ useEffect(() => {
             >
               <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
                 <h4>Event Categories</h4>
+                <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>
+                  Default categories are shipped with the app. You can add categories, but categories cannot be deleted.
+                </p>
                 <div style={{ marginBottom: 8 }}>
                   <input
                     type="text"
@@ -8311,7 +9070,6 @@ useEffect(() => {
                   {eventCategories.map((category) => (
                     <li key={category} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                       <span>{category}</span>
-                      <button onClick={() => setEventCategories(eventCategories.filter((c) => c !== category))}>Remove</button>
                     </li>
                   ))}
                 </ul>

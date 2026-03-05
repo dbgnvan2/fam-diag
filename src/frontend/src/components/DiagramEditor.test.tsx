@@ -127,12 +127,16 @@ describe('DiagramEditor', () => {
         expect(playBtn).toHaveTextContent(/pause/i);
     });
 
-    it('renders transcripts and timeline dropdown menus', () => {
+    it('renders settings, transcripts, and timeline dropdown menus', () => {
         render(<DiagramEditor />);
         const fileMenuButton = screen.getByRole('button', { name: /file ▾/i });
         fireEvent.click(fileMenuButton);
         expect(screen.getByRole('button', { name: 'Load Demo Diagram' })).toBeInTheDocument();
         fireEvent.click(fileMenuButton);
+
+        fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
+        expect(screen.getByRole('button', { name: 'Event Categories' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Functional Indicators' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /transcripts ▾/i }));
         expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();

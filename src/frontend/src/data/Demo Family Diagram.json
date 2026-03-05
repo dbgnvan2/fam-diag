@@ -1,7 +1,7 @@
 {
   "fileMeta": {
     "fileName": "Demo Family Diagram.json",
-    "exportedAt": "2026-03-05T16:43:56.428Z"
+    "exportedAt": "2026-03-04T03:45:39.403Z"
   },
   "people": [
     {
@@ -196,18 +196,6 @@
       "notesPosition": {
         "x": 1147,
         "y": 475
-      },
-      "isClient": true,
-      "backgroundEnabled": true,
-      "backgroundColor": "#d8be13",
-      "clientProfile": {
-        "presentingIssue1": "Stress",
-        "presentingIssue2": "partner relationship",
-        "presentingIssue3": "",
-        "desiredOutcome1": "handling stress",
-        "desiredOutcome2": "better relationship",
-        "desiredOutcome3": "",
-        "conceptualization": "partner just doesn't understand clients side ofthings"
       }
     },
     {
@@ -363,16 +351,13 @@
     }
   ],
   "eventCategories": [
-    "Relationship",
+    "Job",
+    "School",
     "Health",
-    "Career",
-    "Education",
-    "Location",
-    "Legal",
-    "Finance",
-    "Faith",
-    "Achievement",
-    "Social"
+    "Relationship",
+    "Other",
+    "Move",
+    "Finance"
   ],
   "autoSaveMinutes": 1,
   "ideasText": "Demo mode loaded. Use Next/Previous to walk through core features."

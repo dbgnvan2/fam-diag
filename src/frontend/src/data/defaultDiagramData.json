@@ -454,11 +454,16 @@
     }
   ],
   "eventCategories": [
-    "Job",
-    "School",
-    "Health",
     "Relationship",
-    "Other"
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
   ],
   "autoSaveMinutes": 1
 }

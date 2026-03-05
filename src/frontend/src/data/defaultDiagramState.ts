@@ -10,7 +10,18 @@ import defaultDiagramDataJson from './defaultDiagramData.json';
 
 export const FALLBACK_FILE_NAME = 'Untitled';
 const FALLBACK_AUTO_SAVE_MINUTES = 1;
-const FALLBACK_EVENT_CATEGORIES = ['Job', 'School', 'Health', 'Relationship', 'Other'];
+const FALLBACK_EVENT_CATEGORIES = [
+  'Relationship',
+  'Health',
+  'Career',
+  'Education',
+  'Location',
+  'Legal',
+  'Finance',
+  'Faith',
+  'Achievement',
+  'Social',
+];
 
 const FALLBACK_FUNCTIONAL_INDICATORS: FunctionalIndicatorDefinition[] = [
   { id: 'indicator-affair', label: 'Affair' },
