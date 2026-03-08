@@ -11,6 +11,7 @@ export type PersonFunctionalIndicator = {
 
 export type BirthSex = 'female' | 'male' | 'intersex';
 export type GenderIdentity = 'feminine' | 'masculine' | 'nonbinary' | 'agender';
+export type SymptomGroup = 'physical' | 'emotional' | 'social';
 
 export type GenderSymbol =
   | 'female_cis'
@@ -29,6 +30,9 @@ export type FunctionalIndicatorDefinition = {
   id: string;
   label: string;
   iconDataUrl?: string;
+  group?: SymptomGroup;
+  color?: string;
+  useLetter?: boolean;
 };
 
 export type Person = {
@@ -62,6 +66,12 @@ export type Person = {
   backgroundColor?: string;
   backgroundEnabled?: boolean;
   functionalIndicators?: PersonFunctionalIndicator[];
+  isCoach?: boolean;
+  coachThinking?: {
+    thinking?: string;
+    notes?: string;
+    updatedAt?: number;
+  };
   isClient?: boolean;
   clientProfile?: {
     presentingIssue1?: string;
@@ -162,5 +172,7 @@ export type EmotionalProcessEvent = {
   continuesToNext?: boolean;
   createdAt?: number;
   sourceIndicatorId?: string;
+  symptomGroup?: SymptomGroup;
+  symptomType?: string;
   eventClass: EventClass;
 };

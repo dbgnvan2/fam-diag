@@ -63,6 +63,8 @@ const IndicatorBadge = ({
   const icon = useLoadedImage(entry.definition.iconDataUrl);
   const fallbackLetter = entry.definition.label?.trim().charAt(0)?.toUpperCase() || '?';
   const statusColor = entry.status === 'current' ? '#c62828' : '#5f6368';
+  const categoryColor = entry.definition.color || statusColor;
+  const showLetter = entry.definition.useLetter || !icon;
   const statusLabel = entry.status === 'current' ? 'C' : 'P';
   const impactValue = String(entry.impact ?? 0);
   const gap = 2;
@@ -87,17 +89,17 @@ const IndicatorBadge = ({
         text={textValue}
         fontSize={Math.max(10, size * 0.35)}
         fontStyle="bold"
-        fill={statusColor}
+        fill={categoryColor}
         listening={false}
       />
       <Circle
         x={circleCenterX}
         radius={size / 2}
-        fill="#ffffff"
-        stroke={statusColor}
+        fill={entry.definition.color ? `${entry.definition.color}22` : '#ffffff'}
+        stroke={categoryColor}
         strokeWidth={1.5}
       />
-      {icon ? (
+      {!showLetter && icon ? (
         <Image
           image={icon}
           width={size - 4}
@@ -116,6 +118,7 @@ const IndicatorBadge = ({
           fontSize={Math.max(10, size * 0.5)}
           align="center"
           verticalAlign="middle"
+          fill={categoryColor}
           listening={false}
         />
       )}

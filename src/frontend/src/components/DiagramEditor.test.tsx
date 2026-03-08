@@ -136,7 +136,7 @@ describe('DiagramEditor', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
         expect(screen.getByRole('button', { name: 'Event Categories' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Functional Indicators' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Symptom Categories' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /transcripts ▾/i }));
         expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();

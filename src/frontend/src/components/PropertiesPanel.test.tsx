@@ -204,8 +204,31 @@ describe('PropertiesPanel', () => {
             y: 0,
             gender: 'male',
             partnerships: [],
+            events: [
+                {
+                    id: 'symptom-1',
+                    date: '2026-01-02',
+                    startDate: '2026-01-02',
+                    category: 'emotional',
+                    symptomGroup: 'emotional',
+                    symptomType: 'Alcohol',
+                    eventType: 'FF',
+                    statusLabel: 'current',
+                    intensity: 1,
+                    frequency: 1,
+                    impact: 2,
+                    howWell: 5,
+                    otherPersonName: 'None',
+                    primaryPersonName: 'Person One',
+                    wwwwh: '',
+                    observations: '',
+                    eventClass: 'individual',
+                    sourceIndicatorId: 'fi1',
+                },
+            ],
+            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 2, frequency: 1, intensity: 1 }],
         };
-        const defs: FunctionalIndicatorDefinition[] = [{ id: 'fi1', label: 'Affair' }];
+        const defs: FunctionalIndicatorDefinition[] = [{ id: 'fi1', label: 'Alcohol', group: 'emotional' }];
         const { rerender } = render(
             <PropertiesPanel
                 selectedItem={person}
@@ -218,12 +241,12 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('button', { name: /^Indicators$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Symptoms$/i }));
         const statusSelect = screen.getAllByLabelText('Status:')[0];
-        fireEvent.change(statusSelect, { target: { value: 'current' } });
+        fireEvent.change(statusSelect, { target: { value: 'past' } });
         expect(updatePerson).toHaveBeenCalledWith('p1', expect.objectContaining({
             functionalIndicators: expect.arrayContaining([
-                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 0, frequency: 0, intensity: 0 }),
+                expect.objectContaining({ definitionId: 'fi1', status: 'past', impact: 2, frequency: 1, intensity: 1 }),
             ]),
         }));
 
@@ -243,7 +266,7 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('button', { name: /^Indicators$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Symptoms$/i }));
 
         const impactInput = screen.getAllByLabelText('Impact:')[0];
         fireEvent.change(impactInput, { target: { value: '4' } });
@@ -269,7 +292,7 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('button', { name: /^Indicators$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Symptoms$/i }));
 
         const frequencySelect = screen.getAllByLabelText('Frequency:')[0];
         fireEvent.change(frequencySelect, { target: { value: '3' } });
@@ -295,7 +318,7 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('button', { name: /^Indicators$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Symptoms$/i }));
 
         const intensitySelect = screen.getAllByLabelText('Intensity:')[0];
         fireEvent.change(intensitySelect, { target: { value: '5' } });
@@ -555,10 +578,10 @@ describe('PropertiesPanel', () => {
         );
         expect(screen.getByRole('button', { name: 'Events' })).toBeInTheDocument();
         expect(screen.getByText(/2024-04-01/i)).toBeInTheDocument();
-        expect(screen.getByText('FF')).toBeInTheDocument();
+        expect(screen.getAllByText('Symptom').length).toBeGreaterThan(0);
     });
 
-    it('shows tab help content for Person, Indicators, and Events', () => {
+    it('shows tab help content for Person, Symptoms, and Events', () => {
         const person: Person = {
             id: 'person-help',
             name: 'Help Person',
@@ -589,10 +612,10 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: /help for person tab/i }));
         expect(screen.getByText(/Persons have basic nodal events of Birth, Death, Birth Sex, and Gender/i)).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /help for indicators tab/i }));
-        expect(screen.getByText(/Indicators of functioning specific to symptom development/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /help for symptoms tab/i }));
+        expect(screen.getByText(/Symptom categories can be configured on this tab/i)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /help for events tab/i }));
-        expect(screen.getByText(/The Events tab lists the events related to the Person, Relationship, or Emotional Process/i)).toBeInTheDocument();
+        expect(screen.getByText(/The Events tab lists the events related to the Person, Relationship, or Emotional Pattern/i)).toBeInTheDocument();
     });
 });

@@ -51,10 +51,10 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: 'Styling & Properties',
     tips: [
-      'Click a single person to open the Functional Facts panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
+      'Click a single person to open the Properties panel (Person tab) where you can edit names, adoption status, shading, and notes; shift-click to open the Multi-Select panel for bulk size/border/shading changes.',
       'Use the Notes Layer toggle in the toolbar to hide/show notes globally. Right-click a Person/PRL/EPL and choose Show Note to pin that note on even when the global layer is off.',
       'Hovering a person temporarily reveals that person’s note, regardless of Notes Layer state.',
-      'Functional Indicators tab lets you configure definitions (Affair, Substance Use, etc.) and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; indicators render tight to the left/right of the node and every change also logs (or updates) an event for that indicator once per hour.',
+      'Symptoms tab lets you configure symptom categories and set Past/Current status plus 0–5 ratings for Frequency, Intensity, and Impact; badges render tight to the left/right of the node and every change also logs (or updates) a symptom event once per hour.',
       'Events tab now shows compact two-line tiles (Category/Date then ratings + participants + actions) and its editor mirrors the layout with Frequency/Impact dropdowns, WWWWH, Observations, Prior Events, Reflections, and the Nodal Event checkbox.',
     ],
   },
@@ -71,7 +71,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: 'Session Notes & Timelines',
     tips: [
       'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes. Use New/Open/Save/Save As/Location to manage note files separately from diagram JSON.',
-      'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Process Event draft for a person, partnership, or EPL.',
+      'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Pattern event draft for a person, partnership, or EPL.',
       'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
     ],
   },
@@ -109,10 +109,10 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
     demoBody: 'Event Categories opens the list used for event classification and filtering.',
   },
   'functional-indicators': {
-    title: 'Functional Indicators',
-    demoTitle: 'Ribbon · Functional Indicators',
-    body: 'Opens indicator definition settings (label/icon) used on person nodes and event logging.',
-    demoBody: 'Functional Indicators configures definitions used beside people and in event logging.',
+    title: 'Symptom Categories',
+    demoTitle: 'Ribbon · Symptom Categories',
+    body: 'Opens symptom category settings (name/group/image/letter/color) used on person nodes and symptom event logging.',
+    demoBody: 'Symptom Categories configures definitions used beside people and in symptom event logging.',
   },
   'transcripts-menu': {
     title: 'Transcripts Menu',

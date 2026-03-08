@@ -1,7 +1,7 @@
 {
   "fileMeta": {
     "fileName": "Demo Family Diagram.json",
-    "exportedAt": "2026-03-04T03:45:39.403Z"
+    "exportedAt": "2026-03-08T19:51:19.116Z"
   },
   "people": [
     {
@@ -10,44 +10,45 @@
       "firstName": "Alex",
       "lastName": "Carter",
       "gender": "male",
-      "x": 622,
-      "y": 178,
+      "x": 599,
+      "y": 145,
       "birthDate": "1978-04-16",
       "partnerships": [
         "demo-prl-parents"
       ],
-      "notes": "[1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
+      "notes": "[1] Male Person. Use right-click to open a popup menu of person options. Notice the Panel on the right for Person Properties. Alex has \"SYMPTOM\" Events as well",
       "notesEnabled": true,
       "events": [
         {
           "id": "demo-ev-alex-job",
           "date": "2021-06-10",
-          "category": "Career",
-          "statusLabel": "Promotion",
+          "category": "physical",
+          "statusLabel": "ongogin",
           "intensity": 2,
           "howWell": 4,
-          "otherPersonName": "",
+          "otherPersonName": "None",
           "primaryPersonName": "Alex Carter",
           "wwwwh": "",
-          "observations": "Promoted to regional manager.",
-          "eventClass": "individual"
-        },
-        {
-          "id": "1772584284527-9cbe428ac33bf8",
-          "date": "1978-04-15",
-          "category": "Individual",
-          "statusLabel": "Birth Date",
-          "intensity": 0,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "",
-          "primaryPersonName": "Alex Carter",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "[1] [1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
-          "isNodalEvent": true,
+          "observations": "anxiety shows up in stomach",
           "eventClass": "individual",
-          "createdAt": 1772584284527
+          "eventType": "FF",
+          "startDate": "2021-06-10",
+          "endDate": "",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "frequency": 2,
+          "impact": 2,
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1772770148016,
+          "symptomGroup": "physical",
+          "symptomType": "stomach",
+          "sourceIndicatorId": "symptom-physical-default",
+          "isNodalEvent": false
         },
         {
           "id": "1772585212171-f02d16c9ca419",
@@ -64,18 +65,110 @@
           "observations": "[1] Male Person. Use right-click to open a pop up menu of person options. Notice the Panel on the right for Person Properties.",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772585212171
+          "createdAt": 1772585212171,
+          "continuesFromPrevious": false
+        },
+        {
+          "id": "1772769789229-f26aac2456a5f",
+          "date": "2026-03-06",
+          "startDate": "2026-03-06",
+          "endDate": "",
+          "category": "emotional",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": true,
+          "continuesToNext": true,
+          "createdAt": 1772769789229,
+          "symptomGroup": "emotional",
+          "symptomType": "Anxiety",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-emotional-default"
+        },
+        {
+          "id": "1772769898503-249eac687b2b88",
+          "date": "2026-03-06",
+          "startDate": "2026-03-06",
+          "endDate": "",
+          "category": "social",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 2,
+          "impact": 2,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "I'd like to stop this",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": true,
+          "continuesToNext": true,
+          "createdAt": 1772769898503,
+          "symptomGroup": "social",
+          "symptomType": "Drinkig",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-social-default"
         }
       ],
       "size": 60,
       "notesSize": {
-        "width": 157,
-        "height": 93
+        "width": 156,
+        "height": 122
       },
       "notesPosition": {
-        "x": 677,
-        "y": 146
-      }
+        "x": 703,
+        "y": 168
+      },
+      "functionalIndicators": [
+        {
+          "definitionId": "symptom-emotional-default",
+          "status": "current",
+          "impact": 3,
+          "frequency": 3,
+          "intensity": 2,
+          "date": "2026-03-06",
+          "lastUpdatedAt": 1772769789229
+        },
+        {
+          "definitionId": "symptom-social-default",
+          "status": "current",
+          "impact": 2,
+          "frequency": 2,
+          "intensity": 2,
+          "date": "2026-03-06",
+          "lastUpdatedAt": 1772769898503
+        },
+        {
+          "definitionId": "symptom-physical-default",
+          "status": "current",
+          "impact": 2,
+          "frequency": 2,
+          "intensity": 2,
+          "date": "2021-06-10",
+          "lastUpdatedAt": 1772770148016
+        }
+      ]
     },
     {
       "id": "demo-mom",
@@ -83,8 +176,8 @@
       "firstName": "Renee",
       "lastName": "Carter",
       "gender": "female",
-      "x": 1178,
-      "y": 188,
+      "x": 1170,
+      "y": 148,
       "birthDate": "1980-09-06",
       "partnerships": [
         "demo-prl-parents"
@@ -112,8 +205,8 @@
       ],
       "size": 60,
       "notesPosition": {
-        "x": 1232,
-        "y": 147
+        "x": 1238,
+        "y": 134
       }
     },
     {
@@ -166,17 +259,17 @@
       "gender": "female",
       "x": 1076,
       "y": 509,
-      "birthDate": "1996-01-29",
+      "birthDate": "2005-01-05",
       "partnerships": [
         "demo-prl-emma"
       ],
       "parentPartnership": "demo-prl-parents",
-      "notes": "[5] Female.  Partner Relationship Line to Noah.  Emotional Process Line to Renee. ",
+      "notes": "[5] Female.  Marked as Client. Partner Relationship Line to Noah. Emotional Pattern Line to Renee. ",
       "notesEnabled": true,
       "events": [
         {
-          "id": "1772585277847-5866b1eff2cd08",
-          "date": "1996-01-29",
+          "id": "1772779499091-6fabae6c588fc8",
+          "date": "1996-01-05",
           "category": "Individual",
           "statusLabel": "Birth Date",
           "intensity": 0,
@@ -186,16 +279,46 @@
           "otherPersonName": "",
           "primaryPersonName": "Emma Carter",
           "wwwwh": "Not recorded - ask client",
-          "observations": "[5] Female.  Partner Relationship Line to Noah.  Emotional Process Line to Renee. ",
+          "observations": "[5] Female.  Marked as Client. Partner Relationship Line to Noah. Emotional Pattern Line to Renee. ",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772585277847
+          "createdAt": 1772779499091,
+          "continuesToNext": false
+        },
+        {
+          "id": "1772779574450-a3211fec5ce878",
+          "date": "2005-01-05",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[5] Female.  Marked as Client. Partner Relationship Line to Noah. Emotional Pattern Line to Renee. ",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772779574450
         }
       ],
       "size": 54,
       "notesPosition": {
         "x": 1147,
         "y": 475
+      },
+      "isClient": true,
+      "backgroundEnabled": true,
+      "backgroundColor": "#d8be13",
+      "clientProfile": {
+        "presentingIssue1": "Stress",
+        "presentingIssue2": "partner relationship",
+        "presentingIssue3": "",
+        "desiredOutcome1": "handling stress",
+        "desiredOutcome2": "better relationship",
+        "desiredOutcome3": "",
+        "conceptualization": "partner just doesn't understand clients side ofthings"
       }
     },
     {
@@ -206,7 +329,7 @@
       "gender": "male",
       "x": 894,
       "y": 506,
-      "birthDate": "1994-03-18",
+      "birthDate": "2004-03-18",
       "partnerships": [
         "demo-prl-emma"
       ],
@@ -229,6 +352,23 @@
           "isNodalEvent": true,
           "eventClass": "individual",
           "createdAt": 1772585357444
+        },
+        {
+          "id": "1772779586583-1bd589eb394a8",
+          "date": "2004-03-18",
+          "category": "Individual",
+          "statusLabel": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Noah Reed",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[6] Partner Relationship Line to Emma.  Males default to the LEFT side of a relationship. ",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1772779586583
         }
       ],
       "size": 54,
@@ -239,7 +379,8 @@
       "notesSize": {
         "width": 145,
         "height": 77
-      }
+      },
+      "parentPartnership": "demo-prl-parents"
     }
   ],
   "partnerships": [
@@ -253,14 +394,15 @@
       "relationshipStartDate": "2003-05-20",
       "children": [
         "demo-son",
-        "demo-daughter"
+        "demo-daughter",
+        "demo-emma-partner"
       ],
       "notes": "[3] Partner Relationship Line. Click on the line, it turns blue and the Properties Panel opens on the right.  Right-click this line to add child/twins/triplets.",
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 862,
-        "y": 145
+        "x": 869,
+        "y": 181
       },
       "notesSize": {
         "width": 206,
@@ -329,6 +471,41 @@
         "x": 1144,
         "y": 372.5
       }
+    },
+    {
+      "id": "bxwrotpEvuizkIWo_krB6",
+      "person1_id": "demo-dad",
+      "person2_id": "demo-mom",
+      "status": "ongoing",
+      "relationshipType": "fusion",
+      "lineStyle": "medium",
+      "lineEnding": "none",
+      "startDate": "2024-01-16",
+      "color": "#FF9100",
+      "events": [
+        {
+          "id": "G3Z5o6VS2WdFY11yumsBc",
+          "date": "2024-01-16",
+          "startDate": "2024-01-16",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "fusion",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "bxwrotpEvuizkIWo_krB6",
+          "statusLabel": "ongoing",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 2,
+          "howWell": 5,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1772770322557
+        }
+      ]
     }
   ],
   "triangles": [],
@@ -356,13 +533,16 @@
     }
   ],
   "eventCategories": [
-    "Job",
-    "School",
-    "Health",
     "Relationship",
-    "Other",
-    "Move",
-    "Finance"
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
   ],
   "autoSaveMinutes": 1,
   "ideasText": "Demo mode loaded. Use Next/Previous to walk through core features."

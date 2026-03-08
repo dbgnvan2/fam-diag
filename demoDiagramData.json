@@ -1,7 +1,7 @@
 {
   "fileMeta": {
     "fileName": "Demo Family Diagram.json",
-    "exportedAt": "2026-03-04T03:45:39.403Z"
+    "exportedAt": "2026-03-06T04:06:09.947Z"
   },
   "people": [
     {
@@ -65,6 +65,68 @@
           "isNodalEvent": true,
           "eventClass": "individual",
           "createdAt": 1772585212171
+        },
+        {
+          "id": "1772769789229-f26aac2456a5f",
+          "date": "2026-03-06",
+          "startDate": "2026-03-06",
+          "endDate": "",
+          "category": "emotional",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": true,
+          "continuesToNext": true,
+          "createdAt": 1772769789229,
+          "symptomGroup": "emotional",
+          "symptomType": "Anxiety",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-emotional-default"
+        },
+        {
+          "id": "1772769898503-249eac687b2b88",
+          "date": "2026-03-06",
+          "startDate": "2026-03-06",
+          "endDate": "",
+          "category": "social",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 2,
+          "impact": 2,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "I'd like to stop this",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": true,
+          "continuesToNext": true,
+          "createdAt": 1772769898503,
+          "symptomGroup": "social",
+          "symptomType": "Drinkig",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-social-default"
         }
       ],
       "size": 60,
@@ -73,9 +135,29 @@
         "height": 93
       },
       "notesPosition": {
-        "x": 677,
-        "y": 146
-      }
+        "x": 698,
+        "y": 123
+      },
+      "functionalIndicators": [
+        {
+          "definitionId": "symptom-emotional-default",
+          "status": "current",
+          "impact": 3,
+          "frequency": 3,
+          "intensity": 2,
+          "date": "2026-03-06",
+          "lastUpdatedAt": 1772769789229
+        },
+        {
+          "definitionId": "symptom-social-default",
+          "status": "current",
+          "impact": 2,
+          "frequency": 2,
+          "intensity": 2,
+          "date": "2026-03-06",
+          "lastUpdatedAt": 1772769898503
+        }
+      ]
     },
     {
       "id": "demo-mom",
@@ -196,6 +278,18 @@
       "notesPosition": {
         "x": 1147,
         "y": 475
+      },
+      "isClient": true,
+      "backgroundEnabled": true,
+      "backgroundColor": "#d8be13",
+      "clientProfile": {
+        "presentingIssue1": "Stress",
+        "presentingIssue2": "partner relationship",
+        "presentingIssue3": "",
+        "desiredOutcome1": "handling stress",
+        "desiredOutcome2": "better relationship",
+        "desiredOutcome3": "",
+        "conceptualization": "partner just doesn't understand clients side ofthings"
       }
     },
     {
@@ -356,13 +450,16 @@
     }
   ],
   "eventCategories": [
-    "Job",
-    "School",
-    "Health",
     "Relationship",
-    "Other",
-    "Move",
-    "Finance"
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
   ],
   "autoSaveMinutes": 1,
   "ideasText": "Demo mode loaded. Use Next/Previous to walk through core features."

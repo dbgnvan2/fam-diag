@@ -24,9 +24,27 @@ const FALLBACK_EVENT_CATEGORIES = [
 ];
 
 const FALLBACK_FUNCTIONAL_INDICATORS: FunctionalIndicatorDefinition[] = [
-  { id: 'indicator-affair', label: 'Affair' },
-  { id: 'indicator-su', label: 'Substance Use' },
-  { id: 'indicator-gambling', label: 'Gambling' },
+  {
+    id: 'symptom-physical-default',
+    label: 'Physical Symptom',
+    group: 'physical',
+    color: '#1f77b4',
+    useLetter: true,
+  },
+  {
+    id: 'symptom-emotional-default',
+    label: 'Emotional Symptom',
+    group: 'emotional',
+    color: '#d81b60',
+    useLetter: true,
+  },
+  {
+    id: 'symptom-social-default',
+    label: 'Social Symptom',
+    group: 'social',
+    color: '#2e7d32',
+    useLetter: true,
+  },
 ];
 
 const fallbackPartner1Id = nanoid();

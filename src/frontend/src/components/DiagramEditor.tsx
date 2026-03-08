@@ -11,6 +11,7 @@ import type {
   GenderSymbol,
   BirthSex,
   GenderIdentity,
+  SymptomGroup,
 } from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
@@ -238,6 +239,12 @@ type ClientProfileDraft = {
   desiredOutcome2: string;
   desiredOutcome3: string;
   conceptualization: string;
+};
+type CoachThinkingDraft = {
+  personId: string;
+  personName: string;
+  thinking: string;
+  notes: string;
 };
 // Replace these URLs with your own training library as videos are produced.
 const TRAINING_VIDEOS = [
@@ -1796,7 +1803,13 @@ const parseTranscriptToDraftDiagram = (transcript: string, sourceFileName: strin
     partnerships,
     emotionalLines,
     functionalIndicatorDefinitions: [
-      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum' },
+      {
+        id: 'indicator-schizophrenia-spectrum',
+        label: 'Schizophrenia Spectrum',
+        group: 'emotional',
+        color: '#7b1fa2',
+        useLetter: true,
+      },
     ],
     eventCategories: ['Mental Health', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
     autoSaveMinutes: 1,
@@ -2059,7 +2072,13 @@ const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => 
     emotionalLines: [],
     triangles: [],
     functionalIndicatorDefinitions: [
-      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum' },
+      {
+        id: 'indicator-schizophrenia-spectrum',
+        label: 'Schizophrenia Spectrum',
+        group: 'emotional',
+        color: '#7b1fa2',
+        useLetter: true,
+      },
     ],
     eventCategories: ['Clinical', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
     autoSaveMinutes: 1,
@@ -2068,6 +2087,11 @@ const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => 
 };
 
 const DiagramEditor = () => {
+  const defaultSymptomColorByGroup: Record<SymptomGroup, string> = {
+    physical: '#1f77b4',
+    emotional: '#d81b60',
+    social: '#2e7d32',
+  };
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
@@ -2095,6 +2119,7 @@ const DiagramEditor = () => {
   const [emotionalPatternModalOpen, setEmotionalPatternModalOpen] = useState(false);
   const [emotionalPatternDraft, setEmotionalPatternDraft] = useState<EmotionalPatternDraft | null>(null);
   const [clientProfileDraft, setClientProfileDraft] = useState<ClientProfileDraft | null>(null);
+  const [coachThinkingDraft, setCoachThinkingDraft] = useState<CoachThinkingDraft | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
   const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(initialEventCategories);
@@ -2117,7 +2142,6 @@ const DiagramEditor = () => {
     useState<FunctionalIndicatorDefinition[]>(initialIndicatorDefinitions);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
-  const [indicatorDraftIcon, setIndicatorDraftIcon] = useState<string | null>(null);
   const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelineSelectionIds, setTimelineSelectionIds] = useState<string[]>([]);
@@ -3453,7 +3477,6 @@ const DiagramEditor = () => {
 
   const resetIndicatorDraft = () => {
     setIndicatorDraftLabel('');
-    setIndicatorDraftIcon(null);
   };
 
   const fileToDataUrl = (file: File) =>
@@ -3469,7 +3492,13 @@ const DiagramEditor = () => {
     if (!trimmed) return;
     updateIndicatorDefinitions((prev) => [
       ...prev,
-      { id: nanoid(), label: trimmed, iconDataUrl: indicatorDraftIcon || undefined },
+      {
+        id: nanoid(),
+        label: trimmed,
+        group: 'physical',
+        useLetter: true,
+        color: '#1f77b4',
+      },
     ]);
     resetIndicatorDraft();
   };
@@ -3480,13 +3509,34 @@ const DiagramEditor = () => {
     );
   };
 
+  const updateFunctionalIndicatorGroup = (
+    id: string,
+    group: 'physical' | 'emotional' | 'social'
+  ) => {
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) => (definition.id === id ? { ...definition, group } : definition))
+    );
+  };
+
+  const updateFunctionalIndicatorUseLetter = (id: string, useLetter: boolean) => {
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) => (definition.id === id ? { ...definition, useLetter } : definition))
+    );
+  };
+
+  const updateFunctionalIndicatorColor = (id: string, color: string) => {
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) => (definition.id === id ? { ...definition, color } : definition))
+    );
+  };
+
   const updateFunctionalIndicatorIcon = async (id: string, file: File | null) => {
     if (!file) return;
     try {
       const dataUrl = await fileToDataUrl(file);
       updateIndicatorDefinitions((prev) =>
         prev.map((definition) =>
-          definition.id === id ? { ...definition, iconDataUrl: dataUrl } : definition
+          definition.id === id ? { ...definition, iconDataUrl: dataUrl, useLetter: false } : definition
         )
       );
     } catch (error) {
@@ -3497,7 +3547,7 @@ const DiagramEditor = () => {
   const clearFunctionalIndicatorIcon = (id: string) => {
     updateIndicatorDefinitions((prev) =>
       prev.map((definition) =>
-        definition.id === id ? { ...definition, iconDataUrl: undefined } : definition
+        definition.id === id ? { ...definition, iconDataUrl: undefined, useLetter: true } : definition
       )
     );
   };
@@ -3506,18 +3556,40 @@ const DiagramEditor = () => {
     updateIndicatorDefinitions((prev) => prev.filter((definition) => definition.id !== id));
   };
 
-  const handleIndicatorDraftIconChange = async (file: File | null) => {
-    if (!file) {
-      setIndicatorDraftIcon(null);
-      return;
+  const ensureSymptomDefinition = (label: string, group: SymptomGroup): string | null => {
+    const trimmed = label.trim();
+    const existingByLabel = trimmed
+      ? functionalIndicatorDefinitions.find(
+          (definition) => definition.label.trim().toLowerCase() === trimmed.toLowerCase()
+        )
+      : null;
+    if (existingByLabel) {
+      if (!existingByLabel.group || existingByLabel.group !== group) {
+        updateIndicatorDefinitions((prev) =>
+          prev.map((definition) =>
+            definition.id === existingByLabel.id
+              ? { ...definition, group: definition.group || group }
+              : definition
+          )
+        );
+      }
+      return existingByLabel.id;
     }
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setIndicatorDraftIcon(dataUrl);
-    } catch (error) {
-      console.error('Failed to read icon file', error);
+    const existingByGroup = functionalIndicatorDefinitions.find((definition) => definition.group === group);
+    if (!trimmed) {
+      return existingByGroup?.id || null;
     }
+    const created: FunctionalIndicatorDefinition = {
+      id: nanoid(),
+      label: trimmed,
+      group,
+      color: defaultSymptomColorByGroup[group],
+      useLetter: true,
+    };
+    updateIndicatorDefinitions((prev) => [...prev, created]);
+    return created.id;
   };
+
   const STYLE_ONLY_FIELDS = useMemo(
     () =>
       new Set<keyof Person>([
@@ -3912,6 +3984,31 @@ useEffect(() => {
       desiredOutcome3: person.clientProfile?.desiredOutcome3 || '',
       conceptualization: person.clientProfile?.conceptualization || '',
     });
+  };
+
+  const openCoachThinkingModal = (person: Person) => {
+    setCoachThinkingDraft({
+      personId: person.id,
+      personName: person.name || '',
+      thinking: person.coachThinking?.thinking || '',
+      notes: person.coachThinking?.notes || '',
+    });
+  };
+
+  const updateCoachThinkingField = (field: 'thinking' | 'notes', value: string) => {
+    setCoachThinkingDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const saveCoachThinkingDraft = () => {
+    if (!coachThinkingDraft) return;
+    handleUpdatePerson(coachThinkingDraft.personId, {
+      coachThinking: {
+        thinking: coachThinkingDraft.thinking.trim(),
+        notes: coachThinkingDraft.notes.trim(),
+        updatedAt: Date.now(),
+      },
+    });
+    setCoachThinkingDraft(null);
   };
 
   const updateClientProfileDraftField = (
@@ -5535,10 +5632,17 @@ useEffect(() => {
       notes: overrides.notes,
       notesPosition: overrides.notesPosition,
       notesEnabled: overrides.notesEnabled,
+      isCoach: overrides.isCoach ?? false,
       events: overrides.events ?? [],
     };
     setPeopleAligned(prev => [...prev, newPerson]);
     return newPerson;
+  };
+
+  const addCoach = (x: number, y: number) => {
+    const coachCount = people.filter((person) => /^Coach(?:\s+\d+)?$/i.test(person.name || '')).length;
+    const coachName = coachCount === 0 ? 'Coach' : `Coach ${coachCount + 1}`;
+    return addPerson(x, y, { name: coachName, isCoach: true });
   };
 
   const addParentsForPerson = (
@@ -5818,6 +5922,7 @@ useEffect(() => {
 
   const handlePersonContextMenu = (e: KonvaEventObject<PointerEvent>, person: Person) => {
       e.evt.preventDefault();
+      const isCoachPerson = !!person.isCoach || /^coach(?:\s+\d+)?$/i.test((person.name || '').trim());
       if (!selectedPeopleIds.includes(person.id) || selectedPeopleIds.length === 0) {
         setSelectedPeopleIds([person.id]);
         setPropertiesPanelItem(person);
@@ -5966,6 +6071,40 @@ useEffect(() => {
               setContextMenu(null);
             }
           },
+          ...(isCoachPerson
+            ? [
+                {
+                  label: 'Coach Events',
+                  onClick: () => {
+                    openContextualEventCreator(
+                      { type: 'person', id: person.id },
+                      person,
+                      {
+                        eventType: 'EPE',
+                        category: 'Coaching',
+                        emotionalProcessType: 'coach-event',
+                        eventClass: 'emotional-pattern',
+                        statusLabel: 'ongoing',
+                        intensity: 1,
+                        frequency: 1,
+                        impact: 1,
+                        primaryPersonName: person.name || 'Coach',
+                        otherPersonName: 'None',
+                      },
+                      { x: e.evt.clientX, y: e.evt.clientY }
+                    );
+                    setContextMenu(null);
+                  },
+                },
+                {
+                  label: 'Coach Thinking',
+                  onClick: () => {
+                    openCoachThinkingModal(person);
+                    setContextMenu(null);
+                  },
+                },
+              ]
+            : []),
           {
             label: 'Add Partner',
             onClick: () => {
@@ -6175,6 +6314,13 @@ useEffect(() => {
             label: 'Add Person',
             onClick: () => {
                 addPerson(pointerPosition.x, pointerPosition.y);
+                setContextMenu(null);
+            }
+        },
+        {
+            label: 'Add Coach',
+            onClick: () => {
+                addCoach(pointerPosition.x, pointerPosition.y);
                 setContextMenu(null);
             }
         },
@@ -7323,7 +7469,7 @@ useEffect(() => {
       ];
       const settingsMenuItems = [
         { label: 'Event Categories', action: () => setSettingsOpen(true) },
-        { label: 'Functional Indicators', action: () => setIndicatorSettingsOpen(true) },
+        { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
       ];
       const timelineMenuItems = [
         { label: 'Export Person Events', action: handleExportPersonEvents },
@@ -8415,6 +8561,7 @@ useEffect(() => {
                           ? propertiesPanelIntent.openNewEventPosition
                           : undefined
                       }
+                      onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
                       onClose={() => {
                         setPropertiesPanelItem(null);
                         setPropertiesPanelIntent(null);
@@ -8751,6 +8898,85 @@ useEffect(() => {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
                   <button onClick={() => setClientProfileDraft(null)}>Cancel</button>
                   <button onClick={saveClientProfileDraft}>Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {coachThinkingDraft && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2072,
+              }}
+              onClick={() => setCoachThinkingDraft(null)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 10,
+                  padding: 16,
+                  width: 620,
+                  maxWidth: 'calc(100vw - 24px)',
+                  maxHeight: 'calc(100vh - 24px)',
+                  overflowY: 'auto',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h4 style={{ marginTop: 0, marginBottom: 10 }}>
+                  Coach Thinking · {coachThinkingDraft.personName || 'Coach'}
+                </h4>
+                {(() => {
+                  const modalRowStyle: React.CSSProperties = {
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-end',
+                    gap: 12,
+                    marginTop: 8,
+                  };
+                  const modalLabelStyle: React.CSSProperties = {
+                    width: 180,
+                    textAlign: 'right',
+                    fontWeight: 600,
+                    marginTop: 6,
+                  };
+                  const modalControlStyle: React.CSSProperties = { width: '66%' };
+                  return (
+                    <>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="coachThinkingText" style={modalLabelStyle}>Thinking:</label>
+                        <textarea
+                          id="coachThinkingText"
+                          value={coachThinkingDraft.thinking}
+                          onChange={(event) =>
+                            updateCoachThinkingField('thinking', event.target.value)
+                          }
+                          rows={4}
+                          style={{ ...modalControlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                      <div style={modalRowStyle}>
+                        <label htmlFor="coachThinkingNotes" style={modalLabelStyle}>Notes:</label>
+                        <textarea
+                          id="coachThinkingNotes"
+                          value={coachThinkingDraft.notes}
+                          onChange={(event) =>
+                            updateCoachThinkingField('notes', event.target.value)
+                          }
+                          rows={5}
+                          style={{ ...modalControlStyle, resize: 'vertical' }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+                  <button onClick={() => setCoachThinkingDraft(null)}>Cancel</button>
+                  <button onClick={saveCoachThinkingDraft}>Save</button>
                 </div>
               </div>
             </div>
@@ -9092,49 +9318,25 @@ useEffect(() => {
               }}
             >
               <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 520, maxHeight: '80vh', overflow: 'auto' }}>
-                <h4>Functional Indicators</h4>
+                <h4>Symptom Categories</h4>
                 <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>
-                  Add labeled icons that appear beside each person to track affairs, substance use, or any situational flag. If no image is selected, the first letter of the label is used automatically.
+                  Add a category name. After adding, edit group, image, letter, and color on the saved category row.
                 </p>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
                   <input
                     type="text"
-                    placeholder="Indicator label (e.g., Affair)"
+                    placeholder="Category Name"
                     value={indicatorDraftLabel}
                     onChange={(e) => setIndicatorDraftLabel(e.target.value)}
                     style={{ flex: 1 }}
                   />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleIndicatorDraftIconChange(e.target.files?.[0] ?? null)}
-                  />
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 6,
-                      border: '1px solid #ddd',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: '#fafafa',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {indicatorDraftIcon ? (
-                      <img src={indicatorDraftIcon} alt="preview" style={{ maxWidth: '100%', maxHeight: '100%' }} />
-                    ) : (
-                      (indicatorDraftLabel.trim().charAt(0) || '?').toUpperCase()
-                    )}
-                  </div>
                   <button onClick={addFunctionalIndicatorDefinition} disabled={!indicatorDraftLabel.trim()}>
                     Add
                   </button>
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {functionalIndicatorDefinitions.length === 0 && (
-                    <li style={{ fontStyle: 'italic', color: '#777' }}>No indicators defined yet.</li>
+                    <li style={{ fontStyle: 'italic', color: '#777' }}>No symptom categories defined yet.</li>
                   )}
                   {functionalIndicatorDefinitions.map((definition) => (
                     <li
@@ -9159,11 +9361,11 @@ useEffect(() => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: '#fff',
+                            background: definition.color ? `${definition.color}22` : '#fff',
                             flexShrink: 0,
                           }}
                         >
-                          {definition.iconDataUrl ? (
+                          {definition.iconDataUrl && !definition.useLetter ? (
                             <img src={definition.iconDataUrl} alt={`${definition.label} icon`} style={{ maxWidth: '100%', maxHeight: '100%' }} />
                           ) : (
                             <span style={{ fontWeight: 600 }}>{(definition.label.trim().charAt(0) || '?').toUpperCase()}</span>
@@ -9175,9 +9377,30 @@ useEffect(() => {
                           onChange={(e) => updateFunctionalIndicatorLabel(definition.id, e.target.value)}
                           style={{ flex: 1 }}
                         />
+                        <select
+                          aria-label={`Symptom Group for ${definition.label}`}
+                          value={definition.group || 'physical'}
+                          onChange={(e) =>
+                            updateFunctionalIndicatorGroup(
+                              definition.id,
+                              e.target.value as 'physical' | 'emotional' | 'social'
+                            )
+                          }
+                        >
+                          <option value="physical">physical</option>
+                          <option value="emotional">emotional</option>
+                          <option value="social">social</option>
+                        </select>
+                        <input
+                          type="color"
+                          aria-label={`Category Color for ${definition.label}`}
+                          value={definition.color || '#666666'}
+                          onChange={(e) => updateFunctionalIndicatorColor(definition.id, e.target.value)}
+                          style={{ width: 38, height: 32, padding: 2 }}
+                        />
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                        <label style={{ fontSize: 13 }}>Icon image:</label>
+                        <label style={{ fontSize: 13 }}>Category Image:</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -9189,7 +9412,17 @@ useEffect(() => {
                           }}
                         />
                         <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-                          <button onClick={() => clearFunctionalIndicatorIcon(definition.id)}>Use Letter</button>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                            <input
+                              type="checkbox"
+                              checked={definition.useLetter ?? !definition.iconDataUrl}
+                              onChange={(e) =>
+                                updateFunctionalIndicatorUseLetter(definition.id, e.target.checked)
+                              }
+                            />
+                            Use Letter
+                          </label>
+                          <button onClick={() => clearFunctionalIndicatorIcon(definition.id)}>Clear Image</button>
                           <button onClick={() => removeFunctionalIndicatorDefinition(definition.id)} style={{ color: '#b00020' }}>
                             Remove
                           </button>
