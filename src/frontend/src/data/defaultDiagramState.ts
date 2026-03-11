@@ -2,13 +2,14 @@ import { nanoid } from 'nanoid';
 import type {
   EmotionalLine,
   FunctionalIndicatorDefinition,
+  PageNote,
   Partnership,
   Person,
   Triangle,
 } from '../types';
-import defaultDiagramDataJson from './defaultDiagramData.json';
+import demoFamilyDiagramDataJson from './demofamilydiagram.json';
 
-export const FALLBACK_FILE_NAME = 'Untitled';
+export const FALLBACK_FILE_NAME = 'newDiagram';
 const FALLBACK_AUTO_SAVE_MINUTES = 1;
 const FALLBACK_EVENT_CATEGORIES = [
   'Relationship',
@@ -99,10 +100,11 @@ const FALLBACK_EMOTIONAL_LINES: EmotionalLine[] = [];
 const FALLBACK_TRIANGLES: Triangle[] = [];
 
 export type RawDiagramFile = {
-  fileMeta?: { fileName?: string };
+  fileMeta?: { fileName?: string; displayName?: string };
   people?: Person[];
   partnerships?: Partnership[];
   emotionalLines?: EmotionalLine[];
+  pageNotes?: PageNote[];
   triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
@@ -114,11 +116,13 @@ export type DefaultDiagramState = {
   people: Person[];
   partnerships: Partnership[];
   emotionalLines: EmotionalLine[];
+  pageNotes: PageNote[];
   triangles: Triangle[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   eventCategories: string[];
   autoSaveMinutes: number;
   fileName: string;
+  displayName: string;
   ideasText: string;
 };
 
@@ -164,11 +168,13 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
     people: FALLBACK_PEOPLE,
     partnerships: FALLBACK_PARTNERSHIPS,
     emotionalLines: FALLBACK_EMOTIONAL_LINES,
+    pageNotes: [],
     triangles: FALLBACK_TRIANGLES,
     functionalIndicatorDefinitions: FALLBACK_FUNCTIONAL_INDICATORS,
     eventCategories: FALLBACK_EVENT_CATEGORIES,
     autoSaveMinutes: FALLBACK_AUTO_SAVE_MINUTES,
     fileName: FALLBACK_FILE_NAME,
+    displayName: FALLBACK_FILE_NAME,
     ideasText: '',
   };
 
@@ -187,6 +193,7 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
           status: line.status || 'ongoing',
         }))
       : base.emotionalLines,
+    pageNotes: Array.isArray(typed.pageNotes) ? typed.pageNotes : base.pageNotes,
     triangles: Array.isArray(typed.triangles) ? typed.triangles : base.triangles,
     functionalIndicatorDefinitions:
       Array.isArray(typed.functionalIndicatorDefinitions) &&
@@ -199,8 +206,14 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
       typeof typed.fileMeta?.fileName === 'string' && typed.fileMeta.fileName.trim().length
         ? typed.fileMeta.fileName.trim()
         : base.fileName,
+    displayName:
+      typeof typed.fileMeta?.displayName === 'string' && typed.fileMeta.displayName.trim().length
+        ? typed.fileMeta.displayName.trim()
+        : typeof typed.fileMeta?.fileName === 'string' && typed.fileMeta.fileName.trim().length
+        ? typed.fileMeta.fileName.trim()
+        : base.displayName,
     ideasText: typeof typed.ideasText === 'string' ? typed.ideasText : base.ideasText,
   };
 };
 
-export const DEFAULT_DIAGRAM_STATE = buildDefaultDiagramState(defaultDiagramDataJson);
+export const DEFAULT_DIAGRAM_STATE = buildDefaultDiagramState(demoFamilyDiagramDataJson);

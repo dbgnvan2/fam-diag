@@ -30,11 +30,13 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: 'Canvas & Navigation',
     tips: [
       'The white on the screen is the "CANVAS". A right-click anywere on the screen will pop up a small window where you can "add person"',
-      'You can click and drag the cursor across the screen to select mulitiple items. Alt - Click drag will pan the whole diagram; use the zoom slider (25–300%) to focus on different generations.',
+      'You can click and drag the cursor across the screen to select mulitiple items. Hold Space and left-drag to pan the whole diagram; Alt-drag and middle-mouse drag still work as fallbacks.',
       ' ',
       'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay all items on the screen provided they are dated.',
       'Events like births, deaths, PRL milestones, EPL start/end dates, and logged events all need dates for the timeline to work well. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',
       '  ',
+      'Zoom now scales from the canvas center instead of the upper-left corner. Use the ⊕ button under Help to bring the whole diagram back to center at 50% zoom.',
+      'General notes move with pan and can now be caught by marquee selection; a marquee that hits exactly one page note will select that note and reopen its editor.',
       'The Save button turns red when edits are pending and blinks if changes are older than 10 minutes; adjust the Auto-Save interval beside it.',
       'Use File ▾ for New, Open, Save/Save As, Export PNG/SVG, Event Creator launch, or Quit. Use Transcripts ▾ for Process + Import Data, and Timeline ▾ for Export/Import Person Events.',
     ],
@@ -87,7 +89,7 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   save: {
     title: 'Save',
     demoTitle: 'Ribbon · Save + Auto-Save',
-    body: 'Save writes the current diagram now. Auto-Save sets periodic persistence interval in minutes.',
+    body: 'Save writes the current diagram now. If the document was opened or saved with disk access, Save overwrites that same file. Otherwise Save creates a download copy and does not overwrite an existing local file. Auto-Save sets the periodic save interval in minutes.',
     demoBody: 'Save commits the diagram now; Auto-Save sets periodic save cadence in minutes. Files are saved to our local computer.',
   },
   'timeline-controls': {
@@ -99,8 +101,8 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   zoom: {
     title: 'Zoom',
     demoTitle: 'Ribbon · Zoom',
-    body: 'Changes canvas scale from 25% to 300% without modifying the underlying data coordinates.',
-    demoBody: 'Zoom changes canvas scale from 25% to 300% without changing data positions.',
+    body: 'Changes canvas scale from 25% to 300% around the canvas center without modifying the underlying data coordinates. Use the ⊕ recenter control under Help to reset the diagram to centered 50% zoom.',
+    demoBody: 'Zoom changes canvas scale from 25% to 300% around the canvas center. The ⊕ control recenters the diagram at 50% zoom.',
   },
   'event-categories': {
     title: 'Event Categories',
@@ -153,7 +155,7 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   help: {
     title: 'Help',
     demoTitle: 'Ribbon · Help',
-    body: 'Opens Quick Start help, training videos, and both demo walkthroughs.',
-    demoBody: 'Help opens Quick Start, training videos, and the two demo walkthrough modes.',
+    body: 'Opens Quick Start help, training videos, and both demo walkthroughs. The ⊕ control beneath Help recenters the diagram at 50% zoom.',
+    demoBody: 'Help opens Quick Start, training videos, and the two demo walkthrough modes. The ⊕ control beneath it recenters the diagram.',
   },
 };

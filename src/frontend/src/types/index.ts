@@ -60,6 +60,7 @@ export type Person = {
   notesEnabled?: boolean;
   lifeStatus?: 'alive' | 'miscarriage' | 'stillbirth';
   adoptionStatus?: 'biological' | 'adopted';
+  parentConnectionPattern?: 'none' | 'family-cutoff';
   connectionAnchorX?: number;
   multipleBirthGroupId?: string;
   borderColor?: string;
@@ -128,6 +129,17 @@ export type EmotionalLine = {
   notesPosition?: { x: number; y: number };
   notesSize?: { width: number; height: number };
   events?: EmotionalProcessEvent[];
+};
+
+export type PageNote = {
+  id: string;
+  x: number;
+  y: number;
+  title: string;
+  text: string;
+  width?: number;
+  height?: number;
+  fillColor?: string;
 };
 
 export type Triangle = {

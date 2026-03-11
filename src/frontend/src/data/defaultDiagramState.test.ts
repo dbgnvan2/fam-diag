@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import defaultDiagramDataJson from './defaultDiagramData.json';
+import demoFamilyDiagramDataJson from './demofamilydiagram.json';
 import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
@@ -7,17 +7,17 @@ import {
 } from './defaultDiagramState';
 
 describe('defaultDiagramState', () => {
-  it('hydrates from the bundled Myfamily1 dataset', () => {
-    expect(DEFAULT_DIAGRAM_STATE.people).toHaveLength(defaultDiagramDataJson.people.length);
+  it('hydrates from the bundled demo dataset', () => {
+    expect(DEFAULT_DIAGRAM_STATE.people).toHaveLength(demoFamilyDiagramDataJson.people.length);
     expect(DEFAULT_DIAGRAM_STATE.partnerships).toHaveLength(
-      defaultDiagramDataJson.partnerships.length
+      demoFamilyDiagramDataJson.partnerships.length
     );
     expect(DEFAULT_DIAGRAM_STATE.emotionalLines).toHaveLength(
-      defaultDiagramDataJson.emotionalLines.length
+      demoFamilyDiagramDataJson.emotionalLines.length
     );
     expect(DEFAULT_DIAGRAM_STATE.triangles).toHaveLength(
-      Array.isArray((defaultDiagramDataJson as any).triangles)
-        ? (defaultDiagramDataJson as any).triangles.length
+      Array.isArray((demoFamilyDiagramDataJson as any).triangles)
+        ? (demoFamilyDiagramDataJson as any).triangles.length
         : 0
     );
   });

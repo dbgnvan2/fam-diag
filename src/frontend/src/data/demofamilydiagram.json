@@ -1,7 +1,8 @@
 {
   "fileMeta": {
     "fileName": "Demo Family Diagram.json",
-    "exportedAt": "2026-03-08T19:51:19.116Z"
+    "displayName": "Demo Family Diagram.json",
+    "exportedAt": "2026-03-10T03:25:28.678Z"
   },
   "people": [
     {
@@ -249,7 +250,8 @@
       "notesSize": {
         "width": 154,
         "height": 101
-      }
+      },
+      "parentConnectionPattern": "none"
     },
     {
       "id": "demo-daughter",
@@ -319,7 +321,8 @@
         "desiredOutcome2": "better relationship",
         "desiredOutcome3": "",
         "conceptualization": "partner just doesn't understand clients side ofthings"
-      }
+      },
+      "parentConnectionPattern": "family-cutoff"
     },
     {
       "id": "demo-emma-partner",
@@ -379,8 +382,7 @@
       "notesSize": {
         "width": 145,
         "height": 77
-      },
-      "parentPartnership": "demo-prl-parents"
+      }
     }
   ],
   "partnerships": [
@@ -394,8 +396,7 @@
       "relationshipStartDate": "2003-05-20",
       "children": [
         "demo-son",
-        "demo-daughter",
-        "demo-emma-partner"
+        "demo-daughter"
       ],
       "notes": "[3] Partner Relationship Line. Click on the line, it turns blue and the Properties Panel opens on the right.  Right-click this line to add child/twins/triplets.",
       "notesEnabled": true,
@@ -506,6 +507,18 @@
           "createdAt": 1772770322557
         }
       ]
+    }
+  ],
+  "pageNotes": [
+    {
+      "id": "9UThrI14h5C-rr7iadBR4",
+      "x": 375,
+      "y": 550.171875,
+      "title": "General Note",
+      "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
+      "width": 220,
+      "height": 140,
+      "fillColor": "#fff8c6"
     }
   ],
   "triangles": [],

@@ -12,6 +12,7 @@ import type {
   BirthSex,
   GenderIdentity,
   SymptomGroup,
+  PageNote,
 } from '../types';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
@@ -60,6 +61,11 @@ import {
   mergePersonEventsFromBundle,
   timelineJsonToBundle,
 } from '../utils/personEventBundle';
+import {
+  normalizeCommandName,
+  parseVoiceCommands,
+  type VoiceCommandOperation,
+} from '../utils/voiceCommands';
 import readmeContent from '../../../../README.md?raw';
 type MarkdownCodeProps = React.ComponentPropsWithoutRef<'code'> & {
   inline?: boolean;
@@ -144,6 +150,7 @@ const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']): numb
 const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
 const initialPartnerships: Partnership[] = DEFAULT_DIAGRAM_STATE.partnerships;
 const initialEmotionalLines: EmotionalLine[] = DEFAULT_DIAGRAM_STATE.emotionalLines;
+const initialPageNotes: PageNote[] = DEFAULT_DIAGRAM_STATE.pageNotes;
 const initialTriangles: Triangle[] = DEFAULT_DIAGRAM_STATE.triangles;
 const initialEventCategories: string[] = DEFAULT_DIAGRAM_STATE.eventCategories;
 const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
@@ -151,7 +158,6 @@ const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
 const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
 const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
 const STORAGE_KEYS = {
-  fileName: 'family-diagram-file-name',
   autoSave: 'family-diagram-autosave-minutes',
   people: 'family-diagram-people',
   partnerships: 'family-diagram-partnerships',
@@ -167,6 +173,14 @@ const EVENT_CLASS_LABELS: Record<EventClass, string> = {
   relationship: 'Relationship',
   'emotional-pattern': 'Emotional Pattern',
 };
+const DIAGRAM_FILE_PICKER_TYPES = [
+  {
+    description: 'Family Diagram JSON',
+    accept: {
+      'application/json': ['.json'],
+    },
+  },
+];
 
 const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
   if (typeof window === 'undefined') return null;
@@ -176,6 +190,71 @@ const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
 const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS[key], value);
+};
+
+const DIAGRAM_HANDLE_DB = 'family-diagram-file-handle-db';
+const DIAGRAM_HANDLE_STORE = 'handles';
+const DIAGRAM_HANDLE_KEY = 'current-diagram';
+
+const openDiagramHandleDb = (): Promise<IDBDatabase | null> =>
+  new Promise((resolve) => {
+    if (typeof window === 'undefined' || !('indexedDB' in window)) {
+      resolve(null);
+      return;
+    }
+    const request = window.indexedDB.open(DIAGRAM_HANDLE_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DIAGRAM_HANDLE_STORE)) {
+        db.createObjectStore(DIAGRAM_HANDLE_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+
+const persistDiagramFileHandle = async (handle: any | null) => {
+  const db = await openDiagramHandleDb();
+  if (!db) return;
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(DIAGRAM_HANDLE_STORE, 'readwrite');
+    const store = tx.objectStore(DIAGRAM_HANDLE_STORE);
+    if (handle) {
+      store.put(handle, DIAGRAM_HANDLE_KEY);
+    } else {
+      store.delete(DIAGRAM_HANDLE_KEY);
+    }
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      resolve();
+    };
+    tx.onabort = () => {
+      db.close();
+      resolve();
+    };
+  });
+};
+
+const restoreDiagramFileHandle = async (): Promise<any | null> => {
+  const db = await openDiagramHandleDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    const tx = db.transaction(DIAGRAM_HANDLE_STORE, 'readonly');
+    const store = tx.objectStore(DIAGRAM_HANDLE_STORE);
+    const request = store.get(DIAGRAM_HANDLE_KEY);
+    request.onsuccess = () => {
+      db.close();
+      resolve(request.result || null);
+    };
+    request.onerror = () => {
+      db.close();
+      resolve(null);
+    };
+  });
 };
 
 type SessionNoteFileRecord = {
@@ -253,8 +332,8 @@ const TRAINING_VIDEOS = [
     title: 'Getting Started',
     duration: '6 min',
     topic: 'Canvas basics, file workflow, and object editing',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/hQlVAUm8DdM',
-    url: 'https://youtu.be/hQlVAUm8DdM',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/k8ew_qIpEAU',
+    url: 'https://youtu.be/k8ew_qIpEAU',
   },
   {
     id: 'transcript',
@@ -916,10 +995,11 @@ const attachEventClassToEntities = <T extends { events?: EmotionalProcessEvent[]
   }));
 
 type DiagramImportData = {
-  fileMeta?: { fileName?: string };
+  fileMeta?: { fileName?: string; displayName?: string };
   people?: Person[];
   partnerships?: Partnership[];
   emotionalLines?: EmotionalLine[];
+  pageNotes?: PageNote[];
   triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
@@ -2095,16 +2175,9 @@ const DiagramEditor = () => {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
   const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
+  const [pageNotes, setPageNotes] = useState<PageNote[]>(initialPageNotes);
   const [triangles, setTriangles] = useState<Triangle[]>(initialTriangles);
-  const [fileName, setFileName] = useState(() => {
-    if (typeof window === 'undefined') return initialFileName;
-    const stored = getStoredValue('fileName');
-    if (stored) {
-      setStoredValue('fileName', stored);
-      return stored;
-    }
-    return initialFileName;
-  });
+  const [fileName, setFileName] = useState(initialFileName);
   const [autoSaveMinutes, setAutoSaveMinutes] = useState(() => {
     if (typeof window === 'undefined') return initialAutoSaveMinutes;
     const stored = getStoredValue('autoSave');
@@ -2136,8 +2209,8 @@ const DiagramEditor = () => {
   const [, setLastSavedAt] = useState<number | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [transcriptsMenuOpen, setTranscriptsMenuOpen] = useState(false);
-  const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] =
     useState<FunctionalIndicatorDefinition[]>(initialIndicatorDefinitions);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
@@ -2194,6 +2267,19 @@ const DiagramEditor = () => {
   const [demoBlinkVisible, setDemoBlinkVisible] = useState(true);
   const [buildDemoOpen, setBuildDemoOpen] = useState(false);
   const [buildDemoStepIndex, setBuildDemoStepIndex] = useState(0);
+  const [voiceInputOpen, setVoiceInputOpen] = useState(false);
+  const [voiceCommandText, setVoiceCommandText] = useState('');
+  const [voiceCommandOperations, setVoiceCommandOperations] = useState<VoiceCommandOperation[]>([]);
+  const [voiceCommandErrors, setVoiceCommandErrors] = useState<string[]>([]);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceStatusMessage, setVoiceStatusMessage] = useState('');
+  const [selectedPageNoteId, setSelectedPageNoteId] = useState<string | null>(null);
+  const [pageNoteDraft, setPageNoteDraft] = useState<{
+    title: string;
+    text: string;
+    fillColor: string;
+  } | null>(null);
   const [importModeDialogOpen, setImportModeDialogOpen] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
   const [pendingImportFileName, setPendingImportFileName] = useState('');
@@ -2206,9 +2292,10 @@ const DiagramEditor = () => {
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 360;
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
+ const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
  const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
+  const [spacePanActive, setSpacePanActive] = useState(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const [marqueeSelection, setMarqueeSelection] = useState<{
     active: boolean;
@@ -2241,22 +2328,39 @@ const DiagramEditor = () => {
       people: initialPeople,
       partnerships: initialPartnerships,
       emotionalLines: initialEmotionalLines,
+      pageNotes: initialPageNotes,
       triangles: initialTriangles,
     })
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
-  const transcriptsMenuRef = useRef<HTMLDivElement | null>(null);
-  const timelineMenuRef = useRef<HTMLDivElement | null>(null);
+  const optionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const helpMenuRef = useRef<HTMLDivElement | null>(null);
   const loadInputRef = useRef<HTMLInputElement | null>(null);
+  const diagramFileHandleRef = useRef<any>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const importPersonEventsInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptInputRef = useRef<HTMLInputElement | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
+  const [diagramFileHandleName, setDiagramFileHandleName] = useState<string | null>(null);
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
+  );
+  const browserSupportsFileSystemAccess =
+    typeof window !== 'undefined' &&
+    'showOpenFilePicker' in window &&
+    'showSaveFilePicker' in window;
+  const storageStatusLabel = diagramFileHandleName
+    ? `Linked to disk: ${diagramFileHandleName}`
+    : browserSupportsFileSystemAccess
+    ? 'Safety: download-only until opened/saved to disk'
+    : 'Safety: browser download mode only';
+  const selectedPageNote = useMemo(
+    () => pageNotes.find((note) => note.id === selectedPageNoteId) || null,
+    [pageNotes, selectedPageNoteId]
   );
   const demoTourSteps = useMemo(
     () => {
@@ -2360,6 +2464,35 @@ const DiagramEditor = () => {
     const timer = window.setTimeout(() => setPropertiesPanelIntent(null), 0);
     return () => window.clearTimeout(timer);
   }, [propertiesPanelIntent, propertiesPanelItem]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isEditable =
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        target?.isContentEditable;
+      if (isEditable) return;
+      event.preventDefault();
+      setSpacePanActive(true);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return;
+      setSpacePanActive(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const buildSessionNoteFileName = useCallback(
     (coach: string, client: string, startedAtValue: number | null) => {
@@ -2812,12 +2945,14 @@ const DiagramEditor = () => {
       peopleData: Person[],
       partnershipData: Partnership[],
       emotionalData: EmotionalLine[],
+      pageNoteData: PageNote[],
       triangleData: Triangle[]
     ) =>
       JSON.stringify({
         people: peopleData,
         partnerships: partnershipData,
         emotionalLines: emotionalData,
+        pageNotes: pageNoteData,
         triangles: triangleData,
       }),
     []
@@ -2827,12 +2962,14 @@ const DiagramEditor = () => {
       peopleData: Person[],
       partnershipData: Partnership[],
       emotionalData: EmotionalLine[],
+      pageNoteData: PageNote[],
       triangleData: Triangle[]
     ) => {
       savedSnapshotRef.current = serializeDiagram(
         peopleData,
         partnershipData,
         emotionalData,
+        pageNoteData,
         triangleData
       );
       setIsDirty(false);
@@ -2842,7 +2979,7 @@ const DiagramEditor = () => {
   );
 
   useEffect(() => {
-    const snapshot = serializeDiagram(people, partnerships, emotionalLines, triangles);
+    const snapshot = serializeDiagram(people, partnerships, emotionalLines, pageNotes, triangles);
     if (snapshot !== savedSnapshotRef.current) {
       if (!isDirty) {
         setIsDirty(true);
@@ -2852,10 +2989,10 @@ const DiagramEditor = () => {
       setIsDirty(false);
       setLastDirtyTimestamp(null);
     }
-  }, [people, partnerships, emotionalLines, triangles, isDirty, serializeDiagram]);
+  }, [people, partnerships, emotionalLines, pageNotes, triangles, isDirty, serializeDiagram]);
 
   useEffect(() => {
-    if (!fileMenuOpen && !settingsMenuOpen && !transcriptsMenuOpen && !timelineMenuOpen) return;
+    if (!fileMenuOpen && !settingsMenuOpen && !optionsMenuOpen && !helpMenuOpen) return;
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Node;
       if (fileMenuRef.current && !fileMenuRef.current.contains(target)) {
@@ -2864,16 +3001,16 @@ const DiagramEditor = () => {
       if (settingsMenuRef.current && !settingsMenuRef.current.contains(target)) {
         setSettingsMenuOpen(false);
       }
-      if (transcriptsMenuRef.current && !transcriptsMenuRef.current.contains(target)) {
-        setTranscriptsMenuOpen(false);
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(target)) {
+        setOptionsMenuOpen(false);
       }
-      if (timelineMenuRef.current && !timelineMenuRef.current.contains(target)) {
-        setTimelineMenuOpen(false);
+      if (helpMenuRef.current && !helpMenuRef.current.contains(target)) {
+        setHelpMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [fileMenuOpen, settingsMenuOpen, transcriptsMenuOpen, timelineMenuOpen]);
+  }, [fileMenuOpen, settingsMenuOpen, optionsMenuOpen, helpMenuOpen]);
 
   useEffect(() => {
     if (!emotionalPatternModalOpen) return;
@@ -2895,10 +3032,6 @@ const DiagramEditor = () => {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [clientProfileDraft]);
-
-  useEffect(() => {
-    setStoredValue('fileName', fileName);
-  }, [fileName]);
 
   useEffect(() => {
     setStoredValue('autoSave', String(autoSaveMinutes));
@@ -3743,6 +3876,13 @@ const DiagramEditor = () => {
           : undefined,
       }))
     );
+    setPageNotes((prev) =>
+      prev.map((note) => ({
+        ...note,
+        x: note.x + dx,
+        y: note.y + dy,
+      }))
+    );
   };
 
   type EmotionalLineInput = Partial<EmotionalLine> & { lineStyle?: string; color?: string };
@@ -3854,13 +3994,12 @@ const DiagramEditor = () => {
   useEffect(() => {
     try {
       applyIndicatorDefinitionArray(initialIndicatorDefinitions);
-      replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
     } catch {
-      // keep fallback defaults if demo payload is ever malformed
+      // keep fallback defaults if initialization ever fails
       setTriangles(initialTriangles);
-      markSnapshotClean(initialPeople, initialPartnerships, initialEmotionalLines, initialTriangles);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+  }, [markSnapshotClean]); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
   const handleResize = () => {
@@ -4393,20 +4532,422 @@ useEffect(() => {
     setPropertiesPanelItem(targetPartnership);
   };
 
-  const buildDiagramPayload = () => ({
+  const reviewVoiceCommands = () => {
+    const result = parseVoiceCommands(voiceCommandText);
+    setVoiceCommandOperations(result.operations);
+    setVoiceCommandErrors(result.errors);
+    setVoiceStatusMessage(
+      result.errors.length
+        ? 'Review the unsupported commands before applying.'
+        : result.operations.length
+        ? `Ready to apply ${result.operations.length} command${result.operations.length === 1 ? '' : 's'}.`
+        : 'No supported commands found.'
+    );
+  };
+
+  const toggleVoiceListening = () => {
+    const recognition = speechRecognitionRef.current;
+    if (!recognition) {
+      setVoiceStatusMessage('Speech recognition is not available in this browser.');
+      return;
+    }
+    if (voiceListening) {
+      recognition.stop();
+      setVoiceListening(false);
+      return;
+    }
+    try {
+      recognition.start();
+      setVoiceListening(true);
+      setVoiceStatusMessage('Listening for commands...');
+    } catch {
+      setVoiceStatusMessage('Speech recognition could not start.');
+    }
+  };
+
+  const applyVoiceCommands = () => {
+    const reviewed = parseVoiceCommands(voiceCommandText);
+    setVoiceCommandOperations(reviewed.operations);
+    setVoiceCommandErrors(reviewed.errors);
+    if (!reviewed.operations.length) {
+      setVoiceStatusMessage('No supported commands found.');
+      return;
+    }
+    if (reviewed.errors.length) {
+      setVoiceStatusMessage('Fix the unsupported commands before applying.');
+      return;
+    }
+
+    const nextPeople: Person[] = people.map((person) => ({
+      ...person,
+      partnerships: [...(person.partnerships || [])],
+      events: person.events ? [...person.events] : undefined,
+    }));
+    const nextPartnerships: Partnership[] = partnerships.map((partnership) => ({
+      ...partnership,
+      children: [...(partnership.children || [])],
+      events: partnership.events ? [...partnership.events] : undefined,
+    }));
+    const nextEmotionalLines: EmotionalLine[] = emotionalLines.map((line) => ({
+      ...line,
+      events: line.events ? [...line.events] : undefined,
+    }));
+
+    const personNameKey = (value: string) => normalizeCommandName(value).toLowerCase();
+    const personByKey = new Map<string, Person>();
+    nextPeople.forEach((person) => {
+      personByKey.set(personNameKey(person.name || ''), person);
+    });
+
+    const ensurePerson = (
+      rawName: string,
+      options?: { gender?: 'male' | 'female'; near?: Person; role?: 'partner' | 'child' }
+    ) => {
+      const name = normalizeCommandName(rawName);
+      const key = personNameKey(name);
+      const existing = personByKey.get(key);
+      if (existing) {
+        if (!existing.gender && options?.gender) {
+          existing.gender = options.gender;
+        }
+        return existing;
+      }
+
+      let x = 120 + (nextPeople.length % 6) * 150;
+      let y = 140 + Math.floor(nextPeople.length / 6) * 180;
+      if (options?.near && options.role === 'partner') {
+        const offsetX = options.gender === 'female' ? 140 : -140;
+        x = options.near.x + offsetX;
+        y = options.near.y;
+      }
+      if (options?.near && options.role === 'child') {
+        x = options.near.x;
+        y = options.near.y;
+      }
+
+      const created: Person = {
+        id: nanoid(),
+        name,
+        firstName: name.split(/\s+/)[0],
+        lastName: name.split(/\s+/).slice(1).join(' ') || undefined,
+        x,
+        y,
+        gender: options?.gender || inferGenderFromName(name) || 'female',
+        partnerships: [],
+        events: [],
+      };
+      nextPeople.push(created);
+      personByKey.set(key, created);
+      return created;
+    };
+
+    const ensurePartnership = (firstName: string, secondName: string) => {
+      const first = ensurePerson(firstName, { gender: 'male' });
+      const second = ensurePerson(secondName, {
+        gender: first.gender === 'male' ? 'female' : 'male',
+        near: first,
+        role: 'partner',
+      });
+      const existing = nextPartnerships.find(
+        (entry) =>
+          (entry.partner1_id === first.id && entry.partner2_id === second.id) ||
+          (entry.partner1_id === second.id && entry.partner2_id === first.id)
+      );
+      if (existing) return { partnership: existing, first, second };
+
+      const partnershipId = nanoid();
+      const created: Partnership = {
+        id: partnershipId,
+        partner1_id: first.id,
+        partner2_id: second.id,
+        horizontalConnectorY: Math.max(first.y, second.y) + 100,
+        relationshipType: 'dating',
+        relationshipStatus: 'ongoing',
+        children: [],
+        events: [],
+      };
+      nextPartnerships.push(created);
+      first.partnerships = [...new Set([...(first.partnerships || []), partnershipId])];
+      second.partnerships = [...new Set([...(second.partnerships || []), partnershipId])];
+      return { partnership: created, first, second };
+    };
+
+    const ensureEmotionalLine = (
+      firstName: string,
+      secondName: string,
+      relationshipType: 'cutoff' | 'conflict' | 'fusion' | 'distance'
+    ) => {
+      const first = ensurePerson(firstName);
+      const second = ensurePerson(secondName);
+      const existing = nextEmotionalLines.find(
+        (line) =>
+          ((line.person1_id === first.id && line.person2_id === second.id) ||
+            (line.person1_id === second.id && line.person2_id === first.id)) &&
+          line.relationshipType === relationshipType
+      );
+      if (existing) return;
+
+      const styleMap: Record<
+        'cutoff' | 'conflict' | 'fusion' | 'distance',
+        EmotionalLine['lineStyle']
+      > = {
+        cutoff: 'cutoff',
+        conflict: 'dotted-saw-tooth',
+        fusion: 'medium',
+        distance: 'dashed',
+      };
+      nextEmotionalLines.push({
+        id: nanoid(),
+        person1_id: first.id,
+        person2_id: second.id,
+        relationshipType,
+        lineStyle: styleMap[relationshipType],
+        lineEnding: 'none',
+        status: 'ongoing',
+        color: DEFAULT_LINE_COLOR,
+        events: [],
+      });
+    };
+
+    reviewed.operations.forEach((operation) => {
+      if (operation.type === 'add_person') {
+        ensurePerson(operation.name, { gender: operation.gender });
+        return;
+      }
+
+      if (operation.type === 'add_partnership') {
+        ensurePartnership(operation.personName, operation.partnerName);
+        return;
+      }
+
+      if (operation.type === 'set_person_birth_year') {
+        const person = ensurePerson(operation.name);
+        person.birthDate = `${operation.year}-01-01`;
+        return;
+      }
+
+      if (operation.type === 'set_person_death_year') {
+        const person = ensurePerson(operation.name);
+        person.deathDate = `${operation.year}-01-01`;
+        return;
+      }
+
+      if (operation.type === 'set_person_adoption_status') {
+        const person = ensurePerson(operation.name);
+        person.adoptionStatus = operation.adoptionStatus;
+        return;
+      }
+
+      if (operation.type === 'set_partnership_status') {
+        const { partnership } = ensurePartnership(operation.person1Name, operation.person2Name);
+        partnership.relationshipType = operation.relationshipType;
+        partnership.relationshipStatus = operation.relationshipStatus;
+        if (operation.relationshipStatus === 'married' && operation.year) {
+          partnership.relationshipStartDate = `${operation.year}-01-01`;
+          partnership.marriedStartDate = `${operation.year}-01-01`;
+        }
+        if (operation.relationshipStatus === 'divorced' && operation.year) {
+          partnership.divorceDate = `${operation.year}-01-01`;
+        }
+        if (operation.relationshipStatus === 'separated' && operation.year) {
+          partnership.separationDate = `${operation.year}-01-01`;
+        }
+        return;
+      }
+
+      if (operation.type === 'add_emotional_line') {
+        ensureEmotionalLine(operation.person1Name, operation.person2Name, operation.relationshipType);
+        return;
+      }
+
+      const { partnership, first, second } = ensurePartnership(
+        operation.parent1Name,
+        operation.parent2Name
+      );
+      const anchorX = (first.x + second.x) / 2;
+      const baseY = partnership.horizontalConnectorY + 120;
+      const spacing = 70;
+      const startX = anchorX - ((operation.childNames.length - 1) * spacing) / 2;
+
+      operation.childNames.forEach((childName, index) => {
+        const child = ensurePerson(childName, {
+          near: {
+            ...first,
+            x: startX + index * spacing,
+            y: baseY,
+          },
+          role: 'child',
+        });
+        if (child.parentPartnership && child.parentPartnership !== partnership.id) {
+          const prior = nextPartnerships.find((entry) => entry.id === child.parentPartnership);
+          if (prior) {
+            prior.children = prior.children.filter((entry) => entry !== child.id);
+          }
+        }
+        child.parentPartnership = partnership.id;
+        delete child.connectionAnchorX;
+        if (!partnership.children.includes(child.id)) {
+          partnership.children.push(child.id);
+        }
+        child.x = startX + index * spacing;
+        child.y = baseY;
+      });
+    });
+
+    const normalizedPeople = normalizeImportedChildLayout(nextPeople, nextPartnerships, {
+      expandParentSpan: true,
+      autoResizeDenseFamilies: true,
+    });
+    setPeople(alignAllAnchors(normalizedPeople));
+    setPartnerships(nextPartnerships);
+    setEmotionalLines(nextEmotionalLines);
+    setVoiceStatusMessage(
+      `Applied ${reviewed.operations.length} command${reviewed.operations.length === 1 ? '' : 's'}.`
+    );
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setPropertiesPanelItem(null);
+  };
+
+  const buildDiagramPayload = (targetFileName = fileName) => ({
     fileMeta: {
-      fileName,
+      fileName: targetFileName,
+      displayName: targetFileName,
       exportedAt: new Date().toISOString(),
     },
     people,
     partnerships,
     emotionalLines,
+    pageNotes,
     triangles,
     functionalIndicatorDefinitions,
     eventCategories,
     autoSaveMinutes,
     ideasText,
   });
+
+  const setDiagramFileHandle = useCallback((handle: any | null) => {
+    diagramFileHandleRef.current = handle;
+    setDiagramFileHandleName(handle?.name || null);
+    void persistDiagramFileHandle(handle);
+  }, []);
+
+  const ensureDiagramHandlePermission = useCallback(async (handle: any, mode: 'read' | 'readwrite') => {
+    if (!handle?.queryPermission) return true;
+    try {
+      const current = await handle.queryPermission({ mode });
+      if (current === 'granted') return true;
+      if (!handle.requestPermission) return false;
+      const requested = await handle.requestPermission({ mode });
+      return requested === 'granted';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!browserSupportsFileSystemAccess) return;
+    void (async () => {
+      const restoredHandle = await restoreDiagramFileHandle();
+      if (!restoredHandle) return;
+      const hasReadPermission =
+        !restoredHandle.queryPermission ||
+        (await ensureDiagramHandlePermission(restoredHandle, 'read'));
+      if (!hasReadPermission) return;
+      setDiagramFileHandle(restoredHandle);
+    })();
+  }, [browserSupportsFileSystemAccess, ensureDiagramHandlePermission, setDiagramFileHandle]);
+
+  const writeDiagramJsonToHandle = useCallback(async (handle: any, jsonString: string) => {
+    const writable = await handle.createWritable();
+    await writable.write(new Blob([jsonString], { type: 'application/json' }));
+    await writable.close();
+  }, []);
+
+  const saveDiagramToCurrentTarget = useCallback(
+    async ({
+      requestedFileName,
+      forceChooseLocation = false,
+      allowPicker = true,
+    }: {
+      requestedFileName?: string;
+      forceChooseLocation?: boolean;
+      allowPicker?: boolean;
+    } = {}) => {
+      const normalizedRequestedName = (() => {
+        const base = (requestedFileName || fileName || FALLBACK_FILE_NAME).trim() || FALLBACK_FILE_NAME;
+        return base.toLowerCase().endsWith('.json') ? base : `${base}.json`;
+      })();
+
+      let handle = forceChooseLocation ? null : diagramFileHandleRef.current;
+      if (!handle && allowPicker && typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+        handle = await (window as any).showSaveFilePicker({
+          suggestedName: normalizedRequestedName,
+          types: DIAGRAM_FILE_PICKER_TYPES,
+        });
+        setDiagramFileHandle(handle);
+      }
+
+      if (handle) {
+        const hasPermission = await ensureDiagramHandlePermission(handle, 'readwrite');
+        if (!hasPermission) {
+          if (!forceChooseLocation) {
+            setDiagramFileHandle(null);
+          }
+          handle = null;
+        }
+      }
+
+      const resolvedFileName = handle?.name || normalizedRequestedName;
+      const jsonString = JSON.stringify(buildDiagramPayload(resolvedFileName), null, 2);
+
+      if (handle) {
+        await writeDiagramJsonToHandle(handle, jsonString);
+        setFileName(resolvedFileName);
+        markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+        setLastSavedAt(Date.now());
+        return true;
+      }
+
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = resolvedFileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      setFileName(resolvedFileName);
+      markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+      setLastSavedAt(Date.now());
+      return true;
+    },
+    [buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
+  );
+
+  useEffect(() => {
+    if (!isDirty) return;
+    if (!diagramFileHandleRef.current) return;
+    const timeout = window.setTimeout(() => {
+      void saveDiagramToCurrentTarget({
+        requestedFileName: fileName,
+        forceChooseLocation: false,
+        allowPicker: false,
+      }).catch(() => {
+        // Keep the diagram dirty if the autosave write fails.
+      });
+    }, autosaveDelayMs);
+    return () => window.clearTimeout(timeout);
+  }, [
+    autosaveDelayMs,
+    emotionalLines,
+    fileName,
+    isDirty,
+    pageNotes,
+    partnerships,
+    people,
+    saveDiagramToCurrentTarget,
+    triangles,
+  ]);
 
   const replaceDiagramState = (
     data: any,
@@ -4445,6 +4986,7 @@ useEffect(() => {
     setPeople(peopleWithEvents);
     setPartnerships(partnershipsWithEvents);
     setEmotionalLines(linesWithEvents);
+    setPageNotes(Array.isArray(data.pageNotes) ? data.pageNotes : []);
     setTriangles(trianglesWithKnownPeople);
     if (Array.isArray(data.eventCategories) && data.eventCategories.length > 0) {
       setEventCategories(data.eventCategories);
@@ -4452,10 +4994,18 @@ useEffect(() => {
     if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
       setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
     }
+    const embeddedFileName =
+      typeof data.fileMeta?.fileName === 'string' && data.fileMeta.fileName.trim().length
+        ? data.fileMeta.fileName.trim()
+        : typeof data.fileName === 'string' && data.fileName.trim().length
+        ? data.fileName.trim()
+        : '';
+    const sourceName = typeof sourceFileName === 'string' ? sourceFileName.trim() : '';
     const derivedName =
-      data.fileMeta?.fileName ||
-      sourceFileName ||
-      (typeof data.fileName === 'string' ? data.fileName : FALLBACK_FILE_NAME);
+      sourceName ||
+      (embeddedFileName && embeddedFileName !== FALLBACK_FILE_NAME
+        ? embeddedFileName
+        : embeddedFileName || FALLBACK_FILE_NAME);
     setFileName(derivedName);
     if (typeof data.ideasText === 'string') {
       setIdeasText(data.ideasText);
@@ -4471,7 +5021,15 @@ useEffect(() => {
     setTimelineFilterEndYear(null);
     setTimelineBoardSelection(null);
     setTimelineBoardEventDraft(null);
-    markSnapshotClean(peopleWithEvents, partnershipsWithEvents, linesWithEvents, trianglesWithKnownPeople);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
+    markSnapshotClean(
+      peopleWithEvents,
+      partnershipsWithEvents,
+      linesWithEvents,
+      Array.isArray(data.pageNotes) ? data.pageNotes : [],
+      trianglesWithKnownPeople
+    );
     setLastSavedAt(null);
   };
 
@@ -4841,6 +5399,8 @@ useEffect(() => {
               : existingMatch.notes || incomingPerson.notes,
           lifeStatus: existingMatch.lifeStatus || incomingPerson.lifeStatus,
           adoptionStatus: existingMatch.adoptionStatus || incomingPerson.adoptionStatus,
+          parentConnectionPattern:
+            existingMatch.parentConnectionPattern || incomingPerson.parentConnectionPattern,
           functionalIndicators: mergeIndicators(
             existingMatch.functionalIndicators,
             incomingPerson.functionalIndicators
@@ -5060,10 +5620,22 @@ useEffect(() => {
     });
     const alignedPeople = alignAllAnchors(normalizedImportedPeople, mergedPartnerships);
     const sanitizedPeople = sanitizePeopleIndicators(alignedPeople, mergedDefinitions);
+    const importedPageNotes = Array.isArray(data.pageNotes) ? data.pageNotes : [];
+    const mergedPageNotes = (() => {
+      const usedNoteIds = new Set(pageNotes.map((note) => note.id));
+      return [
+        ...pageNotes,
+        ...importedPageNotes.map((note) => ({
+          ...note,
+          id: nextUniqueId(note.id, usedNoteIds),
+        })),
+      ];
+    })();
 
     setPeople(sanitizedPeople);
     setPartnerships(mergedPartnerships);
     setEmotionalLines(mergedLines);
+    setPageNotes(mergedPageNotes);
     setTriangles(mergedTriangles);
 
     const mergedCategories = [
@@ -5110,30 +5682,16 @@ useEffect(() => {
     }
   };
 
-  const handleSave = (forcePrompt = false) => {
-    let targetName = fileName;
-    if (forcePrompt || !targetName || targetName === FALLBACK_FILE_NAME) {
-      const proposed =
-        targetName && targetName !== FALLBACK_FILE_NAME ? targetName : 'family-diagram.json';
-      const userInput = prompt('Enter a filename:', proposed);
-      if (!userInput) return;
-      targetName = userInput;
+  const handleSave = async (forcePrompt = false) => {
+    let requestedFileName = fileName;
+    if (!requestedFileName || requestedFileName === FALLBACK_FILE_NAME) {
+      requestedFileName = 'family-diagram.json';
     }
-    if (!targetName.toLowerCase().endsWith('.json')) {
-      targetName = `${targetName}.json`;
-    }
-    const diagramData = buildDiagramPayload();
-    const jsonString = JSON.stringify(diagramData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = targetName;
-    a.click();
-    URL.revokeObjectURL(url);
-    setFileName(targetName);
-    markSnapshotClean(people, partnerships, emotionalLines, triangles);
-    setLastSavedAt(Date.now());
+    await saveDiagramToCurrentTarget({
+      requestedFileName,
+      forceChooseLocation: forcePrompt,
+      allowPicker: true,
+    });
   };
 
   const handleSaveAs = () => handleSave(true);
@@ -5141,6 +5699,7 @@ useEffect(() => {
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setDiagramFileHandle(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -5224,35 +5783,20 @@ useEffect(() => {
     e.target.value = '';
   };
 
-  const buildInitialStateSnapshot = () => {
-    const clonedPeople = initialPeople.map((person) => ({
-      ...person,
-      partnerships: [...person.partnerships],
-      events: person.events ? [...person.events] : [],
-    }));
-    const clonedPartnerships = initialPartnerships.map((partnership) => ({
-      ...partnership,
-      children: [...partnership.children],
-    }));
-    const clonedLines = initialEmotionalLines.map((line) => ({ ...line }));
-    const clonedTriangles = initialTriangles.map((triangle) => ({
-      ...triangle,
-      tpls: triangle.tpls ? triangle.tpls.map((tpl) => ({ ...tpl })) : undefined,
-    }));
-    return { clonedPeople, clonedPartnerships, clonedLines, clonedTriangles };
-  };
-
-  const resetDiagramToInitialState = useCallback(() => {
-    const { clonedPeople, clonedPartnerships, clonedLines, clonedTriangles } = buildInitialStateSnapshot();
-    setPeople(clonedPeople);
-    setPartnerships(clonedPartnerships);
-    setEmotionalLines(clonedLines);
-    setTriangles(clonedTriangles);
+  const resetDiagramToBlankState = useCallback(() => {
+    setDiagramFileHandle(null);
+    setPeople([]);
+    setPartnerships([]);
+    setEmotionalLines([]);
+    setPageNotes([]);
+    setTriangles([]);
     setPropertiesPanelItem(null);
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     setContextMenu(null);
     setTimelineSelectionIds([]);
     setTimelineYearPickTarget(null);
@@ -5261,11 +5805,11 @@ useEffect(() => {
     setTimelineFilterEndYear(null);
     setTimelineBoardSelection(null);
     setTimelineBoardEventDraft(null);
-    setFileName(initialFileName);
-    markSnapshotClean(clonedPeople, clonedPartnerships, clonedLines, clonedTriangles);
+    setFileName(FALLBACK_FILE_NAME);
+    markSnapshotClean([], [], [], [], []);
     setLastSavedAt(null);
     setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
-  }, [markSnapshotClean]);
+  }, [markSnapshotClean, setDiagramFileHandle]);
 
   const handleNewFile = () => {
     if (isDirty) {
@@ -5276,10 +5820,31 @@ useEffect(() => {
         return;
       }
     }
-    resetDiagramToInitialState();
+    resetDiagramToBlankState();
   };
 
   const handleOpenFilePicker = () => {
+    if (typeof window !== 'undefined' && 'showOpenFilePicker' in window) {
+      void (async () => {
+        try {
+          const [handle] = await (window as any).showOpenFilePicker({
+            multiple: false,
+            types: DIAGRAM_FILE_PICKER_TYPES,
+          });
+          if (!handle) return;
+          const file = await handle.getFile();
+          const jsonString = await file.text();
+          const data = JSON.parse(jsonString);
+          setDiagramFileHandle(handle);
+          replaceDiagramState(data, file.name);
+        } catch (error) {
+          if ((error as Error)?.name !== 'AbortError') {
+            alert('Error opening file');
+          }
+        }
+      })();
+      return;
+    }
     loadInputRef.current?.click();
   };
 
@@ -5302,6 +5867,7 @@ useEffect(() => {
       );
       if (!confirmReset) return;
     }
+    setDiagramFileHandle(null);
     replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
   };
 
@@ -5554,6 +6120,53 @@ useEffect(() => {
       setDemoBlinkVisible(true);
     };
   }, [demoTourOpen, demoTourStepIndex, demoTourSteps]);
+
+  useEffect(() => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setVoiceSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      const chunks: string[] = [];
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        if (!result?.isFinal) continue;
+        const transcript = result[0]?.transcript?.trim();
+        if (transcript) chunks.push(transcript);
+      }
+      if (!chunks.length) return;
+      setVoiceCommandText((prev) => {
+        const prefix = prev.trim();
+        const appended = chunks.join('. ');
+        return prefix ? `${prefix}\n${appended}` : appended;
+      });
+      setVoiceStatusMessage('Captured voice input. Review before applying.');
+    };
+    recognition.onerror = () => {
+      setVoiceListening(false);
+      setVoiceStatusMessage('Speech recognition stopped due to an error.');
+    };
+    recognition.onend = () => {
+      setVoiceListening(false);
+    };
+
+    speechRecognitionRef.current = recognition;
+    setVoiceSupported(true);
+
+    return () => {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.stop();
+      speechRecognitionRef.current = null;
+    };
+  }, []);
 
   const handleExportPersonEvents = () => {
     const payload = buildTimelineJson(people, fileName);
@@ -5930,6 +6543,8 @@ useEffect(() => {
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);
+      setSelectedPageNoteId(null);
+      setPageNoteDraft(null);
 
       if (selectedPeopleIds.length === 2 && selectedPeopleIds.includes(person.id)) {
         const [p1_id, p2_id] = selectedPeopleIds;
@@ -6174,15 +6789,39 @@ useEffect(() => {
 
   const handleChildLineContextMenu = (e: KonvaEventObject<PointerEvent>, childId: string, partnershipId: string) => {
     e.evt.preventDefault();
+    const child = people.find((person) => person.id === childId);
+    if (!child) return;
     setSelectedChildId(childId);
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     setPropertiesPanelItem(null);
     setContextMenu({
         x: e.evt.clientX,
         y: e.evt.clientY,
         items: [
+            {
+                label:
+                    child.parentConnectionPattern === 'family-cutoff'
+                        ? 'Remove Family Cutoff'
+                        : 'Add Family Cutoff',
+                onClick: () => {
+                    handleUpdatePerson(childId, {
+                        parentConnectionPattern:
+                            child.parentConnectionPattern === 'family-cutoff' ? 'none' : 'family-cutoff',
+                    });
+                    setContextMenu(null);
+                }
+            },
+            {
+                label: 'Child Properties',
+                onClick: () => {
+                    setPropertiesPanelItem(child);
+                    setContextMenu(null);
+                }
+            },
             {
                 label: 'Remove as Child',
                 onClick: () => {
@@ -6210,6 +6849,8 @@ useEffect(() => {
     setSelectedPeopleIds([]);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     setPropertiesPanelItem(partnership);
 
     setContextMenu({
@@ -6305,22 +6946,25 @@ useEffect(() => {
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     const stage = e.target.getStage();
     const pointerPosition = stage.getPointerPosition();
     if (!pointerPosition) return;
+    const canvasPoint = toCanvasPoint(pointerPosition);
 
     const baseItems = [
         {
             label: 'Add Person',
             onClick: () => {
-                addPerson(pointerPosition.x, pointerPosition.y);
+                addPerson(canvasPoint.x, canvasPoint.y);
                 setContextMenu(null);
             }
         },
         {
             label: 'Add Coach',
             onClick: () => {
-                addCoach(pointerPosition.x, pointerPosition.y);
+                addCoach(canvasPoint.x, canvasPoint.y);
                 setContextMenu(null);
             }
         },
@@ -6359,6 +7003,13 @@ useEffect(() => {
                   undefined,
                   { x: e.evt.clientX, y: e.evt.clientY }
                 );
+                setContextMenu(null);
+            }
+        },
+        {
+            label: 'Add General Note',
+            onClick: () => {
+                addGeneralNote(canvasPoint.x, canvasPoint.y);
                 setContextMenu(null);
             }
         },
@@ -6602,10 +7253,96 @@ useEffect(() => {
     );
   };
 
+  const addGeneralNote = (x: number, y: number) => {
+    const newNote: PageNote = {
+      id: nanoid(),
+      x,
+      y,
+      title: 'General Note',
+      text: '',
+      width: 220,
+      height: 140,
+      fillColor: '#fff8c6',
+    };
+    setPageNotes((prev) => [...prev, newNote]);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(null);
+    setSelectedPageNoteId(newNote.id);
+    setPageNoteDraft({
+      title: newNote.title,
+      text: newNote.text,
+      fillColor: newNote.fillColor || '#fff8c6',
+    });
+  };
+
+  const handlePageNoteSelect = (noteId: string) => {
+    const note = pageNotes.find((entry) => entry.id === noteId);
+    if (!note) return;
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setPropertiesPanelItem(null);
+    setSelectedPageNoteId(noteId);
+    setPageNoteDraft({
+      title: note.title,
+      text: note.text,
+      fillColor: note.fillColor || '#fff8c6',
+    });
+  };
+
+  const handlePageNoteDraftChange = (
+    field: 'title' | 'text' | 'fillColor',
+    value: string
+  ) => {
+    setPageNoteDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handlePageNoteSave = () => {
+    if (!selectedPageNoteId || !pageNoteDraft) return;
+    setPageNotes((prev) =>
+      prev.map((note) =>
+        note.id === selectedPageNoteId
+          ? {
+              ...note,
+              title: pageNoteDraft.title || 'General Note',
+              text: pageNoteDraft.text,
+              fillColor: pageNoteDraft.fillColor,
+            }
+          : note
+      )
+    );
+  };
+
+  const handlePageNoteDelete = (noteId: string) => {
+    setPageNotes((prev) => prev.filter((note) => note.id !== noteId));
+    if (selectedPageNoteId === noteId) {
+      setSelectedPageNoteId(null);
+      setPageNoteDraft(null);
+    }
+  };
+
+  const handlePageNoteDragEnd = (noteId: string, x: number, y: number) => {
+    setPageNotes((prev) =>
+      prev.map((note) => (note.id === noteId ? { ...note, x, y } : note))
+    );
+  };
+
+  const handlePageNoteResizeEnd = (noteId: string, width: number, height: number) => {
+    setPageNotes((prev) =>
+      prev.map((note) => (note.id === noteId ? { ...note, width, height } : note))
+    );
+  };
+
 
 
   const handleChildLineSelect = (childId: string) => {
     setSelectedChildId(childId);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
@@ -6625,6 +7362,8 @@ useEffect(() => {
     }
     setSelectedEmotionalLineId(emotionalLineId);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
 
     const selectedLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (selectedLine) {
@@ -6639,6 +7378,8 @@ useEffect(() => {
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     const emotionalLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (!emotionalLine) return;
     const parentTriangleId = triangleByTplLineId.get(emotionalLineId);
@@ -6762,6 +7503,8 @@ useEffect(() => {
       setSelectedEmotionalLineId(null);
       setSelectedPartnershipId(null);
       setSelectedChildId(null);
+      setSelectedPageNoteId(null);
+      setPageNoteDraft(null);
       setPropertiesPanelItem(next.length === 1 ? selectedPerson : null);
       return;
     }
@@ -6769,6 +7512,8 @@ useEffect(() => {
     setSelectedEmotionalLineId(null);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     setSelectedPeopleIds([personId]);
     setPropertiesPanelItem(selectedPerson);
   };
@@ -6776,6 +7521,8 @@ useEffect(() => {
   const handlePartnershipSelect = (partnershipId: string) => {
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
     if (selectedPartnershipId === partnershipId) {
         setSelectedPartnershipId(null);
         setPropertiesPanelItem(null);
@@ -6797,6 +7544,17 @@ useEffect(() => {
       y: person.y - half,
       width: size,
       height: size,
+    };
+  }, []);
+
+  const getPageNoteSelectionBounds = useCallback((note: PageNote) => {
+    const width = note.width || 220;
+    const height = note.height || 140;
+    return {
+      x: note.x,
+      y: note.y,
+      width,
+      height,
     };
   }, []);
 
@@ -6825,14 +7583,6 @@ useEffect(() => {
     };
   }, [people, selectedPeopleIds, getPersonSelectionBounds]);
 
-  const toCanvasPoint = useCallback(
-    (pointer: { x: number; y: number }) => ({
-      x: pointer.x / zoom,
-      y: pointer.y / zoom,
-    }),
-    [zoom]
-  );
-
   const selectPeopleByMarquee = useCallback(
     (selectionRect: { x: number; y: number; width: number; height: number }) => {
       const selected = people
@@ -6847,19 +7597,47 @@ useEffect(() => {
           );
         })
         .map((person) => person.id);
+      const selectedNotes = pageNotes
+        .filter((note) => {
+          const bounds = getPageNoteSelectionBounds(note);
+          return (
+            bounds.x < selectionRect.x + selectionRect.width &&
+            bounds.x + bounds.width > selectionRect.x &&
+            bounds.y < selectionRect.y + selectionRect.height &&
+            bounds.y + bounds.height > selectionRect.y
+          );
+        })
+        .map((note) => note.id);
 
       setSelectedPeopleIds(selected);
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);
+      if (selectedNotes.length === 1) {
+        const note = pageNotes.find((entry) => entry.id === selectedNotes[0]) || null;
+        setSelectedPageNoteId(selectedNotes[0]);
+        setPageNoteDraft(
+          note
+            ? {
+                title: note.title,
+                text: note.text,
+                fillColor: note.fillColor || '#fff8c6',
+              }
+            : null
+        );
+        setPropertiesPanelItem(null);
+      } else {
+        setSelectedPageNoteId(null);
+        setPageNoteDraft(null);
+      }
       if (selected.length === 1) {
         const only = people.find((person) => person.id === selected[0]) || null;
         setPropertiesPanelItem(only);
-      } else {
+      } else if (selected.length !== 0 || selectedNotes.length !== 1) {
         setPropertiesPanelItem(null);
       }
     },
-    [people, personVisibility, getPersonSelectionBounds]
+    [people, personVisibility, getPersonSelectionBounds, pageNotes, getPageNoteSelectionBounds]
   );
 
   const beginGroupResize = useCallback(() => {
@@ -7421,12 +8199,49 @@ useEffect(() => {
       };
 
       const canvasWidth = Math.max(0, viewport.width - panelWidth);
-      const canvasHeight = Math.max(0, viewport.height - 150);
+      const canvasHeight = Math.max(0, viewport.height - 180);
+      const stageOffset = {
+        x: ((1 - zoom) * canvasWidth) / 2,
+        y: ((1 - zoom) * canvasHeight) / 2,
+      };
+      const toCanvasPoint = (pointer: { x: number; y: number }) => ({
+        x: (pointer.x - stageOffset.x) / zoom,
+        y: (pointer.y - stageOffset.y) / zoom,
+      });
+      const handleCenterDiagramView = () => {
+        let minX = Number.POSITIVE_INFINITY;
+        let minY = Number.POSITIVE_INFINITY;
+        let maxX = Number.NEGATIVE_INFINITY;
+        let maxY = Number.NEGATIVE_INFINITY;
+
+        people.forEach((person) => {
+          const personBounds = getPersonSelectionBounds(person);
+          minX = Math.min(minX, personBounds.x);
+          minY = Math.min(minY, personBounds.y);
+          maxX = Math.max(maxX, personBounds.x + personBounds.width);
+          maxY = Math.max(maxY, personBounds.y + personBounds.height);
+        });
+
+        pageNotes.forEach((note) => {
+          const noteBounds = getPageNoteSelectionBounds(note);
+          minX = Math.min(minX, noteBounds.x);
+          minY = Math.min(minY, noteBounds.y);
+          maxX = Math.max(maxX, noteBounds.x + noteBounds.width);
+          maxY = Math.max(maxY, noteBounds.y + noteBounds.height);
+        });
+
+        setZoom(0.5);
+        if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+          return;
+        }
+        translateDiagram(canvasWidth / 2 - (minX + maxX) / 2, canvasHeight / 2 - (minY + maxY) / 2);
+      };
       const now = Date.now();
       const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now);
       const shouldBlinkSave = saveVisualState === 'critical';
       const blinkOn = shouldBlinkSave ? Math.floor(now / 600) % 2 === 0 : false;
       const isSaveDirty = saveVisualState !== 'clean';
+      const ribbonButtonHeight = 40;
       const saveButtonStyle: React.CSSProperties = {
         backgroundColor: isSaveDirty
           ? blinkOn
@@ -7436,13 +8251,15 @@ useEffect(() => {
         color: '#fff',
         border: 'none',
         borderRadius: 4,
-        padding: '8px 10px',
+        minHeight: ribbonButtonHeight,
+        padding: '4px 10px',
         fontWeight: 600,
         boxShadow: isSaveDirty ? '0 0 0 2px rgba(198,40,40,0.35)' : 'none',
         cursor: 'pointer',
       };
       const ribbonButtonStyle: React.CSSProperties = {
-        padding: '8px 10px',
+        minHeight: ribbonButtonHeight,
+        padding: '4px 10px',
         borderRadius: 4,
         border: '1px solid #b0b0b0',
         background: '#fff',
@@ -7454,26 +8271,55 @@ useEffect(() => {
         { label: 'Open', action: handleOpenFilePicker },
         { label: 'Import Data', action: handleImportDataPicker },
         { label: 'Import Person Events', action: handleImportPersonEventsPicker },
-        { label: 'Process Transcript', action: handleProcessTranscriptPicker },
         { label: 'Save', action: () => handleSave(false) },
         { label: 'Save As', action: handleSaveAs },
         { label: 'Export Person Events', action: handleExportPersonEvents },
-        { label: 'Open Event Creator', action: handleOpenEventCreator },
         { label: 'Export PNG', action: handleExportPNG },
         { label: 'Export SVG', action: handleExportSVG },
         { label: 'Quit', action: handleQuit },
       ];
-      const transcriptsMenuItems = [
-        { label: 'Process', action: handleProcessTranscriptPicker },
-        { label: 'Import Data', action: handleImportDataPicker },
+      const optionsMenuItems = [
+        { label: 'Transcripts', action: handleProcessTranscriptPicker },
+        { label: 'Voice Input', action: () => setVoiceInputOpen(true) },
+        { label: 'Timeline Event Creator', action: handleOpenEventCreator },
+        { label: 'Ideas', action: () => setIdeasOpen(true) },
+        { label: 'Session Notes', action: () => setSessionNotesOpen(true) },
       ];
       const settingsMenuItems = [
         { label: 'Event Categories', action: () => setSettingsOpen(true) },
         { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
+        {
+          label: `Notes Layer: ${notesLayerEnabled ? 'On' : 'Off'}`,
+          action: () => setNotesLayerEnabled((prev) => !prev),
+        },
+        {
+          label: `Auto-Save: ${autoSaveMinutes} min`,
+          action: () => {
+            const entered = window.prompt('Auto-save minutes:', String(autoSaveMinutes));
+            if (entered == null) return;
+            const next = Number(entered);
+            if (Number.isNaN(next)) return;
+            handleAutoSaveMinutesInput(next);
+          },
+        },
       ];
-      const timelineMenuItems = [
-        { label: 'Export Person Events', action: handleExportPersonEvents },
-        { label: 'Import Person Events', action: handleImportPersonEventsPicker },
+      const helpMenuItems = [
+        { label: 'Help Video', action: () => setTrainingVideosOpen(true) },
+        {
+          label: 'Help Demo',
+          action: () => {
+            setDemoTourStepIndex(0);
+            setDemoTourOpen(true);
+          },
+        },
+        {
+          label: 'Build Demo',
+          action: () => {
+            setBuildDemoStepIndex(0);
+            setBuildDemoOpen(true);
+          },
+        },
+        { label: 'Help Docs', action: () => setReadmeViewerOpen(true) },
       ];
       const selectedTrainingVideo =
         TRAINING_VIDEOS.find((video) => video.id === selectedTrainingVideoId) || TRAINING_VIDEOS[0];
@@ -7522,11 +8368,15 @@ useEffect(() => {
         padding: 0,
         cursor: 'pointer',
       };
+      const selectedRibbonHelpBody =
+        ribbonHelpKey === 'save' && selectedRibbonHelp
+          ? `${selectedRibbonHelp.body}\n\nCurrent save mode: ${storageStatusLabel}`
+          : selectedRibbonHelp?.body ?? '';
       const handleFileMenuAction = (action: () => void) => {
         setFileMenuOpen(false);
         setSettingsMenuOpen(false);
-        setTranscriptsMenuOpen(false);
-        setTimelineMenuOpen(false);
+        setOptionsMenuOpen(false);
+        setHelpMenuOpen(false);
         action();
       };
 
@@ -7534,13 +8384,12 @@ useEffect(() => {
         <div>
           <div
             style={{
-              padding: '10px 16px',
+              position: 'sticky',
+              top: 0,
+              zIndex: 40,
+              padding: '4px 8px 6px',
               borderBottom: '1px solid #ccc',
               background: '#f6f7fb',
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 12,
               ...(isDemoFocusedToolbar('menu-ribbon')
                 ? {
                     outline: demoBlinkVisible ? '3px solid #ff9800' : '3px solid transparent',
@@ -7550,471 +8399,428 @@ useEffect(() => {
             }}
           >
             <div
-              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('file-menu') }}
-              ref={fileMenuRef}
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                gap: 4,
+              }}
             >
-              <button
-                onClick={() => {
-                  setFileMenuOpen((prev) => !prev);
-                  setSettingsMenuOpen(false);
-                  setTranscriptsMenuOpen(false);
-                  setTimelineMenuOpen(false);
-                }}
-                style={ribbonButtonStyle}
-                aria-haspopup="menu"
-                aria-expanded={fileMenuOpen}
-              >
-                File ▾
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('file-menu')}
-                aria-label="File help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-              {fileMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: 0,
-                    background: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-                    minWidth: 180,
-                    zIndex: 1000,
-                  }}
-                >
-                  {fileMenuItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => handleFileMenuAction(item.action)}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('save') }}>
-              <button
-                onClick={() => handleFileMenuAction(() => handleSave(false))}
-                style={saveButtonStyle}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('save')}
-                aria-label="Save help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <label htmlFor="autosave-minutes" style={{ fontWeight: 500 }}>Auto-Save (min)</label>
-              <input
-                id="autosave-minutes"
-                type="number"
-                min={0.25}
-                max={180}
-                step={0.25}
-                value={autoSaveMinutes}
-                onChange={(e) => handleAutoSaveMinutesInput(Number(e.target.value))}
-                style={{ width: 70 }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginLeft: 'auto' }}>
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  minWidth: 260,
+                  gap: 4,
+                  width: 180,
+                  padding: '2px 4px',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: ribbonButtonHeight }}
+                >
+                  <div
+                    style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('file-menu') }}
+                    ref={fileMenuRef}
+                  >
+                    <button
+                      onClick={() => {
+                        setFileMenuOpen((prev) => !prev);
+                        setSettingsMenuOpen(false);
+                        setOptionsMenuOpen(false);
+                        setHelpMenuOpen(false);
+                      }}
+                      style={ribbonButtonStyle}
+                      aria-haspopup="menu"
+                      aria-expanded={fileMenuOpen}
+                    >
+                      File ▾
+                    </button>
+                    <button
+                      onClick={() => setRibbonHelpKey('file-menu')}
+                      aria-label="File help"
+                      style={helpBadgeStyle}
+                    >
+                      ?
+                    </button>
+                    {fileMenuOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          background: '#fff',
+                          border: '1px solid #ccc',
+                          borderRadius: 6,
+                          boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                          minWidth: 180,
+                          zIndex: 1000,
+                        }}
+                      >
+                        {fileMenuItems.map((item) => (
+                          <button
+                            key={item.label}
+                            onClick={() => handleFileMenuAction(item.action)}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 12px',
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('save') }}>
+                    <button
+                      onClick={() => handleFileMenuAction(() => handleSave(false))}
+                      style={saveButtonStyle}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setRibbonHelpKey('save')}
+                      aria-label="Save help"
+                      style={helpBadgeStyle}
+                    >
+                      ?
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  width: 300,
+                  padding: '2px 4px',
                   ...toolbarHighlightStyle('timeline-controls'),
                 }}
               >
-                <input
-                  type="range"
-                  min={timelineYearBounds.min}
-                  max={timelineYearBounds.max}
-                  step={1}
-                  value={displayTimelineYear}
-                  onChange={(e) => setTimelineYear(Number(e.target.value))}
-                  disabled={timelineSliderDisabled}
-                  style={{ width: 260 }}
-                />
-                <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}>
-                  Timeline {timelineSliderDisabled ? '(All Dates)' : `(${displayTimelineYear})`}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, minHeight: ribbonButtonHeight }}>
+                  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, width: 'max-content' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        onClick={() => adjustTimelineYear(-1)}
+                        disabled={timelineSliderDisabled}
+                        style={{
+                          ...ribbonButtonStyle,
+                          cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        -1 yr
+                      </button>
+                      <button
+                        onClick={() => adjustTimelineYear(1)}
+                        disabled={timelineSliderDisabled}
+                        style={{
+                          ...ribbonButtonStyle,
+                          cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        +1 yr
+                      </button>
+                      <button
+                        onClick={handleTimelinePlayToggle}
+                        disabled={timelineSliderDisabled}
+                        style={{
+                          ...ribbonButtonStyle,
+                          borderColor: '#1976d2',
+                          color: timelinePlaying ? '#fff' : '#1976d2',
+                          background: timelinePlaying ? '#1976d2' : '#fff',
+                          fontWeight: 700,
+                          cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {timelinePlaying ? 'Pause' : 'Play'}
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: 4,
+                        width: '100%',
+                      }}
+                    >
+                      <input
+                        type="range"
+                        min={timelineYearBounds.min}
+                        max={timelineYearBounds.max}
+                        step={1}
+                        value={displayTimelineYear}
+                        onChange={(e) => setTimelineYear(Number(e.target.value))}
+                        disabled={timelineSliderDisabled}
+                        style={{ display: 'block', width: '100%' }}
+                      />
+                      <div style={{ fontSize: 12, color: '#333', width: '100%', textAlign: 'center' }}>
+                        Timeline {timelineSliderDisabled ? '(All Dates)' : `(${displayTimelineYear})`}
+                      </div>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => adjustTimelineYear(-1)}
-                    disabled={timelineSliderDisabled}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #b0b0b0',
-                      background: '#fff',
-                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
-                      minWidth: 70,
-                    }}
+                    onClick={() => setRibbonHelpKey('timeline-controls')}
+                    aria-label="Timeline controls help"
+                    style={{ ...helpBadgeStyle, marginTop: 10 }}
                   >
-                    -1 yr
-                  </button>
-                  <button
-                    onClick={() => adjustTimelineYear(1)}
-                    disabled={timelineSliderDisabled}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #b0b0b0',
-                      background: '#fff',
-                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
-                      minWidth: 70,
-                    }}
-                  >
-                    +1 yr
-                  </button>
-                  <button
-                    onClick={handleTimelinePlayToggle}
-                    disabled={timelineSliderDisabled}
-                    style={{
-                      padding: '2px 10px',
-                      borderRadius: 4,
-                      border: '1px solid #1976d2',
-                      background: timelinePlaying ? '#1976d2' : '#fff',
-                      color: timelinePlaying ? '#fff' : '#1976d2',
-                      cursor: timelineSliderDisabled ? 'not-allowed' : 'pointer',
-                      minWidth: 80,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {timelinePlaying ? 'Pause' : 'Play'}
+                    ?
                   </button>
                 </div>
               </div>
-              <button
-                onClick={() => setRibbonHelpKey('timeline-controls')}
-                aria-label="Timeline controls help"
-                style={{ ...helpBadgeStyle, alignSelf: 'center' }}
-              >
-                ?
-              </button>
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  minWidth: 140,
-                  ...toolbarHighlightStyle('zoom'),
+                  gap: 4,
+                  width: 330,
+                  padding: '2px 4px',
                 }}
               >
-                <input
-                  type="range"
-                  min={0.25}
-                  max={3}
-                  step={0.05}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  style={{ width: 140 }}
-                />
-                <div style={{ marginTop: 4, fontSize: 12, color: '#333' }}>
-                  Zoom ({Math.round(zoom * 100)}%)
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, minHeight: ribbonButtonHeight }}>
+                  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, width: 'max-content' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          ...toolbarHighlightStyle('event-categories', 'functional-indicators'),
+                        }}
+                        ref={settingsMenuRef}
+                      >
+                        <button
+                          onClick={() => {
+                            setSettingsMenuOpen((prev) => !prev);
+                            setFileMenuOpen(false);
+                            setOptionsMenuOpen(false);
+                            setHelpMenuOpen(false);
+                          }}
+                          style={ribbonButtonStyle}
+                          aria-haspopup="menu"
+                          aria-expanded={settingsMenuOpen}
+                        >
+                          Settings ▾
+                        </button>
+                        <button
+                          onClick={() => setRibbonHelpKey('event-categories')}
+                          aria-label="Settings menu help"
+                          style={helpBadgeStyle}
+                        >
+                          ?
+                        </button>
+                        {settingsMenuOpen && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              background: '#fff',
+                              border: '1px solid #ccc',
+                              borderRadius: 6,
+                              boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                              minWidth: 200,
+                              zIndex: 1000,
+                            }}
+                          >
+                            {settingsMenuItems.map((item) => (
+                              <button
+                                key={item.label}
+                                onClick={() => handleFileMenuAction(item.action)}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  padding: '8px 12px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('transcripts-menu', 'event-creator', 'ideas', 'session-notes') }}
+                        ref={optionsMenuRef}
+                      >
+                        <button
+                          onClick={() => {
+                            setOptionsMenuOpen((prev) => !prev);
+                            setFileMenuOpen(false);
+                            setSettingsMenuOpen(false);
+                            setHelpMenuOpen(false);
+                          }}
+                          style={ribbonButtonStyle}
+                          aria-haspopup="menu"
+                          aria-expanded={optionsMenuOpen}
+                        >
+                          Options ▾
+                        </button>
+                        <button
+                          onClick={() => setRibbonHelpKey('transcripts-menu')}
+                          aria-label="Options help"
+                          style={helpBadgeStyle}
+                        >
+                          ?
+                        </button>
+                        {optionsMenuOpen && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              background: '#fff',
+                              border: '1px solid #ccc',
+                              borderRadius: 6,
+                              boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                              minWidth: 170,
+                              zIndex: 1000,
+                            }}
+                          >
+                            {optionsMenuItems.map((item) => (
+                              <button
+                                key={item.label}
+                                onClick={() => handleFileMenuAction(item.action)}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  padding: '8px 12px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: 4,
+                        width: 'calc(100% - 26px)',
+                      }}
+                    >
+                      <input
+                        type="range"
+                        min={0.25}
+                        max={3}
+                        step={0.05}
+                        value={zoom}
+                        onChange={(e) => setZoom(Number(e.target.value))}
+                        style={{ display: 'block', width: '100%' }}
+                      />
+                      <div style={{ fontSize: 12, color: '#333', width: '100%', textAlign: 'center' }}>
+                        Zoom ({Math.round(zoom * 100)}%)
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      position: 'relative',
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                      ...toolbarHighlightStyle('help'),
+                    }}
+                    ref={helpMenuRef}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        onClick={() => {
+                          setHelpMenuOpen((prev) => !prev);
+                          setFileMenuOpen(false);
+                          setSettingsMenuOpen(false);
+                          setOptionsMenuOpen(false);
+                        }}
+                        style={{
+                          ...ribbonButtonStyle,
+                          borderColor: shouldBlinkHelpOnDemo ? '#1976d2' : '#b0b0b0',
+                          boxShadow:
+                            shouldBlinkHelpOnDemo && helpBlinkOn
+                              ? '0 0 0 3px rgba(25,118,210,0.35)'
+                              : 'none',
+                        }}
+                      >
+                        Help
+                      </button>
+                      <button
+                        onClick={() => setRibbonHelpKey('help')}
+                        aria-label="Help button help"
+                        style={helpBadgeStyle}
+                      >
+                        ?
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleCenterDiagramView}
+                      aria-label="Center diagram"
+                      title="Center diagram at 50% zoom"
+                      style={{
+                        ...ribbonButtonStyle,
+                        minHeight: 28,
+                        padding: '2px 8px',
+                        fontSize: 16,
+                        lineHeight: 1,
+                      }}
+                    >
+                      &#8853;
+                    </button>
+                    {helpMenuOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          background: '#fff',
+                          border: '1px solid #ccc',
+                          borderRadius: 6,
+                          boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+                          minWidth: 180,
+                          zIndex: 1000,
+                        }}
+                      >
+                        {helpMenuItems.map((item) => (
+                          <button
+                            key={item.label}
+                            onClick={() => handleFileMenuAction(item.action)}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 12px',
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => setRibbonHelpKey('zoom')}
-                aria-label="Zoom help"
-                style={{ ...helpBadgeStyle, alignSelf: 'center' }}
-              >
-                ?
-              </button>
-            </div>
-            <div
-              style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                ...toolbarHighlightStyle('event-categories', 'functional-indicators'),
-              }}
-              ref={settingsMenuRef}
-            >
-              <button
-                onClick={() => {
-                  setSettingsMenuOpen((prev) => !prev);
-                  setFileMenuOpen(false);
-                  setTranscriptsMenuOpen(false);
-                  setTimelineMenuOpen(false);
-                }}
-                style={ribbonButtonStyle}
-                aria-haspopup="menu"
-                aria-expanded={settingsMenuOpen}
-              >
-                Settings ▾
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('event-categories')}
-                aria-label="Settings menu help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-              {settingsMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: 0,
-                    background: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-                    minWidth: 200,
-                    zIndex: 1000,
-                  }}
-                >
-                  {settingsMenuItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => handleFileMenuAction(item.action)}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div
-              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('transcripts-menu') }}
-              ref={transcriptsMenuRef}
-            >
-              <button
-                onClick={() => {
-                  setTranscriptsMenuOpen((prev) => !prev);
-                  setFileMenuOpen(false);
-                  setSettingsMenuOpen(false);
-                  setTimelineMenuOpen(false);
-                }}
-                style={ribbonButtonStyle}
-                aria-haspopup="menu"
-                aria-expanded={transcriptsMenuOpen}
-              >
-                Transcripts ▾
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('transcripts-menu')}
-                aria-label="Transcripts help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-              {transcriptsMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: 0,
-                    background: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-                    minWidth: 170,
-                    zIndex: 1000,
-                  }}
-                >
-                  {transcriptsMenuItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => handleFileMenuAction(item.action)}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div
-              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('timeline-menu') }}
-              ref={timelineMenuRef}
-            >
-              <button
-                onClick={() => {
-                  setTimelineMenuOpen((prev) => !prev);
-                  setFileMenuOpen(false);
-                  setSettingsMenuOpen(false);
-                  setTranscriptsMenuOpen(false);
-                }}
-                style={ribbonButtonStyle}
-                aria-haspopup="menu"
-                aria-expanded={timelineMenuOpen}
-              >
-                Timeline ▾
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('timeline-menu')}
-                aria-label="Timeline menu help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-              {timelineMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: 0,
-                    background: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-                    minWidth: 220,
-                    zIndex: 1000,
-                  }}
-                >
-                  {timelineMenuItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => handleFileMenuAction(item.action)}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('event-creator') }}>
-              <button onClick={handleOpenEventCreator} style={ribbonButtonStyle}>
-                Event Creator
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('event-creator')}
-                aria-label="Event Creator help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('notes-layer') }}>
-              <button onClick={() => setNotesLayerEnabled((prev) => !prev)} style={ribbonButtonStyle}>
-                Notes Layer: {notesLayerEnabled ? 'On' : 'Off'}
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('notes-layer')}
-                aria-label="Notes Layer help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('ideas') }}>
-              <button onClick={() => setIdeasOpen(true)} style={ribbonButtonStyle}>
-                Ideas
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('ideas')}
-                aria-label="Ideas help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, ...toolbarHighlightStyle('session-notes') }}>
-              <button onClick={() => setSessionNotesOpen(true)} style={ribbonButtonStyle}>
-                Session Notes
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('session-notes')}
-                aria-label="Session Notes help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <button
-                onClick={() => setTrainingVideosOpen(true)}
-                style={ribbonButtonStyle}
-              >
-                Help Video
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...toolbarHighlightStyle('help') }}>
-              <button
-                onClick={() => setHelpOpen(true)}
-                style={{
-                  ...ribbonButtonStyle,
-                  borderColor: shouldBlinkHelpOnDemo ? '#1976d2' : '#b0b0b0',
-                  boxShadow:
-                    shouldBlinkHelpOnDemo && helpBlinkOn
-                      ? '0 0 0 3px rgba(25,118,210,0.35)'
-                      : 'none',
-                }}
-              >
-                Help
-              </button>
-              <button
-                onClick={() => setRibbonHelpKey('help')}
-                aria-label="Help button help"
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-              {shouldBlinkHelpOnDemo && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    lineHeight: 1.25,
-                    color: '#133a63',
-                    background: '#e9f3ff',
-                    border: '1px solid #9fc4ea',
-                    borderRadius: 6,
-                    padding: '5px 7px',
-                    maxWidth: 360,
-                  }}
-                >
-                  Click here to read help, run a demo, or watch a video on how the program works.
-                </div>
-              )}
             </div>
             <input
               ref={loadInputRef}
@@ -8045,6 +8851,164 @@ useEffect(() => {
               onChange={handleProcessTranscriptLoad}
             />
           </div>
+          {voiceInputOpen && (
+            <div
+              role="dialog"
+              aria-label="Voice input"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(24, 31, 43, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1200,
+              }}
+            >
+              <div
+                style={{
+                  width: 'min(760px, calc(100vw - 32px))',
+                  maxHeight: 'min(80vh, 760px)',
+                  overflow: 'auto',
+                  background: '#fff',
+                  borderRadius: 12,
+                  boxShadow: '0 20px 48px rgba(0,0,0,0.2)',
+                  padding: 20,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 22 }}>Voice to Diagram</h2>
+                    <div style={{ marginTop: 6, fontSize: 14, color: '#45556f' }}>
+                      Supported commands: people, partners, children, birth/death years, adoption, relationship status, and emotional lines.
+                    </div>
+                  </div>
+                  <button onClick={() => setVoiceInputOpen(false)} style={ribbonButtonStyle}>
+                    Close
+                  </button>
+                </div>
+                <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+                  <div style={{ fontSize: 13, color: '#44516a' }}>
+                    Example: <code>Add a male named Harry. Harry&apos;s partner is Betty. Harry and Betty are married in 1972. Harry and Betty&apos;s children are Tom, Dick and Jane. Tom is adopted. Harry and Betty have an emotional cutoff.</code>
+                  </div>
+                  <textarea
+                    aria-label="Voice command text"
+                    value={voiceCommandText}
+                    onChange={(e) => setVoiceCommandText(e.target.value)}
+                    rows={8}
+                    style={{
+                      width: '100%',
+                      resize: 'vertical',
+                      borderRadius: 8,
+                      border: '1px solid #c9d2de',
+                      padding: 12,
+                      fontFamily: 'inherit',
+                      fontSize: 14,
+                    }}
+                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <button onClick={reviewVoiceCommands} style={ribbonButtonStyle}>
+                      Review Commands
+                    </button>
+                    <button
+                      onClick={toggleVoiceListening}
+                      style={{
+                        ...ribbonButtonStyle,
+                        borderColor: voiceListening ? '#b3261e' : '#b0b0b0',
+                        color: voiceListening ? '#b3261e' : '#222',
+                      }}
+                      disabled={!voiceSupported}
+                    >
+                      {voiceListening ? 'Stop Listening' : 'Start Listening'}
+                    </button>
+                    <button onClick={applyVoiceCommands} style={saveButtonStyle}>
+                      Apply Commands
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVoiceCommandText('');
+                        setVoiceCommandOperations([]);
+                        setVoiceCommandErrors([]);
+                        setVoiceStatusMessage('');
+                      }}
+                      style={ribbonButtonStyle}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#45556f' }}>
+                    {voiceSupported
+                      ? voiceStatusMessage || 'Browser speech recognition is available.'
+                      : 'Browser speech recognition is unavailable here. Text commands still work.'}
+                  </div>
+                  <div
+                    style={{
+                      border: '1px solid #d9e0ea',
+                      borderRadius: 10,
+                      padding: 14,
+                      background: '#f7f9fc',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: 10 }}>Review</div>
+                    {voiceCommandOperations.length === 0 && voiceCommandErrors.length === 0 && (
+                      <div style={{ fontSize: 14, color: '#56657d' }}>No reviewed commands yet.</div>
+                    )}
+                    {voiceCommandOperations.length > 0 && (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {voiceCommandOperations.map((operation, index) => (
+                          <div
+                            key={`${operation.type}-${index}`}
+                            style={{
+                              background: '#fff',
+                              border: '1px solid #d9e0ea',
+                              borderRadius: 8,
+                              padding: '8px 10px',
+                              fontSize: 14,
+                            }}
+                          >
+                            {operation.type === 'add_person'
+                              ? `Add person: ${operation.name}${operation.gender ? ` (${operation.gender})` : ''}`
+                              : operation.type === 'add_partnership'
+                              ? `Create partnership: ${operation.personName} + ${operation.partnerName}`
+                              : operation.type === 'add_children'
+                              ? `Add children to ${operation.parent1Name} + ${operation.parent2Name}: ${operation.childNames.join(', ')}`
+                              : operation.type === 'set_person_birth_year'
+                              ? `Set birth year: ${operation.name} -> ${operation.year}`
+                              : operation.type === 'set_person_death_year'
+                              ? `Set death year: ${operation.name} -> ${operation.year}`
+                              : operation.type === 'set_person_adoption_status'
+                              ? `Set adoption: ${operation.name} -> ${operation.adoptionStatus}`
+                              : operation.type === 'set_partnership_status'
+                              ? `Set relationship: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipStatus}${operation.year ? ` (${operation.year})` : ''}`
+                              : `Add emotional line: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipType}`}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {voiceCommandErrors.length > 0 && (
+                      <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                        {voiceCommandErrors.map((error) => (
+                          <div
+                            key={error}
+                            style={{
+                              background: '#fff4f2',
+                              border: '1px solid #f0b4aa',
+                              color: '#8a1c12',
+                              borderRadius: 8,
+                              padding: '8px 10px',
+                              fontSize: 14,
+                            }}
+                          >
+                            {error}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex' }}>
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
             <div style={{ flex: 1, position: 'relative' }}>
@@ -8064,7 +9028,7 @@ useEffect(() => {
               <div
                 style={{
                   position: 'absolute',
-                  top: 16,
+                  top: 12,
                   left: '50%',
                   transform: 'translateX(-50%)',
                   transformOrigin: 'top center',
@@ -8074,7 +9038,9 @@ useEffect(() => {
                   lineHeight: 1.3,
                 }}
               >
-                <div style={{ fontSize: 22, fontWeight: 600 }}>Family Diagram Maker</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#1f2f45' }}>
+                  Family Diagram Maker
+                </div>
                 <div style={{ fontSize: 14, color: '#333' }}>
                   {fileName || FALLBACK_FILE_NAME}
                 </div>
@@ -8083,13 +9049,15 @@ useEffect(() => {
                 ref={stageRef}
                 width={canvasWidth} 
                 height={canvasHeight}
+                x={stageOffset.x}
+                y={stageOffset.y}
                 scaleX={zoom}
                 scaleY={zoom}
                 onMouseDown={(e) => {
                   if (e.target === e.target.getStage()) {
                     const pointer = e.target.getStage()?.getPointerPosition();
                     if (pointer) {
-                      if (e.evt.altKey || e.evt.button === 1) {
+                      if (spacePanActive || e.evt.altKey || e.evt.button === 1) {
                         setIsPanning(true);
                         panStartRef.current = { x: pointer.x, y: pointer.y };
                         setMarqueeSelection(null);
@@ -8188,6 +9156,8 @@ useEffect(() => {
                     setSelectedPartnershipId(null);
                     setSelectedEmotionalLineId(null);
                     setSelectedChildId(null);
+                    setSelectedPageNoteId(null);
+                    setPageNoteDraft(null);
                     setPropertiesPanelItem(null);
                   }
                 }}
@@ -8465,8 +9435,101 @@ useEffect(() => {
                       />
                     );
                   })}
+                  {pageNotes.map((note) => (
+                    <NoteNode
+                      key={`page-note-${note.id}`}
+                      x={note.x}
+                      y={note.y}
+                      title={note.title}
+                      text={note.text}
+                      width={note.width}
+                      height={note.height}
+                      fillColor={note.fillColor || '#fff8c6'}
+                      isSelected={selectedPageNoteId === note.id}
+                      onDragEnd={(e) => handlePageNoteDragEnd(note.id, e.target.x(), e.target.y())}
+                      onResizeEnd={(w, h) => handlePageNoteResizeEnd(note.id, w, h)}
+                      onSelect={() => handlePageNoteSelect(note.id)}
+                    />
+                  ))}
                 </Layer>
               </Stage>
+              {selectedPageNote && pageNoteDraft && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: Math.max(
+                      8,
+                      Math.min(
+                        stageOffset.x + selectedPageNote.x * zoom + ((selectedPageNote.width || 220) * zoom) + 12,
+                        canvasWidth - 260
+                      )
+                    ),
+                    top: Math.max(8, Math.min(stageOffset.y + selectedPageNote.y * zoom, canvasHeight - 220)),
+                    width: 240,
+                    background: '#fffdf4',
+                    border: '1px solid #d6c27a',
+                    borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                    padding: 8,
+                    zIndex: 25,
+                  }}
+                >
+                  <input
+                    aria-label="General note title"
+                    type="text"
+                    value={pageNoteDraft.title}
+                    onChange={(e) => handlePageNoteDraftChange('title', e.target.value)}
+                    style={{ width: '100%', marginBottom: 6, fontWeight: 600 }}
+                  />
+                  <textarea
+                    aria-label="General note text"
+                    value={pageNoteDraft.text}
+                    onChange={(e) => handlePageNoteDraftChange('text', e.target.value)}
+                    rows={6}
+                    style={{ width: '100%', resize: 'vertical', marginBottom: 8 }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <label htmlFor="general-note-color" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Color
+                    </label>
+                    <input
+                      id="general-note-color"
+                      aria-label="General note color"
+                      type="color"
+                      value={pageNoteDraft.fillColor}
+                      onChange={(e) => handlePageNoteDraftChange('fillColor', e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <button
+                      aria-label="Delete general note"
+                      onClick={() => handlePageNoteDelete(selectedPageNote.id)}
+                      style={{
+                        border: '1px solid #caa',
+                        background: '#fff1f1',
+                        borderRadius: 4,
+                        padding: '4px 8px',
+                        fontSize: 12,
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      aria-label="Save general note"
+                      onClick={handlePageNoteSave}
+                      style={{
+                        border: '1px solid #7ba37b',
+                        background: '#eef9ee',
+                        borderRadius: 4,
+                        padding: '4px 8px',
+                        fontSize: 12,
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div
               ref={panelRef}
@@ -9969,7 +11032,7 @@ useEffect(() => {
                   </button>
                 </div>
                 <textarea
-                  value={selectedRibbonHelp.body}
+                  value={selectedRibbonHelpBody}
                   readOnly
                   style={{
                     marginTop: 10,

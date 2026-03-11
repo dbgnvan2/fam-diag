@@ -14,7 +14,6 @@ function App() {
 
   return (
     <div className="App">
-      <h1 className="app-program-title">Family Diagram</h1>
       <DiagramEditor />
     </div>
   );

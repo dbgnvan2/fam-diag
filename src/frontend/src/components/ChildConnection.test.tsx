@@ -109,4 +109,40 @@ describe('ChildConnection', () => {
     const { top } = getPersonVerticalExtents(child);
     expect(line.attrs.points[1]).toBeCloseTo(child.y - top);
   });
+
+  it('renders a double arc marker for family cutoff on the parent-child line', () => {
+    const stageRef = React.createRef<Stage>();
+    render(
+      <Stage ref={stageRef}>
+        <Layer>
+          <ChildConnection
+            child={{
+              id: 'child-6',
+              name: 'Cutoff Child',
+              x: 90,
+              y: 220,
+              partnerships: [],
+              parentPartnership: 'partnership-1',
+              parentConnectionPattern: 'family-cutoff',
+            }}
+            partnership={partnership}
+            partner1={partner1}
+            partner2={partner2}
+            isSelected={false}
+            onSelect={() => {}}
+            onContextMenu={() => {}}
+          />
+        </Layer>
+      </Stage>
+    );
+
+    const stage = stageRef.current!;
+    const layer = stage.getLayers()[0];
+    const group = layer.getChildren()[0];
+    const cutoffMarkers = group
+      .getChildren()
+      .filter((node) => node.getClassName() === 'Shape' && node.name() === 'family-cutoff-arc');
+
+    expect(cutoffMarkers).toHaveLength(2);
+  });
 });

@@ -15,6 +15,7 @@ interface NoteNodeProps {
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
   onResizeEnd?: (width: number, height: number) => void;
   onSelect?: () => void;
+  isSelected?: boolean;
 }
 
 const NoteNode = ({
@@ -30,6 +31,7 @@ const NoteNode = ({
   onDragEnd,
   onResizeEnd,
   onSelect,
+  isSelected = false,
 }: NoteNodeProps) => {
   const DEFAULT_NOTE_CHAR_WIDTH = 20;
   const AVERAGE_CHAR_PIXELS = 7;
@@ -213,8 +215,8 @@ const NoteNode = ({
         width={boxWidth}
         height={boxHeight}
         fill={fillColor}
-        stroke="black"
-        strokeWidth={1}
+        stroke={isSelected ? '#1565c0' : 'black'}
+        strokeWidth={isSelected ? 2 : 1}
         cornerRadius={5}
       />
       <Text

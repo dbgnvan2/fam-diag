@@ -8,6 +8,8 @@ vi.mock('nanoid', () => ({
 }));
 
 describe('DiagramEditor', () => {
+    vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
     it('should render the editor', () => {
         render(<DiagramEditor />);
         expect(screen.getByText('Save')).toBeInTheDocument();
@@ -18,6 +20,7 @@ describe('DiagramEditor', () => {
         const stage = screen.getByRole('presentation');
         fireEvent.contextMenu(stage);
         expect(screen.getByText('Add Person')).toBeInTheDocument();
+        expect(screen.getByText('Add General Note')).toBeInTheDocument();
         expect(screen.getByText('Add Event...')).toBeInTheDocument();
     });
 
@@ -71,18 +74,14 @@ describe('DiagramEditor', () => {
     it('shows a quick start modal when Help is clicked', () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
-        expect(screen.getByRole('dialog', { name: /quick start help/i })).toBeInTheDocument();
-        expect(screen.getByText(/Canvas & Navigation/i)).toBeInTheDocument();
-        const openReadmeBtn = screen.getByRole('button', { name: /open readme viewer/i });
-        expect(openReadmeBtn).toBeInTheDocument();
-        fireEvent.click(openReadmeBtn);
+        fireEvent.click(screen.getByRole('button', { name: /help docs/i }));
         expect(screen.getByRole('dialog', { name: /readme documentation/i })).toBeInTheDocument();
     });
 
     it('opens training videos from the help modal', () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
-        fireEvent.click(screen.getByRole('button', { name: /open training videos/i }));
+        fireEvent.click(screen.getByRole('button', { name: /help video/i }));
         expect(screen.getByRole('dialog', { name: /training videos/i })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /open in youtube/i })).toBeInTheDocument();
     });
@@ -90,7 +89,7 @@ describe('DiagramEditor', () => {
     it('starts interactive demo from help and supports next/previous navigation', () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
-        fireEvent.click(screen.getByRole('button', { name: /^Demo$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Help Demo$/i }));
         expect(screen.getByRole('dialog', { name: /interactive demo/i })).toBeInTheDocument();
         expect(screen.getByText(/Demo Step 1 of/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
@@ -106,7 +105,7 @@ describe('DiagramEditor', () => {
     it('starts build demo from help and supports next/previous navigation', () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
-        fireEvent.click(screen.getByRole('button', { name: /build demo/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Build Demo$/i }));
         expect(screen.getByRole('dialog', { name: /build demo walkthrough/i })).toBeInTheDocument();
         expect(screen.getByText(/Build Step 1 of/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
@@ -127,7 +126,7 @@ describe('DiagramEditor', () => {
         expect(playBtn).toHaveTextContent(/pause/i);
     });
 
-    it('renders settings, transcripts, and timeline dropdown menus', () => {
+    it('renders settings and options dropdown menus', () => {
         render(<DiagramEditor />);
         const fileMenuButton = screen.getByRole('button', { name: /file ▾/i });
         fireEvent.click(fileMenuButton);
@@ -137,14 +136,18 @@ describe('DiagramEditor', () => {
         fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
         expect(screen.getByRole('button', { name: 'Event Categories' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Symptom Categories' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Notes Layer:/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Auto-Save:/ })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /transcripts ▾/i }));
-        expect(screen.getByRole('button', { name: 'Process' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Import Data' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /options ▾/i }));
+        expect(screen.getByRole('button', { name: 'Transcripts' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Voice Input' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Timeline Event Creator' })).toBeInTheDocument();
+    });
 
-        fireEvent.click(screen.getByRole('button', { name: /timeline ▾/i }));
-        expect(screen.getByRole('button', { name: 'Export Person Events' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Import Person Events' })).toBeInTheDocument();
+    it('renders the center diagram control under Help', () => {
+        render(<DiagramEditor />);
+        expect(screen.getByRole('button', { name: /center diagram/i })).toBeInTheDocument();
     });
 
     it('opens ribbon help from the File question button', () => {
@@ -152,5 +155,45 @@ describe('DiagramEditor', () => {
         fireEvent.click(screen.getByRole('button', { name: /file help/i }));
         expect(screen.getByRole('dialog', { name: /ribbon help/i })).toBeInTheDocument();
         expect(screen.getByDisplayValue(/new, open, save\/save as, import, export/i)).toBeInTheDocument();
+    });
+
+    it('reviews voice commands in the voice input dialog', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /options ▾/i }));
+        fireEvent.click(screen.getByRole('button', { name: /voice input/i }));
+        expect(screen.getByRole('dialog', { name: /voice input/i })).toBeInTheDocument();
+
+        fireEvent.change(screen.getByRole('textbox', { name: /voice command text/i }), {
+            target: {
+                value:
+                    "Add a male named Harry. Harry's partner is Betty. Harry and Betty's children are Tom, Dick and Jane.",
+            },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /review commands/i }));
+
+        expect(screen.getByText(/Add person: Harry \(male\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/Create partnership: Harry \+ Betty/i)).toBeInTheDocument();
+        expect(screen.getByText(/Add children to Harry \+ Betty: Tom, Dick, Jane/i)).toBeInTheDocument();
+    });
+
+    it('creates a blank untitled diagram from File New', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'New' }));
+
+        expect(screen.getByText('newDiagram')).toBeInTheDocument();
+    });
+
+    it('adds and opens an editable general note from the canvas menu', () => {
+        render(<DiagramEditor />);
+        const stage = screen.getByRole('presentation');
+        fireEvent.contextMenu(stage);
+        fireEvent.click(screen.getByText('Add General Note'));
+
+        expect(screen.getByRole('textbox', { name: /general note title/i })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: /general note text/i })).toBeInTheDocument();
+        expect(screen.getByLabelText(/general note color/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /save general note/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete general note/i })).toBeInTheDocument();
     });
 });

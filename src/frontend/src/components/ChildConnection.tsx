@@ -1,4 +1,4 @@
-import { Line, Group } from 'react-konva';
+import { Line, Group, Shape } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
@@ -34,6 +34,23 @@ const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, o
   const points = [child_x_center, child_y_top, connectionX, connectionY];
 
   const isAdopted = child.adoptionStatus === 'adopted';
+  const hasFamilyCutoff = child.parentConnectionPattern === 'family-cutoff';
+  const dx = connectionX - child_x_center;
+  const dy = connectionY - child_y_top;
+  const length = Math.hypot(dx, dy);
+  const unitX = length > 0 ? dx / length : 0;
+  const unitY = length > 0 ? dy / length : -1;
+  const perpX = -unitY;
+  const perpY = unitX;
+  const cutoffStroke = isSelected ? 'blue' : 'black';
+
+  const familyCutoffArcCenters = hasFamilyCutoff && length > 18
+    ? [-7, 7].map((offset) => {
+        const centerX = child_x_center + unitX * (length / 2 + offset);
+        const centerY = child_y_top + unitY * (length / 2 + offset);
+        return { x: centerX, y: centerY };
+      })
+    : [];
 
   const handleSelect = () => {
     onSelect(child.id);
@@ -47,6 +64,31 @@ const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, o
             strokeWidth={1}
             dash={isAdopted ? [10, 5] : undefined}
         />
+        {familyCutoffArcCenters.map((center, index) => {
+            const halfWidth = 12;
+            const depth = 10;
+            const startX = center.x - perpX * halfWidth;
+            const startY = center.y - perpY * halfWidth;
+            const endX = center.x + perpX * halfWidth;
+            const endY = center.y + perpY * halfWidth;
+            const controlX = center.x + unitX * depth;
+            const controlY = center.y + unitY * depth;
+            return (
+              <Shape
+                key={`family-cutoff-${index}`}
+                name="family-cutoff-arc"
+                listening={false}
+                stroke={cutoffStroke}
+                strokeWidth={2}
+                sceneFunc={(context, shape) => {
+                  context.beginPath();
+                  context.moveTo(startX, startY);
+                  context.quadraticCurveTo(controlX, controlY, endX, endY);
+                  context.fillStrokeShape(shape);
+                }}
+              />
+            );
+        })}
         <Line
             points={points}
             stroke="transparent"

@@ -1883,6 +1883,21 @@ const PropertiesPanel = ({
               <option value="adopted">Adopted</option>
             </select>
           </div>
+          {(personDraft.parentPartnership || personDraft.birthParentPartnership) && (
+            <div style={rowStyle}>
+              <label htmlFor="parentConnectionPattern" style={labelStyle}>Parent Line Pattern:</label>
+              <select
+                id="parentConnectionPattern"
+                name="parentConnectionPattern"
+                value={personDraft.parentConnectionPattern || 'none'}
+                onChange={handlePersonChange}
+                style={{ width: 180 }}
+              >
+                <option value="none">None</option>
+                <option value="family-cutoff">Family Cutoff</option>
+              </select>
+            </div>
+          )}
           <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
               <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
               <textarea
