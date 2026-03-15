@@ -56,5 +56,40 @@ describe('noteVisibility', () => {
     expect(shouldShowPartnershipNote(partnership, false)).toBe(true);
     expect(shouldShowEmotionalNote(line, false)).toBe(true);
   });
-});
 
+  it('hides notes when explicitly disabled even if the notes layer is on', () => {
+    const person: Person = {
+      id: 'p4',
+      name: 'P',
+      x: 0,
+      y: 0,
+      partnerships: [],
+      notes: 'hidden',
+      notesEnabled: false,
+    };
+    const partnership: Partnership = {
+      id: 'r2',
+      partner1_id: 'a',
+      partner2_id: 'b',
+      horizontalConnectorY: 0,
+      relationshipType: 'married',
+      relationshipStatus: 'married',
+      children: [],
+      notes: 'hidden prl',
+      notesEnabled: false,
+    };
+    const line: EmotionalLine = {
+      id: 'e2',
+      person1_id: 'a',
+      person2_id: 'b',
+      relationshipType: 'fusion',
+      lineStyle: 'low',
+      lineEnding: 'none',
+      notes: 'hidden epl',
+      notesEnabled: false,
+    };
+    expect(shouldShowPersonNote(person, true, 'p4')).toBe(false);
+    expect(shouldShowPartnershipNote(partnership, true)).toBe(false);
+    expect(shouldShowEmotionalNote(line, true)).toBe(false);
+  });
+});

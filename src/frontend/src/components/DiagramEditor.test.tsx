@@ -131,10 +131,13 @@ describe('DiagramEditor', () => {
         const fileMenuButton = screen.getByRole('button', { name: /file ▾/i });
         fireEvent.click(fileMenuButton);
         expect(screen.getByRole('button', { name: 'Load Demo Diagram' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Restore Backup' })).toBeInTheDocument();
         fireEvent.click(fileMenuButton);
 
         fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
         expect(screen.getByRole('button', { name: 'Event Categories' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Relationship Categories' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Relationship Statuses' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Symptom Categories' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Notes Layer:/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Auto-Save:/ })).toBeInTheDocument();
@@ -143,6 +146,35 @@ describe('DiagramEditor', () => {
         expect(screen.getByRole('button', { name: 'Transcripts' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Voice Input' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Timeline Event Creator' })).toBeInTheDocument();
+    });
+
+    it('allows deleting and alphabetically displaying relationship settings values', () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Relationship Categories' }));
+
+        fireEvent.change(screen.getByPlaceholderText(/add relationship category/i), {
+            target: { value: 'zeta' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /^Add$/i }));
+        fireEvent.change(screen.getByPlaceholderText(/add relationship category/i), {
+            target: { value: 'alpha' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /^Add$/i }));
+
+        const labels = screen
+            .getAllByRole('listitem')
+            .map((item) => item.textContent || '');
+        const alphaIndex = labels.findIndex((text) => /Alpha/.test(text));
+        const zetaIndex = labels.findIndex((text) => /Zeta/.test(text));
+        expect(alphaIndex).toBeGreaterThan(-1);
+        expect(zetaIndex).toBeGreaterThan(-1);
+        expect(alphaIndex).toBeLessThan(zetaIndex);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).find((button) =>
+            button.closest('li')?.textContent?.includes('Alpha')
+        )!);
+        expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
     });
 
     it('renders the center diagram control under Help', () => {

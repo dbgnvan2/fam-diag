@@ -24,8 +24,22 @@ interface PersonNodeProps {
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
+const DEFAULT_FOREGROUND_COLOR = '#000000';
+const DEFAULT_MALE_FILL_COLOR = '#ADD8E6';
+const DEFAULT_FEMALE_FILL_COLOR = '#FFC0CB';
+const DEFAULT_INTERSEX_FILL_COLOR = '#D9D9D9';
 const BASE_STROKE_WIDTH = 2;
 type IndicatorEntry = PersonFunctionalIndicator & { definition: FunctionalIndicatorDefinition };
+
+const getReadableTextColor = (hexColor: string) => {
+  const normalized = hexColor.trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return DEFAULT_FOREGROUND_COLOR;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#000000' : '#ffffff';
+};
 
 const useLoadedImage = (src?: string) => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -181,13 +195,28 @@ const PersonNode = ({
   const isMale = birthSex === 'male';
   const lifeStatus = person.lifeStatus ?? 'alive';
   const shapeSize = person.size ?? 60;
-  const personBorderColor = person.borderColor ?? DEFAULT_BORDER_COLOR;
+  const borderCustomEnabled = person.borderEnabled ?? !!person.borderColor;
+  const foregroundCustomEnabled = person.foregroundEnabled ?? !!person.foregroundColor;
+  const personBorderColor =
+    borderCustomEnabled ? person.borderColor ?? DEFAULT_BORDER_COLOR : DEFAULT_BORDER_COLOR;
   const strokeColor = isSelected ? 'blue' : personBorderColor;
   const strokeWidth = isSelected ? BASE_STROKE_WIDTH * 2 : BASE_STROKE_WIDTH;
   const showBackground = person.backgroundEnabled ?? false;
   const backgroundColor = person.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
+  const defaultShapeFillColor =
+    birthSex === 'male'
+      ? DEFAULT_MALE_FILL_COLOR
+      : birthSex === 'female'
+      ? DEFAULT_FEMALE_FILL_COLOR
+      : DEFAULT_INTERSEX_FILL_COLOR;
+  const shapeFillColor = foregroundCustomEnabled
+    ? person.foregroundColor ?? defaultShapeFillColor
+    : defaultShapeFillColor;
+  const textColor = foregroundCustomEnabled
+    ? getReadableTextColor(shapeFillColor)
+    : DEFAULT_FOREGROUND_COLOR;
   const backgroundPadding = Math.max(10, shapeSize * 0.1);
-  const backgroundSize = shapeSize + backgroundPadding;
+  const backgroundSize = isMale ? shapeSize * 1.05 : shapeSize + backgroundPadding;
   const indicatorEntries: IndicatorEntry[] = useMemo(() => {
     if (!person.functionalIndicators || person.functionalIndicators.length === 0) {
       return [];
@@ -252,12 +281,10 @@ const PersonNode = ({
   };
 
   const renderAliveBody = () => {
-    const fillColor =
-      birthSex === 'male' ? '#ADD8E6' : birthSex === 'female' ? '#FFC0CB' : '#D9D9D9';
     const hybridStroke = strokeColor;
     const renderShape = (kind: 'circle' | 'square' | 'triangle-up' | 'triangle-down' | 'star') => {
       if (kind === 'circle') {
-        return <Circle radius={shapeSize / 2} fill={fillColor} stroke={hybridStroke} strokeWidth={strokeWidth} />;
+        return <Circle radius={shapeSize / 2} fill={shapeFillColor} stroke={hybridStroke} strokeWidth={strokeWidth} />;
       }
       if (kind === 'square') {
         return (
@@ -266,7 +293,7 @@ const PersonNode = ({
             height={shapeSize}
             offsetX={shapeSize / 2}
             offsetY={shapeSize / 2}
-            fill={fillColor}
+            fill={shapeFillColor}
             stroke={hybridStroke}
             strokeWidth={strokeWidth}
           />
@@ -280,7 +307,7 @@ const PersonNode = ({
             numPoints={5}
             innerRadius={shapeSize * 0.19}
             outerRadius={shapeSize * 0.5}
-            fill={fillColor}
+            fill={shapeFillColor}
             stroke={hybridStroke}
             strokeWidth={strokeWidth}
           />
@@ -298,7 +325,7 @@ const PersonNode = ({
               -shapeSize * 0.45,
             ]}
             closed
-            fill={fillColor}
+            fill={shapeFillColor}
             stroke={hybridStroke}
             strokeWidth={strokeWidth}
           />
@@ -315,7 +342,7 @@ const PersonNode = ({
             shapeSize * 0.45,
           ]}
           closed
-          fill={fillColor}
+          fill={shapeFillColor}
           stroke={hybridStroke}
           strokeWidth={strokeWidth}
         />
@@ -483,6 +510,7 @@ const PersonNode = ({
       <Text
         text={displayName}
         {...nameProps}
+        fill={textColor}
         listening={false}
       />
         {ageLabel && (
@@ -493,6 +521,7 @@ const PersonNode = ({
             width={shapeSize}
             align="center"
             fontSize={12}
+            fill={textColor}
             listening={false}
           />
         )}
@@ -504,6 +533,7 @@ const PersonNode = ({
             width={shapeSize}
             align="center"
             fontSize={12}
+            fill={textColor}
             listening={false}
           />
         )}

@@ -7,16 +7,27 @@ export const shouldShowPersonNote = (
 ) =>
   Boolean(
     person.notes &&
-      (hoveredPersonId === person.id || notesLayerEnabled || person.notesEnabled === true)
+      (person.notesEnabled === false
+        ? false
+        : hoveredPersonId === person.id || notesLayerEnabled || person.notesEnabled === true)
   );
 
 export const shouldShowPartnershipNote = (
   partnership: Partnership,
   notesLayerEnabled: boolean
-) => Boolean(partnership.notes && (notesLayerEnabled || partnership.notesEnabled === true));
+) =>
+  Boolean(
+    partnership.notes &&
+      (partnership.notesEnabled === false
+        ? false
+        : notesLayerEnabled || partnership.notesEnabled === true)
+  );
 
 export const shouldShowEmotionalNote = (
   line: EmotionalLine,
   notesLayerEnabled: boolean
-) => Boolean(line.notes && (notesLayerEnabled || line.notesEnabled === true));
-
+) =>
+  Boolean(
+    line.notes &&
+      (line.notesEnabled === false ? false : notesLayerEnabled || line.notesEnabled === true)
+  );

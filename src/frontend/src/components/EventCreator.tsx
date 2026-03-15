@@ -327,8 +327,13 @@ const EventCreator = () => {
                     />
                   </label>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <button onClick={removeSelectedEvent} style={{ color: '#b00020' }}>
-                      Delete Event
+                    <button
+                      aria-label="Delete"
+                      title="Delete"
+                      onClick={removeSelectedEvent}
+                      style={{ color: '#b00020' }}
+                    >
+                      🗑
                     </button>
                     <button onClick={handleSave}>Save JSON</button>
                   </div>

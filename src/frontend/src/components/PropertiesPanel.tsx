@@ -22,6 +22,7 @@ import DatePickerField from './DatePickerField';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
+const DEFAULT_FOREGROUND_COLOR = '#000000';
 const EVENT_CLASS_LABELS: Record<EventClass, string> = {
   individual: 'Individual',
   relationship: 'Relationship',
@@ -32,15 +33,6 @@ const formatCategoryStatus = (category: string, status?: string) =>
 const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const PARTNERSHIP_DATE_LABELS: Record<
-  'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate',
-  string
-> = {
-  relationshipStartDate: 'Relationship Start',
-  marriedStartDate: 'Marriage Start',
-  separationDate: 'Separation Date',
-  divorceDate: 'Divorce Date',
-};
 const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', string> = {
   birthDate: 'Birth Date',
   deathDate: 'Death Date',
@@ -48,6 +40,54 @@ const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', strin
 };
 const DEFAULT_OBSERVATION = 'Not recorded - ask client';
 const DEFAULT_HOW_WELL = 1;
+const CONFLICT_INTENSITY_HELP = [
+  'Minimum – very occasional bickering, little or no arguments.',
+  'Mild – frequent bickering, short-lived or infrequent quarelling.',
+  'Moderate – frequent arguments, high irritability of partners, raised voices.',
+  'Major – frequent arguments, physical contact (pushing, shoving, occasional slapping), involvement of others.',
+  'Maximal – frequent arguments and striking one another, involvement of outside agencies to restore order.',
+];
+const CONFLICT_INTENSITY_LEVEL_LABELS = ['Minimum', 'Mild', 'Moderate', 'Major', 'Maximal'];
+const DISTANCE_INTENSITY_HELP = [
+  'Minimal – Occasional use of distance to manage tension (superficial contact, seeking out other relationships and/or activities).',
+  'Mild – regular use of distance to manage tension.',
+  'Moderate – Use of emotional distance even during calmer times; little ability to discuss personal issues.',
+  'Major – chronic distance maintained with tense periods of silence or frequent absences; large / frequent geographic distance.',
+  'Severe – Distance is structured into separate lifestyles or living arrangements.',
+];
+const DISTANCE_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
+const emotionalLineStyleLevelFor = (
+  relationshipType: EmotionalLine['relationshipType'],
+  lineStyle: EmotionalLine['lineStyle']
+) => {
+  const lineStyleValues: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
+    fusion: [
+      'fusion-dotted-wide',
+      'fusion-dotted-tight',
+      'fusion-solid-wide',
+      'fusion-solid-tight',
+      'fusion-triple',
+    ],
+    distance: [
+      'distance-dashed-tight',
+      'distance-dashed-wide',
+      'distance-long',
+      'distance-dotted-tight',
+      'distance-dotted-wide',
+    ],
+    cutoff: ['cutoff'],
+    conflict: [
+      'conflict-dotted-wide',
+      'conflict-dotted-tight',
+      'conflict-solid-wide',
+      'conflict-solid-tight',
+      'conflict-double',
+    ],
+    projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
+  };
+  const index = lineStyleValues[relationshipType].indexOf(lineStyle);
+  return index >= 0 ? index + 1 : 0;
+};
 const NODAL_SUBTYPE_OPTIONS = [
   'Birth',
   'Death',
@@ -108,13 +148,23 @@ const cloneEventForPerson = (
   otherPersonName: otherName,
 });
 
-const RELATIONSHIP_STATUS_INTENSITY: Record<NonNullable<Partnership['relationshipStatus']>, number> = {
+const RELATIONSHIP_STATUS_INTENSITY: Record<string, number> = {
   married: 3,
   separated: 4,
   divorced: 5,
   started: 2,
   ended: 4,
   ongoing: 3,
+};
+const normalizeStatusKey = (value: string) => value.trim().toLowerCase();
+const LEGACY_STATUS_DATE_FIELD_BY_KEY: Partial<
+  Record<string, 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate'>
+> = {
+  started: 'relationshipStartDate',
+  ongoing: 'relationshipStartDate',
+  married: 'marriedStartDate',
+  separated: 'separationDate',
+  divorced: 'divorceDate',
 };
 const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate' | 'genderDate'>)[] = [
   'birthDate',
@@ -165,11 +215,44 @@ const eventTypeLabel = (eventType: EventType): string => {
   if (eventType === 'EPE') return 'Emotional Pattern';
   return 'Nodal';
 };
+const compactRelationshipStatusLabel = (event: EmotionalProcessEvent) =>
+  (event.statusLabel || descriptorForCompactFallback(event)).replace(/\s+Date$/i, '').trim();
+const descriptorForCompactFallback = (event: EmotionalProcessEvent) =>
+  formatCategoryStatus(event.category || 'Event', event.statusLabel);
+const readPartnershipStatusDate = (partnership: Partnership, status: string) => {
+  const key = normalizeStatusKey(status);
+  const explicit = partnership.statusDates?.[key];
+  if (explicit) return explicit;
+  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
+  return legacyField ? partnership[legacyField] || '' : '';
+};
+
+const withPartnershipStatusDate = (partnership: Partnership, status: string, value: string) => {
+  const key = normalizeStatusKey(status);
+  const trimmed = value.trim();
+  const nextStatusDates = { ...(partnership.statusDates || {}) };
+  if (trimmed) {
+    nextStatusDates[key] = trimmed;
+  } else {
+    delete nextStatusDates[key];
+  }
+  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
+  const next: Partnership = {
+    ...partnership,
+    statusDates: Object.keys(nextStatusDates).length ? nextStatusDates : undefined,
+  };
+  if (legacyField) {
+    next[legacyField] = trimmed || undefined;
+  }
+  return next;
+};
 
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
   people: Person[];
   eventCategories: string[];
+  relationshipTypes?: string[];
+  relationshipStatuses?: string[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
@@ -183,11 +266,13 @@ interface PropertiesPanelProps {
     intensity: 'low' | 'medium' | 'high'
   ) => void;
   initialActiveTab?: 'properties' | 'functional' | 'events';
+  initialPersonSection?: 'name' | 'dates' | 'notes' | 'format';
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent> | null;
   openNewEventPosition?: { x: number; y: number };
   onEnsureSymptomCategoryDefinition?: (label: string, group: SymptomGroup) => string | null;
+  compactPersonSectionMode?: boolean;
   onClose: () => void;
 }
 
@@ -195,6 +280,8 @@ const PropertiesPanel = ({
   selectedItem,
   people,
   eventCategories,
+  relationshipTypes = ['married', 'common-law', 'living-together', 'dating', 'affair', 'friendship'],
+  relationshipStatuses = ['married', 'separated', 'divorced', 'started', 'ended', 'ongoing'],
   functionalIndicatorDefinitions,
   onUpdatePerson,
   onUpdatePartnership,
@@ -205,13 +292,22 @@ const PropertiesPanel = ({
   onUpdateTriangleColor,
   onUpdateTriangleIntensity,
   initialActiveTab,
+  initialPersonSection,
   focusEventId,
   openNewEventRequestId,
   newEventSeed,
   openNewEventPosition,
   onEnsureSymptomCategoryDefinition,
+  compactPersonSectionMode = false,
   onClose,
 }: PropertiesPanelProps) => {
+  const colorInputRefs = {
+    foreground: useRef<HTMLInputElement | null>(null),
+    border: useRef<HTMLInputElement | null>(null),
+    background: useRef<HTMLInputElement | null>(null),
+  };
+  const formatOptionLabel = (value: string) =>
+    value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   const isPerson = 'name' in selectedItem;
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
@@ -230,7 +326,11 @@ const PropertiesPanel = ({
     null
   );
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
+  const [activePersonSection, setActivePersonSection] = useState<
+    'name' | 'dates' | 'notes' | 'format'
+  >('name');
   const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | null>(null);
+  const [emotionalIntensityHelpOpen, setEmotionalIntensityHelpOpen] = useState(false);
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
@@ -247,6 +347,36 @@ const PropertiesPanel = ({
   const [emotionalDraft, setEmotionalDraft] = useState<EmotionalLine | null>(
     selectedEmotionalLine ? { ...selectedEmotionalLine } : null
   );
+  const activeTabLabel =
+    activeTab === 'properties'
+      ? isEmotionalLine
+        ? 'Pattern'
+        : isPartnership
+        ? 'Relationship'
+        : 'Person'
+      : activeTab === 'functional'
+      ? 'Symptoms'
+      : 'Events';
+  const partnershipTypeOptions = useMemo(() => {
+    const options = [...relationshipTypes];
+    if (
+      selectedPartnership?.relationshipType &&
+      !options.includes(selectedPartnership.relationshipType)
+    ) {
+      options.push(selectedPartnership.relationshipType);
+    }
+    return options;
+  }, [relationshipTypes, selectedPartnership]);
+  const partnershipStatusOptions = useMemo(() => {
+    const options = [...relationshipStatuses];
+    if (
+      selectedPartnership?.relationshipStatus &&
+      !options.includes(selectedPartnership.relationshipStatus)
+    ) {
+      options.push(selectedPartnership.relationshipStatus);
+    }
+    return options;
+  }, [relationshipStatuses, selectedPartnership]);
   const deriveEmotionalMetricDraft = (line: EmotionalLine | null) => {
     const latest = [...(line?.events || [])]
       .filter((event) => (event.eventType || (event.eventClass === 'emotional-pattern' ? 'EPE' : '')) === 'EPE')
@@ -293,8 +423,24 @@ const PropertiesPanel = ({
     [selectedPerson]
   );
   const stringDiffers = (a?: string | null, b?: string | null) => (a ?? '') !== (b ?? '');
-  const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
+  const labelColumnWidth = 140;
+  const labelStyle: React.CSSProperties = { width: labelColumnWidth, textAlign: 'right', fontWeight: 600 };
   const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
+  const sectionCardStyle: React.CSSProperties = {
+    marginTop: 12,
+    border: '1px solid #d4dae5',
+    borderRadius: 8,
+    background: '#fff',
+    padding: '10px 12px 12px',
+  };
+  const sectionNavButtonStyle = (active: boolean): React.CSSProperties => ({
+    padding: '6px 10px',
+    borderRadius: 6,
+    border: `1px solid ${active ? '#4b68a6' : '#c6cfde'}`,
+    background: active ? '#e7eefb' : '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+  });
   const eventActionButtonStyle: React.CSSProperties = {
     padding: '1px 4px',
     fontSize: 11,
@@ -314,13 +460,21 @@ const PropertiesPanel = ({
     padding: 0,
     cursor: 'pointer',
   };
+  const formatColorRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+  };
 
   useEffect(() => {
     setEventModalOpen(false);
     setEventDraft(null);
     setFocusedEventId(focusEventId || null);
     setActiveTab(initialActiveTab || 'properties');
-  }, [selectedItem.id, initialActiveTab, focusEventId]);
+    setActivePersonSection(initialPersonSection || 'name');
+  }, [selectedItem.id, initialActiveTab, initialPersonSection, focusEventId]);
 
   useEffect(() => {
     if (!focusEventId) return;
@@ -366,7 +520,14 @@ const PropertiesPanel = ({
     setEmotionalPristine(true);
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
     const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
-    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalIntensityDraft(
+      selectedEmotionalLine
+        ? emotionalLineStyleLevelFor(
+            selectedEmotionalLine.relationshipType,
+            selectedEmotionalLine.lineStyle
+          )
+        : metrics.intensity
+    );
     setEmotionalFrequencyDraft(metrics.frequency);
     setEmotionalImpactDraft(metrics.impact);
   }, [selectedEmotionalLine?.id, selectedEmotionalLine]);
@@ -375,7 +536,14 @@ const PropertiesPanel = ({
     if (!emotionalPristine) return;
     setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
     const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
-    setEmotionalIntensityDraft(metrics.intensity);
+    setEmotionalIntensityDraft(
+      selectedEmotionalLine
+        ? emotionalLineStyleLevelFor(
+            selectedEmotionalLine.relationshipType,
+            selectedEmotionalLine.lineStyle
+          )
+        : metrics.intensity
+    );
     setEmotionalFrequencyDraft(metrics.frequency);
     setEmotionalImpactDraft(metrics.impact);
   }, [selectedEmotionalLine, emotionalPristine]);
@@ -583,7 +751,8 @@ const PropertiesPanel = ({
       updates = { ...updates, name: composeDisplayName({}, nextDraft) };
     }
     updatePersonDraftState(updates);
-    const isDeferredDateField = name === 'birthDate' || name === 'deathDate' || name === 'genderDate';
+    const isDeferredDateField =
+      name === 'birthDate' || name === 'deathDate' || name === 'genderDate' || name === 'adoptionDate';
     const isDeferredIdentityField = name === 'birthSex' || name === 'genderIdentity';
     if (!selectedPerson) return;
     if (isDeferredDateField || isDeferredIdentityField) {
@@ -613,16 +782,41 @@ const PropertiesPanel = ({
   ) => {
     if (!partnershipDraft) return;
     const { name, value } = e.target;
+    if (name.startsWith('statusDate:')) {
+      const status = name.slice('statusDate:'.length);
+      const nextDraft = withPartnershipStatusDate(partnershipDraft, status, value);
+      setPartnershipDraft(nextDraft);
+      setPartnershipPristine(false);
+      return;
+    }
     updatePartnershipDraftState({ [name]: value } as Partial<Partnership>);
     setPartnershipPristine(false);
   };
 
   const lineStyleValues: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
-    fusion: ['low', 'medium', 'high'],
-    distance: ['dotted', 'dashed', 'long-dash'],
+    fusion: [
+      'fusion-dotted-wide',
+      'fusion-dotted-tight',
+      'fusion-solid-wide',
+      'fusion-solid-tight',
+      'fusion-triple',
+    ],
+    distance: [
+      'distance-dashed-tight',
+      'distance-dashed-wide',
+      'distance-long',
+      'distance-dotted-tight',
+      'distance-dotted-wide',
+    ],
     cutoff: ['cutoff'],
-    conflict: ['dotted-saw-tooth', 'solid-saw-tooth', 'double-saw-tooth'],
-    projection: ['low', 'medium', 'high'],
+    conflict: [
+      'conflict-dotted-wide',
+      'conflict-dotted-tight',
+      'conflict-solid-wide',
+      'conflict-solid-tight',
+      'conflict-double',
+    ],
+    projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
   };
 
   const updateEmotionalDraftState = (updates: Partial<EmotionalLine>) => {
@@ -633,32 +827,78 @@ const PropertiesPanel = ({
     switch (relationshipType) {
       case 'fusion':
         return [
-          { value: 'low', label: 'Low (double dotted lines)' },
-          { value: 'medium', label: 'Medium (double solid lines)' },
-          { value: 'high', label: 'High (triple solid lines)' },
+          { value: 'fusion-dotted-wide', label: 'Level 1 (double dotted, two spaces)' },
+          { value: 'fusion-dotted-tight', label: 'Level 2 (double dotted, no space)' },
+          { value: 'fusion-solid-wide', label: 'Level 3 (double solid, two spaces)' },
+          { value: 'fusion-solid-tight', label: 'Level 4 (double solid, no space)' },
+          { value: 'fusion-triple', label: 'Level 5 (triple lines)' },
         ];
       case 'distance':
         return [
-          { value: 'dotted', label: 'Low (dotted)' },
-          { value: 'dashed', label: 'Medium (short dash)' },
-          { value: 'long-dash', label: 'High (long dash)' },
+          { value: 'distance-dashed-tight', label: 'Level 1 (dashed, very little space)' },
+          { value: 'distance-dashed-wide', label: 'Level 2 (longer segments, some space)' },
+          { value: 'distance-long', label: 'Level 3 (longer segments, lots of space)' },
+          { value: 'distance-dotted-tight', label: 'Level 4 (short segments, space)' },
+          { value: 'distance-dotted-wide', label: 'Level 5 (dots, space)' },
         ];
       case 'conflict':
         return [
-          { value: 'dotted-saw-tooth', label: 'Low (dotted sawtooth)' },
-          { value: 'solid-saw-tooth', label: 'Medium (solid sawtooth)' },
-          { value: 'double-saw-tooth', label: 'High (double sawtooth)' },
+          { value: 'conflict-dotted-wide', label: 'Level 1 (single dotted sawtooth)' },
+          { value: 'conflict-dotted-tight', label: 'Level 2 (double dotted sawtooth)' },
+          { value: 'conflict-solid-wide', label: 'Level 3 (short line sawtooth)' },
+          { value: 'conflict-solid-tight', label: 'Level 4 (double line sawtooth)' },
+          { value: 'conflict-double', label: 'Level 5 (triple line sawtooth)' },
         ];
       case 'projection':
         return [
-          { value: 'low', label: 'Low (>...>)' },
-          { value: 'medium', label: 'Medium (>.>)' },
-          { value: 'high', label: 'High (>>>>)' },
+          { value: 'projection-1', label: 'Level 1 (>....>)' },
+          { value: 'projection-2', label: 'Level 2 (>...>)' },
+          { value: 'projection-3', label: 'Level 3 (>.>)' },
+          { value: 'projection-4', label: 'Level 4 (>>>>)' },
+          { value: 'projection-5', label: 'Level 5 (>>>>>)' },
         ];
       default:
         return [{ value: 'cutoff', label: 'Cutoff' }];
     }
   };
+
+  const lineStyleForLevel = (
+    relationshipType: EmotionalLine['relationshipType'],
+    level: number
+  ): EmotionalLine['lineStyle'] | null => {
+    const styles = lineStyleValues[relationshipType] || [];
+    if (!styles.length) return null;
+    const boundedIndex = Math.max(0, Math.min(styles.length - 1, level - 1));
+    return styles[boundedIndex] || null;
+  };
+
+  const applyEmotionalIntensityLevel = (nextLevel: number) => {
+    setEmotionalIntensityDraft(nextLevel);
+    if (emotionalDraft) {
+      const nextLineStyle = lineStyleForLevel(emotionalDraft.relationshipType, nextLevel);
+      if (nextLineStyle) {
+        updateEmotionalDraftState({ lineStyle: nextLineStyle });
+      }
+    }
+    setEmotionalPristine(false);
+  };
+
+  const intensityChooserConfig =
+    emotionalDraft?.relationshipType === 'conflict'
+      ? {
+          title: 'Conflict Intensity Level',
+          helpLines: CONFLICT_INTENSITY_HELP,
+          labels: CONFLICT_INTENSITY_LEVEL_LABELS,
+          buttonLabel: 'Conflict intensity level help',
+        }
+      : emotionalDraft?.relationshipType === 'distance'
+      ? {
+          title: 'Distance Intensity Level',
+          helpLines: DISTANCE_INTENSITY_HELP,
+          labels: DISTANCE_INTENSITY_LEVEL_LABELS,
+          buttonLabel: 'Distance intensity level help',
+        }
+      : null;
 
   const handleEmotionalLineChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!emotionalDraft) return;
@@ -675,8 +915,13 @@ const PropertiesPanel = ({
         relationshipType: newRelationshipType,
         lineStyle: nextStyle,
       });
+      setEmotionalIntensityDraft(emotionalLineStyleLevelFor(newRelationshipType, nextStyle));
     } else if (name === 'lineStyle') {
-      updateEmotionalDraftState({ [name]: value as EmotionalLine['lineStyle'] });
+      const nextLineStyle = value as EmotionalLine['lineStyle'];
+      updateEmotionalDraftState({ [name]: nextLineStyle });
+      setEmotionalIntensityDraft(
+        emotionalLineStyleLevelFor(emotionalDraft.relationshipType, nextLineStyle)
+      );
     } else if (name === 'lineEnding') {
       updateEmotionalDraftState({ [name]: value as EmotionalLine['lineEnding'] });
     } else if (name === 'status') {
@@ -745,24 +990,22 @@ const PropertiesPanel = ({
     };
   };
 
-  type PartnershipDateField = keyof typeof PARTNERSHIP_DATE_LABELS;
-
   const buildPartnershipEvent = (
     partnership: Partnership,
-    field: PartnershipDateField,
+    status: string,
     dateValue: string
   ): EmotionalProcessEvent | null => {
     if (!DATE_PATTERN.test(dateValue)) return null;
     const partner1 = people.find((person) => person.id === partnership.partner1_id);
     const partner2 = people.find((person) => person.id === partnership.partner2_id);
     if (!partner1 || !partner2) return null;
-    const label = PARTNERSHIP_DATE_LABELS[field];
+    const label = `${toTitleCase(status)} Date`;
     return {
       id: createEventId(),
       date: dateValue,
       category: toTitleCase(partnership.relationshipType),
-      statusLabel: `${toTitleCase(partnership.relationshipStatus)} – ${label}`,
-      intensity: RELATIONSHIP_STATUS_INTENSITY[partnership.relationshipStatus] ?? 0,
+      statusLabel: label,
+      intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(status)] ?? 0,
       frequency: 0,
       impact: 0,
       howWell: DEFAULT_HOW_WELL,
@@ -857,12 +1100,13 @@ const PropertiesPanel = ({
     const hasDeferredDateChanges = PERSON_DEFERRED_DATE_FIELDS.some((field) =>
       stringDiffers(personDraft[field], selectedPerson[field])
     );
+    const hasAdoptionDateChanges = stringDiffers(personDraft.adoptionDate, selectedPerson.adoptionDate);
     const hasIdentityChanges = PERSON_DEFERRED_IDENTITY_FIELDS.some((field) => {
       const draftValue = personDraft[field] ?? '';
       const selectedValue = selectedPerson[field] ?? '';
       return draftValue !== selectedValue;
     });
-    return hasDeferredDateChanges || hasIdentityChanges;
+    return hasDeferredDateChanges || hasAdoptionDateChanges || hasIdentityChanges;
   }, [selectedPerson, personDraft]);
 
   const savePersonProperties = () => {
@@ -880,6 +1124,9 @@ const PropertiesPanel = ({
         }
       }
     });
+    if ((selectedPerson.adoptionDate ?? '') !== (personDraft.adoptionDate ?? '')) {
+      updates.adoptionDate = personDraft.adoptionDate || undefined;
+    }
     PERSON_DEFERRED_IDENTITY_FIELDS.forEach((field) => {
       const prev = selectedPerson[field];
       const next = personDraft[field];
@@ -918,10 +1165,17 @@ const PropertiesPanel = ({
 
   const partnershipDirty = useMemo(() => {
     if (!selectedPartnership || !partnershipDraft) return false;
-    return PARTNERSHIP_STRING_FIELDS.some((field) =>
+    const stringFieldChanged = PARTNERSHIP_STRING_FIELDS.some((field) =>
       stringDiffers(partnershipDraft[field], selectedPartnership[field])
     );
-  }, [selectedPartnership, partnershipDraft]);
+    if (stringFieldChanged) return true;
+    return relationshipStatuses.some((status) =>
+      stringDiffers(
+        readPartnershipStatusDate(partnershipDraft, status),
+        readPartnershipStatusDate(selectedPartnership, status)
+      )
+    );
+  }, [selectedPartnership, partnershipDraft, relationshipStatuses]);
 
   const savePartnershipProperties = () => {
     if (!selectedPartnership || !partnershipDraft || !partnershipDirty) return;
@@ -935,13 +1189,22 @@ const PropertiesPanel = ({
       }
     });
     const newEvents: EmotionalProcessEvent[] = [];
-    (Object.keys(PARTNERSHIP_DATE_LABELS) as PartnershipDateField[]).forEach((field) => {
-      const prev = selectedPartnership[field] ?? '';
-      const next = partnershipDraft[field] ?? '';
+    relationshipStatuses.forEach((status) => {
+      const prev = readPartnershipStatusDate(selectedPartnership, status);
+      const next = readPartnershipStatusDate(partnershipDraft, status);
       if (prev !== next) {
-        updates[field] = next || undefined;
+        const nextDraft = withPartnershipStatusDate(
+          { ...(updates as Partnership), ...partnershipDraft },
+          status,
+          next
+        );
+        updates.statusDates = nextDraft.statusDates;
+        const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[normalizeStatusKey(status)];
+        if (legacyField) {
+          updates[legacyField] = next || undefined;
+        }
         if (next) {
-          const event = buildPartnershipEvent(partnershipDraft, field, next);
+          const event = buildPartnershipEvent(partnershipDraft, status, next);
           if (event) newEvents.push(event);
         }
       }
@@ -1743,12 +2006,297 @@ const PropertiesPanel = ({
         ? Math.max(260, window.innerHeight - popupTop - 12)
         : window.innerHeight - 24
       : undefined;
+  const renderPersonSectionNav = () => (
+    <div
+      role="tablist"
+      aria-label="Person property sections"
+      style={{
+        display: 'inline-flex',
+        gap: 0,
+        marginTop: 12,
+        border: '1px solid #c6cfde',
+        borderRadius: 8,
+        overflow: 'hidden',
+        background: '#fff',
+      }}
+    >
+      {(['name', 'dates', 'notes', 'format'] as const).map((section) => (
+        <button
+          key={section}
+          type="button"
+          role="tab"
+          id={`person-section-tab-${section}`}
+          aria-selected={activePersonSection === section}
+          aria-controls={`person-section-panel-${section}`}
+          onClick={() => setActivePersonSection(section)}
+          style={{
+            ...sectionNavButtonStyle(activePersonSection === section),
+            borderRadius: 0,
+            border: 'none',
+            borderLeft:
+              section === 'name' ? 'none' : '1px solid #c6cfde',
+          }}
+        >
+          {section === 'name'
+            ? 'Name'
+            : section === 'dates'
+            ? 'Dates'
+            : section === 'notes'
+            ? 'Notes'
+            : 'Format'}
+        </button>
+      ))}
+    </div>
+  );
+  const renderActivePersonSection = () => {
+    if (!selectedPerson || !personDraft) return null;
+
+    if (activePersonSection === 'name') {
+      return (
+        <div
+          role="tabpanel"
+          id="person-section-panel-name"
+          aria-labelledby="person-section-tab-name"
+          style={sectionCardStyle}
+        >
+          <div style={{ fontWeight: 700, color: '#23324a' }}>Name</div>
+          <div style={rowStyle}>
+            <label htmlFor="firstName" style={labelStyle}>First Name:</label>
+            <input type="text" id="firstName" name="firstName" value={personDraft.firstName ?? nameFallbackParts.first} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="lastName" style={labelStyle}>Last Name:</label>
+            <input type="text" id="lastName" name="lastName" value={personDraft.lastName ?? nameFallbackParts.last} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="maidenName" style={labelStyle}>Maiden Name:</label>
+            <input type="text" id="maidenName" name="maidenName" value={personDraft.maidenName ?? ''} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
+          </div>
+        </div>
+      );
+    }
+
+    if (activePersonSection === 'dates') {
+      return (
+        <div
+          role="tabpanel"
+          id="person-section-panel-dates"
+          aria-labelledby="person-section-tab-dates"
+          style={sectionCardStyle}
+        >
+          <div style={{ fontWeight: 700, color: '#23324a' }}>Dates</div>
+          <div style={rowStyle}>
+            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
+            <DatePickerField id="birthDate" name="birthDate" value={personDraft.birthDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select birth date" />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
+            <DatePickerField id="deathDate" name="deathDate" value={personDraft.deathDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select death date" />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="birthSex" style={labelStyle}>Birth Sex:</label>
+            <select id="birthSex" name="birthSex" value={personDraft.birthSex || (personDraft.gender === 'male' ? 'male' : personDraft.gender === 'intersex' ? 'intersex' : 'female')} onChange={handlePersonChange} style={{ width: 160 }}>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="intersex">Intersex</option>
+            </select>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="genderIdentity" style={labelStyle}>Gender:</label>
+            <select id="genderIdentity" name="genderIdentity" value={personDraft.genderIdentity || defaultGenderIdentityForBirthSex(personDraft.birthSex || (personDraft.gender === 'male' ? 'male' : personDraft.gender === 'intersex' ? 'intersex' : 'female'))} onChange={handlePersonChange} style={{ width: 180 }}>
+              <option value="feminine">Feminine</option>
+              <option value="masculine">Masculine</option>
+              <option value="nonbinary">Non-Binary</option>
+              <option value="agender">Agender</option>
+            </select>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="genderDate" style={labelStyle}>Gender Date:</label>
+            <DatePickerField id="genderDate" name="genderDate" value={personDraft.genderDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select gender date" />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
+            <select id="adoptionStatus" name="adoptionStatus" value={personDraft.adoptionStatus || 'biological'} onChange={handlePersonChange} style={{ width: 160 }}>
+              <option value="biological">Biological</option>
+              <option value="adopted">Adopted</option>
+            </select>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="adoptionDate" style={labelStyle}>Adoption Date:</label>
+            <DatePickerField id="adoptionDate" name="adoptionDate" value={personDraft.adoptionDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select adoption date" />
+          </div>
+          {(personDraft.parentPartnership || personDraft.birthParentPartnership) && (
+            <div style={rowStyle}>
+              <label htmlFor="parentConnectionPattern" style={labelStyle}>Parent Line Pattern:</label>
+              <select id="parentConnectionPattern" name="parentConnectionPattern" value={personDraft.parentConnectionPattern || 'none'} onChange={handlePersonChange} style={{ width: 180 }}>
+                <option value="none">None</option>
+                <option value="family-cutoff">Family Cutoff</option>
+              </select>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (activePersonSection === 'notes') {
+      return (
+        <div
+          role="tabpanel"
+          id="person-section-panel-notes"
+          aria-labelledby="person-section-tab-notes"
+          style={sectionCardStyle}
+        >
+          <div style={{ fontWeight: 700, color: '#23324a' }}>Notes</div>
+          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+            <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
+            <textarea id="notes" name="notes" value={personDraft.notes || ''} onChange={handlePersonChange} rows={6} style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }} />
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="notesEnabled" style={labelStyle}>Enabled:</label>
+            <input type="checkbox" id="notesEnabled" name="notesEnabled" checked={personDraft.notesEnabled ?? false} onChange={handlePersonChange} />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        role="tabpanel"
+        id="person-section-panel-format"
+        aria-labelledby="person-section-tab-format"
+        style={sectionCardStyle}
+      >
+        <div style={{ fontWeight: 700, color: '#23324a' }}>Format</div>
+        <div style={rowStyle}>
+          <label htmlFor="size" style={labelStyle}>Size:</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button type="button" onClick={() => adjustPersonSize(-1)} style={{ padding: '0 6px' }}>−</button>
+            <input type="number" id="size" name="size" min={20} max={200} value={personDraft.size ?? 60} onChange={handlePersonChange} style={{ width: 60, textAlign: 'center' }} />
+            <button type="button" onClick={() => adjustPersonSize(1)} style={{ padding: '0 6px' }}>+</button>
+          </div>
+        </div>
+        {renderFormatColorControl('foreground', 'Foreground Color', personDraft.foregroundEnabled ?? !!personDraft.foregroundColor, personDraft.foregroundColor ?? DEFAULT_FOREGROUND_COLOR)}
+        {renderFormatColorControl('border', 'Border Color', personDraft.borderEnabled ?? !!personDraft.borderColor, personDraft.borderColor ?? DEFAULT_BORDER_COLOR)}
+        {renderFormatColorControl('background', 'Background Color', personDraft.backgroundEnabled ?? false, personDraft.backgroundColor ?? DEFAULT_BACKGROUND_COLOR)}
+      </div>
+    );
+  };
+  const renderFormatColorControl = (
+    key: 'foreground' | 'border' | 'background',
+    label: string,
+    enabled: boolean,
+    color: string
+  ) => (
+    <div style={formatColorRowStyle}>
+      <div style={{ fontWeight: 600, minWidth: 120 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          aria-label={`${label} color`}
+          title={`Choose ${label.toLowerCase()}`}
+          onClick={() => colorInputRefs[key].current?.click()}
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            border: '1px solid #7b8ba5',
+            background: color,
+            cursor: 'pointer',
+            padding: 0,
+            boxShadow: enabled ? '0 0 0 2px rgba(75, 104, 166, 0.18)' : 'none',
+          }}
+        />
+        <input
+          ref={colorInputRefs[key]}
+          type="color"
+          name={`${key}Color`}
+          value={color}
+          onChange={handlePersonChange}
+          aria-label={`${label} color picker`}
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            opacity: 0,
+            pointerEvents: 'none',
+          }}
+          tabIndex={-1}
+        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="checkbox"
+            name={`${key}Enabled`}
+            checked={enabled}
+            onChange={handlePersonChange}
+          />
+          Enabled
+        </label>
+      </div>
+    </div>
+  );
+
+  if (compactPersonSectionMode && isPerson && selectedPerson && personDraft) {
+    const compactTitle =
+      activePersonSection === 'name'
+        ? 'Name'
+        : activePersonSection === 'dates'
+        ? 'Dates'
+        : activePersonSection === 'notes'
+        ? 'Notes'
+        : 'Format';
+
+    return (
+      <div
+        role="dialog"
+        aria-label={`${compactTitle} properties`}
+        style={{
+          background: '#f8f9fc',
+          padding: '12px 14px 14px',
+          border: '1px solid #cfd7e5',
+          borderRadius: 10,
+          boxSizing: 'border-box',
+          minWidth: 360,
+          maxWidth: 460,
+          boxShadow: '0 16px 42px rgba(16, 24, 40, 0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#1f3248' }}>{compactTitle}</div>
+            <div style={{ fontSize: 12, color: '#58677c' }}>
+              {[selectedPerson.firstName, selectedPerson.lastName].filter(Boolean).join(' ').trim() || selectedPerson.name || 'Person'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close person section popup"
+            style={{
+              border: '1px solid #c3cad8',
+              background: '#fff',
+              borderRadius: 6,
+              cursor: 'pointer',
+              width: 28,
+              height: 28,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        {renderActivePersonSection()}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+          <button type="button" onClick={cancelPersonChanges} disabled={!personDirty}>Cancel</button>
+          <button type="button" onClick={savePersonProperties} disabled={!personDirty}>Save</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       style={{
         background: '#f0f0f0',
-        padding: '10px 20px 12px 12px',
+        padding: '10px 12px 12px 12px',
         border: '1px solid #ccc',
         height: '100vh',
         boxSizing: 'border-box',
@@ -1761,49 +2309,65 @@ const PropertiesPanel = ({
           <div style={{ fontSize: 11, color: '#555' }}>{termLabel()}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        {(['properties', 'functional', 'events'] as const).map((tab) => {
-          const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
-          const isActive = tab === activeTab;
-          const tabLabel =
-            tab === 'properties'
-              ? isEmotionalLine
-                ? 'Emotional Pattern'
-                : isPartnership
-                ? 'Partner Relationship'
-                : 'Person'
-              : tab === 'functional'
-              ? 'Symptoms'
-              : 'Events';
-          return (
-            <div key={tab} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
+        <div
+          role="tablist"
+          aria-label="Properties tabs"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'stretch',
+            border: '1px solid #b8c2d3',
+            borderRadius: 8,
+            overflow: 'hidden',
+            background: '#ffffff',
+          }}
+        >
+          {(['properties', 'functional', 'events'] as const).map((tab, index) => {
+            const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
+            const isActive = tab === activeTab;
+            const tabLabel =
+              tab === 'properties'
+                ? isEmotionalLine
+                  ? 'Pattern'
+                  : isPartnership
+                  ? 'Relationship'
+                  : 'Person'
+                : tab === 'functional'
+                ? 'Symptoms'
+                : 'Events';
+            return (
               <button
+                key={tab}
+                role="tab"
+                aria-selected={isActive}
                 disabled={disabled}
                 onClick={() => setActiveTab(tab)}
                 style={{
                   padding: '8px 12px',
-                  borderRadius: 6,
-                  border: isActive ? '2px solid #3f51b5' : '1px solid #bdbdbd',
-                  background: isActive ? '#e8eaf6' : '#fff',
+                  border: 'none',
+                  borderLeft: index === 0 ? 'none' : '1px solid #d0d6e2',
+                  background: isActive ? '#dfe7f7' : '#fff',
+                  color: isActive ? '#1f3f78' : '#23324a',
                   fontWeight: 600,
                   cursor: disabled ? 'not-allowed' : 'pointer',
-                  opacity: disabled ? 0.5 : 1,
+                  opacity: disabled ? 0.45 : 1,
+                  minWidth: 88,
                 }}
               >
                 {tabLabel}
               </button>
-              <button
-                type="button"
-                onClick={() => setTabHelpOpen(tab)}
-                aria-label={`Help for ${tabLabel} tab`}
-                title={`Help for ${tabLabel}`}
-                style={helpBadgeStyle}
-              >
-                ?
-              </button>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => setTabHelpOpen(activeTab)}
+          aria-label={`Help for ${activeTabLabel} tab`}
+          title={`Help for ${activeTabLabel}`}
+          style={helpBadgeStyle}
+        >
+          ?
+        </button>
       </div>
       {tabHelpOpen && (
         <div
@@ -1835,246 +2399,18 @@ const PropertiesPanel = ({
         <>
         {isPerson && selectedPerson && personDraft && (
         <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={rowStyle}>
-              <label htmlFor="firstName" style={labelStyle}>First Name:</label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                value={personDraft.firstName ?? nameFallbackParts.first}
-                onChange={handlePersonChange}
-                style={{ width: '25ch', textAlign: 'left' }}
-              />
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="lastName" style={labelStyle}>Last Name:</label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                value={personDraft.lastName ?? nameFallbackParts.last}
-                onChange={handlePersonChange}
-                style={{ width: '25ch', textAlign: 'left' }}
-              />
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="maidenName" style={labelStyle}>Maiden Name:</label>
-              <input
-                type="text"
-                id="maidenName"
-                name="maidenName"
-                value={personDraft.maidenName ?? ''}
-                onChange={handlePersonChange}
-                style={{ width: '25ch', textAlign: 'left' }}
-              />
-            </div>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
-            <select
-              id="adoptionStatus"
-              name="adoptionStatus"
-              value={personDraft.adoptionStatus || 'biological'}
-              onChange={handlePersonChange}
-              style={{ width: 160 }}
-            >
-              <option value="biological">Biological</option>
-              <option value="adopted">Adopted</option>
-            </select>
-          </div>
-          {(personDraft.parentPartnership || personDraft.birthParentPartnership) && (
-            <div style={rowStyle}>
-              <label htmlFor="parentConnectionPattern" style={labelStyle}>Parent Line Pattern:</label>
-              <select
-                id="parentConnectionPattern"
-                name="parentConnectionPattern"
-                value={personDraft.parentConnectionPattern || 'none'}
-                onChange={handlePersonChange}
-                style={{ width: 180 }}
-              >
-                <option value="none">None</option>
-                <option value="family-cutoff">Family Cutoff</option>
-              </select>
-            </div>
-          )}
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-              <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={personDraft.notes || ''}
-                onChange={handlePersonChange}
-                rows={6}
-                style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
-              />
-            </div>
-          <div style={rowStyle}>
-            <label htmlFor="notesEnabled" style={labelStyle}>Notes Enabled:</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                type="checkbox"
-                id="notesEnabled"
-                name="notesEnabled"
-                checked={personDraft.notesEnabled ?? false}
-                onChange={handlePersonChange}
-              />
-            </div>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
-            <DatePickerField
-              id="birthDate"
-              name="birthDate"
-              value={personDraft.birthDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePersonChange}
-              pickerLabel="Select birth date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="birthSex" style={labelStyle}>Birth Sex:</label>
-            <select
-              id="birthSex"
-              name="birthSex"
-              value={
-                personDraft.birthSex ||
-                (personDraft.gender === 'male'
-                  ? 'male'
-                  : personDraft.gender === 'intersex'
-                  ? 'intersex'
-                  : 'female')
-              }
-              onChange={handlePersonChange}
-              style={{ width: 160 }}
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="intersex">Intersex</option>
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="genderDate" style={labelStyle}>Gender Date:</label>
-            <DatePickerField
-              id="genderDate"
-              name="genderDate"
-              value={personDraft.genderDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePersonChange}
-              pickerLabel="Select gender date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="genderIdentity" style={labelStyle}>Gender:</label>
-            <select
-              id="genderIdentity"
-              name="genderIdentity"
-              value={
-                personDraft.genderIdentity ||
-                defaultGenderIdentityForBirthSex(
-                  personDraft.birthSex ||
-                    (personDraft.gender === 'male'
-                      ? 'male'
-                      : personDraft.gender === 'intersex'
-                      ? 'intersex'
-                      : 'female')
-                )
-              }
-              onChange={handlePersonChange}
-              style={{ width: 180 }}
-            >
-              <option value="feminine">Feminine</option>
-              <option value="masculine">Masculine</option>
-              <option value="nonbinary">Non-Binary</option>
-              <option value="agender">Agender</option>
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
-            <DatePickerField
-              id="deathDate"
-              name="deathDate"
-              value={personDraft.deathDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePersonChange}
-              pickerLabel="Select death date"
-            />
-          </div>
+          {renderPersonSectionNav()}
+          {renderActivePersonSection()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button type="button" onClick={cancelPersonChanges} disabled={!personDirty}>Cancel</button>
             <button type="button" onClick={savePersonProperties} disabled={!personDirty}>Save</button>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="size" style={labelStyle}>Size:</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => adjustPersonSize(-1)}
-                style={{ padding: '0 6px' }}
-              >
-                −
-              </button>
-              <input
-                type="number"
-                id="size"
-                name="size"
-                min={20}
-                max={200}
-                value={personDraft.size ?? 60}
-                onChange={handlePersonChange}
-                style={{ width: 60, textAlign: 'center' }}
-              />
-              <button
-                type="button"
-                onClick={() => adjustPersonSize(1)}
-                style={{ padding: '0 6px' }}
-              >
-                +
-              </button>
-            </div>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="borderColor" style={labelStyle}>Border Color:</label>
-            <input
-              type="color"
-              id="borderColor"
-              name="borderColor"
-              value={personDraft.borderColor ?? DEFAULT_BORDER_COLOR}
-              onChange={handlePersonChange}
-              style={{ width: 80 }}
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="backgroundEnabled" style={labelStyle}>Shaded Background:</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                type="checkbox"
-                id="backgroundEnabled"
-                name="backgroundEnabled"
-                checked={personDraft.backgroundEnabled ?? false}
-                onChange={handlePersonChange}
-              />
-              <span>Enabled</span>
-            </div>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="backgroundColor" style={labelStyle}>Background Color:</label>
-            <input
-              type="color"
-              id="backgroundColor"
-              name="backgroundColor"
-              value={personDraft.backgroundColor ?? DEFAULT_BACKGROUND_COLOR}
-              onChange={handlePersonChange}
-              disabled={!(personDraft.backgroundEnabled ?? false)}
-              style={{ width: 80 }}
-            />
           </div>
         </div>
         )}
         {isPartnership && selectedPartnership && partnershipDraft && (
         <div>
           <div style={rowStyle}>
-            <label htmlFor="relationshipType" style={labelStyle}>Relationship Type:</label>
+            <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
             <select
               id="relationshipType" 
               name="relationshipType" 
@@ -2082,16 +2418,15 @@ const PropertiesPanel = ({
               onChange={handlePartnershipChange}
               style={{ width: 180 }}
             >
-              <option value="married">Married</option>
-              <option value="common-law">Common-law</option>
-              <option value="living-together">Living Together</option>
-              <option value="dating">Dating</option>
-              <option value="affair">Affair</option>
-              <option value="friendship">Friendship</option>
+              {partnershipTypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatOptionLabel(option)}
+                </option>
+              ))}
             </select>
           </div>
           <div style={rowStyle}>
-            <label htmlFor="relationshipStatus" style={labelStyle}>Relationship Status:</label>
+            <label htmlFor="relationshipStatus" style={labelStyle}>Status:</label>
             <select
               id="relationshipStatus" 
               name="relationshipStatus" 
@@ -2099,58 +2434,30 @@ const PropertiesPanel = ({
               onChange={handlePartnershipChange}
               style={{ width: 180 }}
             >
-              <option value="married">Married</option>
-              <option value="separated">Separated</option>
-              <option value="divorced">Divorced</option>
-              <option value="started">Started</option>
-              <option value="ended">Ended</option>
-              <option value="ongoing">Ongoing</option>
+              {partnershipStatusOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatOptionLabel(option)}
+                </option>
+              ))}
             </select>
           </div>
-          <div style={rowStyle}>
-            <label htmlFor="relationshipStartDate" style={labelStyle}>Relationship Start:</label>
-            <DatePickerField
-              id="relationshipStartDate"
-              name="relationshipStartDate"
-              value={partnershipDraft.relationshipStartDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePartnershipChange}
-              pickerLabel="Select relationship start date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="marriedStartDate" style={labelStyle}>Married Start:</label>
-            <DatePickerField
-              id="marriedStartDate"
-              name="marriedStartDate"
-              value={partnershipDraft.marriedStartDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePartnershipChange}
-              pickerLabel="Select married start date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="separationDate" style={labelStyle}>Separation Date:</label>
-            <DatePickerField
-              id="separationDate"
-              name="separationDate"
-              value={partnershipDraft.separationDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePartnershipChange}
-              pickerLabel="Select separation date"
-            />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="divorceDate" style={labelStyle}>Divorce Date:</label>
-            <DatePickerField
-              id="divorceDate"
-              name="divorceDate"
-              value={partnershipDraft.divorceDate}
-              placeholder="YYYY-MM-DD"
-              onChange={handlePartnershipChange}
-              pickerLabel="Select divorce date"
-            />
-          </div>
+          {partnershipStatusOptions.map((statusOption) => {
+            const statusKey = normalizeStatusKey(statusOption);
+            const fieldId = `statusDate-${statusKey.replace(/[^a-z0-9]+/g, '-')}`;
+            return (
+              <div key={statusOption} style={rowStyle}>
+                <label htmlFor={fieldId} style={labelStyle}>{formatOptionLabel(statusOption)} Date:</label>
+                <DatePickerField
+                  id={fieldId}
+                  name={`statusDate:${statusOption}`}
+                  value={readPartnershipStatusDate(partnershipDraft, statusOption)}
+                  placeholder="YYYY-MM-DD"
+                  onChange={handlePartnershipChange}
+                  pickerLabel={`Select ${formatOptionLabel(statusOption).toLowerCase()} date`}
+                />
+              </div>
+            );
+          })}
           <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
               <label htmlFor="partnershipNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
               <textarea
@@ -2176,7 +2483,7 @@ const PropertiesPanel = ({
         return (
           <div>
             <div style={rowStyle}>
-              <label htmlFor="relationshipType" style={labelStyle}>Emotional Pattern:</label>
+              <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
               <select
                 id="relationshipType"
                 name="relationshipType"
@@ -2234,10 +2541,7 @@ const PropertiesPanel = ({
               <select
                 id="emotionalIntensityLevel"
                 value={emotionalIntensityDraft}
-                onChange={(e) => {
-                  setEmotionalIntensityDraft(Number(e.target.value));
-                  setEmotionalPristine(false);
-                }}
+                onChange={(e) => applyEmotionalIntensityLevel(Number(e.target.value))}
                 style={{ width: 180 }}
               >
                 {INTENSITY_OPTIONS.map((option) => (
@@ -2246,7 +2550,83 @@ const PropertiesPanel = ({
                   </option>
                 ))}
               </select>
+              {intensityChooserConfig && (
+                <button
+                  type="button"
+                  aria-label={intensityChooserConfig.buttonLabel}
+                  onClick={() => setEmotionalIntensityHelpOpen(true)}
+                  style={helpBadgeStyle}
+                >
+                  ?
+                </button>
+              )}
             </div>
+            {intensityChooserConfig && emotionalIntensityHelpOpen && (
+              <div
+                role="dialog"
+                aria-label={intensityChooserConfig.title}
+                style={{
+                  marginTop: 8,
+                  marginLeft: labelColumnWidth + 10,
+                  width: 520,
+                  maxWidth: 'calc(100% - 32px)',
+                  border: '1px solid #c6cfde',
+                  borderRadius: 10,
+                  background: '#fff',
+                  padding: '12px 14px',
+                  boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
+                  position: 'relative',
+                  zIndex: 20,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <strong>{intensityChooserConfig.title}</strong>
+                  <button
+                    type="button"
+                    onClick={() => setEmotionalIntensityHelpOpen(false)}
+                    style={{ padding: '4px 10px' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                  {intensityChooserConfig.helpLines.map((line, index) => {
+                    const level = index + 1;
+                    const isActive = emotionalIntensityDraft === level;
+                    return (
+                      <button
+                        key={line}
+                        type="button"
+                        onClick={() => {
+                          applyEmotionalIntensityLevel(level);
+                          setEmotionalIntensityHelpOpen(false);
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
+                          borderRadius: 8,
+                          background: isActive ? '#eef3ff' : '#fff',
+                          padding: '8px 10px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: '#23324a' }}>
+                          {intensityChooserConfig.labels[index]}
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div style={rowStyle}>
               <label htmlFor="emotionalImpact" style={labelStyle}>Impact:</label>
               <select
@@ -2588,6 +2968,27 @@ const PropertiesPanel = ({
           {filteredAndSortedEvents.length === 0 ? (
             <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
           ) : (
+            <>
+            {eventListMode === 'compact' && isPartnership ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 120px auto',
+                  gap: 12,
+                  marginTop: 8,
+                  padding: '0 0 6px 3px',
+                  borderBottom: '1px solid #cfd7e5',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#41546d',
+                }}
+              >
+                <span>Type</span>
+                <span>Status</span>
+                <span>Date</span>
+                <span>Actions</span>
+              </div>
+            ) : null}
             <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
               {filteredAndSortedEvents.map((event) => {
                 const eventType = inferEventType(event);
@@ -2611,34 +3012,70 @@ const PropertiesPanel = ({
                   }}
                 >
                   {eventListMode === 'compact' ? (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
+                    isPartnership ? (
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 120px auto',
+                          gap: 12,
+                          alignItems: 'center',
+                          paddingLeft: 3,
+                        }}
+                      >
                         <span style={{ fontWeight: 600 }}>
-                          {descriptorForEvent(event)}
+                          {formatOptionLabel(event.category || selectedPartnership?.relationshipType || 'relationship')}
                         </span>
-                        <span style={{ fontSize: 11, color: '#555' }}>
-                          {eventTypeLabel(eventType)}
-                        </span>
-                        <span
-                          title={continuationLabel(event)}
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            border: '1px solid #9db0c8',
-                            borderRadius: 4,
-                            padding: '1px 4px',
-                            background: '#eef5ff',
-                          }}
-                        >
-                          {continuationBadge(event)}
-                        </span>
+                        <span>{compactRelationshipStatusLabel(event)}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
+                          <button
+                            aria-label="Delete"
+                            title="Delete"
+                            style={eventActionButtonStyle}
+                            onClick={() => deleteEvent(event.id)}
+                          >
+                            🗑
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
-                        <button style={eventActionButtonStyle} onClick={() => deleteEvent(event.id)}>Delete</button>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
+                          <span style={{ fontWeight: 600 }}>
+                            {descriptorForEvent(event)}
+                          </span>
+                          <span style={{ fontSize: 11, color: '#555' }}>
+                            {eventTypeLabel(eventType)}
+                          </span>
+                          <span
+                            title={continuationLabel(event)}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              border: '1px solid #9db0c8',
+                              borderRadius: 4,
+                              padding: '1px 4px',
+                              background: '#eef5ff',
+                            }}
+                          >
+                            {continuationBadge(event)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
+                          <button
+                            aria-label="Delete"
+                            title="Delete"
+                            style={eventActionButtonStyle}
+                            onClick={() => deleteEvent(event.id)}
+                          >
+                            🗑
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -2706,7 +3143,14 @@ const PropertiesPanel = ({
                         </div>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
-                          <button style={eventActionButtonStyle} onClick={() => deleteEvent(event.id)}>Delete</button>
+                          <button
+                            aria-label="Delete"
+                            title="Delete"
+                            style={eventActionButtonStyle}
+                            onClick={() => deleteEvent(event.id)}
+                          >
+                            🗑
+                          </button>
                         </div>
                       </div>
                       {event.observations && (
@@ -2720,6 +3164,7 @@ const PropertiesPanel = ({
                 );
               })}
             </ul>
+            </>
           )}
           {eventRowMenu && (
             <div

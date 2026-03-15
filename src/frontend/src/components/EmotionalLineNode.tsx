@@ -4,18 +4,28 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 
 const getDashStyle = (lineStyle: EmotionalLine['lineStyle']) => {
     switch (lineStyle) {
+        case 'fusion-dotted-wide':
+        case 'fusion-dotted-tight':
         case 'low':
             return [2, 5];
+        case 'fusion-solid-wide':
+        case 'fusion-solid-tight':
         case 'medium':
-            return [8, 4];
         case 'high':
             return [8, 4];
         case 'dotted':
+        case 'distance-dotted-wide':
             return [2, 5];
+        case 'distance-dotted-tight':
+            return [5, 5];
         case 'dashed':
-            return [10, 5];
+        case 'distance-dashed-wide':
+            return [14, 4];
+        case 'distance-dashed-tight':
+            return [10, 2];
         case 'long-dash':
-            return [20, 5];
+        case 'distance-long':
+            return [14, 8];
         default:
             return undefined;
     }
@@ -114,7 +124,13 @@ const EmotionalLineNode = ({
 
     const baseColor = emotionalLine.color || '#444444';
     const baseStrokeWidth = isSelected ? 3 : 2;
-    const strokeWidth = (lineStyle === 'high' || lineStyle === 'long-dash')
+    const strokeWidth = (
+        lineStyle === 'fusion-triple' ||
+        lineStyle === 'high' ||
+        lineStyle === 'long-dash' ||
+        lineStyle === 'conflict-double' ||
+        lineStyle === 'projection-5'
+    )
         ? baseStrokeWidth + 1
         : baseStrokeWidth;
 
@@ -139,7 +155,17 @@ const EmotionalLineNode = ({
     const renderLines = () => {
         if (relationshipType === 'projection') {
             const markerCount = 4;
-            const markerText = lineStyle === 'low' ? '>...>' : lineStyle === 'medium' ? '>.>' : '>>>>';
+            const markerMap: Record<string, string> = {
+                'projection-1': '>....>',
+                'projection-2': '>...>',
+                'projection-3': '>.>',
+                'projection-4': '>>>>',
+                'projection-5': '>>>>>',
+                low: '>....>',
+                medium: '>.>',
+                high: '>>>>>',
+            };
+            const markerText = markerMap[lineStyle] || '>....>';
             const markerAngle = (angle * 180) / Math.PI;
             const markers = Array.from({ length: markerCount }, (_, idx) => {
                 const fraction = (idx + 1) / (markerCount + 1);
@@ -187,11 +213,21 @@ const EmotionalLineNode = ({
             )
         }
 
-        if (lineStyle === 'low' || lineStyle === 'medium' || lineStyle === 'high') {
-            const offsetStep = 4;
-            const count = lineStyle === 'high' ? 3 : 2;
+        if (
+            lineStyle === 'fusion-dotted-wide' ||
+            lineStyle === 'fusion-dotted-tight' ||
+            lineStyle === 'fusion-solid-wide' ||
+            lineStyle === 'fusion-solid-tight' ||
+            lineStyle === 'fusion-triple'
+        ) {
+            const offsetStep =
+                lineStyle === 'fusion-dotted-wide' || lineStyle === 'fusion-solid-wide' ? 6 : 3;
+            const count = lineStyle === 'fusion-triple' ? 3 : 2;
             const offsets = count === 3 ? [-1, 0, 1] : [-1, 1];
-            const dash = lineStyle === 'low' ? [2, 6] : undefined;
+            const dash =
+                lineStyle === 'fusion-dotted-wide' || lineStyle === 'fusion-dotted-tight'
+                    ? [2, 6]
+                    : undefined;
             return (
                 <>
                     {offsets.map((multiplier, idx) => {
@@ -202,31 +238,79 @@ const EmotionalLineNode = ({
                     })}
                 </>
             );
-        } else if (lineStyle === 'dotted' || lineStyle === 'dashed' || lineStyle === 'long-dash') {
+        } else if (
+            lineStyle === 'dotted' ||
+            lineStyle === 'dashed' ||
+            lineStyle === 'long-dash' ||
+            lineStyle === 'distance-dotted-wide' ||
+            lineStyle === 'distance-dotted-tight' ||
+            lineStyle === 'distance-dashed-wide' ||
+            lineStyle === 'distance-dashed-tight' ||
+            lineStyle === 'distance-long'
+        ) {
             const dash = getDashStyle(lineStyle);
             return <Line points={linePoints} {...lineProps} dash={dash} />;
-        } else if (lineStyle === 'solid-saw-tooth' || lineStyle === 'dotted-saw-tooth' || lineStyle === 'double-saw-tooth') {
-            const amplitude = 10;
-            const sawtoothPoints = getSawtoothPoints(p1_x_center, p1_y_center, p2_x_center, p2_y_center, amplitude);
-            const dash = lineStyle === 'dotted-saw-tooth' ? [2, 5] : undefined;
-            
-            if (lineStyle === 'double-saw-tooth') {
-                const lineOffset = 5;
-                const angle = Math.atan2(p2_y_center - p1_y_center, p2_x_center - p1_x_center);
-                const dx = Math.sin(angle) * lineOffset;
-                const dy = -Math.cos(angle) * lineOffset;
-                const amplitude = 10;
-                const points1 = getSawtoothPoints(p1_x_center + dx, p1_y_center + dy, p2_x_center + dx, p2_y_center + dy, amplitude);
-                const points2 = getSawtoothPoints(p1_x_center - dx, p1_y_center - dy, p2_x_center - dx, p2_y_center - dy, amplitude);
+        } else if (
+            lineStyle === 'solid-saw-tooth' ||
+            lineStyle === 'dotted-saw-tooth' ||
+            lineStyle === 'double-saw-tooth' ||
+            lineStyle === 'conflict-dotted-wide' ||
+            lineStyle === 'conflict-dotted-tight' ||
+            lineStyle === 'conflict-solid-wide' ||
+            lineStyle === 'conflict-solid-tight' ||
+            lineStyle === 'conflict-double'
+        ) {
+            const renderSawtoothBand = (
+                key: string,
+                offset: number,
+                amplitude: number,
+                dash?: number[]
+            ) => {
+                const dx = Math.sin(angle) * offset;
+                const dy = -Math.cos(angle) * offset;
+                const points = getSawtoothPoints(
+                    p1_x_center + dx,
+                    p1_y_center + dy,
+                    p2_x_center + dx,
+                    p2_y_center + dy,
+                    amplitude
+                );
+                return <Line key={key} points={points} {...lineProps} dash={dash} />;
+            };
 
+            if (lineStyle === 'dotted-saw-tooth' || lineStyle === 'conflict-dotted-wide') {
+                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 10, [2, 5]);
+            }
+
+            if (lineStyle === 'conflict-dotted-tight') {
                 return (
                     <>
-                        <Line points={points1} {...lineProps} />
-                        <Line points={points2} {...lineProps} />
+                        {renderSawtoothBand('conflict-dotted-tight-1', -4, 9, [2, 5])}
+                        {renderSawtoothBand('conflict-dotted-tight-2', 4, 9, [2, 5])}
                     </>
-                )
+                );
             }
-            return <Line points={sawtoothPoints} {...lineProps} dash={dash} />;
+
+            if (lineStyle === 'solid-saw-tooth' || lineStyle === 'conflict-solid-wide') {
+                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 9, [6, 4]);
+            }
+
+            if (lineStyle === 'conflict-solid-tight' || lineStyle === 'double-saw-tooth') {
+                return (
+                    <>
+                        {renderSawtoothBand(`conflict-${lineStyle}-1`, -4, 9)}
+                        {renderSawtoothBand(`conflict-${lineStyle}-2`, 4, 9)}
+                    </>
+                );
+            }
+
+            return (
+                <>
+                    {renderSawtoothBand('conflict-double-1', -6, 9)}
+                    {renderSawtoothBand('conflict-double-2', 0, 9)}
+                    {renderSawtoothBand('conflict-double-3', 6, 9)}
+                </>
+            );
         }
 
 

@@ -1,8 +1,8 @@
 {
   "fileMeta": {
-    "fileName": "demofamilydiagram.json",
-    "displayName": "demofamilydiagram.json",
-    "exportedAt": "2026-03-14T23:54:32.913Z"
+    "fileName": "PRODUCT_DEFAULT.diagram.json",
+    "displayName": "PRODUCT_DEFAULT.diagram.json",
+    "exportedAt": "2026-03-15T01:05:57.397Z"
   },
   "people": [
     {
@@ -557,6 +557,22 @@
     "Achievement",
     "Social"
   ],
+  "relationshipTypes": [
+    "married",
+    "common-law",
+    "living-together",
+    "dating",
+    "affair",
+    "friendship"
+  ],
+  "relationshipStatuses": [
+    "married",
+    "separated",
+    "divorced",
+    "started",
+    "ended",
+    "ongoing"
+  ],
   "autoSaveMinutes": 1,
-  "ideasText": "Look at family members for lack of EPL and Lack of events. \n\nCreate an easy what to update from a phone."
+  "ideasText": ""
 }

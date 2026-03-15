@@ -45,6 +45,7 @@ export type Person = {
   maidenName?: string;
   birthDate?: string;
   deathDate?: string;
+  adoptionDate?: string;
   genderDate?: string;
   gender?: string;
   birthSex?: BirthSex;
@@ -64,6 +65,9 @@ export type Person = {
   connectionAnchorX?: number;
   multipleBirthGroupId?: string;
   borderColor?: string;
+  borderEnabled?: boolean;
+  foregroundColor?: string;
+  foregroundEnabled?: boolean;
   backgroundColor?: string;
   backgroundEnabled?: boolean;
   functionalIndicators?: PersonFunctionalIndicator[];
@@ -91,8 +95,9 @@ export type Partnership = {
   partner1_id: string;
   partner2_id: string;
   horizontalConnectorY: number;
-  relationshipType: 'married' | 'common-law' | 'living-together' | 'dating' | 'affair' | 'friendship';
-  relationshipStatus: 'married' | 'separated' | 'divorced' | 'started' | 'ended' | 'ongoing';
+  relationshipType: string;
+  relationshipStatus: string;
+  statusDates?: Record<string, string>;
   relationshipStartDate?: string;
   marriedStartDate?: string;
   separationDate?: string;
@@ -115,12 +120,17 @@ export type EmotionalLine = {
   relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict' | 'projection';
   lineStyle: 
     // Fusion
+    'fusion-dotted-wide' | 'fusion-dotted-tight' | 'fusion-solid-wide' | 'fusion-solid-tight' | 'fusion-triple' |
+    // Projection
+    'projection-1' | 'projection-2' | 'projection-3' | 'projection-4' | 'projection-5' |
     'low' | 'medium' | 'high' | 
     // Distance
+    'distance-dotted-wide' | 'distance-dotted-tight' | 'distance-dashed-wide' | 'distance-dashed-tight' | 'distance-long' |
     'dotted' | 'dashed' | 'long-dash' |
     // Cutoff
     'cutoff' |
     // Conflict
+    'conflict-dotted-wide' | 'conflict-dotted-tight' | 'conflict-solid-wide' | 'conflict-solid-tight' | 'conflict-double' |
     'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   color?: string;

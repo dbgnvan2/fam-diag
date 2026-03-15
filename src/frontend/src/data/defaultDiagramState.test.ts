@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import demoFamilyDiagramDataJson from './demofamilydiagram.json';
+import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
+import { APPLICATION_SETTINGS } from './applicationSettings';
 import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
@@ -8,17 +9,22 @@ import {
 
 describe('defaultDiagramState', () => {
   it('hydrates from the bundled demo dataset', () => {
-    expect(DEFAULT_DIAGRAM_STATE.people).toHaveLength(demoFamilyDiagramDataJson.people.length);
+    expect(DEFAULT_DIAGRAM_STATE.people).toHaveLength(productDefaultDiagramJson.people.length);
     expect(DEFAULT_DIAGRAM_STATE.partnerships).toHaveLength(
-      demoFamilyDiagramDataJson.partnerships.length
+      productDefaultDiagramJson.partnerships.length
     );
     expect(DEFAULT_DIAGRAM_STATE.emotionalLines).toHaveLength(
-      demoFamilyDiagramDataJson.emotionalLines.length
+      productDefaultDiagramJson.emotionalLines.length
     );
     expect(DEFAULT_DIAGRAM_STATE.triangles).toHaveLength(
-      Array.isArray((demoFamilyDiagramDataJson as any).triangles)
-        ? (demoFamilyDiagramDataJson as any).triangles.length
+      Array.isArray((productDefaultDiagramJson as any).triangles)
+        ? (productDefaultDiagramJson as any).triangles.length
         : 0
+    );
+    expect(DEFAULT_DIAGRAM_STATE.eventCategories).toEqual(APPLICATION_SETTINGS.eventCategories);
+    expect(DEFAULT_DIAGRAM_STATE.relationshipTypes).toEqual(APPLICATION_SETTINGS.relationshipTypes);
+    expect(DEFAULT_DIAGRAM_STATE.relationshipStatuses).toEqual(
+      APPLICATION_SETTINGS.relationshipStatuses
     );
   });
 

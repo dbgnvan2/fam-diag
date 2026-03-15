@@ -53,7 +53,7 @@ import {
   RIBBON_HELP,
   type RibbonHelpKey,
 } from '../data/helpContent';
-import demoDiagramDataJson from '../data/demofamilydiagram.json';
+import productDefaultDiagramDataJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 import {
   buildTimelineJson,
   isPersonEventBundle,
@@ -104,46 +104,108 @@ const markdownComponents: MarkdownComponents = {
 
 const DEFAULT_LINE_COLOR = '#444444';
 const LINE_STYLE_VALUES: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
-  fusion: ['low', 'medium', 'high'],
-  distance: ['dotted', 'dashed', 'long-dash'],
+  fusion: [
+    'fusion-dotted-wide',
+    'fusion-dotted-tight',
+    'fusion-solid-wide',
+    'fusion-solid-tight',
+    'fusion-triple',
+  ],
+  distance: [
+    'distance-dashed-tight',
+    'distance-dashed-wide',
+    'distance-long',
+    'distance-dotted-tight',
+    'distance-dotted-wide',
+  ],
   cutoff: ['cutoff'],
-  conflict: ['dotted-saw-tooth', 'solid-saw-tooth', 'double-saw-tooth'],
-  projection: ['low', 'medium', 'high'],
+  conflict: [
+    'conflict-dotted-wide',
+    'conflict-dotted-tight',
+    'conflict-solid-wide',
+    'conflict-solid-tight',
+    'conflict-double',
+  ],
+  projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
 };
 const emotionalPatternIntensityOptions = (relationshipType: EmotionalLine['relationshipType']) => {
   switch (relationshipType) {
     case 'fusion':
       return [
-        { value: 'low', label: 'Low (double dotted lines)' },
-        { value: 'medium', label: 'Medium (double solid lines)' },
-        { value: 'high', label: 'High (triple solid lines)' },
+        { value: 'fusion-dotted-wide', label: 'Level 1 (double dotted, two spaces)' },
+        { value: 'fusion-dotted-tight', label: 'Level 2 (double dotted, no space)' },
+        { value: 'fusion-solid-wide', label: 'Level 3 (double solid, two spaces)' },
+        { value: 'fusion-solid-tight', label: 'Level 4 (double solid, no space)' },
+        { value: 'fusion-triple', label: 'Level 5 (triple lines)' },
       ] as const;
     case 'distance':
       return [
-        { value: 'dotted', label: 'Low (dotted)' },
-        { value: 'dashed', label: 'Medium (short dash)' },
-        { value: 'long-dash', label: 'High (long dash)' },
+        { value: 'distance-dashed-tight', label: 'Level 1 (dashed, very little space)' },
+        { value: 'distance-dashed-wide', label: 'Level 2 (longer segments, some space)' },
+        { value: 'distance-long', label: 'Level 3 (longer segments, lots of space)' },
+        { value: 'distance-dotted-tight', label: 'Level 4 (short segments, space)' },
+        { value: 'distance-dotted-wide', label: 'Level 5 (dots, space)' },
       ] as const;
     case 'conflict':
       return [
-        { value: 'dotted-saw-tooth', label: 'Low (dotted sawtooth)' },
-        { value: 'solid-saw-tooth', label: 'Medium (solid sawtooth)' },
-        { value: 'double-saw-tooth', label: 'High (double sawtooth)' },
+        { value: 'conflict-dotted-wide', label: 'Minimum' },
+        { value: 'conflict-dotted-tight', label: 'Mild' },
+        { value: 'conflict-solid-wide', label: 'Moderate' },
+        { value: 'conflict-solid-tight', label: 'Major' },
+        { value: 'conflict-double', label: 'Maximal' },
       ] as const;
     case 'projection':
       return [
-        { value: 'low', label: 'Low (>...>)' },
-        { value: 'medium', label: 'Medium (>.>)' },
-        { value: 'high', label: 'High (>>>>)' },
+        { value: 'projection-1', label: 'Level 1 (>....>)' },
+        { value: 'projection-2', label: 'Level 2 (>...>)' },
+        { value: 'projection-3', label: 'Level 3 (>.>)' },
+        { value: 'projection-4', label: 'Level 4 (>>>>)' },
+        { value: 'projection-5', label: 'Level 5 (>>>>>)' },
       ] as const;
     default:
       return [{ value: 'cutoff', label: 'Cutoff' }] as const;
   }
 };
 const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']): number => {
-  if (lineStyle === 'low' || lineStyle === 'dotted' || lineStyle === 'dotted-saw-tooth') return 1;
-  if (lineStyle === 'medium' || lineStyle === 'dashed' || lineStyle === 'solid-saw-tooth') return 3;
-  if (lineStyle === 'high' || lineStyle === 'long-dash' || lineStyle === 'double-saw-tooth') return 5;
+  if (
+    lineStyle === 'fusion-dotted-wide' ||
+    lineStyle === 'distance-dashed-tight' ||
+    lineStyle === 'conflict-dotted-wide' ||
+    lineStyle === 'projection-1' ||
+    lineStyle === 'dotted' ||
+    lineStyle === 'dotted-saw-tooth'
+  ) return 1;
+  if (lineStyle === 'fusion-dotted-tight') return 2;
+  if (
+    lineStyle === 'distance-dashed-wide' ||
+    lineStyle === 'conflict-dotted-tight' ||
+    lineStyle === 'projection-2'
+  ) return 2;
+  if (
+    lineStyle === 'fusion-solid-wide' ||
+    lineStyle === 'distance-long' ||
+    lineStyle === 'conflict-solid-wide' ||
+    lineStyle === 'projection-3' ||
+    lineStyle === 'dashed' ||
+    lineStyle === 'solid-saw-tooth'
+  ) return 3;
+  if (
+    lineStyle === 'fusion-solid-tight' ||
+    lineStyle === 'distance-dotted-tight' ||
+    lineStyle === 'conflict-solid-tight' ||
+    lineStyle === 'projection-4'
+  ) return 4;
+  if (
+    lineStyle === 'fusion-triple' ||
+    lineStyle === 'distance-dotted-wide' ||
+    lineStyle === 'conflict-double' ||
+    lineStyle === 'projection-5' ||
+    lineStyle === 'long-dash' ||
+    lineStyle === 'double-saw-tooth'
+  ) return 5;
+  if (lineStyle === 'low') return 1;
+  if (lineStyle === 'medium') return 3;
+  if (lineStyle === 'high') return 5;
   return 0;
 };
 
@@ -153,17 +215,22 @@ const initialEmotionalLines: EmotionalLine[] = DEFAULT_DIAGRAM_STATE.emotionalLi
 const initialPageNotes: PageNote[] = DEFAULT_DIAGRAM_STATE.pageNotes;
 const initialTriangles: Triangle[] = DEFAULT_DIAGRAM_STATE.triangles;
 const initialEventCategories: string[] = DEFAULT_DIAGRAM_STATE.eventCategories;
+const initialRelationshipTypes: string[] = DEFAULT_DIAGRAM_STATE.relationshipTypes;
+const initialRelationshipStatuses: string[] = DEFAULT_DIAGRAM_STATE.relationshipStatuses;
 const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
   DEFAULT_DIAGRAM_STATE.functionalIndicatorDefinitions;
 const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
 const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
 const STORAGE_KEYS = {
+  userSettings: 'family-diagram-user-settings',
   autoSave: 'family-diagram-autosave-minutes',
   people: 'family-diagram-people',
   partnerships: 'family-diagram-partnerships',
   emotionalLines: 'family-diagram-emotional-lines',
   triangles: 'family-diagram-triangles',
   eventCategories: 'family-diagram-event-categories',
+  relationshipTypes: 'family-diagram-relationship-types',
+  relationshipStatuses: 'family-diagram-relationship-statuses',
   indicatorDefinitions: 'family-diagram-functional-indicators',
   ideas: 'family-diagram-ideas',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
@@ -192,8 +259,53 @@ const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
   localStorage.setItem(STORAGE_KEYS[key], value);
 };
 
+type StoredUserSettings = {
+  eventCategories?: string[];
+  relationshipTypes?: string[];
+  relationshipStatuses?: string[];
+  functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
+  autoSaveMinutes?: number;
+};
+
+const parseStoredUserSettings = (): StoredUserSettings | null => {
+  const raw = getStoredValue('userSettings');
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredUserSettings;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseStoredArraySetting = (key: keyof typeof STORAGE_KEYS): string[] | null => {
+  const raw = getStoredValue(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseStoredIndicatorDefinitions = (): FunctionalIndicatorDefinition[] | null => {
+  const raw = getStoredValue('indicatorDefinitions');
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as FunctionalIndicatorDefinition[]) : null;
+  } catch {
+    return null;
+  }
+};
+
+const sortLabelsAZ = (values: string[]) =>
+  [...values].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
 const DIAGRAM_HANDLE_DB = 'family-diagram-file-handle-db';
 const DIAGRAM_HANDLE_STORE = 'handles';
+const DIAGRAM_BACKUP_STORE = 'diagram-backups';
 const DIAGRAM_HANDLE_KEY = 'current-diagram';
 
 const openDiagramHandleDb = (): Promise<IDBDatabase | null> =>
@@ -202,11 +314,14 @@ const openDiagramHandleDb = (): Promise<IDBDatabase | null> =>
       resolve(null);
       return;
     }
-    const request = window.indexedDB.open(DIAGRAM_HANDLE_DB, 1);
+    const request = window.indexedDB.open(DIAGRAM_HANDLE_DB, 2);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(DIAGRAM_HANDLE_STORE)) {
         db.createObjectStore(DIAGRAM_HANDLE_STORE);
+      }
+      if (!db.objectStoreNames.contains(DIAGRAM_BACKUP_STORE)) {
+        db.createObjectStore(DIAGRAM_BACKUP_STORE);
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -257,6 +372,72 @@ const restoreDiagramFileHandle = async (): Promise<any | null> => {
   });
 };
 
+const rotateDiagramBackups = async (key: string, backupJson: string) => {
+  const db = await openDiagramHandleDb();
+  if (!db) return;
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(DIAGRAM_BACKUP_STORE, 'readwrite');
+    const store = tx.objectStore(DIAGRAM_BACKUP_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => {
+      const current =
+        request.result && typeof request.result === 'object'
+          ? request.result
+          : { v1: null, v2: null, v3: null };
+      const next = {
+        v1: backupJson,
+        v2: current.v1 ?? null,
+        v3: current.v2 ?? null,
+        updatedAt: new Date().toISOString(),
+      };
+      store.put(next, key);
+    };
+    request.onerror = () => {
+      store.put(
+        {
+          v1: backupJson,
+          v2: null,
+          v3: null,
+          updatedAt: new Date().toISOString(),
+        },
+        key
+      );
+    };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      resolve();
+    };
+    tx.onabort = () => {
+      db.close();
+      resolve();
+    };
+  });
+};
+
+const loadDiagramBackups = async (
+  key: string
+): Promise<{ v1?: string | null; v2?: string | null; v3?: string | null } | null> => {
+  const db = await openDiagramHandleDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    const tx = db.transaction(DIAGRAM_BACKUP_STORE, 'readonly');
+    const store = tx.objectStore(DIAGRAM_BACKUP_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => {
+      db.close();
+      resolve(request.result || null);
+    };
+    request.onerror = () => {
+      db.close();
+      resolve(null);
+    };
+  });
+};
+
 type SessionNoteFileRecord = {
   id: string;
   noteFileName: string;
@@ -287,10 +468,18 @@ type TimelineBoardSelection = {
 type PropertiesPanelIntent = {
   targetId: string;
   tab?: 'properties' | 'functional' | 'events';
+  personSection?: 'name' | 'dates' | 'notes' | 'format';
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent>;
   openNewEventPosition?: { x: number; y: number };
+} | null;
+
+type PersonSectionPopupState = {
+  personId: string;
+  section: 'name' | 'dates' | 'notes' | 'format';
+  x: number;
+  y: number;
 } | null;
 
 type EmotionalPatternDraft = {
@@ -361,8 +550,8 @@ const TRAINING_VIDEOS = [
   },
 ];
 
-const DEMO_DIAGRAM_DATA: DiagramImportData = demoDiagramDataJson as DiagramImportData;
-const DEFAULT_DEMO_FILE_NAME = 'demofamilydiagram.json';
+const DEMO_DIAGRAM_DATA: DiagramImportData = productDefaultDiagramDataJson as DiagramImportData;
+const DEFAULT_DEMO_FILE_NAME = 'PRODUCT_DEFAULT.diagram.json';
 const LEGACY_DEMO_FILE_NAMES = new Set([
   'demo family diagram',
   'demo family diagram.json',
@@ -692,6 +881,8 @@ const buildCreationDemoSnapshots = (base: DiagramImportData): DiagramImportData[
     triangles: [],
     functionalIndicatorDefinitions: base.functionalIndicatorDefinitions || [],
     eventCategories: base.eventCategories || [],
+    relationshipTypes: base.relationshipTypes || [],
+    relationshipStatuses: base.relationshipStatuses || [],
     autoSaveMinutes: base.autoSaveMinutes || 1,
     ideasText: 'Build Demo mode: follow step instructions to construct the full diagram.',
   });
@@ -1003,6 +1194,8 @@ type DiagramImportData = {
   triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
+  relationshipTypes?: string[];
+  relationshipStatuses?: string[];
   autoSaveMinutes?: number;
   ideasText?: string;
 };
@@ -1607,11 +1800,11 @@ const parseTranscriptToDraftDiagram = (transcript: string, sourceFileName: strin
       return;
     }
     const styleMap: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle']> = {
-      fusion: 'medium',
-      distance: 'dashed',
+      fusion: 'fusion-solid-wide',
+      distance: 'distance-dashed-wide',
       cutoff: 'cutoff',
-      conflict: 'dotted-saw-tooth',
-      projection: 'medium',
+      conflict: 'conflict-dotted-wide',
+      projection: 'projection-3',
     };
     emotionalLineDrafts.set(key, {
       person1: a.name,
@@ -2180,6 +2373,14 @@ const DiagramEditor = () => {
   const [fileName, setFileName] = useState(initialFileName);
   const [autoSaveMinutes, setAutoSaveMinutes] = useState(() => {
     if (typeof window === 'undefined') return initialAutoSaveMinutes;
+    const storedSettings = parseStoredUserSettings();
+    if (
+      typeof storedSettings?.autoSaveMinutes === 'number' &&
+      Number.isFinite(storedSettings.autoSaveMinutes) &&
+      storedSettings.autoSaveMinutes > 0
+    ) {
+      return storedSettings.autoSaveMinutes;
+    }
     const stored = getStoredValue('autoSave');
     const parsed = stored ? Number(stored) : initialAutoSaveMinutes;
     return !Number.isFinite(parsed) || parsed <= 0 ? initialAutoSaveMinutes : parsed;
@@ -2195,9 +2396,34 @@ const DiagramEditor = () => {
   const [coachThinkingDraft, setCoachThinkingDraft] = useState<CoachThinkingDraft | null>(null);
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
   const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
-  const [eventCategories, setEventCategories] = useState<string[]>(initialEventCategories);
+  const [personSectionPopup, setPersonSectionPopup] = useState<PersonSectionPopupState>(null);
+  const [eventCategories, setEventCategories] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return initialEventCategories;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.eventCategories) && stored.eventCategories.length
+      ? stored.eventCategories
+      : parseStoredArraySetting('eventCategories') || initialEventCategories;
+  });
+  const [relationshipTypes, setRelationshipTypes] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return initialRelationshipTypes;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.relationshipTypes) && stored.relationshipTypes.length
+      ? stored.relationshipTypes
+      : parseStoredArraySetting('relationshipTypes') || initialRelationshipTypes;
+  });
+  const [relationshipStatuses, setRelationshipStatuses] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return initialRelationshipStatuses;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.relationshipStatuses) && stored.relationshipStatuses.length
+      ? stored.relationshipStatuses
+      : parseStoredArraySetting('relationshipStatuses') || initialRelationshipStatuses;
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
+  const [relationshipTypeSettingsOpen, setRelationshipTypeSettingsOpen] = useState(false);
+  const [relationshipTypeDraft, setRelationshipTypeDraft] = useState('');
+  const [relationshipStatusSettingsOpen, setRelationshipStatusSettingsOpen] = useState(false);
+  const [relationshipStatusDraft, setRelationshipStatusDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [ideasText, setIdeasText] = useState(() => {
@@ -2212,7 +2438,14 @@ const DiagramEditor = () => {
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [functionalIndicatorDefinitions, setFunctionalIndicatorDefinitions] =
-    useState<FunctionalIndicatorDefinition[]>(initialIndicatorDefinitions);
+    useState<FunctionalIndicatorDefinition[]>(() => {
+      if (typeof window === 'undefined') return initialIndicatorDefinitions;
+      const stored = parseStoredUserSettings();
+      return Array.isArray(stored?.functionalIndicatorDefinitions) &&
+        stored.functionalIndicatorDefinitions.length
+        ? stored.functionalIndicatorDefinitions
+        : parseStoredIndicatorDefinitions() || initialIndicatorDefinitions;
+    });
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
@@ -2284,16 +2517,26 @@ const DiagramEditor = () => {
   const [pendingImportData, setPendingImportData] = useState<DiagramImportData | null>(null);
   const [pendingImportFileName, setPendingImportFileName] = useState('');
   const [pendingImportSource, setPendingImportSource] = useState<'import' | 'transcript' | 'facts'>('import');
+  const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
+  const [backupRestoreVersions, setBackupRestoreVersions] = useState<{
+    v1?: string | null;
+    v2?: string | null;
+    v3?: string | null;
+  } | null>(null);
+  const scrollHintShownRef = useRef(false);
+  const [canvasScrollHintOpen, setCanvasScrollHintOpen] = useState(false);
   const [sessionCaptureDialogOpen, setSessionCaptureDialogOpen] = useState(false);
   const [pendingSessionCaptureData, setPendingSessionCaptureData] = useState<SessionCaptureImportData | null>(null);
   const [pendingSessionCaptureFileName, setPendingSessionCaptureFileName] = useState('');
   const [sessionCaptureSelections, setSessionCaptureSelections] = useState<Record<string, boolean>>({});
   const stageRef = useRef<StageType>(null);
+  const ribbonRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const DEFAULT_PANEL_WIDTH = 360;
+  const DEFAULT_PANEL_WIDTH = 332;
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
- const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
- const [zoom, setZoom] = useState(1);
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [ribbonHeight, setRibbonHeight] = useState(180);
+  const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const [spacePanActive, setSpacePanActive] = useState(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -2330,6 +2573,10 @@ const DiagramEditor = () => {
       emotionalLines: initialEmotionalLines,
       pageNotes: initialPageNotes,
       triangles: initialTriangles,
+      functionalIndicatorDefinitions: initialIndicatorDefinitions,
+      eventCategories: initialEventCategories,
+      relationshipTypes: initialRelationshipTypes,
+      relationshipStatuses: initialRelationshipStatuses,
     })
   );
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -2345,6 +2592,14 @@ const DiagramEditor = () => {
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
   const [diagramFileHandleName, setDiagramFileHandleName] = useState<string | null>(null);
+  const sortedRelationshipTypes = useMemo(
+    () => sortLabelsAZ(relationshipTypes),
+    [relationshipTypes]
+  );
+  const sortedRelationshipStatuses = useMemo(
+    () => sortLabelsAZ(relationshipStatuses),
+    [relationshipStatuses]
+  );
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
@@ -2371,6 +2626,8 @@ const DiagramEditor = () => {
         triangles,
         functionalIndicatorDefinitions,
         eventCategories,
+        relationshipTypes,
+        relationshipStatuses,
         autoSaveMinutes,
         fileMeta: { fileName },
       });
@@ -2446,6 +2703,8 @@ const DiagramEditor = () => {
       triangles,
       functionalIndicatorDefinitions,
       eventCategories,
+      relationshipTypes,
+      relationshipStatuses,
       autoSaveMinutes,
       fileName,
     ]
@@ -2946,7 +3205,11 @@ const DiagramEditor = () => {
       partnershipData: Partnership[],
       emotionalData: EmotionalLine[],
       pageNoteData: PageNote[],
-      triangleData: Triangle[]
+      triangleData: Triangle[],
+      indicatorDefinitionData: FunctionalIndicatorDefinition[],
+      eventCategoryData: string[],
+      relationshipTypeData: string[],
+      relationshipStatusData: string[]
     ) =>
       JSON.stringify({
         people: peopleData,
@@ -2954,6 +3217,10 @@ const DiagramEditor = () => {
         emotionalLines: emotionalData,
         pageNotes: pageNoteData,
         triangles: triangleData,
+        functionalIndicatorDefinitions: indicatorDefinitionData,
+        eventCategories: eventCategoryData,
+        relationshipTypes: relationshipTypeData,
+        relationshipStatuses: relationshipStatusData,
       }),
     []
   );
@@ -2963,14 +3230,22 @@ const DiagramEditor = () => {
       partnershipData: Partnership[],
       emotionalData: EmotionalLine[],
       pageNoteData: PageNote[],
-      triangleData: Triangle[]
+      triangleData: Triangle[],
+      indicatorDefinitionData: FunctionalIndicatorDefinition[],
+      eventCategoryData: string[],
+      relationshipTypeData: string[],
+      relationshipStatusData: string[]
     ) => {
       savedSnapshotRef.current = serializeDiagram(
         peopleData,
         partnershipData,
         emotionalData,
         pageNoteData,
-        triangleData
+        triangleData,
+        indicatorDefinitionData,
+        eventCategoryData,
+        relationshipTypeData,
+        relationshipStatusData
       );
       setIsDirty(false);
       setLastDirtyTimestamp(null);
@@ -2979,7 +3254,17 @@ const DiagramEditor = () => {
   );
 
   useEffect(() => {
-    const snapshot = serializeDiagram(people, partnerships, emotionalLines, pageNotes, triangles);
+    const snapshot = serializeDiagram(
+      people,
+      partnerships,
+      emotionalLines,
+      pageNotes,
+      triangles,
+      functionalIndicatorDefinitions,
+      eventCategories,
+      relationshipTypes,
+      relationshipStatuses
+    );
     if (snapshot !== savedSnapshotRef.current) {
       if (!isDirty) {
         setIsDirty(true);
@@ -2989,7 +3274,19 @@ const DiagramEditor = () => {
       setIsDirty(false);
       setLastDirtyTimestamp(null);
     }
-  }, [people, partnerships, emotionalLines, pageNotes, triangles, isDirty, serializeDiagram]);
+  }, [
+    people,
+    partnerships,
+    emotionalLines,
+    pageNotes,
+    triangles,
+    functionalIndicatorDefinitions,
+    eventCategories,
+    relationshipTypes,
+    relationshipStatuses,
+    isDirty,
+    serializeDiagram,
+  ]);
 
   useEffect(() => {
     if (!fileMenuOpen && !settingsMenuOpen && !optionsMenuOpen && !helpMenuOpen) return;
@@ -3469,6 +3766,7 @@ const DiagramEditor = () => {
     item: Person | Partnership | EmotionalLine,
     intent?: {
       tab?: 'properties' | 'functional' | 'events';
+      personSection?: 'name' | 'dates' | 'notes' | 'format';
       focusEventId?: string;
       openNewEventRequestId?: string;
       newEventSeed?: Partial<EmotionalProcessEvent>;
@@ -3480,6 +3778,7 @@ const DiagramEditor = () => {
       setPropertiesPanelIntent({
         targetId: item.id,
         tab: intent.tab,
+        personSection: intent.personSection,
         focusEventId: intent.focusEventId,
         openNewEventRequestId: intent.openNewEventRequestId,
         newEventSeed: intent.newEventSeed,
@@ -3488,6 +3787,17 @@ const DiagramEditor = () => {
     } else {
       setPropertiesPanelIntent(null);
     }
+  };
+
+  const openPersonSectionPopup = (
+    person: Person,
+    section: 'name' | 'dates' | 'notes' | 'format',
+    x: number,
+    y: number
+  ) => {
+    setPropertiesPanelItem(null);
+    setPropertiesPanelIntent(null);
+    setPersonSectionPopup({ personId: person.id, section, x, y });
   };
 
   const openContextualEventCreator = (
@@ -3728,6 +4038,9 @@ const DiagramEditor = () => {
       new Set<keyof Person>([
         'size',
         'borderColor',
+        'borderEnabled',
+        'foregroundColor',
+        'foregroundEnabled',
         'backgroundColor',
         'backgroundEnabled',
         'functionalIndicators',
@@ -3894,26 +4207,63 @@ const DiagramEditor = () => {
       normalized = { ...normalized, status: 'ongoing' };
     }
     if (normalized.relationshipType === 'distance' && normalized.lineStyle === 'cutoff') {
-      normalized = { ...normalized, lineStyle: 'long-dash' };
+      normalized = { ...normalized, lineStyle: 'distance-long' };
     }
     if (normalized.relationshipType === 'cutoff' && normalized.lineStyle !== 'cutoff') {
       normalized = { ...normalized, lineStyle: 'cutoff' };
     }
     if (normalized.relationshipType === 'projection') {
-      const projectionStyles: EmotionalLine['lineStyle'][] = ['low', 'medium', 'high'];
+      const projectionStyles: EmotionalLine['lineStyle'][] = [
+        'projection-1',
+        'projection-2',
+        'projection-3',
+        'projection-4',
+        'projection-5',
+      ];
       const currentStyle = normalized.lineStyle as EmotionalLine['lineStyle'];
       let nextStyle: EmotionalLine['lineStyle'] =
-        projectionStyles.includes(currentStyle) ? currentStyle : 'medium';
+        projectionStyles.includes(currentStyle) ? currentStyle : 'projection-3';
       if ((normalized.lineStyle as unknown as string) === 'projection-flow') {
-        nextStyle = 'high';
+        nextStyle = 'projection-5';
+      } else if ((normalized.lineStyle as unknown as string) === 'low') {
+        nextStyle = 'projection-1';
+      } else if ((normalized.lineStyle as unknown as string) === 'medium') {
+        nextStyle = 'projection-3';
+      } else if ((normalized.lineStyle as unknown as string) === 'high') {
+        nextStyle = 'projection-5';
       }
       normalized = { ...normalized, lineStyle: nextStyle, lineEnding: 'none' };
     }
+    if (normalized.relationshipType === 'distance') {
+      const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
+        dotted: 'distance-dotted-wide',
+        dashed: 'distance-dashed-wide',
+        'long-dash': 'distance-long',
+      };
+      const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
+      if (mapped) {
+        normalized = { ...normalized, lineStyle: mapped };
+      }
+    }
+    if (normalized.relationshipType === 'conflict') {
+      const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
+        'dotted-saw-tooth': 'conflict-dotted-wide',
+        'solid-saw-tooth': 'conflict-solid-wide',
+        'double-saw-tooth': 'conflict-double',
+      };
+      const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
+      if (mapped) {
+        normalized = { ...normalized, lineStyle: mapped };
+      }
+    }
     if (normalized.relationshipType === 'fusion') {
       const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
-        single: 'low',
-        double: 'medium',
-        triple: 'high',
+        single: 'fusion-dotted-tight',
+        double: 'fusion-solid-tight',
+        triple: 'fusion-triple',
+        low: 'fusion-dotted-tight',
+        medium: 'fusion-solid-tight',
+        high: 'fusion-triple',
       };
       const mapped = legacyMap[(normalized.lineStyle as unknown as string)] || null;
       if (mapped) {
@@ -3939,7 +4289,7 @@ const DiagramEditor = () => {
     person2_id,
     status: 'ongoing',
     relationshipType: 'fusion',
-    lineStyle: 'low',
+    lineStyle: 'fusion-dotted-wide',
     lineEnding: 'none',
     startDate: new Date().toISOString().slice(0, 10),
     color: triangleColor || DEFAULT_LINE_COLOR,
@@ -3998,7 +4348,17 @@ const DiagramEditor = () => {
       // keep fallback defaults if initialization ever fails
       setTriangles(initialTriangles);
     }
-    markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+    markSnapshotClean(
+      people,
+      partnerships,
+      emotionalLines,
+      pageNotes,
+      triangles,
+      functionalIndicatorDefinitions,
+      eventCategories,
+      relationshipTypes,
+      relationshipStatuses
+    );
   }, [markSnapshotClean]); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
@@ -4010,9 +4370,46 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  const ribbon = ribbonRef.current;
+  if (!ribbon) return;
+
+  const measure = () => {
+    const nextHeight = Math.ceil(ribbon.getBoundingClientRect().height);
+    if (nextHeight > 0) {
+      setRibbonHeight(nextHeight);
+    }
+  };
+
+  measure();
+
+  if (typeof ResizeObserver === 'undefined') return;
+  const observer = new ResizeObserver(() => measure());
+  observer.observe(ribbon);
+  return () => observer.disconnect();
+}, []);
+
+useEffect(() => {
   if (typeof window === 'undefined') return;
   setStoredValue('ideas', ideasText);
 }, [ideasText]);
+
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+  const payload: StoredUserSettings = {
+    eventCategories,
+    relationshipTypes,
+    relationshipStatuses,
+    functionalIndicatorDefinitions,
+    autoSaveMinutes,
+  };
+  setStoredValue('userSettings', JSON.stringify(payload));
+}, [
+  autoSaveMinutes,
+  eventCategories,
+  functionalIndicatorDefinitions,
+  relationshipStatuses,
+  relationshipTypes,
+]);
 
 useEffect(() => {
   const handleMouseMove = (event: MouseEvent) => {
@@ -4081,6 +4478,22 @@ useEffect(() => {
     eventCategories,
     (data) => {
       setStoredValue('eventCategories', JSON.stringify(data));
+    },
+    autosaveDelayMs
+  );
+
+  useAutosave(
+    relationshipTypes,
+    (data) => {
+      setStoredValue('relationshipTypes', JSON.stringify(data));
+    },
+    autosaveDelayMs
+  );
+
+  useAutosave(
+    relationshipStatuses,
+    (data) => {
+      setStoredValue('relationshipStatuses', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -4261,10 +4674,10 @@ useEffect(() => {
       person2Id,
       relationshipType: 'fusion',
       status: 'ongoing',
-      lineStyle: 'low',
+      lineStyle: 'fusion-dotted-wide',
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
-      intensityLevel: intensityValueForLineStyle('low'),
+      intensityLevel: intensityValueForLineStyle('fusion-dotted-wide'),
       frequency: 0,
       impact: 0,
       notes: '',
@@ -4692,9 +5105,9 @@ useEffect(() => {
         EmotionalLine['lineStyle']
       > = {
         cutoff: 'cutoff',
-        conflict: 'dotted-saw-tooth',
-        fusion: 'medium',
-        distance: 'dashed',
+        conflict: 'conflict-dotted-wide',
+        fusion: 'fusion-solid-wide',
+        distance: 'distance-dashed-wide',
       };
       nextEmotionalLines.push({
         id: nanoid(),
@@ -4822,6 +5235,8 @@ useEffect(() => {
     triangles,
     functionalIndicatorDefinitions,
     eventCategories,
+    relationshipTypes,
+    relationshipStatuses,
     autoSaveMinutes,
     ideasText,
   });
@@ -4864,6 +5279,11 @@ useEffect(() => {
     await writable.close();
   }, []);
 
+  const readDiagramJsonFromHandle = useCallback(async (handle: any) => {
+    const file = await handle.getFile();
+    return await file.text();
+  }, []);
+
   const saveDiagramToCurrentTarget = useCallback(
     async ({
       requestedFileName,
@@ -4900,11 +5320,31 @@ useEffect(() => {
 
       const resolvedFileName = handle?.name || normalizedRequestedName;
       const jsonString = JSON.stringify(buildDiagramPayload(resolvedFileName), null, 2);
+      const backupKey = resolvedFileName.toLowerCase();
 
       if (handle) {
+        let priorJson: string | null = null;
+        try {
+          priorJson = await readDiagramJsonFromHandle(handle);
+        } catch {
+          priorJson = null;
+        }
         await writeDiagramJsonToHandle(handle, jsonString);
+        if (priorJson) {
+          await rotateDiagramBackups(backupKey, priorJson);
+        }
         setFileName(resolvedFileName);
-        markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+        markSnapshotClean(
+          people,
+          partnerships,
+          emotionalLines,
+          pageNotes,
+          triangles,
+          functionalIndicatorDefinitions,
+          eventCategories,
+          relationshipTypes,
+          relationshipStatuses
+        );
         setLastSavedAt(Date.now());
         return true;
       }
@@ -4916,12 +5356,23 @@ useEffect(() => {
       a.download = resolvedFileName;
       a.click();
       URL.revokeObjectURL(url);
+      await rotateDiagramBackups(backupKey, jsonString);
       setFileName(resolvedFileName);
-      markSnapshotClean(people, partnerships, emotionalLines, pageNotes, triangles);
+      markSnapshotClean(
+        people,
+        partnerships,
+        emotionalLines,
+        pageNotes,
+        triangles,
+        functionalIndicatorDefinitions,
+        eventCategories,
+        relationshipTypes,
+        relationshipStatuses
+      );
       setLastSavedAt(Date.now());
       return true;
     },
-    [buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
+    [buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, readDiagramJsonFromHandle, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
   );
 
   useEffect(() => {
@@ -4991,6 +5442,12 @@ useEffect(() => {
     if (Array.isArray(data.eventCategories) && data.eventCategories.length > 0) {
       setEventCategories(data.eventCategories);
     }
+    if (Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0) {
+      setRelationshipTypes(data.relationshipTypes);
+    }
+    if (Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0) {
+      setRelationshipStatuses(data.relationshipStatuses);
+    }
     if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
       setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
     }
@@ -5028,7 +5485,17 @@ useEffect(() => {
       partnershipsWithEvents,
       linesWithEvents,
       Array.isArray(data.pageNotes) ? data.pageNotes : [],
-      trianglesWithKnownPeople
+      trianglesWithKnownPeople,
+      nextDefinitions,
+      Array.isArray(data.eventCategories) && data.eventCategories.length > 0
+        ? data.eventCategories
+        : eventCategories,
+      Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0
+        ? data.relationshipTypes
+        : DEFAULT_DIAGRAM_STATE.relationshipTypes,
+      Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0
+        ? data.relationshipStatuses
+        : DEFAULT_DIAGRAM_STATE.relationshipStatuses
     );
     setLastSavedAt(null);
   };
@@ -5474,6 +5941,10 @@ useEffect(() => {
           marriedStartDate: existingMatch.marriedStartDate || partnership.marriedStartDate,
           separationDate: existingMatch.separationDate || partnership.separationDate,
           divorceDate: existingMatch.divorceDate || partnership.divorceDate,
+          statusDates: {
+            ...(existingMatch.statusDates || {}),
+            ...(partnership.statusDates || {}),
+          },
           notes:
             existingMatch.notes && partnership.notes
               ? existingMatch.notes.includes(partnership.notes)
@@ -5648,6 +6119,26 @@ useEffect(() => {
       setEventCategories(mergedCategories);
     }
 
+    const mergedRelationshipTypes = [
+      ...new Set([
+        ...relationshipTypes,
+        ...(Array.isArray(data.relationshipTypes) ? data.relationshipTypes : []),
+      ]),
+    ];
+    if (mergedRelationshipTypes.length) {
+      setRelationshipTypes(mergedRelationshipTypes);
+    }
+
+    const mergedRelationshipStatuses = [
+      ...new Set([
+        ...relationshipStatuses,
+        ...(Array.isArray(data.relationshipStatuses) ? data.relationshipStatuses : []),
+      ]),
+    ];
+    if (mergedRelationshipStatuses.length) {
+      setRelationshipStatuses(mergedRelationshipStatuses);
+    }
+
     if (typeof data.ideasText === 'string' && data.ideasText.trim()) {
       const importedIdeas = data.ideasText.trim();
       setIdeasText((prev) => (prev.trim() ? `${prev}\n\n${importedIdeas}` : importedIdeas));
@@ -5695,6 +6186,37 @@ useEffect(() => {
   };
 
   const handleSaveAs = () => handleSave(true);
+
+  const handleOpenBackupRestore = async () => {
+    const backupKey = ((diagramFileHandleRef.current?.name || fileName || FALLBACK_FILE_NAME).trim() || FALLBACK_FILE_NAME)
+      .toLowerCase();
+    const backups = await loadDiagramBackups(backupKey);
+    if (!backups || (!backups.v1 && !backups.v2 && !backups.v3)) {
+      alert('No backups are available for this diagram yet.');
+      return;
+    }
+    setBackupRestoreVersions(backups);
+    setBackupRestoreOpen(true);
+  };
+
+  const handleRestoreBackupVersion = (versionKey: 'v1' | 'v2' | 'v3') => {
+    const raw = backupRestoreVersions?.[versionKey];
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      replaceDiagramState(data, diagramFileHandleRef.current?.name || fileName);
+      setBackupRestoreOpen(false);
+      setBackupRestoreVersions(null);
+    } catch {
+      alert(`Could not restore backup ${versionKey.toUpperCase()}.`);
+    }
+  };
+
+  const handleCanvasScrollHint = () => {
+    if (scrollHintShownRef.current) return;
+    scrollHintShownRef.current = true;
+    setCanvasScrollHintOpen(true);
+  };
 
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -5791,6 +6313,7 @@ useEffect(() => {
     setPageNotes([]);
     setTriangles([]);
     setPropertiesPanelItem(null);
+    setPersonSectionPopup(null);
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
@@ -5806,7 +6329,17 @@ useEffect(() => {
     setTimelineBoardSelection(null);
     setTimelineBoardEventDraft(null);
     setFileName(FALLBACK_FILE_NAME);
-    markSnapshotClean([], [], [], [], []);
+    markSnapshotClean(
+      [],
+      [],
+      [],
+      [],
+      [],
+      functionalIndicatorDefinitions,
+      eventCategories,
+      relationshipTypes,
+      relationshipStatuses
+    );
     setLastSavedAt(null);
     setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
   }, [markSnapshotClean, setDiagramFileHandle]);
@@ -6332,7 +6865,7 @@ useEffect(() => {
 
   const createChildrenForPartnership = (
     partnershipId: string,
-    variant: 'single' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth'
+    variant: 'male' | 'female' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth'
   ) => {
     const partnership = partnerships.find(p => p.id === partnershipId);
     if (!partnership) return;
@@ -6347,6 +6880,12 @@ useEffect(() => {
     let lifeStatus: Person['lifeStatus'] | undefined = 'alive';
 
     switch (variant) {
+      case 'male':
+        baseName = 'Son';
+        break;
+      case 'female':
+        baseName = 'Daughter';
+        break;
       case 'twins':
         count = 2;
         baseName = 'Twin';
@@ -6374,7 +6913,14 @@ useEffect(() => {
       name: count > 1 ? `${baseName} ${idx + 1}` : baseName,
       x: startX + idx * spacing,
       y: baseY,
-      gender: lifeStatus === 'stillbirth' ? (idx % 2 === 0 ? 'female' : 'male') : (idx % 2 === 0 ? 'female' : 'male'),
+      gender:
+        variant === 'male'
+          ? 'male'
+          : variant === 'female'
+          ? 'female'
+          : idx % 2 === 0
+          ? 'female'
+          : 'male',
       partnerships: [],
       parentPartnership: partnershipId,
       connectionAnchorX: multipleBirthGroupId ? anchorX : undefined,
@@ -6628,21 +7174,58 @@ useEffect(() => {
               : 'No Note',
             onClick: () => {
                 if (!person.notes) return;
-                handleUpdatePerson(person.id, { notesEnabled: person.notesEnabled ? undefined : true });
+                handleUpdatePerson(person.id, { notesEnabled: person.notesEnabled ? false : true });
                 setContextMenu(null);
             }
           },
           {
             label: 'Properties',
-            onClick: () => {
-                setSelectedPeopleIds([person.id]);
-                setSelectedPartnershipId(null);
-                setSelectedEmotionalLineId(null);
-                setSelectedChildId(null);
-                setPropertiesPanelItem(person);
-                setPropertiesPanelIntent(null);
-                setContextMenu(null);
-            }
+            children: [
+              {
+                label: 'Name',
+                onClick: () => {
+                  setSelectedPeopleIds([person.id]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(null);
+                  setSelectedChildId(null);
+                  openPersonSectionPopup(person, 'name', e.evt.clientX, e.evt.clientY);
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Dates',
+                onClick: () => {
+                  setSelectedPeopleIds([person.id]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(null);
+                  setSelectedChildId(null);
+                  openPersonSectionPopup(person, 'dates', e.evt.clientX, e.evt.clientY);
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Notes',
+                onClick: () => {
+                  setSelectedPeopleIds([person.id]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(null);
+                  setSelectedChildId(null);
+                  openPersonSectionPopup(person, 'notes', e.evt.clientX, e.evt.clientY);
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Format',
+                onClick: () => {
+                  setSelectedPeopleIds([person.id]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(null);
+                  setSelectedChildId(null);
+                  openPersonSectionPopup(person, 'format', e.evt.clientX, e.evt.clientY);
+                  setContextMenu(null);
+                },
+              },
+            ],
           },
           {
             label: 'Make Client',
@@ -6859,45 +7442,57 @@ useEffect(() => {
         items: [
             {
                 label: 'Add Child',
-                onClick: () => {
-                    createChildrenForPartnership(partnershipId, 'single');
-                    setContextMenu(null);
-                }
-            },
-            {
-                label: 'Add Twins',
-                onClick: () => {
-                    createChildrenForPartnership(partnershipId, 'twins');
-                    setContextMenu(null);
-                }
-            },
-            {
-                label: 'Add Triplets',
-                onClick: () => {
-                    createChildrenForPartnership(partnershipId, 'triplets');
-                    setContextMenu(null);
-                }
-            },
-            {
-                label: 'Add Miscarriage',
-                onClick: () => {
-                    createChildrenForPartnership(partnershipId, 'miscarriage');
-                    setContextMenu(null);
-                }
-            },
-            {
-                label: 'Add Stillbirth',
-                onClick: () => {
-                    createChildrenForPartnership(partnershipId, 'stillbirth');
-                    setContextMenu(null);
-                }
-            },
-            {
-                label: 'Add Adopted Child',
-                onClick: () => {
-                    createAdoptedChildForPartnership(partnershipId);
-                    setContextMenu(null);
-                }
+                children: [
+                  {
+                    label: 'Add Male',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'male');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Add Female',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'female');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Twins',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'twins');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Triplets',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'triplets');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Miscarriage',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'miscarriage');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Stillbirth',
+                    onClick: () => {
+                      createChildrenForPartnership(partnershipId, 'stillbirth');
+                      setContextMenu(null);
+                    },
+                  },
+                  {
+                    label: 'Adopted',
+                    onClick: () => {
+                      createAdoptedChildForPartnership(partnershipId);
+                      setContextMenu(null);
+                    },
+                  },
+                ]
             },
             {
               label: partnership.notes
@@ -6907,7 +7502,7 @@ useEffect(() => {
                 : 'No Note',
               onClick: () => {
                   if (!partnership.notes) return;
-                  handleUpdatePartnership(partnershipId, { notesEnabled: partnership.notesEnabled ? undefined : true });
+                  handleUpdatePartnership(partnershipId, { notesEnabled: partnership.notesEnabled ? false : true });
                   setContextMenu(null);
               }
             },
@@ -7392,7 +7987,7 @@ useEffect(() => {
           : 'No Note',
         onClick: () => {
             if (!emotionalLine.notes) return;
-            handleUpdateEmotionalLine(emotionalLineId, { notesEnabled: emotionalLine.notesEnabled ? undefined : true });
+            handleUpdateEmotionalLine(emotionalLineId, { notesEnabled: emotionalLine.notesEnabled ? false : true });
             setContextMenu(null);
         }
       },
@@ -8199,7 +8794,7 @@ useEffect(() => {
       };
 
       const canvasWidth = Math.max(0, viewport.width - panelWidth);
-      const canvasHeight = Math.max(0, viewport.height - 180);
+      const canvasHeight = Math.max(0, viewport.height - ribbonHeight);
       const stageOffset = {
         x: ((1 - zoom) * canvasWidth) / 2,
         y: ((1 - zoom) * canvasHeight) / 2,
@@ -8273,6 +8868,7 @@ useEffect(() => {
         { label: 'Import Person Events', action: handleImportPersonEventsPicker },
         { label: 'Save', action: () => handleSave(false) },
         { label: 'Save As', action: handleSaveAs },
+        { label: 'Restore Backup', action: () => void handleOpenBackupRestore() },
         { label: 'Export Person Events', action: handleExportPersonEvents },
         { label: 'Export PNG', action: handleExportPNG },
         { label: 'Export SVG', action: handleExportSVG },
@@ -8287,6 +8883,8 @@ useEffect(() => {
       ];
       const settingsMenuItems = [
         { label: 'Event Categories', action: () => setSettingsOpen(true) },
+        { label: 'Relationship Categories', action: () => setRelationshipTypeSettingsOpen(true) },
+        { label: 'Relationship Statuses', action: () => setRelationshipStatusSettingsOpen(true) },
         { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
         {
           label: `Notes Layer: ${notesLayerEnabled ? 'On' : 'Off'}`,
@@ -8355,6 +8953,9 @@ useEffect(() => {
               boxShadow: demoBlinkVisible ? '0 0 0 2px rgba(255,152,0,0.25)' : 'none',
             }
           : {};
+      const personSectionPopupPerson = personSectionPopup
+        ? people.find((person) => person.id === personSectionPopup.personId) || null
+        : null;
       const helpBadgeStyle: React.CSSProperties = {
         width: 20,
         height: 20,
@@ -8383,6 +8984,7 @@ useEffect(() => {
       return (
         <div>
           <div
+            ref={ribbonRef}
             style={{
               position: 'sticky',
               top: 0,
@@ -9009,9 +9611,133 @@ useEffect(() => {
               </div>
             </div>
           )}
+          {backupRestoreOpen && backupRestoreVersions && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Restore backup"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2420,
+              }}
+              onClick={() => {
+                setBackupRestoreOpen(false);
+                setBackupRestoreVersions(null);
+              }}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  borderRadius: 12,
+                  padding: '18px 20px',
+                  width: 'min(420px, 92vw)',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.28)',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0 }}>Restore Backup</h3>
+                  <button
+                    onClick={() => {
+                      setBackupRestoreOpen(false);
+                      setBackupRestoreVersions(null);
+                    }}
+                    aria-label="Close restore backup"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 22,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 14, color: '#45556f' }}>
+                  Restore a previous saved version of this diagram.
+                </div>
+                <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+                  {(['v1', 'v2', 'v3'] as const).map((versionKey) => {
+                    const value = backupRestoreVersions[versionKey];
+                    return (
+                      <button
+                        key={versionKey}
+                        onClick={() => handleRestoreBackupVersion(versionKey)}
+                        disabled={!value}
+                        style={{
+                          ...ribbonButtonStyle,
+                          width: '100%',
+                          textAlign: 'left',
+                          cursor: value ? 'pointer' : 'not-allowed',
+                          opacity: value ? 1 : 0.5,
+                        }}
+                      >
+                        {versionKey.toUpperCase()}
+                        {versionKey === 'v1'
+                          ? ' (most recent backup)'
+                          : versionKey === 'v2'
+                          ? ' (previous backup)'
+                          : ' (oldest backup)'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex' }}>
             {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
-            <div style={{ flex: 1, position: 'relative' }}>
+            {personSectionPopup && personSectionPopupPerson && (
+              <div
+                onClick={() => setPersonSectionPopup(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 2200,
+                  background: 'transparent',
+                }}
+              >
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    left:
+                      typeof window !== 'undefined'
+                        ? Math.max(12, Math.min(personSectionPopup.x + 10, window.innerWidth - 480))
+                        : personSectionPopup.x,
+                    top:
+                      typeof window !== 'undefined'
+                        ? Math.max(12, Math.min(personSectionPopup.y + 10, window.innerHeight - 420))
+                        : personSectionPopup.y,
+                  }}
+                >
+                  <PropertiesPanel
+                    selectedItem={personSectionPopupPerson}
+                    people={people}
+                    eventCategories={eventCategories}
+                    relationshipTypes={relationshipTypes}
+                    relationshipStatuses={relationshipStatuses}
+                    functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+                    onUpdatePerson={handleUpdatePerson}
+                    onUpdatePartnership={handleUpdatePartnership}
+                    onUpdateEmotionalLine={handleUpdateEmotionalLine}
+                    initialActiveTab="properties"
+                    initialPersonSection={personSectionPopup.section}
+                    compactPersonSectionMode
+                    onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
+                    onClose={() => setPersonSectionPopup(null)}
+                  />
+                </div>
+              </div>
+            )}
+            <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
               {isDemoFocusedCanvas && (
                 <div
                   style={{
@@ -9512,7 +10238,7 @@ useEffect(() => {
                         fontSize: 12,
                       }}
                     >
-                      Delete
+                      🗑
                     </button>
                     <button
                       aria-label="Save general note"
@@ -9530,6 +10256,60 @@ useEffect(() => {
                   </div>
                 </div>
               )}
+              {canvasScrollHintOpen && (
+                <div
+                  role="status"
+                  style={{
+                    position: 'absolute',
+                    right: 28,
+                    bottom: 16,
+                    width: 320,
+                    background: '#fffdf4',
+                    border: '1px solid #d6c27a',
+                    borderRadius: 10,
+                    boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
+                    padding: '10px 12px',
+                    zIndex: 30,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ fontSize: 13, lineHeight: 1.4, color: '#4d4320' }}>
+                      To PAN or SCROLL the canvas, hold down SPACE bar and Click to pan the Canvas in any direction
+                    </div>
+                    <button
+                      onClick={() => setCanvasScrollHintOpen(false)}
+                      aria-label="Close canvas scroll hint"
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: 18,
+                        lineHeight: 1,
+                        cursor: 'pointer',
+                        color: '#6a5a26',
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+              <div
+                aria-label="Canvas scroll guidance"
+                onMouseDown={handleCanvasScrollHint}
+                onWheel={handleCanvasScrollHint}
+                style={{
+                  width: 16,
+                  height: canvasHeight,
+                  overflowY: 'scroll',
+                  overflowX: 'hidden',
+                  borderLeft: '1px solid #d7dbe4',
+                  background: '#f3f5fa',
+                }}
+              >
+                <div style={{ height: Math.max(canvasHeight * 2, canvasHeight + 200) }} />
+              </div>
             </div>
             <div
               ref={panelRef}
@@ -9590,6 +10370,8 @@ useEffect(() => {
                       selectedItem={propertiesPanelItem}
                       people={people}
                       eventCategories={eventCategories}
+                      relationshipTypes={relationshipTypes}
+                      relationshipStatuses={relationshipStatuses}
                       functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                       onUpdatePerson={handleUpdatePerson}
                       onUpdatePartnership={handleUpdatePartnership}
@@ -9602,6 +10384,11 @@ useEffect(() => {
                       initialActiveTab={
                         propertiesPanelIntent?.targetId === propertiesPanelItem.id
                           ? propertiesPanelIntent.tab
+                          : undefined
+                      }
+                      initialPersonSection={
+                        propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                          ? propertiesPanelIntent.personSection
                           : undefined
                       }
                       focusEventId={
@@ -10364,6 +11151,130 @@ useEffect(() => {
                 </ul>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                   <button onClick={() => setSettingsOpen(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {relationshipTypeSettingsOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2020,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
+                <h4>Relationship Categories</h4>
+                <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>
+                  Add partnership relationship categories used in the Properties panel. Existing categories cannot be deleted here.
+                </p>
+                <div style={{ marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Add relationship category"
+                    value={relationshipTypeDraft}
+                    onChange={(e) => setRelationshipTypeDraft(e.target.value)}
+                  />
+                  <button
+                    onClick={() => {
+                      const trimmed = relationshipTypeDraft.trim();
+                      if (!trimmed) return;
+                      if (!relationshipTypes.includes(trimmed)) {
+                        setRelationshipTypes(sortLabelsAZ([...relationshipTypes, trimmed]));
+                      }
+                      setRelationshipTypeDraft('');
+                    }}
+                    style={{ marginLeft: 6 }}
+                  >
+                    Add
+                  </button>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {sortedRelationshipTypes.map((category) => (
+                    <li key={category} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span>{category.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}</span>
+                      <button
+                        type="button"
+                        aria-label="Delete"
+                        title="Delete"
+                        onClick={() =>
+                          setRelationshipTypes((prev) => prev.filter((entry) => entry !== category))
+                        }
+                        style={{ color: '#b00020' }}
+                      >
+                        🗑
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button onClick={() => setRelationshipTypeSettingsOpen(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {relationshipStatusSettingsOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2030,
+              }}
+            >
+              <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
+                <h4>Relationship Statuses</h4>
+                <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>
+                  Add partnership relationship statuses used in the Properties panel. Existing statuses cannot be deleted here.
+                </p>
+                <div style={{ marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Add relationship status"
+                    value={relationshipStatusDraft}
+                    onChange={(e) => setRelationshipStatusDraft(e.target.value)}
+                  />
+                  <button
+                    onClick={() => {
+                      const trimmed = relationshipStatusDraft.trim();
+                      if (!trimmed) return;
+                      if (!relationshipStatuses.includes(trimmed)) {
+                        setRelationshipStatuses(sortLabelsAZ([...relationshipStatuses, trimmed]));
+                      }
+                      setRelationshipStatusDraft('');
+                    }}
+                    style={{ marginLeft: 6 }}
+                  >
+                    Add
+                  </button>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {sortedRelationshipStatuses.map((status) => (
+                    <li key={status} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span>{status.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}</span>
+                      <button
+                        type="button"
+                        aria-label="Delete"
+                        title="Delete"
+                        onClick={() =>
+                          setRelationshipStatuses((prev) => prev.filter((entry) => entry !== status))
+                        }
+                        style={{ color: '#b00020' }}
+                      >
+                        🗑
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button onClick={() => setRelationshipStatusSettingsOpen(false)}>Close</button>
                 </div>
               </div>
             </div>

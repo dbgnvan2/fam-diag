@@ -7,46 +7,10 @@ import type {
   Person,
   Triangle,
 } from '../types';
-import demoFamilyDiagramDataJson from './demofamilydiagram.json';
+import { APPLICATION_SETTINGS, type ApplicationSettings } from './applicationSettings';
+import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
 export const FALLBACK_FILE_NAME = 'newDiagram';
-const FALLBACK_AUTO_SAVE_MINUTES = 1;
-const FALLBACK_EVENT_CATEGORIES = [
-  'Relationship',
-  'Health',
-  'Career',
-  'Education',
-  'Location',
-  'Legal',
-  'Finance',
-  'Faith',
-  'Achievement',
-  'Social',
-];
-
-const FALLBACK_FUNCTIONAL_INDICATORS: FunctionalIndicatorDefinition[] = [
-  {
-    id: 'symptom-physical-default',
-    label: 'Physical Symptom',
-    group: 'physical',
-    color: '#1f77b4',
-    useLetter: true,
-  },
-  {
-    id: 'symptom-emotional-default',
-    label: 'Emotional Symptom',
-    group: 'emotional',
-    color: '#d81b60',
-    useLetter: true,
-  },
-  {
-    id: 'symptom-social-default',
-    label: 'Social Symptom',
-    group: 'social',
-    color: '#2e7d32',
-    useLetter: true,
-  },
-];
 
 const fallbackPartner1Id = nanoid();
 const fallbackPartner2Id = nanoid();
@@ -108,6 +72,8 @@ export type RawDiagramFile = {
   triangles?: Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   eventCategories?: string[];
+  relationshipTypes?: string[];
+  relationshipStatuses?: string[];
   autoSaveMinutes?: number;
   ideasText?: string;
 };
@@ -120,6 +86,8 @@ export type DefaultDiagramState = {
   triangles: Triangle[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   eventCategories: string[];
+  relationshipTypes: string[];
+  relationshipStatuses: string[];
   autoSaveMinutes: number;
   fileName: string;
   displayName: string;
@@ -162,7 +130,11 @@ const sanitizePeople = (value: unknown): Person[] | null => {
   }) as Person[];
 };
 
-export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState => {
+export const buildDefaultDiagramState = (
+  rawData: unknown,
+  applicationSettings: ApplicationSettings = APPLICATION_SETTINGS,
+  includeEmbeddedSettings = true
+): DefaultDiagramState => {
   const typed = rawData as RawDiagramFile | undefined;
   const base: DefaultDiagramState = {
     people: FALLBACK_PEOPLE,
@@ -170,9 +142,11 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
     emotionalLines: FALLBACK_EMOTIONAL_LINES,
     pageNotes: [],
     triangles: FALLBACK_TRIANGLES,
-    functionalIndicatorDefinitions: FALLBACK_FUNCTIONAL_INDICATORS,
-    eventCategories: FALLBACK_EVENT_CATEGORIES,
-    autoSaveMinutes: FALLBACK_AUTO_SAVE_MINUTES,
+    functionalIndicatorDefinitions: applicationSettings.functionalIndicatorDefinitions,
+    eventCategories: applicationSettings.eventCategories,
+    relationshipTypes: applicationSettings.relationshipTypes,
+    relationshipStatuses: applicationSettings.relationshipStatuses,
+    autoSaveMinutes: applicationSettings.autoSaveMinutes,
     fileName: FALLBACK_FILE_NAME,
     displayName: FALLBACK_FILE_NAME,
     ideasText: '',
@@ -196,11 +170,23 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
     pageNotes: Array.isArray(typed.pageNotes) ? typed.pageNotes : base.pageNotes,
     triangles: Array.isArray(typed.triangles) ? typed.triangles : base.triangles,
     functionalIndicatorDefinitions:
+      includeEmbeddedSettings &&
       Array.isArray(typed.functionalIndicatorDefinitions) &&
       typed.functionalIndicatorDefinitions.length
         ? typed.functionalIndicatorDefinitions
         : base.functionalIndicatorDefinitions,
-    eventCategories: sanitizeStringArray(typed.eventCategories) ?? base.eventCategories,
+    eventCategories:
+      includeEmbeddedSettings
+        ? sanitizeStringArray(typed.eventCategories) ?? base.eventCategories
+        : base.eventCategories,
+    relationshipTypes:
+      includeEmbeddedSettings
+        ? sanitizeStringArray(typed.relationshipTypes) ?? base.relationshipTypes
+        : base.relationshipTypes,
+    relationshipStatuses:
+      includeEmbeddedSettings
+        ? sanitizeStringArray(typed.relationshipStatuses) ?? base.relationshipStatuses
+        : base.relationshipStatuses,
     autoSaveMinutes: toPositiveNumberOrNull(typed.autoSaveMinutes) ?? base.autoSaveMinutes,
     fileName:
       typeof typed.fileMeta?.fileName === 'string' && typed.fileMeta.fileName.trim().length
@@ -216,4 +202,8 @@ export const buildDefaultDiagramState = (rawData: unknown): DefaultDiagramState 
   };
 };
 
-export const DEFAULT_DIAGRAM_STATE = buildDefaultDiagramState(demoFamilyDiagramDataJson);
+export const DEFAULT_DIAGRAM_STATE = buildDefaultDiagramState(
+  productDefaultDiagramJson,
+  APPLICATION_SETTINGS,
+  false
+);

@@ -66,7 +66,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (fusion, distance, cutoff, conflict) with intensity-specific line styles.',
       'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, fusion arrow). Thickness adjusts automatically for high-intensity options.',
       'Select three people, then right-click one of them and choose Add Triangle to draw a Bowen triangle between those three people.',
-      'Fusion intensities render as double dotted (Low), double solid (Medium), or triple solid (High) lines while distance/conflict keep their dotted/dashed/sawtooth variants. Notes for EPLs float like person notes and can be enabled/disabled per line.',
+      'Fusion, distance, conflict, and projection use a five-level graphic scale. The Pattern tab keeps Intensity and Intensity Level synchronized so changing either control updates the other.',
+      'Distance and conflict include a ? chooser beside Intensity Level. It opens a floating picker below the field with descriptive text for each level, and clicking an item selects that level immediately.',
+      'Notes for EPLs float like person notes and can be enabled/disabled per line.',
     ],
   },
   {

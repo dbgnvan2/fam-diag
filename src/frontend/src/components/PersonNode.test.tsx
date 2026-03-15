@@ -81,7 +81,7 @@ describe('PersonNode', () => {
         const stage = stageRef.current;
         const group = stage.getLayers()[0].getChildren()[0];
         const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
-        const expectedSize = shadedPerson.size + Math.max(10, shadedPerson.size * 0.1);
+        const expectedSize = shadedPerson.size * 1.05;
         const hasBackground = rects.some((rect: any) => rect.attrs.width === expectedSize);
         expect(hasBackground).toBe(true);
     });
@@ -109,6 +109,31 @@ describe('PersonNode', () => {
         const group = stage.getLayers()[0].getChildren()[0];
         const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
         expect(rects.some((rect: any) => rect.attrs.fill === '#22aa88')).toBe(true);
+    });
+
+    it('fills the person node with the enabled foreground color', () => {
+        const stageRef = React.createRef<Stage>();
+        const tintedPerson: Person = {
+            id: 'p-foreground',
+            name: 'Tinted',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+            foregroundEnabled: true,
+            foregroundColor: '#22aa88',
+        };
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={tintedPerson} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
+        expect(rects.some((rect: any) => rect.attrs.width === 60 && rect.attrs.fill === '#22aa88')).toBe(true);
     });
 
     it('renders functional indicator badges with fallback letters', () => {
