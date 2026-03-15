@@ -19,6 +19,11 @@ import {
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
 import DatePickerField from './DatePickerField';
+import {
+  deriveSiblingPositionResult,
+  getSiblingPositionLabel,
+  getSiblingPositionOptions,
+} from '../utils/siblingPosition';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
@@ -40,6 +45,14 @@ const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', strin
 };
 const DEFAULT_OBSERVATION = 'Not recorded - ask client';
 const DEFAULT_HOW_WELL = 1;
+const FUSION_INTENSITY_HELP = [
+  'Minimal – The amount of loss of self to one’s spouse is minimal. Whatever symptom occurs is easily managed, without limitation in functioning, and appears only during periods of heightened anxiety.',
+  'Mild –Some loss of self that can result in more frequent but still mild symptoms that cause distress and occasionally interfere with functioning.',
+  'Moderate – A greater sensitivity to conflict and greater readiness to go along with the other to avoid it. More frequent or moderate symptoms that reduce the ability to function but can be managed by the person unless anxiety gets too high.',
+  'Major – Considerable loss of self to the other such that most important decisions are made by the other spouse. Serious or chronic symptoms that require substantial alteration in the life of the person and/or family',
+  'Severe – Person has become almost a complete no self in the relationship and extremely vulnerable to very serious symptoms that essentially dictate all of life’s choices.',
+];
+const FUSION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
 const CONFLICT_INTENSITY_HELP = [
   'Minimum – very occasional bickering, little or no arguments.',
   'Mild – frequent bickering, short-lived or infrequent quarelling.',
@@ -56,6 +69,104 @@ const DISTANCE_INTENSITY_HELP = [
   'Severe – Distance is structured into separate lifestyles or living arrangements.',
 ];
 const DISTANCE_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
+const PROJECTION_INTENSITY_HELP = [
+  'Minimal – Parental worry/anxiety about the child is very occasional; child is asymptomatic. Parents meet the reality needs of the child without significantly incorporating the child into parental problems or emotionally overinvesting either positively or negative in the child.',
+  'Mild – Parents’ worry is episodic. Symptoms of the child tend to be occasional and easily managed with no serious impairment of the child’s functioning. Sporadic anxious focus on the child.',
+  'Moderate – Parental worry about the child may be episodic or more constant. There is some impairment of the child’s functioning that becomes more acute during periods of heightened parental anxiety. More of the parent’s self is invested in the child and can play out in either an over positive or an over negative way.',
+  'Major – Anxious parental focus on the child is more intense contributing to serious impairment of the child’s functioning. This may not become evident until adolescence or until the child attempts to leave home. The life of the family is frequently oriented around the child and symptoms in the child.',
+  'Severe – The intensity of the attachment between child and parents is so severe the child fails to lift off from parents or substitute institution. A chronic fixed triangle with the parents contributes to a schizophrenic level of impairment.',
+];
+const PROJECTION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
+const SIBLING_OVERRIDE_HELP = [
+  'Siblings Complete: turn this on only when every relevant sibling is shown on the diagram. Leave it off when you know siblings are missing, because the derived position should stay provisional.',
+  'Birth Order Override: use this when birth dates are missing or twins need to be distinguished. It gives the ranking engine an explicit place in the sibling order.',
+  'Override Position: use this only when the computed Toman code is not the one you want to use. A manual override becomes the effective position and drives the conflict results.',
+];
+const FAMILY_STABILITY_HELP = [
+  'Excellent – very high percentage (90%) of members represent good functioning across their lifetimes.',
+  'Good – high percentage of family members (75-80%) represent good functioning across their lifetimes, few problems and existing problems are well managed.',
+  'Average – majority of family members display stable adequate functioning across their lifetimes, some problems in family functioning but generally problems are either episodic or do not represent serious drops in overall family functioning.',
+  'Semi-stable – majority of family members stable over their lifetimes but prolonged periods of drops in overall family functioning, perhaps including the present time.',
+  'Unstable – majority of members have serious symptoms and major impairment of life functioning.',
+];
+const FAMILY_STABILITY_LABELS = ['Excellent', 'Good', 'Average', 'Semi-stable', 'Unstable'];
+const FAMILY_INTACTNESS_HELP = [
+  'Excellent – very high percentage (90%) of family members across three generations are alive and available for contact.',
+  'Good – a high percentage (75-80%) of family members across three generations are alive and available for contact.',
+  'Average – a majority of family members across three generations are alive and available for contact.',
+  'Semi-fragmented – relatively few members of the family across three generations are alive and available for contact.',
+  'Fragmented – basic family unit is dissolved and whereabouts of living family members is unknown.',
+];
+const FAMILY_INTACTNESS_LABELS = [
+  'Excellent',
+  'Good',
+  'Average',
+  'Semi-fragmented',
+  'Fragmented',
+];
+const humanizeOptionLabel = (value: string) =>
+  value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+const RELATIONSHIP_TYPE_STATUS_ROWS: Record<string, { status: string; dateLabel: string }[]> = {
+  married: [
+    { status: 'married', dateLabel: 'Married' },
+    { status: 'divorce', dateLabel: 'Divorces' },
+    { status: 'separated', dateLabel: 'Separated' },
+    { status: 'widowed', dateLabel: 'Widowed' },
+  ],
+  engaged: [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ongoing', dateLabel: 'Ongoing' },
+    { status: 'ended', dateLabel: 'Ended' },
+  ],
+  friendship: [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ongoing', dateLabel: 'Ongoing' },
+    { status: 'ended', dateLabel: 'Ended' },
+  ],
+  affair: [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ongoing', dateLabel: 'Ongoing' },
+    { status: 'ended', dateLabel: 'Ended' },
+  ],
+  'living-together': [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ongoing', dateLabel: 'Ongoing' },
+    { status: 'ended', dateLabel: 'Ended' },
+  ],
+  'common-law': [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ended', dateLabel: 'Ended' },
+    { status: 'separated', dateLabel: 'Separated' },
+    { status: 'widowed', dateLabel: 'Widowed' },
+  ],
+  dating: [
+    { status: 'start', dateLabel: 'Start' },
+    { status: 'ongoing', dateLabel: 'Ongoing' },
+    { status: 'ended', dateLabel: 'Ended' },
+  ],
+};
+const RELATIONSHIP_STATUS_KEY_ALIASES: Record<string, string> = {
+  started: 'start',
+  start: 'start',
+  divorced: 'divorce',
+  divorce: 'divorce',
+  widowed: 'widowed',
+  ongoing: 'ongoing',
+  ended: 'ended',
+  married: 'married',
+  separated: 'separated',
+};
+const canonicalRelationshipStatusKey = (value: string) =>
+  RELATIONSHIP_STATUS_KEY_ALIASES[value.trim().toLowerCase()] || value.trim().toLowerCase();
+const relationshipStatusRowsForType = (relationshipType: string) =>
+  RELATIONSHIP_TYPE_STATUS_ROWS[relationshipType.trim().toLowerCase()] || [];
+const relationshipDateLabelFor = (relationshipType: string, status: string) => {
+  const canonicalStatus = canonicalRelationshipStatusKey(status);
+  const mapped = relationshipStatusRowsForType(relationshipType).find(
+    (entry) => canonicalRelationshipStatusKey(entry.status) === canonicalStatus
+  );
+  return mapped?.dateLabel || humanizeOptionLabel(status);
+};
 const emotionalLineStyleLevelFor = (
   relationshipType: EmotionalLine['relationshipType'],
   lineStyle: EmotionalLine['lineStyle']
@@ -105,11 +216,16 @@ const isSymptomCategory = (value?: string): value is SymptomGroup =>
 const normalizeSymptomCategory = (value?: string): SymptomGroup =>
   isSymptomCategory(value?.toLowerCase()) ? (value!.toLowerCase() as SymptomGroup) : 'physical';
 const clampSymptomType = (value?: string) => (value || '').trim().slice(0, 30);
-const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events', { title: string; body: string }> = {
+const TAB_HELP_COPY: Record<'properties' | 'foo' | 'functional' | 'events', { title: string; body: string }> = {
   properties: {
     title: 'Person Tab Help',
     body:
       'Persons have basic nodal events of Birth, Death, Birth Sex, and Gender (with Gender Date). Other Symptom events can be added as Events. Persons can be given background colors and border colors to designate whatever is needed (e.g., people living at the same location).',
+  },
+  foo: {
+    title: 'FOO Tab Help',
+    body:
+      'FOO stores family-level measures for the selected person. Use Emotional Cutoff as a free-form measure, and use the Family Stability and Family Intactness help pickers to choose a scale level directly from the reference descriptions.',
   },
   functional: {
     title: 'Symptoms Tab Help',
@@ -156,15 +272,17 @@ const RELATIONSHIP_STATUS_INTENSITY: Record<string, number> = {
   ended: 4,
   ongoing: 3,
 };
-const normalizeStatusKey = (value: string) => value.trim().toLowerCase();
+const normalizeStatusKey = (value: string) => canonicalRelationshipStatusKey(value);
 const LEGACY_STATUS_DATE_FIELD_BY_KEY: Partial<
   Record<string, 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate'>
 > = {
   started: 'relationshipStartDate',
+  start: 'relationshipStartDate',
   ongoing: 'relationshipStartDate',
   married: 'marriedStartDate',
   separated: 'separationDate',
   divorced: 'divorceDate',
+  divorce: 'divorceDate',
 };
 const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate' | 'genderDate'>)[] = [
   'birthDate',
@@ -223,6 +341,10 @@ const readPartnershipStatusDate = (partnership: Partnership, status: string) => 
   const key = normalizeStatusKey(status);
   const explicit = partnership.statusDates?.[key];
   if (explicit) return explicit;
+  const aliasMatches = Object.entries(partnership.statusDates || {}).find(
+    ([entryKey]) => canonicalRelationshipStatusKey(entryKey) === key
+  );
+  if (aliasMatches?.[1]) return aliasMatches[1];
   const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
   return legacyField ? partnership[legacyField] || '' : '';
 };
@@ -250,6 +372,7 @@ const withPartnershipStatusDate = (partnership: Partnership, status: string, val
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
   people: Person[];
+  partnerships?: Partnership[];
   eventCategories: string[];
   relationshipTypes?: string[];
   relationshipStatuses?: string[];
@@ -265,23 +388,26 @@ interface PropertiesPanelProps {
     triangleId: string,
     intensity: 'low' | 'medium' | 'high'
   ) => void;
-  initialActiveTab?: 'properties' | 'functional' | 'events';
-  initialPersonSection?: 'name' | 'dates' | 'notes' | 'format';
+  initialActiveTab?: 'properties' | 'foo' | 'functional' | 'events';
+  initialPersonSection?: 'name' | 'dates' | 'notes' | 'format' | 'sibling';
+  initialPartnershipType?: string;
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent> | null;
   openNewEventPosition?: { x: number; y: number };
   onEnsureSymptomCategoryDefinition?: (label: string, group: SymptomGroup) => string | null;
   compactPersonSectionMode?: boolean;
+  compactPartnershipSectionMode?: boolean;
   onClose: () => void;
 }
 
 const PropertiesPanel = ({
   selectedItem,
   people,
+  partnerships = [],
   eventCategories,
-  relationshipTypes = ['married', 'common-law', 'living-together', 'dating', 'affair', 'friendship'],
-  relationshipStatuses = ['married', 'separated', 'divorced', 'started', 'ended', 'ongoing'],
+  relationshipTypes = ['married', 'engaged', 'common-law', 'living-together', 'dating', 'affair', 'friendship'],
+  relationshipStatuses = ['married', 'separated', 'divorce', 'widowed', 'start', 'ended', 'ongoing'],
   functionalIndicatorDefinitions,
   onUpdatePerson,
   onUpdatePartnership,
@@ -293,12 +419,14 @@ const PropertiesPanel = ({
   onUpdateTriangleIntensity,
   initialActiveTab,
   initialPersonSection,
+  initialPartnershipType,
   focusEventId,
   openNewEventRequestId,
   newEventSeed,
   openNewEventPosition,
   onEnsureSymptomCategoryDefinition,
   compactPersonSectionMode = false,
+  compactPartnershipSectionMode = false,
   onClose,
 }: PropertiesPanelProps) => {
   const colorInputRefs = {
@@ -306,8 +434,7 @@ const PropertiesPanel = ({
     border: useRef<HTMLInputElement | null>(null),
     background: useRef<HTMLInputElement | null>(null),
   };
-  const formatOptionLabel = (value: string) =>
-    value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  const formatOptionLabel = humanizeOptionLabel;
   const isPerson = 'name' in selectedItem;
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
@@ -325,12 +452,17 @@ const PropertiesPanel = ({
   const [eventModalPosition, setEventModalPosition] = useState<{ x: number; y: number } | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'foo' | 'functional' | 'events'>('properties');
   const [activePersonSection, setActivePersonSection] = useState<
-    'name' | 'dates' | 'notes' | 'format'
+    'name' | 'dates' | 'notes' | 'format' | 'sibling'
   >('name');
-  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | null>(null);
+  const [activeSiblingSubtab, setActiveSiblingSubtab] = useState<
+    'override' | 'position' | 'compatibility'
+  >('override');
+  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'foo' | 'functional' | 'events' | null>(null);
   const [emotionalIntensityHelpOpen, setEmotionalIntensityHelpOpen] = useState(false);
+  const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
+  const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
@@ -347,6 +479,28 @@ const PropertiesPanel = ({
   const [emotionalDraft, setEmotionalDraft] = useState<EmotionalLine | null>(
     selectedEmotionalLine ? { ...selectedEmotionalLine } : null
   );
+  const siblingPositionResult = useMemo(
+    () =>
+      selectedPerson
+        ? deriveSiblingPositionResult({
+            person: selectedPerson,
+            people,
+            partnerships,
+          })
+        : null,
+    [selectedPerson, people, partnerships]
+  );
+  const siblingPositionOptions = useMemo(
+    () =>
+      selectedPerson
+        ? getSiblingPositionOptions({
+            person: selectedPerson,
+            people,
+            partnerships,
+          })
+        : [],
+    [selectedPerson, people, partnerships]
+  );
   const activeTabLabel =
     activeTab === 'properties'
       ? isEmotionalLine
@@ -354,29 +508,66 @@ const PropertiesPanel = ({
         : isPartnership
         ? 'Relationship'
         : 'Person'
+      : activeTab === 'foo'
+      ? 'FOO'
       : activeTab === 'functional'
       ? 'Symptoms'
       : 'Events';
   const partnershipTypeOptions = useMemo(() => {
-    const options = [...relationshipTypes];
+    const options = [...relationshipTypes, ...Object.keys(RELATIONSHIP_TYPE_STATUS_ROWS)];
     if (
       selectedPartnership?.relationshipType &&
       !options.includes(selectedPartnership.relationshipType)
     ) {
       options.push(selectedPartnership.relationshipType);
     }
-    return options;
+    return Array.from(new Set(options));
   }, [relationshipTypes, selectedPartnership]);
   const partnershipStatusOptions = useMemo(() => {
-    const options = [...relationshipStatuses];
-    if (
-      selectedPartnership?.relationshipStatus &&
-      !options.includes(selectedPartnership.relationshipStatus)
-    ) {
-      options.push(selectedPartnership.relationshipStatus);
-    }
-    return options;
-  }, [relationshipStatuses, selectedPartnership]);
+    const relationshipType = partnershipDraft?.relationshipType || selectedPartnership?.relationshipType || '';
+    const mapped = relationshipStatusRowsForType(relationshipType).map((entry) => entry.status);
+    const selectedTypeMatches =
+      (selectedPartnership?.relationshipType || '') === relationshipType;
+    const draftTypeMatches = (partnershipDraft?.relationshipType || '') === relationshipType;
+    const extraStatuses = [
+      selectedTypeMatches ? selectedPartnership?.relationshipStatus || '' : '',
+      draftTypeMatches ? partnershipDraft?.relationshipStatus || '' : '',
+      ...(selectedTypeMatches ? Object.keys(selectedPartnership?.statusDates || {}) : []),
+      ...(draftTypeMatches ? Object.keys(partnershipDraft?.statusDates || {}) : []),
+    ].filter(Boolean);
+    const sourceStatuses = mapped.length > 0 ? extraStatuses : [...relationshipStatuses, ...extraStatuses];
+    const extras = sourceStatuses.filter(
+      (status, index, source) =>
+        source.findIndex(
+          (entry) =>
+            canonicalRelationshipStatusKey(entry) === canonicalRelationshipStatusKey(status)
+        ) === index &&
+        !mapped.some(
+          (mappedStatus) =>
+            canonicalRelationshipStatusKey(mappedStatus) === canonicalRelationshipStatusKey(status)
+        )
+    );
+    return [...mapped, ...extras];
+  }, [relationshipStatuses, selectedPartnership, partnershipDraft]);
+  const partnershipStatusDateRows = useMemo(() => {
+    const relationshipType = partnershipDraft?.relationshipType || selectedPartnership?.relationshipType || '';
+    return partnershipStatusOptions.map((status) => ({
+      status,
+      dateLabel: relationshipDateLabelFor(relationshipType, status),
+    }));
+  }, [partnershipStatusOptions, partnershipDraft, selectedPartnership]);
+  const allRelationshipStatuses = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...relationshipStatuses,
+          ...Object.values(RELATIONSHIP_TYPE_STATUS_ROWS).flatMap((rows) => rows.map((row) => row.status)),
+          ...Object.keys(selectedPartnership?.statusDates || {}),
+          ...Object.keys(partnershipDraft?.statusDates || {}),
+        ])
+      ),
+    [relationshipStatuses, selectedPartnership, partnershipDraft]
+  );
   const deriveEmotionalMetricDraft = (line: EmotionalLine | null) => {
     const latest = [...(line?.events || [])]
       .filter((event) => (event.eventType || (event.eventClass === 'emotional-pattern' ? 'EPE' : '')) === 'EPE')
@@ -474,6 +665,9 @@ const PropertiesPanel = ({
     setFocusedEventId(focusEventId || null);
     setActiveTab(initialActiveTab || 'properties');
     setActivePersonSection(initialPersonSection || 'name');
+    setActiveSiblingSubtab('override');
+    setSiblingHelpOpen(false);
+    setFooHelpOpen(null);
   }, [selectedItem.id, initialActiveTab, initialPersonSection, focusEventId]);
 
   useEffect(() => {
@@ -515,6 +709,31 @@ const PropertiesPanel = ({
     if (!partnershipPristine) return;
     setPartnershipDraft(selectedPartnership ? { ...selectedPartnership } : null);
   }, [selectedPartnership, partnershipPristine]);
+
+  useEffect(() => {
+    if (!selectedPartnership || !initialPartnershipType) return;
+    setPartnershipDraft((prev) => {
+      const base = prev || { ...selectedPartnership };
+      const nextStatusOptions = relationshipStatusRowsForType(initialPartnershipType).map(
+        (entry) => entry.status
+      );
+      const nextStatus =
+        nextStatusOptions.length > 0 &&
+        !nextStatusOptions.some(
+          (status) =>
+            canonicalRelationshipStatusKey(status) ===
+            canonicalRelationshipStatusKey(base.relationshipStatus)
+        )
+          ? nextStatusOptions[0]
+          : base.relationshipStatus;
+      return {
+        ...base,
+        relationshipType: initialPartnershipType,
+        relationshipStatus: nextStatus,
+      };
+    });
+    setPartnershipPristine(false);
+  }, [selectedPartnership, initialPartnershipType]);
 
   useEffect(() => {
     setEmotionalPristine(true);
@@ -728,6 +947,19 @@ const PropertiesPanel = ({
         return;
       }
       nextValue = Math.max(20, Math.min(400, numericValue));
+    } else if (name === 'birthOrderOverride') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        nextValue = undefined;
+      } else {
+        const numericValue = Number(trimmed);
+        if (!Number.isFinite(numericValue) || numericValue < 1) {
+          return;
+        }
+        nextValue = Math.floor(numericValue);
+      }
+    } else if (name === 'siblingPositionOverride') {
+      nextValue = value.trim() || undefined;
     }
     let updates: Partial<Person> = { [name]: nextValue };
     if (name === 'birthSex') {
@@ -744,6 +976,21 @@ const PropertiesPanel = ({
       updates = {
         ...updates,
         genderIdentity: nextValue as Person['genderIdentity'],
+      };
+    } else if (name === 'foregroundEnabled' && nextValue) {
+      updates = {
+        ...updates,
+        foregroundColor: personDraft.foregroundColor ?? DEFAULT_FOREGROUND_COLOR,
+      };
+    } else if (name === 'borderEnabled' && nextValue) {
+      updates = {
+        ...updates,
+        borderColor: personDraft.borderColor ?? DEFAULT_BORDER_COLOR,
+      };
+    } else if (name === 'backgroundEnabled' && nextValue) {
+      updates = {
+        ...updates,
+        backgroundColor: personDraft.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
       };
     }
     const nextDraft = { ...personDraft, ...updates };
@@ -786,6 +1033,25 @@ const PropertiesPanel = ({
       const status = name.slice('statusDate:'.length);
       const nextDraft = withPartnershipStatusDate(partnershipDraft, status, value);
       setPartnershipDraft(nextDraft);
+      setPartnershipPristine(false);
+      return;
+    }
+    if (name === 'relationshipType') {
+      const nextType = value;
+      const nextStatusOptions = relationshipStatusRowsForType(nextType).map((entry) => entry.status);
+      const nextStatus =
+        nextStatusOptions.length > 0 &&
+        !nextStatusOptions.some(
+          (status) =>
+            canonicalRelationshipStatusKey(status) ===
+            canonicalRelationshipStatusKey(partnershipDraft.relationshipStatus)
+        )
+          ? nextStatusOptions[0]
+          : partnershipDraft.relationshipStatus;
+      updatePartnershipDraftState({
+        relationshipType: nextType,
+        relationshipStatus: nextStatus,
+      });
       setPartnershipPristine(false);
       return;
     }
@@ -884,7 +1150,14 @@ const PropertiesPanel = ({
   };
 
   const intensityChooserConfig =
-    emotionalDraft?.relationshipType === 'conflict'
+    emotionalDraft?.relationshipType === 'fusion'
+      ? {
+          title: '+ / - Adequate Intensity Level',
+          helpLines: FUSION_INTENSITY_HELP,
+          labels: FUSION_INTENSITY_LEVEL_LABELS,
+          buttonLabel: '+ / - Adequate intensity level help',
+        }
+      : emotionalDraft?.relationshipType === 'conflict'
       ? {
           title: 'Conflict Intensity Level',
           helpLines: CONFLICT_INTENSITY_HELP,
@@ -897,6 +1170,13 @@ const PropertiesPanel = ({
           helpLines: DISTANCE_INTENSITY_HELP,
           labels: DISTANCE_INTENSITY_LEVEL_LABELS,
           buttonLabel: 'Distance intensity level help',
+        }
+      : emotionalDraft?.relationshipType === 'projection'
+      ? {
+          title: 'Family Projection Intensity Scale',
+          helpLines: PROJECTION_INTENSITY_HELP,
+          labels: PROJECTION_INTENSITY_LEVEL_LABELS,
+          buttonLabel: 'Family projection intensity level help',
         }
       : null;
 
@@ -999,7 +1279,7 @@ const PropertiesPanel = ({
     const partner1 = people.find((person) => person.id === partnership.partner1_id);
     const partner2 = people.find((person) => person.id === partnership.partner2_id);
     if (!partner1 || !partner2) return null;
-    const label = `${toTitleCase(status)} Date`;
+    const label = relationshipDateLabelFor(partnership.relationshipType, status);
     return {
       id: createEventId(),
       date: dateValue,
@@ -1169,13 +1449,13 @@ const PropertiesPanel = ({
       stringDiffers(partnershipDraft[field], selectedPartnership[field])
     );
     if (stringFieldChanged) return true;
-    return relationshipStatuses.some((status) =>
+    return allRelationshipStatuses.some((status) =>
       stringDiffers(
         readPartnershipStatusDate(partnershipDraft, status),
         readPartnershipStatusDate(selectedPartnership, status)
       )
     );
-  }, [selectedPartnership, partnershipDraft, relationshipStatuses]);
+  }, [selectedPartnership, partnershipDraft, allRelationshipStatuses]);
 
   const savePartnershipProperties = () => {
     if (!selectedPartnership || !partnershipDraft || !partnershipDirty) return;
@@ -1189,7 +1469,7 @@ const PropertiesPanel = ({
       }
     });
     const newEvents: EmotionalProcessEvent[] = [];
-    relationshipStatuses.forEach((status) => {
+    allRelationshipStatuses.forEach((status) => {
       const prev = readPartnershipStatusDate(selectedPartnership, status);
       const next = readPartnershipStatusDate(partnershipDraft, status);
       if (prev !== next) {
@@ -2020,7 +2300,7 @@ const PropertiesPanel = ({
         background: '#fff',
       }}
     >
-      {(['name', 'dates', 'notes', 'format'] as const).map((section) => (
+      {(['name', 'dates', 'notes', 'format', 'sibling'] as const).map((section) => (
         <button
           key={section}
           type="button"
@@ -2043,10 +2323,276 @@ const PropertiesPanel = ({
             ? 'Dates'
             : section === 'notes'
             ? 'Notes'
-            : 'Format'}
+            : section === 'format'
+            ? 'Format'
+            : 'Sibling'}
         </button>
       ))}
     </div>
+  );
+  const renderSiblingConflictBlock = (
+    title: string,
+    conflict: ReturnType<typeof deriveSiblingPositionResult>['conflict_with_father']
+  ) => (
+    <div
+      style={{
+        border: '1px solid #d7deea',
+        borderRadius: 8,
+        padding: '10px 12px',
+        background: '#fff',
+      }}
+    >
+      <div style={{ fontWeight: 700, color: '#23324a' }}>{title}</div>
+      {!conflict ? (
+        <div style={{ marginTop: 4, color: '#5e6d84' }}>Insufficient data</div>
+      ) : (
+        <div style={{ marginTop: 6, display: 'grid', gap: 4, fontSize: 13 }}>
+          <div>
+            <strong>Other Position:</strong> {conflict.other_effective_position}
+          </div>
+          <div>
+            <strong>Category:</strong> {conflict.category}
+          </div>
+          <div>
+            <strong>Rank Conflict:</strong> {conflict.rank_conflict ? 'Yes' : 'No'}
+          </div>
+          <div>
+            <strong>Sex Conflict:</strong>{' '}
+            {conflict.sex_conflict_uncertain
+              ? 'Uncertain'
+              : conflict.sex_conflict === null
+              ? 'N/A'
+              : conflict.sex_conflict
+              ? 'Yes'
+              : 'No'}
+          </div>
+          {conflict.confidence_note && (
+            <div style={{ color: '#6a4b10' }}>
+              <strong>Note:</strong> {conflict.confidence_note}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+  const renderSiblingOverrideControls = () => (
+    <>
+      <div style={rowStyle}>
+        <label htmlFor="siblingsComplete" style={labelStyle}>Siblings Complete:</label>
+        <input
+          type="checkbox"
+          id="siblingsComplete"
+          name="siblingsComplete"
+          checked={personDraft?.siblingsComplete ?? false}
+          onChange={handlePersonChange}
+        />
+      </div>
+      <div style={rowStyle}>
+        <label htmlFor="birthOrderOverride" style={labelStyle}>Birth Order Override:</label>
+        <input
+          type="number"
+          id="birthOrderOverride"
+          name="birthOrderOverride"
+          min={1}
+          value={personDraft?.birthOrderOverride ?? ''}
+          onChange={handlePersonChange}
+          style={{ width: 120 }}
+        />
+      </div>
+      <div style={rowStyle}>
+        <label htmlFor="siblingPositionOverride" style={labelStyle}>Override Position:</label>
+        <select
+          id="siblingPositionOverride"
+          name="siblingPositionOverride"
+          value={personDraft?.siblingPositionOverride ?? ''}
+          onChange={handlePersonChange}
+          style={{ width: '100%', maxWidth: 320 }}
+        >
+          <option value="">Use computed position</option>
+          {siblingPositionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <button
+          type="button"
+          aria-label="Sibling override help"
+          onClick={() => setSiblingHelpOpen((open) => !open)}
+          style={helpBadgeStyle}
+        >
+          ?
+        </button>
+      </div>
+      {siblingHelpOpen && (
+        <div
+          role="dialog"
+          aria-label="Sibling override help"
+          style={{
+            marginTop: 8,
+            border: '1px solid #b7c6df',
+            borderRadius: 8,
+            background: '#f8fbff',
+            padding: 10,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+            <strong>Sibling Override Help</strong>
+            <button
+              type="button"
+              onClick={() => setSiblingHelpOpen(false)}
+              aria-label="Close sibling override help"
+              style={{ border: '1px solid #bdbdbd', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+            >
+              Close
+            </button>
+          </div>
+          <div style={{ marginTop: 8, display: 'grid', gap: 8, fontSize: 13, lineHeight: 1.4 }}>
+            <div><strong>Siblings Complete:</strong> {SIBLING_OVERRIDE_HELP[0]}</div>
+            <div><strong>Birth Order Override:</strong> {SIBLING_OVERRIDE_HELP[1]}</div>
+            <div><strong>Override Position:</strong> {SIBLING_OVERRIDE_HELP[2]}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const renderSiblingSubtabs = () => (
+    <div
+      role="tablist"
+      aria-label="Sibling property sections"
+      style={{
+        display: 'inline-flex',
+        gap: 0,
+        marginTop: 10,
+        border: '1px solid #c6cfde',
+        borderRadius: 8,
+        overflow: 'hidden',
+        background: '#fff',
+      }}
+    >
+      {(['override', 'position', 'compatibility'] as const).map((section) => (
+        <button
+          key={section}
+          type="button"
+          role="tab"
+          aria-selected={activeSiblingSubtab === section}
+          onClick={() => setActiveSiblingSubtab(section)}
+          style={{
+            ...sectionNavButtonStyle(activeSiblingSubtab === section),
+            borderRadius: 0,
+            border: 'none',
+            borderLeft: section === 'override' ? 'none' : '1px solid #c6cfde',
+            minWidth: 110,
+          }}
+        >
+          {section === 'override'
+            ? 'Override'
+            : section === 'position'
+            ? 'Position'
+            : 'Compatibility'}
+        </button>
+      ))}
+    </div>
+  );
+  const renderFooScaleChooser = (
+    field: 'familyStability' | 'familyIntactness',
+    label: string,
+    value: string | undefined,
+    labels: string[],
+    helpTitle: string,
+    helpLines: string[]
+  ) => (
+    <>
+      <div style={rowStyle}>
+        <label htmlFor={field} style={labelStyle}>{label}:</label>
+        <select
+          id={field}
+          name={field}
+          value={value || ''}
+          onChange={handlePersonChange}
+          style={{ width: 220 }}
+        >
+          <option value="">Not set</option>
+          {labels.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          aria-label={`${label} help`}
+          onClick={() => setFooHelpOpen((current) => (current === field ? null : field))}
+          style={helpBadgeStyle}
+        >
+          ?
+        </button>
+      </div>
+      {fooHelpOpen === field && (
+        <div
+          role="dialog"
+          aria-label={helpTitle}
+          style={{
+            marginTop: 8,
+            border: '1px solid #c6cfde',
+            borderRadius: 10,
+            background: '#fff',
+            padding: '12px 14px',
+            boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <strong>{helpTitle}</strong>
+            <button
+              type="button"
+              onClick={() => setFooHelpOpen(null)}
+              style={{ padding: '4px 10px' }}
+            >
+              Cancel
+            </button>
+          </div>
+          <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+            {helpLines.map((line, index) => {
+              const option = labels[index];
+              const isActive = value === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    if (!selectedPerson) return;
+                    onUpdatePerson(selectedPerson.id, { [field]: option } as Partial<Person>);
+                    updatePersonDraftState({ [field]: option } as Partial<Person>);
+                    setPersonPristine(true);
+                    setFooHelpOpen(null);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
+                    borderRadius: 8,
+                    background: isActive ? '#eef3ff' : '#fff',
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#23324a' }}>{option}</div>
+                  <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
   const renderActivePersonSection = () => {
     if (!selectedPerson || !personDraft) return null;
@@ -2159,6 +2705,91 @@ const PropertiesPanel = ({
       );
     }
 
+    if (activePersonSection === 'sibling') {
+      if (compactPersonSectionMode) {
+        return (
+          <div
+            role="tabpanel"
+            id="person-section-panel-sibling"
+            aria-labelledby="person-section-tab-sibling"
+            style={sectionCardStyle}
+          >
+            <div style={{ fontWeight: 700, color: '#23324a' }}>Sibling Override</div>
+            {renderSiblingOverrideControls()}
+          </div>
+        );
+      }
+
+      return (
+        <div
+          role="tabpanel"
+          id="person-section-panel-sibling"
+          aria-labelledby="person-section-tab-sibling"
+          style={sectionCardStyle}
+        >
+          <div style={{ fontWeight: 700, color: '#23324a' }}>Sibling Position</div>
+          {renderSiblingSubtabs()}
+          {activeSiblingSubtab === 'override' ? (
+            <div style={{ marginTop: 12 }}>{renderSiblingOverrideControls()}</div>
+          ) : activeSiblingSubtab === 'position' ? (
+            <div
+              style={{
+                marginTop: 12,
+                border: '1px solid #d7deea',
+                borderRadius: 8,
+                padding: '10px 12px',
+                background: '#fff',
+                display: 'grid',
+                gap: 4,
+                fontSize: 13,
+              }}
+            >
+              <div>
+                <strong>Derived:</strong>{' '}
+                {siblingPositionResult?.derived_position
+                  ? `${siblingPositionResult.derived_position} — ${getSiblingPositionLabel(
+                      siblingPositionResult.derived_position
+                    )}`
+                  : 'Not available'}
+              </div>
+              <div>
+                <strong>Effective:</strong>{' '}
+                {siblingPositionResult?.effective_position
+                  ? `${siblingPositionResult.effective_position} — ${getSiblingPositionLabel(
+                      siblingPositionResult.effective_position
+                    )}`
+                  : 'Not available'}
+              </div>
+              <div>
+                <strong>Confidence:</strong> {siblingPositionResult?.confidence || 'INDETERMINATE'}
+              </div>
+              <div>
+                <strong>Rank:</strong> {siblingPositionResult?.rank || 'Not available'}
+              </div>
+              <div>
+                <strong>Composition:</strong> {siblingPositionResult?.composition || 'Not available'}
+              </div>
+              <div>
+                <strong>Half-Sibling Only:</strong>{' '}
+                {siblingPositionResult?.half_sibling_only ? 'Yes' : 'No'}
+              </div>
+              {siblingPositionResult?.note && (
+                <div style={{ color: '#6a4b10' }}>
+                  <strong>Note:</strong> {siblingPositionResult.note}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              {renderSiblingConflictBlock('Person vs Father', siblingPositionResult?.conflict_with_father || null)}
+              {renderSiblingConflictBlock('Person vs Mother', siblingPositionResult?.conflict_with_mother || null)}
+              {renderSiblingConflictBlock('Person vs Partner', siblingPositionResult?.conflict_with_partner || null)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div
         role="tabpanel"
@@ -2243,7 +2874,9 @@ const PropertiesPanel = ({
         ? 'Dates'
         : activePersonSection === 'notes'
         ? 'Notes'
-        : 'Format';
+        : activePersonSection === 'format'
+        ? 'Format'
+        : 'Sibling';
 
     return (
       <div
@@ -2292,6 +2925,108 @@ const PropertiesPanel = ({
     );
   }
 
+  if (compactPartnershipSectionMode && isPartnership && selectedPartnership && partnershipDraft) {
+    const partner1Name =
+      people.find((person) => person.id === selectedPartnership.partner1_id)?.name || 'Partner 1';
+    const partner2Name =
+      people.find((person) => person.id === selectedPartnership.partner2_id)?.name || 'Partner 2';
+    return (
+      <div
+        role="dialog"
+        aria-label="Relationship properties"
+        style={{
+          background: '#f8f9fc',
+          padding: '12px 14px 14px',
+          border: '1px solid #cfd7e5',
+          borderRadius: 10,
+          boxSizing: 'border-box',
+          minWidth: 380,
+          maxWidth: 500,
+          boxShadow: '0 16px 42px rgba(16, 24, 40, 0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#1f3248' }}>Relationship</div>
+            <div style={{ fontSize: 12, color: '#58677c' }}>
+              {partner1Name} + {partner2Name}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close relationship section popup"
+            style={{
+              border: '1px solid #c3cad8',
+              background: '#fff',
+              borderRadius: 6,
+              cursor: 'pointer',
+              width: 28,
+              height: 28,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <div style={rowStyle}>
+            <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
+            <select
+              id="relationshipType"
+              name="relationshipType"
+              value={partnershipDraft.relationshipType}
+              onChange={handlePartnershipChange}
+              style={{ width: 180 }}
+            >
+              {partnershipTypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatOptionLabel(option)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={rowStyle}>
+            <label htmlFor="relationshipStatus" style={labelStyle}>Status:</label>
+            <select
+              id="relationshipStatus"
+              name="relationshipStatus"
+              value={partnershipDraft.relationshipStatus}
+              onChange={handlePartnershipChange}
+              style={{ width: 180 }}
+            >
+              {partnershipStatusOptions.map((option) => (
+                <option key={`${partnershipDraft.relationshipType}-${option}`} value={option}>
+                  {formatOptionLabel(option)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {partnershipStatusDateRows.map(({ status, dateLabel }) => {
+            const statusKey = normalizeStatusKey(status);
+            const fieldId = `popup-statusDate-${statusKey.replace(/[^a-z0-9]+/g, '-')}`;
+            return (
+              <div key={`popup-${partnershipDraft.relationshipType}-${statusKey}`} style={rowStyle}>
+                <label htmlFor={fieldId} style={labelStyle}>{dateLabel}:</label>
+                <DatePickerField
+                  id={fieldId}
+                  name={`statusDate:${status}`}
+                  value={readPartnershipStatusDate(partnershipDraft, status)}
+                  placeholder="YYYY-MM-DD"
+                  onChange={handlePartnershipChange}
+                  pickerLabel={`Select ${dateLabel.toLowerCase()} date`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+          <button type="button" onClick={cancelPartnershipChanges} disabled={!partnershipDirty}>Cancel</button>
+          <button type="button" onClick={savePartnershipProperties} disabled={!partnershipDirty}>Save</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -2310,6 +3045,11 @@ const PropertiesPanel = ({
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
+        {(() => {
+          const topTabs: Array<'properties' | 'foo' | 'functional' | 'events'> = isPerson
+            ? ['properties', 'foo', 'functional', 'events']
+            : ['properties', 'functional', 'events'];
+          return (
         <div
           role="tablist"
           aria-label="Properties tabs"
@@ -2322,7 +3062,7 @@ const PropertiesPanel = ({
             background: '#ffffff',
           }}
         >
-          {(['properties', 'functional', 'events'] as const).map((tab, index) => {
+          {topTabs.map((tab, index) => {
             const disabled = tab === 'functional' && (!isPerson || functionalIndicatorDefinitions.length === 0);
             const isActive = tab === activeTab;
             const tabLabel =
@@ -2332,6 +3072,8 @@ const PropertiesPanel = ({
                   : isPartnership
                   ? 'Relationship'
                   : 'Person'
+                : tab === 'foo'
+                ? 'FOO'
                 : tab === 'functional'
                 ? 'Symptoms'
                 : 'Events';
@@ -2359,6 +3101,8 @@ const PropertiesPanel = ({
             );
           })}
         </div>
+          );
+        })()}
         <button
           type="button"
           onClick={() => setTabHelpOpen(activeTab)}
@@ -2441,19 +3185,19 @@ const PropertiesPanel = ({
               ))}
             </select>
           </div>
-          {partnershipStatusOptions.map((statusOption) => {
-            const statusKey = normalizeStatusKey(statusOption);
+          {partnershipStatusDateRows.map(({ status, dateLabel }) => {
+            const statusKey = normalizeStatusKey(status);
             const fieldId = `statusDate-${statusKey.replace(/[^a-z0-9]+/g, '-')}`;
             return (
-              <div key={statusOption} style={rowStyle}>
-                <label htmlFor={fieldId} style={labelStyle}>{formatOptionLabel(statusOption)} Date:</label>
+              <div key={`${partnershipDraft.relationshipType}-${statusKey}`} style={rowStyle}>
+                <label htmlFor={fieldId} style={labelStyle}>{dateLabel}:</label>
                 <DatePickerField
                   id={fieldId}
-                  name={`statusDate:${statusOption}`}
-                  value={readPartnershipStatusDate(partnershipDraft, statusOption)}
+                  name={`statusDate:${status}`}
+                  value={readPartnershipStatusDate(partnershipDraft, status)}
                   placeholder="YYYY-MM-DD"
                   onChange={handlePartnershipChange}
-                  pickerLabel={`Select ${formatOptionLabel(statusOption).toLowerCase()} date`}
+                  pickerLabel={`Select ${dateLabel.toLowerCase()} date`}
                 />
               </div>
             );
@@ -2567,9 +3311,9 @@ const PropertiesPanel = ({
                 aria-label={intensityChooserConfig.title}
                 style={{
                   marginTop: 8,
-                  marginLeft: labelColumnWidth + 10,
-                  width: 520,
-                  maxWidth: 'calc(100% - 32px)',
+                  marginLeft: 0,
+                  width: '100%',
+                  maxWidth: '100%',
                   border: '1px solid #c6cfde',
                   borderRadius: 10,
                   background: '#fff',
@@ -2772,6 +3516,37 @@ const PropertiesPanel = ({
         );
         })()}
         </>
+      )}
+      {activeTab === 'foo' && isPerson && selectedPerson && personDraft && (
+        <div style={{ marginTop: 12 }}>
+          <div style={rowStyle}>
+            <label htmlFor="emotionalCutoffMeasure" style={labelStyle}>Emotional Cutoff:</label>
+            <input
+              type="text"
+              id="emotionalCutoffMeasure"
+              name="emotionalCutoffMeasure"
+              value={personDraft.emotionalCutoffMeasure || ''}
+              onChange={handlePersonChange}
+              style={{ width: '28ch', textAlign: 'left' }}
+            />
+          </div>
+          {renderFooScaleChooser(
+            'familyStability',
+            'Family Stability',
+            personDraft.familyStability,
+            FAMILY_STABILITY_LABELS,
+            'Family Stability Scale',
+            FAMILY_STABILITY_HELP
+          )}
+          {renderFooScaleChooser(
+            'familyIntactness',
+            'Family Intactness',
+            personDraft.familyIntactness,
+            FAMILY_INTACTNESS_LABELS,
+            'Family Intactness Scale',
+            FAMILY_INTACTNESS_HELP
+          )}
+        </div>
       )}
       {activeTab === 'functional' && (
         isPerson && selectedPerson ? (

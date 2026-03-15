@@ -44,6 +44,7 @@ export type Person = {
   lastName?: string;
   maidenName?: string;
   birthDate?: string;
+  birthOrderOverride?: number;
   deathDate?: string;
   adoptionDate?: string;
   genderDate?: string;
@@ -61,6 +62,11 @@ export type Person = {
   notesEnabled?: boolean;
   lifeStatus?: 'alive' | 'miscarriage' | 'stillbirth';
   adoptionStatus?: 'biological' | 'adopted';
+  siblingsComplete?: boolean;
+  siblingPositionOverride?: string;
+  emotionalCutoffMeasure?: string;
+  familyStability?: string;
+  familyIntactness?: string;
   parentConnectionPattern?: 'none' | 'family-cutoff';
   connectionAnchorX?: number;
   multipleBirthGroupId?: string;

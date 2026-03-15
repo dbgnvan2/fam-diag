@@ -13,6 +13,7 @@
   ],
   "relationshipTypes": [
     "married",
+    "engaged",
     "common-law",
     "living-together",
     "dating",
@@ -22,8 +23,9 @@
   "relationshipStatuses": [
     "married",
     "separated",
-    "divorced",
-    "started",
+    "divorce",
+    "widowed",
+    "start",
     "ended",
     "ongoing"
   ],

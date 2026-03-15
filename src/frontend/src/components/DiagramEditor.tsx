@@ -468,7 +468,7 @@ type TimelineBoardSelection = {
 type PropertiesPanelIntent = {
   targetId: string;
   tab?: 'properties' | 'functional' | 'events';
-  personSection?: 'name' | 'dates' | 'notes' | 'format';
+  personSection?: 'name' | 'dates' | 'notes' | 'format' | 'sibling';
   focusEventId?: string;
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent>;
@@ -477,7 +477,14 @@ type PropertiesPanelIntent = {
 
 type PersonSectionPopupState = {
   personId: string;
-  section: 'name' | 'dates' | 'notes' | 'format';
+  section: 'name' | 'dates' | 'notes' | 'format' | 'sibling';
+  x: number;
+  y: number;
+} | null;
+
+type PartnershipSectionPopupState = {
+  partnershipId: string;
+  relationshipType: string;
   x: number;
   y: number;
 } | null;
@@ -2119,6 +2126,9 @@ const isSessionCaptureImportData = (data: unknown): data is SessionCaptureImport
 const normalizeRelationshipType = (value?: string): Partnership['relationshipType'] => {
   const raw = (value || '').toLowerCase();
   if (raw.includes('married')) return 'married';
+  if (raw.includes('engag')) return 'engaged';
+  if (raw.includes('common')) return 'common-law';
+  if (raw.includes('living')) return 'living-together';
   if (raw.includes('dating')) return 'dating';
   if (raw.includes('affair')) return 'affair';
   if (raw.includes('friend')) return 'friendship';
@@ -2127,11 +2137,12 @@ const normalizeRelationshipType = (value?: string): Partnership['relationshipTyp
 
 const normalizeRelationshipStatus = (value?: string): Partnership['relationshipStatus'] => {
   const raw = (value || '').toLowerCase();
-  if (raw.includes('divorc')) return 'divorced';
+  if (raw.includes('divorc')) return 'divorce';
   if (raw.includes('end')) return 'ended';
   if (raw.includes('separat')) return 'separated';
+  if (raw.includes('widow')) return 'widowed';
   if (raw.includes('ongoing')) return 'ongoing';
-  if (raw.includes('start')) return 'started';
+  if (raw.includes('start')) return 'start';
   return 'married';
 };
 
@@ -2397,6 +2408,7 @@ const DiagramEditor = () => {
   const [propertiesPanelItem, setPropertiesPanelItem] = useState<Person | Partnership | EmotionalLine | null>(null);
   const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
   const [personSectionPopup, setPersonSectionPopup] = useState<PersonSectionPopupState>(null);
+  const [partnershipSectionPopup, setPartnershipSectionPopup] = useState<PartnershipSectionPopupState>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(() => {
     if (typeof window === 'undefined') return initialEventCategories;
     const stored = parseStoredUserSettings();
@@ -2532,7 +2544,7 @@ const DiagramEditor = () => {
   const stageRef = useRef<StageType>(null);
   const ribbonRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const DEFAULT_PANEL_WIDTH = 332;
+  const DEFAULT_PANEL_WIDTH = 425;
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [ribbonHeight, setRibbonHeight] = useState(180);
@@ -3791,13 +3803,25 @@ const DiagramEditor = () => {
 
   const openPersonSectionPopup = (
     person: Person,
-    section: 'name' | 'dates' | 'notes' | 'format',
+    section: 'name' | 'dates' | 'notes' | 'format' | 'sibling',
     x: number,
     y: number
   ) => {
     setPropertiesPanelItem(null);
     setPropertiesPanelIntent(null);
     setPersonSectionPopup({ personId: person.id, section, x, y });
+  };
+
+  const openPartnershipSectionPopup = (
+    partnership: Partnership,
+    relationshipType: string,
+    x: number,
+    y: number
+  ) => {
+    setPersonSectionPopup(null);
+    setPropertiesPanelItem(null);
+    setPropertiesPanelIntent(null);
+    setPartnershipSectionPopup({ partnershipId: partnership.id, relationshipType, x, y });
   };
 
   const openContextualEventCreator = (
@@ -7225,6 +7249,17 @@ useEffect(() => {
                   setContextMenu(null);
                 },
               },
+              {
+                label: 'Sibling',
+                onClick: () => {
+                  setSelectedPeopleIds([person.id]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(null);
+                  setSelectedChildId(null);
+                  openPersonSectionPopup(person, 'sibling', e.evt.clientX, e.evt.clientY);
+                  setContextMenu(null);
+                },
+              },
             ],
           },
           {
@@ -7508,10 +7543,18 @@ useEffect(() => {
             },
             {
               label: 'Relationship Properties',
-              onClick: () => {
-                  setPropertiesPanelItem(partnership);
+              children: relationshipTypes.map((relationshipType) => ({
+                label: relationshipType.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+                onClick: () => {
+                  openPartnershipSectionPopup(
+                    partnership,
+                    relationshipType,
+                    e.evt.clientX,
+                    e.evt.clientY
+                  );
                   setContextMenu(null);
-              }
+                },
+              })),
             },
             {
               label: 'Add Relationship Event',
@@ -8956,6 +8999,9 @@ useEffect(() => {
       const personSectionPopupPerson = personSectionPopup
         ? people.find((person) => person.id === personSectionPopup.personId) || null
         : null;
+      const partnershipSectionPopupPartnership = partnershipSectionPopup
+        ? partnerships.find((partnership) => partnership.id === partnershipSectionPopup.partnershipId) || null
+        : null;
       const helpBadgeStyle: React.CSSProperties = {
         width: 20,
         height: 20,
@@ -9720,6 +9766,7 @@ useEffect(() => {
                   <PropertiesPanel
                     selectedItem={personSectionPopupPerson}
                     people={people}
+                    partnerships={partnerships}
                     eventCategories={eventCategories}
                     relationshipTypes={relationshipTypes}
                     relationshipStatuses={relationshipStatuses}
@@ -9732,6 +9779,50 @@ useEffect(() => {
                     compactPersonSectionMode
                     onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
                     onClose={() => setPersonSectionPopup(null)}
+                  />
+                </div>
+              </div>
+            )}
+            {partnershipSectionPopup && partnershipSectionPopupPartnership && (
+              <div
+                onClick={() => setPartnershipSectionPopup(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 2200,
+                  background: 'transparent',
+                }}
+              >
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    left:
+                      typeof window !== 'undefined'
+                        ? Math.max(12, Math.min(partnershipSectionPopup.x + 10, window.innerWidth - 540))
+                        : partnershipSectionPopup.x,
+                    top:
+                      typeof window !== 'undefined'
+                        ? Math.max(12, Math.min(partnershipSectionPopup.y + 10, window.innerHeight - 420))
+                        : partnershipSectionPopup.y,
+                  }}
+                >
+                  <PropertiesPanel
+                    selectedItem={partnershipSectionPopupPartnership}
+                    people={people}
+                    partnerships={partnerships}
+                    eventCategories={eventCategories}
+                    relationshipTypes={relationshipTypes}
+                    relationshipStatuses={relationshipStatuses}
+                    functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+                    onUpdatePerson={handleUpdatePerson}
+                    onUpdatePartnership={handleUpdatePartnership}
+                    onUpdateEmotionalLine={handleUpdateEmotionalLine}
+                    initialActiveTab="properties"
+                    initialPartnershipType={partnershipSectionPopup.relationshipType}
+                    compactPartnershipSectionMode
+                    onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
+                    onClose={() => setPartnershipSectionPopup(null)}
                   />
                 </div>
               </div>
@@ -10369,6 +10460,7 @@ useEffect(() => {
                     <PropertiesPanel
                       selectedItem={propertiesPanelItem}
                       people={people}
+                      partnerships={partnerships}
                       eventCategories={eventCategories}
                       relationshipTypes={relationshipTypes}
                       relationshipStatuses={relationshipStatuses}

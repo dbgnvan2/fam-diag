@@ -44,13 +44,14 @@ const FALLBACK_SETTINGS: ApplicationSettings = {
   ],
   relationshipTypes: [
     'married',
+    'engaged',
     'common-law',
     'living-together',
     'dating',
     'affair',
     'friendship',
   ],
-  relationshipStatuses: ['married', 'separated', 'divorced', 'started', 'ended', 'ongoing'],
+  relationshipStatuses: ['married', 'separated', 'divorce', 'widowed', 'start', 'ended', 'ongoing'],
   functionalIndicatorDefinitions: [
     {
       id: 'symptom-physical-default',

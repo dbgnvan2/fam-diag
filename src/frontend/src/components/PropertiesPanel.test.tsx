@@ -68,6 +68,211 @@ describe('PropertiesPanel', () => {
         expect(updateEmotionalLine).toHaveBeenCalledWith('el-color', expect.objectContaining({ color: '#00aa00' }));
     });
 
+    it('shows sibling position details in the person sibling section', () => {
+        const people: Person[] = [
+            {
+                id: 'dad',
+                name: 'Dad',
+                x: 0,
+                y: 0,
+                birthSex: 'male',
+                partnerships: [],
+            },
+            {
+                id: 'mom',
+                name: 'Mom',
+                x: 0,
+                y: 0,
+                birthSex: 'female',
+                partnerships: [],
+            },
+            {
+                id: 'harry',
+                name: 'Harry',
+                x: 0,
+                y: 0,
+                birthSex: 'male',
+                birthDate: '1980-01-01',
+                parentPartnership: 'parents',
+                siblingsComplete: true,
+                partnerships: [],
+            },
+            {
+                id: 'jane',
+                name: 'Jane',
+                x: 0,
+                y: 0,
+                birthSex: 'female',
+                birthDate: '1982-01-01',
+                parentPartnership: 'parents',
+                siblingsComplete: true,
+                partnerships: [],
+            },
+        ];
+        const partnerships: Partnership[] = [
+            {
+                id: 'parents',
+                partner1_id: 'dad',
+                partner2_id: 'mom',
+                horizontalConnectorY: 0,
+                relationshipType: 'married',
+                relationshipStatus: 'married',
+                children: ['harry', 'jane'],
+            },
+        ];
+
+        render(
+            <PropertiesPanel
+                selectedItem={people[2]}
+                people={people}
+                partnerships={partnerships}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialPersonSection="sibling"
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('tab', { name: /Sibling/i })).toBeInTheDocument();
+        expect(screen.getByText(/Sibling Position/i)).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Override/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Position/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Compatibility/i })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: /^Override$/i }));
+        expect(screen.getByLabelText(/Override Position:/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: /^Position$/i }));
+        expect(screen.getAllByText(/ob\/s/).length).toBeGreaterThan(0);
+    });
+
+    it('shows sibling override help text', () => {
+        const person: Person = {
+            id: 'harry',
+            name: 'Harry',
+            x: 0,
+            y: 0,
+            birthSex: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialPersonSection="sibling"
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Sibling override help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Sibling override help/i });
+        expect(within(helpDialog).getAllByText(/Siblings Complete:/i).length).toBeGreaterThan(0);
+        expect(within(helpDialog).getAllByText(/Birth Order Override:/i).length).toBeGreaterThan(0);
+        expect(within(helpDialog).getAllByText(/Override Position:/i).length).toBeGreaterThan(0);
+    });
+
+    it('renders only sibling override controls in the compact sibling popup', () => {
+        const person: Person = {
+            id: 'harry',
+            name: 'Harry',
+            x: 0,
+            y: 0,
+            birthSex: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialPersonSection="sibling"
+                compactPersonSectionMode
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('dialog', { name: /Sibling properties/i })).toBeInTheDocument();
+        expect(screen.getByText(/Sibling Override/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Override Position:/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Person vs Father/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Derived:/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the FOO tab for people with the three family measure fields', () => {
+        const person: Person = {
+            id: 'harry',
+            name: 'Harry',
+            x: 0,
+            y: 0,
+            birthSex: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="foo"
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('tab', { name: /^FOO$/i })).toBeInTheDocument();
+        expect(screen.getByLabelText(/Emotional Cutoff:/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Family Stability:/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Family Intactness:/i)).toBeInTheDocument();
+    });
+
+    it('lets the user pick a family stability value from the FOO help box', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'harry',
+            name: 'Harry',
+            x: 0,
+            y: 0,
+            birthSex: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="foo"
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Family Stability help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Family Stability Scale/i });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Semi-stable/i }));
+
+        expect(updatePerson).toHaveBeenCalledWith('harry', expect.objectContaining({ familyStability: 'Semi-stable' }));
+        expect((screen.getByLabelText('Family Stability:') as HTMLSelectElement).value).toBe('Semi-stable');
+    });
+
     it('shows Intensity label for distance EPLs', () => {
         const emotionalLine: EmotionalLine = {
             id: 'el-distance',
@@ -253,6 +458,126 @@ describe('PropertiesPanel', () => {
         expect((screen.getByLabelText('Intensity:') as HTMLSelectElement).value).toBe('distance-dotted-tight');
     });
 
+    it('shows + / - Adequate intensity help text from the intensity level help icon', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-fusion-help',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'fusion-dotted-wide',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /\+ \/ - Adequate intensity level help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /\+ \/ - Adequate Intensity Level/i });
+        expect(screen.getByText(/Minimal – The amount of loss of self to one’s spouse is minimal/i)).toBeInTheDocument();
+        expect(screen.getByText(/Severe – Person has become almost a complete no self/i)).toBeInTheDocument();
+        expect(within(helpDialog).getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
+    });
+
+    it('lets the user pick a + / - Adequate intensity level from the help box', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-fusion-pick',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'fusion-dotted-wide',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /\+ \/ - Adequate intensity level help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Major/i }));
+
+        expect((screen.getByLabelText('Intensity Level:') as HTMLSelectElement).value).toBe('4');
+        expect((screen.getByLabelText('Intensity:') as HTMLSelectElement).value).toBe('fusion-solid-tight');
+    });
+
+    it('shows projection intensity help text from the intensity level help icon', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-projection-help',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'projection',
+            lineStyle: 'projection-1',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Family projection intensity level help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Family Projection Intensity Scale/i });
+        expect(screen.getByText(/Minimal – Parental worry\/anxiety about the child is very occasional/i)).toBeInTheDocument();
+        expect(screen.getByText(/Severe – The intensity of the attachment between child and parents is so severe/i)).toBeInTheDocument();
+        expect(within(helpDialog).getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
+    });
+
+    it('lets the user pick a projection intensity level from the help box', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-projection-pick',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'projection',
+            lineStyle: 'projection-1',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Family projection intensity level help/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Major/i }));
+
+        expect((screen.getByLabelText('Intensity Level:') as HTMLSelectElement).value).toBe('4');
+        expect((screen.getByLabelText('Intensity:') as HTMLSelectElement).value).toBe('projection-4');
+    });
+
     it('synchronizes emotional intensity level with the selected conflict line style', () => {
         const emotionalLine: EmotionalLine = {
             id: 'el-conflict-sync',
@@ -354,6 +679,41 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('tab', { name: 'Format' }));
         fireEvent.change(screen.getByLabelText('Size:'), { target: { value: '72' } });
         expect(updatePerson).toHaveBeenCalledWith('p-size', { size: 72 });
+    });
+
+    it('applies the current foreground color immediately when Enabled is checked', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-format',
+            name: 'Format Person',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+            foregroundColor: '#123456',
+            foregroundEnabled: false,
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Format' }));
+        fireEvent.click(screen.getAllByRole('checkbox', { name: /Enabled/i })[0]);
+
+        expect(updatePerson).toHaveBeenCalledWith('p-format', {
+            foregroundEnabled: true,
+            foregroundColor: '#123456',
+        });
     });
 
     it('shows only the active person subsection tab content', () => {
@@ -727,8 +1087,8 @@ describe('PropertiesPanel', () => {
             partner1_id: 'person-a',
             partner2_id: 'person-b',
             horizontalConnectorY: 120,
-            relationshipType: 'married',
-            relationshipStatus: 'married',
+            relationshipType: 'engaged',
+            relationshipStatus: 'start',
             children: [],
             events: [],
         };
@@ -738,7 +1098,8 @@ describe('PropertiesPanel', () => {
                 selectedItem={partnership}
                 people={[partner1, partner2]}
                 eventCategories={['Relationship']}
-                relationshipStatuses={['started', 'married', 'separated', 'divorced']}
+                relationshipTypes={['engaged', 'married']}
+                relationshipStatuses={['start', 'married', 'separated', 'divorce']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={updatePartnership}
@@ -747,7 +1108,7 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        const startInput = screen.getByLabelText('Started Date:');
+        const startInput = screen.getByLabelText('Start:');
         fireEvent.change(startInput, { target: { value: '2020-01-01' } });
         const saveButtons = screen.getAllByRole('button', { name: /^Save$/i });
         fireEvent.click(saveButtons[saveButtons.length - 1]);
@@ -817,8 +1178,81 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByLabelText('Estranged Date:')).toBeInTheDocument();
-        expect((screen.getByLabelText('Estranged Date:') as HTMLInputElement).value).toBe('2021-02-03');
+        expect(screen.getByLabelText('Estranged:')).toBeInTheDocument();
+        expect((screen.getByLabelText('Estranged:') as HTMLInputElement).value).toBe('2021-02-03');
+    });
+
+    it('shows the married relationship structure for status and date fields', () => {
+        const partnership: Partnership = {
+            id: 'pair-married',
+            partner1_id: 'person-a',
+            partner2_id: 'person-b',
+            horizontalConnectorY: 120,
+            relationshipType: 'married',
+            relationshipStatus: 'married',
+            children: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={partnership}
+                people={[]}
+                eventCategories={['Relationship']}
+                relationshipTypes={['married', 'engaged']}
+                relationshipStatuses={['married', 'separated', 'divorce', 'widowed', 'start', 'ongoing', 'ended']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        const statusSelect = screen.getByLabelText('Status:');
+        const options = within(statusSelect).getAllByRole('option').map((option) => option.textContent);
+        expect(options).toEqual(['Married', 'Divorce', 'Separated', 'Widowed']);
+        expect(screen.getByLabelText('Married:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Divorces:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Separated:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Widowed:')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Start:')).not.toBeInTheDocument();
+    });
+
+    it('switches engaged relationships to the start-ongoing-ended structure', () => {
+        const partnership: Partnership = {
+            id: 'pair-engaged',
+            partner1_id: 'person-a',
+            partner2_id: 'person-b',
+            horizontalConnectorY: 120,
+            relationshipType: 'married',
+            relationshipStatus: 'married',
+            children: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={partnership}
+                people={[]}
+                eventCategories={['Relationship']}
+                relationshipTypes={['married', 'engaged']}
+                relationshipStatuses={['married', 'separated', 'divorce', 'widowed', 'start', 'ongoing', 'ended']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText('Type:'), { target: { value: 'engaged' } });
+
+        const statusSelect = screen.getByLabelText('Status:') as HTMLSelectElement;
+        const options = within(statusSelect).getAllByRole('option').map((option) => option.textContent);
+        expect(options).toEqual(['Start', 'Ongoing', 'Ended']);
+        expect(statusSelect.value).toBe('start');
+        expect(screen.getByLabelText('Start:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Ongoing:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Ended:')).toBeInTheDocument();
     });
 
     it('opens directly on events tab when requested', () => {
