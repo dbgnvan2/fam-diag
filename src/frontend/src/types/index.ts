@@ -64,10 +64,15 @@ export type Person = {
   adoptionStatus?: 'biological' | 'adopted';
   siblingsComplete?: boolean;
   siblingPositionOverride?: string;
+  siblingMaturityLevel?: 1 | 2 | 3 | 4 | 5;
+  fatherPositionOverride?: string;
+  motherPositionOverride?: string;
+  partnerPositionOverride?: string;
   emotionalCutoffMeasure?: string;
   familyStability?: string;
   familyIntactness?: string;
   parentConnectionPattern?: 'none' | 'family-cutoff';
+  familyCutoffLineId?: string;
   connectionAnchorX?: number;
   multipleBirthGroupId?: string;
   borderColor?: string;
@@ -109,6 +114,8 @@ export type Partnership = {
   separationDate?: string;
   divorceDate?: string;
   children: string[];
+  familyName?: string;
+  familyNameOffsetX?: number;
   notes?: string;
   notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };

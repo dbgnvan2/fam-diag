@@ -9,32 +9,38 @@ import type {
   EventClass,
   EventType,
   EventAnchorType,
-  EventContinuationState,
   SymptomGroup,
 } from '../types';
 import {
   FREQUENCY_OPTIONS,
-  INTENSITY_OPTIONS,
   IMPACT_OPTIONS,
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
-import DatePickerField from './DatePickerField';
+import {
+  SYMPTOM_INTENSITY_HELP,
+  SYMPTOM_INTENSITY_LABELS,
+  isSymptomCategory,
+  normalizeSymptomCategory,
+  clampSymptomType,
+} from '../constants/eventConstants';
 import {
   deriveSiblingPositionResult,
-  getSiblingPositionLabel,
   getSiblingPositionOptions,
 } from '../utils/siblingPosition';
+import { computeDefaultFamilyName } from '../utils/partnershipUtils';
+import PersonNameSection from './sections/PersonNameSection';
+import PersonDatesSection from './sections/PersonDatesSection';
+import PersonFormatSection from './sections/PersonFormatSection';
+import PersonFOOSection from './sections/PersonFOOSection';
+import PersonSiblingSection from './sections/PersonSiblingSection';
+import PartnershipPropertiesSection from './sections/PartnershipPropertiesSection';
+import EPLPropertiesSection from './sections/EPLPropertiesSection';
+import EventModal from './EventModal';
+import EventsSection from './EventsSection';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
-const EVENT_CLASS_LABELS: Record<EventClass, string> = {
-  individual: 'Individual',
-  relationship: 'Relationship',
-  'emotional-pattern': 'Emotional Pattern',
-};
-const formatCategoryStatus = (category: string, status?: string) =>
-  status ? `${category} – ${status}` : category;
 const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -45,65 +51,6 @@ const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', strin
 };
 const DEFAULT_OBSERVATION = 'Not recorded - ask client';
 const DEFAULT_HOW_WELL = 1;
-const FUSION_INTENSITY_HELP = [
-  'Minimal – The amount of loss of self to one’s spouse is minimal. Whatever symptom occurs is easily managed, without limitation in functioning, and appears only during periods of heightened anxiety.',
-  'Mild –Some loss of self that can result in more frequent but still mild symptoms that cause distress and occasionally interfere with functioning.',
-  'Moderate – A greater sensitivity to conflict and greater readiness to go along with the other to avoid it. More frequent or moderate symptoms that reduce the ability to function but can be managed by the person unless anxiety gets too high.',
-  'Major – Considerable loss of self to the other such that most important decisions are made by the other spouse. Serious or chronic symptoms that require substantial alteration in the life of the person and/or family',
-  'Severe – Person has become almost a complete no self in the relationship and extremely vulnerable to very serious symptoms that essentially dictate all of life’s choices.',
-];
-const FUSION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const CONFLICT_INTENSITY_HELP = [
-  'Minimum – very occasional bickering, little or no arguments.',
-  'Mild – frequent bickering, short-lived or infrequent quarelling.',
-  'Moderate – frequent arguments, high irritability of partners, raised voices.',
-  'Major – frequent arguments, physical contact (pushing, shoving, occasional slapping), involvement of others.',
-  'Maximal – frequent arguments and striking one another, involvement of outside agencies to restore order.',
-];
-const CONFLICT_INTENSITY_LEVEL_LABELS = ['Minimum', 'Mild', 'Moderate', 'Major', 'Maximal'];
-const DISTANCE_INTENSITY_HELP = [
-  'Minimal – Occasional use of distance to manage tension (superficial contact, seeking out other relationships and/or activities).',
-  'Mild – regular use of distance to manage tension.',
-  'Moderate – Use of emotional distance even during calmer times; little ability to discuss personal issues.',
-  'Major – chronic distance maintained with tense periods of silence or frequent absences; large / frequent geographic distance.',
-  'Severe – Distance is structured into separate lifestyles or living arrangements.',
-];
-const DISTANCE_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const PROJECTION_INTENSITY_HELP = [
-  'Minimal – Parental worry/anxiety about the child is very occasional; child is asymptomatic. Parents meet the reality needs of the child without significantly incorporating the child into parental problems or emotionally overinvesting either positively or negative in the child.',
-  'Mild – Parents’ worry is episodic. Symptoms of the child tend to be occasional and easily managed with no serious impairment of the child’s functioning. Sporadic anxious focus on the child.',
-  'Moderate – Parental worry about the child may be episodic or more constant. There is some impairment of the child’s functioning that becomes more acute during periods of heightened parental anxiety. More of the parent’s self is invested in the child and can play out in either an over positive or an over negative way.',
-  'Major – Anxious parental focus on the child is more intense contributing to serious impairment of the child’s functioning. This may not become evident until adolescence or until the child attempts to leave home. The life of the family is frequently oriented around the child and symptoms in the child.',
-  'Severe – The intensity of the attachment between child and parents is so severe the child fails to lift off from parents or substitute institution. A chronic fixed triangle with the parents contributes to a schizophrenic level of impairment.',
-];
-const PROJECTION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const SIBLING_OVERRIDE_HELP = [
-  'Siblings Complete: turn this on only when every relevant sibling is shown on the diagram. Leave it off when you know siblings are missing, because the derived position should stay provisional.',
-  'Birth Order Override: use this when birth dates are missing or twins need to be distinguished. It gives the ranking engine an explicit place in the sibling order.',
-  'Override Position: use this only when the computed Toman code is not the one you want to use. A manual override becomes the effective position and drives the conflict results.',
-];
-const FAMILY_STABILITY_HELP = [
-  'Excellent – very high percentage (90%) of members represent good functioning across their lifetimes.',
-  'Good – high percentage of family members (75-80%) represent good functioning across their lifetimes, few problems and existing problems are well managed.',
-  'Average – majority of family members display stable adequate functioning across their lifetimes, some problems in family functioning but generally problems are either episodic or do not represent serious drops in overall family functioning.',
-  'Semi-stable – majority of family members stable over their lifetimes but prolonged periods of drops in overall family functioning, perhaps including the present time.',
-  'Unstable – majority of members have serious symptoms and major impairment of life functioning.',
-];
-const FAMILY_STABILITY_LABELS = ['Excellent', 'Good', 'Average', 'Semi-stable', 'Unstable'];
-const FAMILY_INTACTNESS_HELP = [
-  'Excellent – very high percentage (90%) of family members across three generations are alive and available for contact.',
-  'Good – a high percentage (75-80%) of family members across three generations are alive and available for contact.',
-  'Average – a majority of family members across three generations are alive and available for contact.',
-  'Semi-fragmented – relatively few members of the family across three generations are alive and available for contact.',
-  'Fragmented – basic family unit is dissolved and whereabouts of living family members is unknown.',
-];
-const FAMILY_INTACTNESS_LABELS = [
-  'Excellent',
-  'Good',
-  'Average',
-  'Semi-fragmented',
-  'Fragmented',
-];
 const humanizeOptionLabel = (value: string) =>
   value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 const RELATIONSHIP_TYPE_STATUS_ROWS: Record<string, { status: string; dateLabel: string }[]> = {
@@ -199,33 +146,11 @@ const emotionalLineStyleLevelFor = (
   const index = lineStyleValues[relationshipType].indexOf(lineStyle);
   return index >= 0 ? index + 1 : 0;
 };
-const NODAL_SUBTYPE_OPTIONS = [
-  'Birth',
-  'Death',
-  'Marriage',
-  'Separation',
-  'Divorce',
-  'Move',
-  'Job Change',
-  'School Change',
-  'Illness',
-];
-const SYMPTOM_GROUP_OPTIONS: SymptomGroup[] = ['physical', 'emotional', 'social'];
-const isSymptomCategory = (value?: string): value is SymptomGroup =>
-  value === 'physical' || value === 'emotional' || value === 'social';
-const normalizeSymptomCategory = (value?: string): SymptomGroup =>
-  isSymptomCategory(value?.toLowerCase()) ? (value!.toLowerCase() as SymptomGroup) : 'physical';
-const clampSymptomType = (value?: string) => (value || '').trim().slice(0, 30);
-const TAB_HELP_COPY: Record<'properties' | 'foo' | 'functional' | 'events', { title: string; body: string }> = {
+const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns', { title: string; body: string }> = {
   properties: {
     title: 'Person Tab Help',
     body:
       'Persons have basic nodal events of Birth, Death, Birth Sex, and Gender (with Gender Date). Other Symptom events can be added as Events. Persons can be given background colors and border colors to designate whatever is needed (e.g., people living at the same location).',
-  },
-  foo: {
-    title: 'FOO Tab Help',
-    body:
-      'FOO stores family-level measures for the selected person. Use Emotional Cutoff as a free-form measure, and use the Family Stability and Family Intactness help pickers to choose a scale level directly from the reference descriptions.',
   },
   functional: {
     title: 'Symptoms Tab Help',
@@ -236,6 +161,11 @@ const TAB_HELP_COPY: Record<'properties' | 'foo' | 'functional' | 'events', { ti
     title: 'Events Tab Help',
     body:
       'The Events tab lists the events related to the Person, Relationship, or Emotional Pattern. Add events by right-clicking on the item and choosing "Add Event...".',
+  },
+  patterns: {
+    title: 'Patterns Tab Help',
+    body:
+      'The Patterns tab lists all emotional patterns (fusion, distance, conflict, cutoff, projection) connected to this person. Click a pattern to open its full properties.',
   },
 };
 const toTitleCase = (value: string) =>
@@ -293,13 +223,14 @@ const PERSON_DEFERRED_IDENTITY_FIELDS: (keyof Pick<Person, 'birthSex' | 'genderI
   'birthSex',
   'genderIdentity',
 ];
-const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'notes'>)[] = [
+const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'familyName' | 'notes'>)[] = [
   'relationshipType',
   'relationshipStatus',
   'relationshipStartDate',
   'marriedStartDate',
   'separationDate',
   'divorceDate',
+  'familyName',
   'notes',
 ];
 const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate' | 'relationshipType' | 'lineStyle' | 'lineEnding' | 'color' | 'notes' | 'status'>)[] = [
@@ -312,31 +243,6 @@ const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate
   'notes',
   'status',
 ];
-const getContinuationState = (event: EmotionalProcessEvent): EventContinuationState => {
-  const from = !!event.continuesFromPrevious;
-  const to = !!event.continuesToNext;
-  if (from && to) return 'middle';
-  if (!from && to) return 'start';
-  if (from && !to) return 'end';
-  return 'discrete';
-};
-const continuationToFlags = (
-  state: EventContinuationState
-): { continuesFromPrevious: boolean; continuesToNext: boolean } => {
-  if (state === 'start') return { continuesFromPrevious: false, continuesToNext: true };
-  if (state === 'middle') return { continuesFromPrevious: true, continuesToNext: true };
-  if (state === 'end') return { continuesFromPrevious: true, continuesToNext: false };
-  return { continuesFromPrevious: false, continuesToNext: false };
-};
-const eventTypeLabel = (eventType: EventType): string => {
-  if (eventType === 'FF') return 'Symptom';
-  if (eventType === 'EPE') return 'Emotional Pattern';
-  return 'Nodal';
-};
-const compactRelationshipStatusLabel = (event: EmotionalProcessEvent) =>
-  (event.statusLabel || descriptorForCompactFallback(event)).replace(/\s+Date$/i, '').trim();
-const descriptorForCompactFallback = (event: EmotionalProcessEvent) =>
-  formatCategoryStatus(event.category || 'Event', event.statusLabel);
 const readPartnershipStatusDate = (partnership: Partnership, status: string) => {
   const key = normalizeStatusKey(status);
   const explicit = partnership.statusDates?.[key];
@@ -388,8 +294,10 @@ interface PropertiesPanelProps {
     triangleId: string,
     intensity: 'low' | 'medium' | 'high'
   ) => void;
-  initialActiveTab?: 'properties' | 'foo' | 'functional' | 'events';
-  initialPersonSection?: 'name' | 'dates' | 'notes' | 'format' | 'sibling';
+  allEmotionalLines?: EmotionalLine[];
+  onSelectEmotionalLine?: (line: EmotionalLine) => void;
+  initialActiveTab?: 'properties' | 'functional' | 'events' | 'patterns';
+  initialPersonSection?: 'name' | 'dates' | 'format' | 'sibling' | 'foo';
   initialPartnershipType?: string;
   focusEventId?: string;
   openNewEventRequestId?: string;
@@ -424,6 +332,8 @@ const PropertiesPanel = ({
   openNewEventRequestId,
   newEventSeed,
   openNewEventPosition,
+  allEmotionalLines = [],
+  onSelectEmotionalLine,
   onEnsureSymptomCategoryDefinition,
   compactPersonSectionMode = false,
   compactPartnershipSectionMode = false,
@@ -438,32 +348,22 @@ const PropertiesPanel = ({
   const isPerson = 'name' in selectedItem;
   const isPartnership = 'partner1_id' in selectedItem && 'children' in selectedItem;
   const isEmotionalLine = 'lineStyle' in selectedItem;
-  const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [eventListMode, setEventListMode] = useState<'compact' | 'expanded'>('compact');
-  const [eventTypeFilter, setEventTypeFilter] = useState<'ALL' | EventType>('ALL');
-  const [anchorTypeFilter, setAnchorTypeFilter] = useState<'ALL' | EventAnchorType>('ALL');
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventDraft, setEventDraft] = useState<EmotionalProcessEvent | null>(null);
-  const [eventRowMenu, setEventRowMenu] = useState<{
-    eventId: string;
-    x: number;
-    y: number;
-  } | null>(null);
   const [eventModalPosition, setEventModalPosition] = useState<{ x: number; y: number } | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState<'properties' | 'foo' | 'functional' | 'events'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns'>('properties');
   const [activePersonSection, setActivePersonSection] = useState<
-    'name' | 'dates' | 'notes' | 'format' | 'sibling'
+    'name' | 'dates' | 'format' | 'sibling' | 'foo'
   >('name');
   const [activeSiblingSubtab, setActiveSiblingSubtab] = useState<
     'override' | 'position' | 'compatibility'
   >('override');
-  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'foo' | 'functional' | 'events' | null>(null);
-  const [emotionalIntensityHelpOpen, setEmotionalIntensityHelpOpen] = useState(false);
+  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | null>(null);
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
-  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
+  const [symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
   const [emotionalPristine, setEmotionalPristine] = useState(true);
@@ -501,6 +401,14 @@ const PropertiesPanel = ({
         : [],
     [selectedPerson, people, partnerships]
   );
+  const computedFamilyName = useMemo(() => {
+    if (!selectedPartnership) return '';
+    const p1 = people.find((p) => p.id === selectedPartnership.partner1_id);
+    const p2 = people.find((p) => p.id === selectedPartnership.partner2_id);
+    if (!p1 || !p2) return '';
+    return computeDefaultFamilyName(p1, p2);
+  }, [selectedPartnership, people]);
+
   const activeTabLabel =
     activeTab === 'properties'
       ? isEmotionalLine
@@ -508,10 +416,10 @@ const PropertiesPanel = ({
         : isPartnership
         ? 'Relationship'
         : 'Person'
-      : activeTab === 'foo'
-      ? 'FOO'
       : activeTab === 'functional'
       ? 'Symptoms'
+      : activeTab === 'patterns'
+      ? 'Patterns'
       : 'Events';
   const partnershipTypeOptions = useMemo(() => {
     const options = [...relationshipTypes, ...Object.keys(RELATIONSHIP_TYPE_STATUS_ROWS)];
@@ -614,16 +522,6 @@ const PropertiesPanel = ({
     [selectedPerson]
   );
   const stringDiffers = (a?: string | null, b?: string | null) => (a ?? '') !== (b ?? '');
-  const labelColumnWidth = 140;
-  const labelStyle: React.CSSProperties = { width: labelColumnWidth, textAlign: 'right', fontWeight: 600 };
-  const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
-  const sectionCardStyle: React.CSSProperties = {
-    marginTop: 12,
-    border: '1px solid #d4dae5',
-    borderRadius: 8,
-    background: '#fff',
-    padding: '10px 12px 12px',
-  };
   const sectionNavButtonStyle = (active: boolean): React.CSSProperties => ({
     padding: '6px 10px',
     borderRadius: 6,
@@ -632,12 +530,6 @@ const PropertiesPanel = ({
     fontWeight: 600,
     cursor: 'pointer',
   });
-  const eventActionButtonStyle: React.CSSProperties = {
-    padding: '1px 4px',
-    fontSize: 11,
-    lineHeight: 1.1,
-    minHeight: 20,
-  };
   const helpBadgeStyle: React.CSSProperties = {
     width: 20,
     height: 20,
@@ -651,28 +543,19 @@ const PropertiesPanel = ({
     padding: 0,
     cursor: 'pointer',
   };
-  const formatColorRowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 10,
-  };
-
   useEffect(() => {
     setEventModalOpen(false);
     setEventDraft(null);
-    setFocusedEventId(focusEventId || null);
     setActiveTab(initialActiveTab || 'properties');
     setActivePersonSection(initialPersonSection || 'name');
     setActiveSiblingSubtab('override');
     setSiblingHelpOpen(false);
     setFooHelpOpen(null);
+    setSymptomIntensityHelpOpen(null);
   }, [selectedItem.id, initialActiveTab, initialPersonSection, focusEventId]);
 
   useEffect(() => {
     if (!focusEventId) return;
-    setFocusedEventId(focusEventId);
     setActiveTab(initialActiveTab || 'events');
   }, [focusEventId, initialActiveTab]);
 
@@ -958,8 +841,15 @@ const PropertiesPanel = ({
         }
         nextValue = Math.floor(numericValue);
       }
-    } else if (name === 'siblingPositionOverride') {
+    } else if (
+      name === 'siblingPositionOverride' ||
+      name === 'fatherPositionOverride' ||
+      name === 'motherPositionOverride' ||
+      name === 'partnerPositionOverride'
+    ) {
       nextValue = value.trim() || undefined;
+    } else if (name === 'siblingMaturityLevel') {
+      nextValue = value ? (parseInt(value, 10) as 1 | 2 | 3 | 4 | 5) : undefined;
     }
     let updates: Partial<Person> = { [name]: nextValue };
     if (name === 'birthSex') {
@@ -1055,7 +945,11 @@ const PropertiesPanel = ({
       setPartnershipPristine(false);
       return;
     }
-    updatePartnershipDraftState({ [name]: value } as Partial<Partnership>);
+    if (name === 'familyName') {
+      updatePartnershipDraftState({ familyName: value || undefined });
+    } else {
+      updatePartnershipDraftState({ [name]: value } as Partial<Partnership>);
+    }
     setPartnershipPristine(false);
   };
 
@@ -1089,45 +983,6 @@ const PropertiesPanel = ({
     setEmotionalDraft((prev) => (prev ? { ...prev, ...updates } : prev));
   };
 
-  const styleOptionMeta = (relationshipType: EmotionalLine['relationshipType']) => {
-    switch (relationshipType) {
-      case 'fusion':
-        return [
-          { value: 'fusion-dotted-wide', label: 'Level 1 (double dotted, two spaces)' },
-          { value: 'fusion-dotted-tight', label: 'Level 2 (double dotted, no space)' },
-          { value: 'fusion-solid-wide', label: 'Level 3 (double solid, two spaces)' },
-          { value: 'fusion-solid-tight', label: 'Level 4 (double solid, no space)' },
-          { value: 'fusion-triple', label: 'Level 5 (triple lines)' },
-        ];
-      case 'distance':
-        return [
-          { value: 'distance-dashed-tight', label: 'Level 1 (dashed, very little space)' },
-          { value: 'distance-dashed-wide', label: 'Level 2 (longer segments, some space)' },
-          { value: 'distance-long', label: 'Level 3 (longer segments, lots of space)' },
-          { value: 'distance-dotted-tight', label: 'Level 4 (short segments, space)' },
-          { value: 'distance-dotted-wide', label: 'Level 5 (dots, space)' },
-        ];
-      case 'conflict':
-        return [
-          { value: 'conflict-dotted-wide', label: 'Level 1 (single dotted sawtooth)' },
-          { value: 'conflict-dotted-tight', label: 'Level 2 (double dotted sawtooth)' },
-          { value: 'conflict-solid-wide', label: 'Level 3 (short line sawtooth)' },
-          { value: 'conflict-solid-tight', label: 'Level 4 (double line sawtooth)' },
-          { value: 'conflict-double', label: 'Level 5 (triple line sawtooth)' },
-        ];
-      case 'projection':
-        return [
-          { value: 'projection-1', label: 'Level 1 (>....>)' },
-          { value: 'projection-2', label: 'Level 2 (>...>)' },
-          { value: 'projection-3', label: 'Level 3 (>.>)' },
-          { value: 'projection-4', label: 'Level 4 (>>>>)' },
-          { value: 'projection-5', label: 'Level 5 (>>>>>)' },
-        ];
-      default:
-        return [{ value: 'cutoff', label: 'Cutoff' }];
-    }
-  };
-
   const lineStyleForLevel = (
     relationshipType: EmotionalLine['relationshipType'],
     level: number
@@ -1148,37 +1003,6 @@ const PropertiesPanel = ({
     }
     setEmotionalPristine(false);
   };
-
-  const intensityChooserConfig =
-    emotionalDraft?.relationshipType === 'fusion'
-      ? {
-          title: '+ / - Adequate Intensity Level',
-          helpLines: FUSION_INTENSITY_HELP,
-          labels: FUSION_INTENSITY_LEVEL_LABELS,
-          buttonLabel: '+ / - Adequate intensity level help',
-        }
-      : emotionalDraft?.relationshipType === 'conflict'
-      ? {
-          title: 'Conflict Intensity Level',
-          helpLines: CONFLICT_INTENSITY_HELP,
-          labels: CONFLICT_INTENSITY_LEVEL_LABELS,
-          buttonLabel: 'Conflict intensity level help',
-        }
-      : emotionalDraft?.relationshipType === 'distance'
-      ? {
-          title: 'Distance Intensity Level',
-          helpLines: DISTANCE_INTENSITY_HELP,
-          labels: DISTANCE_INTENSITY_LEVEL_LABELS,
-          buttonLabel: 'Distance intensity level help',
-        }
-      : emotionalDraft?.relationshipType === 'projection'
-      ? {
-          title: 'Family Projection Intensity Scale',
-          helpLines: PROJECTION_INTENSITY_HELP,
-          labels: PROJECTION_INTENSITY_LEVEL_LABELS,
-          buttonLabel: 'Family projection intensity level help',
-        }
-      : null;
 
   const handleEmotionalLineChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!emotionalDraft) return;
@@ -1663,37 +1487,14 @@ const PropertiesPanel = ({
       eventType === 'EPE' ? event.emotionalProcessType || event.category || '' : '';
     return `${anchorType}|${anchorId}|${eventType}|${process}`;
   };
-  const descriptorForEvent = (event: EmotionalProcessEvent) => {
-    const eventType = inferEventType(event);
-    if (eventType === 'NODAL') return event.nodalEventSubtype || event.statusLabel || 'Nodal Event';
-    if (eventType === 'EPE') {
-      const process = event.emotionalProcessType || event.category || 'EPE';
-      return `${process} · F${event.frequency ?? 0}/I${event.intensity ?? 0}/Imp${event.impact ?? 0}`;
-    }
-    const symptomCategory = toTitleCase(normalizeSymptomCategory(event.category || event.symptomGroup));
-    const symptomType = clampSymptomType(event.symptomType || (!isSymptomCategory(event.category) ? event.category : ''));
-    return symptomType ? `${symptomCategory} · ${symptomType}` : symptomCategory;
-  };
-  const continuationLabel = (event: EmotionalProcessEvent) => {
-    const state = getContinuationState(event);
-    if (state === 'start') return 'Continues to next';
-    if (state === 'middle') return 'Continues from previous and to next';
-    if (state === 'end') return 'Continues from previous';
-    return 'Discrete';
-  };
-  const continuationBadge = (event: EmotionalProcessEvent) => {
-    const state = getContinuationState(event);
-    if (state === 'start') return 'S';
-    if (state === 'middle') return 'M';
-    if (state === 'end') return 'E';
-    return 'D';
-  };
   const symptomTypeOptions = useMemo(() => {
+    const currentCategory = normalizeSymptomCategory(eventDraft?.category || eventDraft?.symptomGroup);
     const labels = functionalIndicatorDefinitions
+      .filter((definition) => (definition.group || 'physical') === currentCategory)
       .map((definition) => definition.label?.trim())
       .filter((label): label is string => !!label);
     return Array.from(new Set(labels));
-  }, [functionalIndicatorDefinitions]);
+  }, [functionalIndicatorDefinitions, eventDraft?.category, eventDraft?.symptomGroup]);
   const emotionalLinePeople = useMemo(() => {
     if (!isEmotionalLine) return { person1Name: '', person2Name: '' };
     const line = selectedItem as EmotionalLine;
@@ -1739,6 +1540,7 @@ const PropertiesPanel = ({
       category: SymptomGroup;
       type: string;
       definitionId?: string;
+      sourceEventId?: string;
       status: 'past' | 'current' | 'none';
       intensity: number;
       frequency: number;
@@ -1755,6 +1557,7 @@ const PropertiesPanel = ({
         category: SymptomGroup;
         type: string;
         definitionId?: string;
+        sourceEventId?: string;
         status: 'past' | 'current' | 'none';
         intensity: number;
         frequency: number;
@@ -1793,6 +1596,7 @@ const PropertiesPanel = ({
           category,
           type,
           definitionId: sourceDef?.id,
+          sourceEventId: event.id,
           status,
           intensity: clampIndicatorDimension(event.intensity),
           frequency: clampIndicatorDimension(event.frequency),
@@ -1834,26 +1638,6 @@ const PropertiesPanel = ({
     : isPartnership
     ? 'RELATIONSHIP_PRL'
     : 'PERSON';
-  const filteredAndSortedEvents = useMemo(() => {
-    const events = [...getEvents()];
-    const currentAnchorId = selectedItem.id;
-    const filtered = events.filter((event) => {
-      const eventType = inferEventType(event);
-      const anchorType = event.anchorType || currentAnchorType;
-      if (eventTypeFilter !== 'ALL' && eventType !== eventTypeFilter) return false;
-      if (anchorTypeFilter !== 'ALL' && anchorType !== anchorTypeFilter) return false;
-      if (!event.anchorId) return true;
-      return event.anchorId === currentAnchorId;
-    });
-    const direction = eventSortOrder === 'asc' ? 1 : -1;
-    filtered.sort((a, b) => {
-      const aTime = normalizeEventDate(a) ? new Date(normalizeEventDate(a)).getTime() : Number.POSITIVE_INFINITY;
-      const bTime = normalizeEventDate(b) ? new Date(normalizeEventDate(b)).getTime() : Number.POSITIVE_INFINITY;
-      if (aTime === bTime) return 0;
-      return aTime > bTime ? direction : -direction;
-    });
-    return filtered;
-  }, [getEvents, eventSortOrder, eventTypeFilter, anchorTypeFilter, selectedItem.id, currentAnchorType]);
 
   const buildEventDraft = useCallback((
     eventType: EventType,
@@ -1954,7 +1738,6 @@ const PropertiesPanel = ({
   };
 
   const openEditEvent = (event: EmotionalProcessEvent) => {
-    setFocusedEventId(event.id);
     setEventDraft({
       ...event,
       category: event.category || eventCategories[0] || '',
@@ -2227,9 +2010,6 @@ const PropertiesPanel = ({
   };
 
   const deleteEvent = (eventId: string) => {
-    if (focusedEventId === eventId) {
-      setFocusedEventId(null);
-    }
     const events = [...getEvents()];
     const { prevIndex, nextIndex } = getSeriesOrderedIndexes(events, eventId);
     const nextEvents = events.filter((evt) => evt.id !== eventId);
@@ -2300,7 +2080,7 @@ const PropertiesPanel = ({
         background: '#fff',
       }}
     >
-      {(['name', 'dates', 'notes', 'format', 'sibling'] as const).map((section) => (
+      {(['name', 'dates', 'format', 'sibling', 'foo'] as const).map((section) => (
         <button
           key={section}
           type="button"
@@ -2321,550 +2101,82 @@ const PropertiesPanel = ({
             ? 'Name'
             : section === 'dates'
             ? 'Dates'
-            : section === 'notes'
-            ? 'Notes'
             : section === 'format'
             ? 'Format'
-            : 'Sibling'}
+            : section === 'sibling'
+            ? 'Sibling'
+            : 'FOO'}
         </button>
       ))}
     </div>
-  );
-  const renderSiblingConflictBlock = (
-    title: string,
-    conflict: ReturnType<typeof deriveSiblingPositionResult>['conflict_with_father']
-  ) => (
-    <div
-      style={{
-        border: '1px solid #d7deea',
-        borderRadius: 8,
-        padding: '10px 12px',
-        background: '#fff',
-      }}
-    >
-      <div style={{ fontWeight: 700, color: '#23324a' }}>{title}</div>
-      {!conflict ? (
-        <div style={{ marginTop: 4, color: '#5e6d84' }}>Insufficient data</div>
-      ) : (
-        <div style={{ marginTop: 6, display: 'grid', gap: 4, fontSize: 13 }}>
-          <div>
-            <strong>Other Position:</strong> {conflict.other_effective_position}
-          </div>
-          <div>
-            <strong>Category:</strong> {conflict.category}
-          </div>
-          <div>
-            <strong>Rank Conflict:</strong> {conflict.rank_conflict ? 'Yes' : 'No'}
-          </div>
-          <div>
-            <strong>Sex Conflict:</strong>{' '}
-            {conflict.sex_conflict_uncertain
-              ? 'Uncertain'
-              : conflict.sex_conflict === null
-              ? 'N/A'
-              : conflict.sex_conflict
-              ? 'Yes'
-              : 'No'}
-          </div>
-          {conflict.confidence_note && (
-            <div style={{ color: '#6a4b10' }}>
-              <strong>Note:</strong> {conflict.confidence_note}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-  const renderSiblingOverrideControls = () => (
-    <>
-      <div style={rowStyle}>
-        <label htmlFor="siblingsComplete" style={labelStyle}>Siblings Complete:</label>
-        <input
-          type="checkbox"
-          id="siblingsComplete"
-          name="siblingsComplete"
-          checked={personDraft?.siblingsComplete ?? false}
-          onChange={handlePersonChange}
-        />
-      </div>
-      <div style={rowStyle}>
-        <label htmlFor="birthOrderOverride" style={labelStyle}>Birth Order Override:</label>
-        <input
-          type="number"
-          id="birthOrderOverride"
-          name="birthOrderOverride"
-          min={1}
-          value={personDraft?.birthOrderOverride ?? ''}
-          onChange={handlePersonChange}
-          style={{ width: 120 }}
-        />
-      </div>
-      <div style={rowStyle}>
-        <label htmlFor="siblingPositionOverride" style={labelStyle}>Override Position:</label>
-        <select
-          id="siblingPositionOverride"
-          name="siblingPositionOverride"
-          value={personDraft?.siblingPositionOverride ?? ''}
-          onChange={handlePersonChange}
-          style={{ width: '100%', maxWidth: 320 }}
-        >
-          <option value="">Use computed position</option>
-          {siblingPositionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-        <button
-          type="button"
-          aria-label="Sibling override help"
-          onClick={() => setSiblingHelpOpen((open) => !open)}
-          style={helpBadgeStyle}
-        >
-          ?
-        </button>
-      </div>
-      {siblingHelpOpen && (
-        <div
-          role="dialog"
-          aria-label="Sibling override help"
-          style={{
-            marginTop: 8,
-            border: '1px solid #b7c6df',
-            borderRadius: 8,
-            background: '#f8fbff',
-            padding: 10,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-            <strong>Sibling Override Help</strong>
-            <button
-              type="button"
-              onClick={() => setSiblingHelpOpen(false)}
-              aria-label="Close sibling override help"
-              style={{ border: '1px solid #bdbdbd', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-            >
-              Close
-            </button>
-          </div>
-          <div style={{ marginTop: 8, display: 'grid', gap: 8, fontSize: 13, lineHeight: 1.4 }}>
-            <div><strong>Siblings Complete:</strong> {SIBLING_OVERRIDE_HELP[0]}</div>
-            <div><strong>Birth Order Override:</strong> {SIBLING_OVERRIDE_HELP[1]}</div>
-            <div><strong>Override Position:</strong> {SIBLING_OVERRIDE_HELP[2]}</div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-  const renderSiblingSubtabs = () => (
-    <div
-      role="tablist"
-      aria-label="Sibling property sections"
-      style={{
-        display: 'inline-flex',
-        gap: 0,
-        marginTop: 10,
-        border: '1px solid #c6cfde',
-        borderRadius: 8,
-        overflow: 'hidden',
-        background: '#fff',
-      }}
-    >
-      {(['override', 'position', 'compatibility'] as const).map((section) => (
-        <button
-          key={section}
-          type="button"
-          role="tab"
-          aria-selected={activeSiblingSubtab === section}
-          onClick={() => setActiveSiblingSubtab(section)}
-          style={{
-            ...sectionNavButtonStyle(activeSiblingSubtab === section),
-            borderRadius: 0,
-            border: 'none',
-            borderLeft: section === 'override' ? 'none' : '1px solid #c6cfde',
-            minWidth: 110,
-          }}
-        >
-          {section === 'override'
-            ? 'Override'
-            : section === 'position'
-            ? 'Position'
-            : 'Compatibility'}
-        </button>
-      ))}
-    </div>
-  );
-  const renderFooScaleChooser = (
-    field: 'familyStability' | 'familyIntactness',
-    label: string,
-    value: string | undefined,
-    labels: string[],
-    helpTitle: string,
-    helpLines: string[]
-  ) => (
-    <>
-      <div style={rowStyle}>
-        <label htmlFor={field} style={labelStyle}>{label}:</label>
-        <select
-          id={field}
-          name={field}
-          value={value || ''}
-          onChange={handlePersonChange}
-          style={{ width: 220 }}
-        >
-          <option value="">Not set</option>
-          {labels.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          aria-label={`${label} help`}
-          onClick={() => setFooHelpOpen((current) => (current === field ? null : field))}
-          style={helpBadgeStyle}
-        >
-          ?
-        </button>
-      </div>
-      {fooHelpOpen === field && (
-        <div
-          role="dialog"
-          aria-label={helpTitle}
-          style={{
-            marginTop: 8,
-            border: '1px solid #c6cfde',
-            borderRadius: 10,
-            background: '#fff',
-            padding: '12px 14px',
-            boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <strong>{helpTitle}</strong>
-            <button
-              type="button"
-              onClick={() => setFooHelpOpen(null)}
-              style={{ padding: '4px 10px' }}
-            >
-              Cancel
-            </button>
-          </div>
-          <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-            {helpLines.map((line, index) => {
-              const option = labels[index];
-              const isActive = value === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    if (!selectedPerson) return;
-                    onUpdatePerson(selectedPerson.id, { [field]: option } as Partial<Person>);
-                    updatePersonDraftState({ [field]: option } as Partial<Person>);
-                    setPersonPristine(true);
-                    setFooHelpOpen(null);
-                  }}
-                  style={{
-                    textAlign: 'left',
-                    border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
-                    borderRadius: 8,
-                    background: isActive ? '#eef3ff' : '#fff',
-                    padding: '8px 10px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: '#23324a' }}>{option}</div>
-                  <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </>
   );
   const renderActivePersonSection = () => {
     if (!selectedPerson || !personDraft) return null;
 
     if (activePersonSection === 'name') {
       return (
-        <div
-          role="tabpanel"
-          id="person-section-panel-name"
-          aria-labelledby="person-section-tab-name"
-          style={sectionCardStyle}
-        >
-          <div style={{ fontWeight: 700, color: '#23324a' }}>Name</div>
-          <div style={rowStyle}>
-            <label htmlFor="firstName" style={labelStyle}>First Name:</label>
-            <input type="text" id="firstName" name="firstName" value={personDraft.firstName ?? nameFallbackParts.first} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="lastName" style={labelStyle}>Last Name:</label>
-            <input type="text" id="lastName" name="lastName" value={personDraft.lastName ?? nameFallbackParts.last} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="maidenName" style={labelStyle}>Maiden Name:</label>
-            <input type="text" id="maidenName" name="maidenName" value={personDraft.maidenName ?? ''} onChange={handlePersonChange} style={{ width: '25ch', textAlign: 'left' }} />
-          </div>
-        </div>
+        <PersonNameSection
+          personDraft={personDraft}
+          nameFallbackParts={nameFallbackParts}
+          onChange={handlePersonChange}
+        />
       );
     }
 
     if (activePersonSection === 'dates') {
       return (
-        <div
-          role="tabpanel"
-          id="person-section-panel-dates"
-          aria-labelledby="person-section-tab-dates"
-          style={sectionCardStyle}
-        >
-          <div style={{ fontWeight: 700, color: '#23324a' }}>Dates</div>
-          <div style={rowStyle}>
-            <label htmlFor="birthDate" style={labelStyle}>Birth Date:</label>
-            <DatePickerField id="birthDate" name="birthDate" value={personDraft.birthDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select birth date" />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
-            <DatePickerField id="deathDate" name="deathDate" value={personDraft.deathDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select death date" />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="birthSex" style={labelStyle}>Birth Sex:</label>
-            <select id="birthSex" name="birthSex" value={personDraft.birthSex || (personDraft.gender === 'male' ? 'male' : personDraft.gender === 'intersex' ? 'intersex' : 'female')} onChange={handlePersonChange} style={{ width: 160 }}>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="intersex">Intersex</option>
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="genderIdentity" style={labelStyle}>Gender:</label>
-            <select id="genderIdentity" name="genderIdentity" value={personDraft.genderIdentity || defaultGenderIdentityForBirthSex(personDraft.birthSex || (personDraft.gender === 'male' ? 'male' : personDraft.gender === 'intersex' ? 'intersex' : 'female'))} onChange={handlePersonChange} style={{ width: 180 }}>
-              <option value="feminine">Feminine</option>
-              <option value="masculine">Masculine</option>
-              <option value="nonbinary">Non-Binary</option>
-              <option value="agender">Agender</option>
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="genderDate" style={labelStyle}>Gender Date:</label>
-            <DatePickerField id="genderDate" name="genderDate" value={personDraft.genderDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select gender date" />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="adoptionStatus" style={labelStyle}>Adoption Status:</label>
-            <select id="adoptionStatus" name="adoptionStatus" value={personDraft.adoptionStatus || 'biological'} onChange={handlePersonChange} style={{ width: 160 }}>
-              <option value="biological">Biological</option>
-              <option value="adopted">Adopted</option>
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="adoptionDate" style={labelStyle}>Adoption Date:</label>
-            <DatePickerField id="adoptionDate" name="adoptionDate" value={personDraft.adoptionDate} placeholder="YYYY-MM-DD" onChange={handlePersonChange} pickerLabel="Select adoption date" />
-          </div>
-          {(personDraft.parentPartnership || personDraft.birthParentPartnership) && (
-            <div style={rowStyle}>
-              <label htmlFor="parentConnectionPattern" style={labelStyle}>Parent Line Pattern:</label>
-              <select id="parentConnectionPattern" name="parentConnectionPattern" value={personDraft.parentConnectionPattern || 'none'} onChange={handlePersonChange} style={{ width: 180 }}>
-                <option value="none">None</option>
-                <option value="family-cutoff">Family Cutoff</option>
-              </select>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (activePersonSection === 'notes') {
-      return (
-        <div
-          role="tabpanel"
-          id="person-section-panel-notes"
-          aria-labelledby="person-section-tab-notes"
-          style={sectionCardStyle}
-        >
-          <div style={{ fontWeight: 700, color: '#23324a' }}>Notes</div>
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-            <label htmlFor="notes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-            <textarea id="notes" name="notes" value={personDraft.notes || ''} onChange={handlePersonChange} rows={6} style={{ width: '100%', minHeight: '8rem', fontFamily: 'inherit', fontSize: '0.95rem' }} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="notesEnabled" style={labelStyle}>Enabled:</label>
-            <input type="checkbox" id="notesEnabled" name="notesEnabled" checked={personDraft.notesEnabled ?? false} onChange={handlePersonChange} />
-          </div>
-        </div>
+        <PersonDatesSection
+          personDraft={personDraft}
+          onChange={handlePersonChange}
+        />
       );
     }
 
     if (activePersonSection === 'sibling') {
-      if (compactPersonSectionMode) {
-        return (
-          <div
-            role="tabpanel"
-            id="person-section-panel-sibling"
-            aria-labelledby="person-section-tab-sibling"
-            style={sectionCardStyle}
-          >
-            <div style={{ fontWeight: 700, color: '#23324a' }}>Sibling Override</div>
-            {renderSiblingOverrideControls()}
-          </div>
-        );
-      }
-
       return (
-        <div
-          role="tabpanel"
-          id="person-section-panel-sibling"
-          aria-labelledby="person-section-tab-sibling"
-          style={sectionCardStyle}
-        >
-          <div style={{ fontWeight: 700, color: '#23324a' }}>Sibling Position</div>
-          {renderSiblingSubtabs()}
-          {activeSiblingSubtab === 'override' ? (
-            <div style={{ marginTop: 12 }}>{renderSiblingOverrideControls()}</div>
-          ) : activeSiblingSubtab === 'position' ? (
-            <div
-              style={{
-                marginTop: 12,
-                border: '1px solid #d7deea',
-                borderRadius: 8,
-                padding: '10px 12px',
-                background: '#fff',
-                display: 'grid',
-                gap: 4,
-                fontSize: 13,
-              }}
-            >
-              <div>
-                <strong>Derived:</strong>{' '}
-                {siblingPositionResult?.derived_position
-                  ? `${siblingPositionResult.derived_position} — ${getSiblingPositionLabel(
-                      siblingPositionResult.derived_position
-                    )}`
-                  : 'Not available'}
-              </div>
-              <div>
-                <strong>Effective:</strong>{' '}
-                {siblingPositionResult?.effective_position
-                  ? `${siblingPositionResult.effective_position} — ${getSiblingPositionLabel(
-                      siblingPositionResult.effective_position
-                    )}`
-                  : 'Not available'}
-              </div>
-              <div>
-                <strong>Confidence:</strong> {siblingPositionResult?.confidence || 'INDETERMINATE'}
-              </div>
-              <div>
-                <strong>Rank:</strong> {siblingPositionResult?.rank || 'Not available'}
-              </div>
-              <div>
-                <strong>Composition:</strong> {siblingPositionResult?.composition || 'Not available'}
-              </div>
-              <div>
-                <strong>Half-Sibling Only:</strong>{' '}
-                {siblingPositionResult?.half_sibling_only ? 'Yes' : 'No'}
-              </div>
-              {siblingPositionResult?.note && (
-                <div style={{ color: '#6a4b10' }}>
-                  <strong>Note:</strong> {siblingPositionResult.note}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-              {renderSiblingConflictBlock('Person vs Father', siblingPositionResult?.conflict_with_father || null)}
-              {renderSiblingConflictBlock('Person vs Mother', siblingPositionResult?.conflict_with_mother || null)}
-              {renderSiblingConflictBlock('Person vs Partner', siblingPositionResult?.conflict_with_partner || null)}
-            </div>
-          )}
-        </div>
+        <PersonSiblingSection
+          personDraft={personDraft}
+          people={people}
+          partnerships={partnerships}
+          siblingPositionResult={siblingPositionResult}
+          siblingPositionOptions={siblingPositionOptions}
+          onChange={handlePersonChange}
+          onUpdateOtherPersonPosition={(personId, position) =>
+            onUpdatePerson(personId, { siblingPositionOverride: position })
+          }
+          compactMode={compactPersonSectionMode}
+          activeSiblingSubtab={activeSiblingSubtab}
+          onSiblingSubtabChange={setActiveSiblingSubtab}
+          siblingHelpOpen={siblingHelpOpen}
+          onSiblingHelpOpenChange={setSiblingHelpOpen}
+        />
+      );
+    }
+
+    if (activePersonSection === 'foo') {
+      return (
+        <PersonFOOSection
+          personDraft={personDraft}
+          selectedPerson={selectedPerson}
+          onChange={handlePersonChange}
+          onUpdatePerson={onUpdatePerson}
+          updatePersonDraftState={updatePersonDraftState}
+          onSetPersonPristine={setPersonPristine}
+          fooHelpOpen={fooHelpOpen}
+          onFooHelpOpenChange={setFooHelpOpen}
+        />
       );
     }
 
     return (
-      <div
-        role="tabpanel"
-        id="person-section-panel-format"
-        aria-labelledby="person-section-tab-format"
-        style={sectionCardStyle}
-      >
-        <div style={{ fontWeight: 700, color: '#23324a' }}>Format</div>
-        <div style={rowStyle}>
-          <label htmlFor="size" style={labelStyle}>Size:</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button type="button" onClick={() => adjustPersonSize(-1)} style={{ padding: '0 6px' }}>−</button>
-            <input type="number" id="size" name="size" min={20} max={200} value={personDraft.size ?? 60} onChange={handlePersonChange} style={{ width: 60, textAlign: 'center' }} />
-            <button type="button" onClick={() => adjustPersonSize(1)} style={{ padding: '0 6px' }}>+</button>
-          </div>
-        </div>
-        {renderFormatColorControl('foreground', 'Foreground Color', personDraft.foregroundEnabled ?? !!personDraft.foregroundColor, personDraft.foregroundColor ?? DEFAULT_FOREGROUND_COLOR)}
-        {renderFormatColorControl('border', 'Border Color', personDraft.borderEnabled ?? !!personDraft.borderColor, personDraft.borderColor ?? DEFAULT_BORDER_COLOR)}
-        {renderFormatColorControl('background', 'Background Color', personDraft.backgroundEnabled ?? false, personDraft.backgroundColor ?? DEFAULT_BACKGROUND_COLOR)}
-      </div>
+      <PersonFormatSection
+        personDraft={personDraft}
+        onChange={handlePersonChange}
+        onAdjustSize={adjustPersonSize}
+        colorInputRefs={colorInputRefs}
+      />
     );
   };
-  const renderFormatColorControl = (
-    key: 'foreground' | 'border' | 'background',
-    label: string,
-    enabled: boolean,
-    color: string
-  ) => (
-    <div style={formatColorRowStyle}>
-      <div style={{ fontWeight: 600, minWidth: 120 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button
-          type="button"
-          aria-label={`${label} color`}
-          title={`Choose ${label.toLowerCase()}`}
-          onClick={() => colorInputRefs[key].current?.click()}
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: '50%',
-            border: '1px solid #7b8ba5',
-            background: color,
-            cursor: 'pointer',
-            padding: 0,
-            boxShadow: enabled ? '0 0 0 2px rgba(75, 104, 166, 0.18)' : 'none',
-          }}
-        />
-        <input
-          ref={colorInputRefs[key]}
-          type="color"
-          name={`${key}Color`}
-          value={color}
-          onChange={handlePersonChange}
-          aria-label={`${label} color picker`}
-          style={{
-            position: 'absolute',
-            width: 1,
-            height: 1,
-            opacity: 0,
-            pointerEvents: 'none',
-          }}
-          tabIndex={-1}
-        />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            type="checkbox"
-            name={`${key}Enabled`}
-            checked={enabled}
-            onChange={handlePersonChange}
-          />
-          Enabled
-        </label>
-      </div>
-    </div>
-  );
 
   if (compactPersonSectionMode && isPerson && selectedPerson && personDraft) {
     const compactTitle =
@@ -2872,11 +2184,11 @@ const PropertiesPanel = ({
         ? 'Name'
         : activePersonSection === 'dates'
         ? 'Dates'
-        : activePersonSection === 'notes'
-        ? 'Notes'
         : activePersonSection === 'format'
         ? 'Format'
-        : 'Sibling';
+        : activePersonSection === 'sibling'
+        ? 'Sibling'
+        : 'FOO';
 
     return (
       <div
@@ -2969,55 +2281,19 @@ const PropertiesPanel = ({
           </button>
         </div>
         <div style={{ marginTop: 10 }}>
-          <div style={rowStyle}>
-            <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
-            <select
-              id="relationshipType"
-              name="relationshipType"
-              value={partnershipDraft.relationshipType}
-              onChange={handlePartnershipChange}
-              style={{ width: 180 }}
-            >
-              {partnershipTypeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {formatOptionLabel(option)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="relationshipStatus" style={labelStyle}>Status:</label>
-            <select
-              id="relationshipStatus"
-              name="relationshipStatus"
-              value={partnershipDraft.relationshipStatus}
-              onChange={handlePartnershipChange}
-              style={{ width: 180 }}
-            >
-              {partnershipStatusOptions.map((option) => (
-                <option key={`${partnershipDraft.relationshipType}-${option}`} value={option}>
-                  {formatOptionLabel(option)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {partnershipStatusDateRows.map(({ status, dateLabel }) => {
-            const statusKey = normalizeStatusKey(status);
-            const fieldId = `popup-statusDate-${statusKey.replace(/[^a-z0-9]+/g, '-')}`;
-            return (
-              <div key={`popup-${partnershipDraft.relationshipType}-${statusKey}`} style={rowStyle}>
-                <label htmlFor={fieldId} style={labelStyle}>{dateLabel}:</label>
-                <DatePickerField
-                  id={fieldId}
-                  name={`statusDate:${status}`}
-                  value={readPartnershipStatusDate(partnershipDraft, status)}
-                  placeholder="YYYY-MM-DD"
-                  onChange={handlePartnershipChange}
-                  pickerLabel={`Select ${dateLabel.toLowerCase()} date`}
-                />
-              </div>
-            );
-          })}
+          <PartnershipPropertiesSection
+            partnershipDraft={partnershipDraft}
+            computedFamilyName={computedFamilyName}
+            typeOptions={partnershipTypeOptions}
+            statusOptions={partnershipStatusOptions}
+            statusDateRows={partnershipStatusDateRows}
+            onChange={handlePartnershipChange}
+            formatOptionLabel={formatOptionLabel}
+            normalizeStatusKey={normalizeStatusKey}
+            readStatusDate={readPartnershipStatusDate}
+            showNotes={false}
+            fieldIdPrefix="popup-"
+          />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
           <button type="button" onClick={cancelPartnershipChanges} disabled={!partnershipDirty}>Cancel</button>
@@ -3046,8 +2322,8 @@ const PropertiesPanel = ({
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
         {(() => {
-          const topTabs: Array<'properties' | 'foo' | 'functional' | 'events'> = isPerson
-            ? ['properties', 'foo', 'functional', 'events']
+          const topTabs: Array<'properties' | 'functional' | 'events' | 'patterns'> = isPerson
+            ? ['properties', 'patterns', 'functional', 'events']
             : ['properties', 'functional', 'events'];
           return (
         <div
@@ -3072,10 +2348,10 @@ const PropertiesPanel = ({
                   : isPartnership
                   ? 'Relationship'
                   : 'Person'
-                : tab === 'foo'
-                ? 'FOO'
                 : tab === 'functional'
                 ? 'Symptoms'
+                : tab === 'patterns'
+                ? 'Patterns'
                 : 'Events';
             return (
               <button
@@ -3153,1228 +2429,251 @@ const PropertiesPanel = ({
         )}
         {isPartnership && selectedPartnership && partnershipDraft && (
         <div>
-          <div style={rowStyle}>
-            <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
-            <select
-              id="relationshipType" 
-              name="relationshipType" 
-              value={partnershipDraft.relationshipType} 
-              onChange={handlePartnershipChange}
-              style={{ width: 180 }}
-            >
-              {partnershipTypeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {formatOptionLabel(option)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="relationshipStatus" style={labelStyle}>Status:</label>
-            <select
-              id="relationshipStatus" 
-              name="relationshipStatus" 
-              value={partnershipDraft.relationshipStatus} 
-              onChange={handlePartnershipChange}
-              style={{ width: 180 }}
-            >
-              {partnershipStatusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {formatOptionLabel(option)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {partnershipStatusDateRows.map(({ status, dateLabel }) => {
-            const statusKey = normalizeStatusKey(status);
-            const fieldId = `statusDate-${statusKey.replace(/[^a-z0-9]+/g, '-')}`;
-            return (
-              <div key={`${partnershipDraft.relationshipType}-${statusKey}`} style={rowStyle}>
-                <label htmlFor={fieldId} style={labelStyle}>{dateLabel}:</label>
-                <DatePickerField
-                  id={fieldId}
-                  name={`statusDate:${status}`}
-                  value={readPartnershipStatusDate(partnershipDraft, status)}
-                  placeholder="YYYY-MM-DD"
-                  onChange={handlePartnershipChange}
-                  pickerLabel={`Select ${dateLabel.toLowerCase()} date`}
-                />
-              </div>
-            );
-          })}
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-              <label htmlFor="partnershipNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-              <textarea
-                id="partnershipNotes"
-                name="notes"
-                value={partnershipDraft.notes || ''}
-                onChange={handlePartnershipChange}
-                rows={5}
-                style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
-              />
-          </div>
+          <PartnershipPropertiesSection
+            partnershipDraft={partnershipDraft}
+            computedFamilyName={computedFamilyName}
+            typeOptions={partnershipTypeOptions}
+            statusOptions={partnershipStatusOptions}
+            statusDateRows={partnershipStatusDateRows}
+            onChange={handlePartnershipChange}
+            formatOptionLabel={formatOptionLabel}
+            normalizeStatusKey={normalizeStatusKey}
+            readStatusDate={readPartnershipStatusDate}
+          />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button type="button" onClick={cancelPartnershipChanges} disabled={!partnershipDirty}>Cancel</button>
             <button type="button" onClick={savePartnershipProperties} disabled={!partnershipDirty}>Save</button>
           </div>
         </div>
         )}
-        {isEmotionalLine && selectedEmotionalLine && emotionalDraft && (() => {
-        const relationshipType = emotionalDraft.relationshipType;
-        const styleOptions = styleOptionMeta(relationshipType);
-        const presetColors = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
-
-        return (
-          <div>
-            <div style={rowStyle}>
-              <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
-              <select
-                id="relationshipType"
-                name="relationshipType"
-                value={emotionalDraft.relationshipType}
-                onChange={handleEmotionalLineChange}
-                style={{ width: 180 }}
-              >
-                <option value="fusion">+ / - Adequate</option>
-                <option value="distance">Distance</option>
-                <option value="cutoff">Cutoff</option>
-                <option value="conflict">Conflict</option>
-                <option value="projection">Projection</option>
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="status" style={labelStyle}>Status:</label>
-              <select
-                id="status"
-                name="status"
-                value={emotionalDraft.status || 'ongoing'}
-                onChange={handleEmotionalLineChange}
-                style={{ width: 160 }}
-              >
-                <option value="ongoing">Ongoing</option>
-                <option value="ended">Ended</option>
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="lineStyle" style={labelStyle}>Intensity:</label>
-              <select
-                id="lineStyle"
-                name="lineStyle"
-                value={emotionalDraft.lineStyle}
-                onChange={handleEmotionalLineChange}
-                style={{ width: 180 }}
-              >
-                {styleOptions.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="startDate" style={labelStyle}>Start:</label>
-              <DatePickerField
-                id="startDate"
-                name="startDate"
-                value={emotionalDraft.startDate}
-                placeholder="YYYY-MM-DD"
-                onChange={handleEmotionalLineInputChange}
-                pickerLabel="Select emotional line start date"
-              />
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="emotionalIntensityLevel" style={labelStyle}>Intensity Level:</label>
-              <select
-                id="emotionalIntensityLevel"
-                value={emotionalIntensityDraft}
-                onChange={(e) => applyEmotionalIntensityLevel(Number(e.target.value))}
-                style={{ width: 180 }}
-              >
-                {INTENSITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {intensityChooserConfig && (
-                <button
-                  type="button"
-                  aria-label={intensityChooserConfig.buttonLabel}
-                  onClick={() => setEmotionalIntensityHelpOpen(true)}
-                  style={helpBadgeStyle}
-                >
-                  ?
-                </button>
-              )}
-            </div>
-            {intensityChooserConfig && emotionalIntensityHelpOpen && (
-              <div
-                role="dialog"
-                aria-label={intensityChooserConfig.title}
-                style={{
-                  marginTop: 8,
-                  marginLeft: 0,
-                  width: '100%',
-                  maxWidth: '100%',
-                  border: '1px solid #c6cfde',
-                  borderRadius: 10,
-                  background: '#fff',
-                  padding: '12px 14px',
-                  boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
-                  position: 'relative',
-                  zIndex: 20,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <strong>{intensityChooserConfig.title}</strong>
-                  <button
-                    type="button"
-                    onClick={() => setEmotionalIntensityHelpOpen(false)}
-                    style={{ padding: '4px 10px' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-                <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-                  {intensityChooserConfig.helpLines.map((line, index) => {
-                    const level = index + 1;
-                    const isActive = emotionalIntensityDraft === level;
-                    return (
-                      <button
-                        key={line}
-                        type="button"
-                        onClick={() => {
-                          applyEmotionalIntensityLevel(level);
-                          setEmotionalIntensityHelpOpen(false);
-                        }}
-                        style={{
-                          textAlign: 'left',
-                          border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
-                          borderRadius: 8,
-                          background: isActive ? '#eef3ff' : '#fff',
-                          padding: '8px 10px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, color: '#23324a' }}>
-                          {intensityChooserConfig.labels[index]}
-                        </div>
-                        <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            <div style={rowStyle}>
-              <label htmlFor="emotionalImpact" style={labelStyle}>Impact:</label>
-              <select
-                id="emotionalImpact"
-                value={emotionalImpactDraft}
-                onChange={(e) => {
-                  setEmotionalImpactDraft(Number(e.target.value));
-                  setEmotionalPristine(false);
-                }}
-                style={{ width: 180 }}
-              >
-                {IMPACT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="emotionalFrequency" style={labelStyle}>Frequency:</label>
-              <select
-                id="emotionalFrequency"
-                value={emotionalFrequencyDraft}
-                onChange={(e) => {
-                  setEmotionalFrequencyDraft(Number(e.target.value));
-                  setEmotionalPristine(false);
-                }}
-                style={{ width: 180 }}
-              >
-                {FREQUENCY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={rowStyle}>
-              <label htmlFor="endDate" style={labelStyle}>End Date:</label>
-              <DatePickerField
-                id="endDate"
-                name="endDate"
-                value={emotionalDraft.endDate}
-                placeholder="YYYY-MM-DD"
-                onChange={handleEmotionalLineInputChange}
-                pickerLabel="Select emotional line end date"
-              />
-            </div>
-            <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-              <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>
-              <textarea
-                id="emotionalNotes"
-                name="notes"
-                value={emotionalDraft.notes || ''}
-                onChange={handleEmotionalLineInputChange}
-                rows={5}
-                style={{ width: '100%', minHeight: '6rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
-              />
-            </div>
-            <div style={{ ...rowStyle, alignItems: 'center' }}>
-              <label htmlFor="lineColor" style={labelStyle}>Color:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="color"
-                  id="lineColor"
-                  name="color"
-                  value={emotionalDraft.color || '#444444'}
-                  onChange={handleEmotionalLineInputChange}
-                  style={{ width: 60 }}
-                />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {presetColors.map((hex) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      onClick={() => {
-                        updateEmotionalDraftState({ color: hex });
-                        setEmotionalPristine(false);
-                      }}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: '50%',
-                        border: '1px solid #ccc',
-                        background: hex,
-                        cursor: 'pointer',
-                      }}
-                      aria-label={`Set color ${hex}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            {triangleId && (
-              <>
-                <div style={rowStyle}>
-                  <label htmlFor="triangleIntensity" style={labelStyle}>Triangle Intensity:</label>
-                  <select
-                    id="triangleIntensity"
-                    value={triangleIntensityDraft}
-                    onChange={(e) => {
-                      setTriangleIntensityDraft(e.target.value as 'low' | 'medium' | 'high');
-                      setEmotionalPristine(false);
-                    }}
-                    style={{ width: 180 }}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div style={{ ...rowStyle, alignItems: 'center' }}>
-                  <label htmlFor="triangleColor" style={labelStyle}>Triangle Color:</label>
-                  <input
-                    type="color"
-                    id="triangleColor"
-                    value={triangleColorDraft}
-                    onChange={(e) => {
-                      setTriangleColorDraft(e.target.value);
-                      setEmotionalPristine(false);
-                    }}
-                    style={{ width: 60 }}
-                  />
-                </div>
-              </>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                onClick={cancelEmotionalChanges}
-                disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={saveEmotionalLineProperties}
-                disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
-              >
-                Save
-              </button>
-            </div>
+        {isEmotionalLine && selectedEmotionalLine && emotionalDraft && (
+        <div>
+          <EPLPropertiesSection
+            emotionalDraft={emotionalDraft}
+            emotionalIntensityDraft={emotionalIntensityDraft}
+            emotionalImpactDraft={emotionalImpactDraft}
+            emotionalFrequencyDraft={emotionalFrequencyDraft}
+            onSelectChange={handleEmotionalLineChange}
+            onInputChange={handleEmotionalLineInputChange}
+            onIntensityLevelChange={applyEmotionalIntensityLevel}
+            onImpactChange={(val) => { setEmotionalImpactDraft(val); setEmotionalPristine(false); }}
+            onFrequencyChange={(val) => { setEmotionalFrequencyDraft(val); setEmotionalPristine(false); }}
+            onColorPresetSelect={(hex) => { updateEmotionalDraftState({ color: hex }); setEmotionalPristine(false); }}
+            triangleId={triangleId}
+            triangleColorDraft={triangleColorDraft}
+            triangleIntensityDraft={triangleIntensityDraft}
+            onTriangleColorChange={(c) => { setTriangleColorDraft(c); setEmotionalPristine(false); }}
+            onTriangleIntensityChange={(i) => { setTriangleIntensityDraft(i); setEmotionalPristine(false); }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={cancelEmotionalChanges}
+              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveEmotionalLineProperties}
+              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
+            >
+              Save
+            </button>
           </div>
-        );
-        })()}
-        </>
-      )}
-      {activeTab === 'foo' && isPerson && selectedPerson && personDraft && (
-        <div style={{ marginTop: 12 }}>
-          <div style={rowStyle}>
-            <label htmlFor="emotionalCutoffMeasure" style={labelStyle}>Emotional Cutoff:</label>
-            <input
-              type="text"
-              id="emotionalCutoffMeasure"
-              name="emotionalCutoffMeasure"
-              value={personDraft.emotionalCutoffMeasure || ''}
-              onChange={handlePersonChange}
-              style={{ width: '28ch', textAlign: 'left' }}
-            />
-          </div>
-          {renderFooScaleChooser(
-            'familyStability',
-            'Family Stability',
-            personDraft.familyStability,
-            FAMILY_STABILITY_LABELS,
-            'Family Stability Scale',
-            FAMILY_STABILITY_HELP
-          )}
-          {renderFooScaleChooser(
-            'familyIntactness',
-            'Family Intactness',
-            personDraft.familyIntactness,
-            FAMILY_INTACTNESS_LABELS,
-            'Family Intactness Scale',
-            FAMILY_INTACTNESS_HELP
-          )}
         </div>
+        )}
+        </>
       )}
       {activeTab === 'functional' && (
         isPerson && selectedPerson ? (
-          symptomRows.length > 0 ? (
-            <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <strong>Symptoms</strong>
-              {symptomRows.map((symptom) => {
-                const definitionId = symptom.definitionId || '';
-                const ensureDefinitionId = () =>
-                  definitionId ||
-                  onEnsureSymptomCategoryDefinition?.(symptom.type, symptom.category) ||
-                  '';
+              <button type="button" onClick={() => openNewEvent({ eventType: 'FF' })} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Symptom</button>
+            </div>
+            {symptomRows.length === 0 ? (
+              <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No symptoms recorded yet.</div>
+            ) : (
+              symptomRows.map((symptom) => {
+                const categoryColors: Record<string, string> = { physical: '#1f77b4', emotional: '#d81b60', social: '#2e7d32' };
+                const statusStyleMap: Record<string, { color: string; bg: string; border: string }> = {
+                  current: { color: '#2a7a4a', bg: '#edfbf2', border: '#a8e0c0' },
+                  past:    { color: '#a08060', bg: '#fdf3e3', border: '#e0c090' },
+                  none:    { color: '#7a8aaa', bg: '#f5f5f5', border: '#d0d0d0' },
+                };
+                const borderColor = categoryColors[symptom.category] || '#444';
+                const statusStyle = statusStyleMap[symptom.status] || statusStyleMap.none;
+                const statusLabel = symptom.status.charAt(0).toUpperCase() + symptom.status.slice(1);
+                const handleClick = () => {
+                  if (symptom.sourceEventId) {
+                    const ev = (selectedPerson.events || []).find((e) => e.id === symptom.sourceEventId);
+                    if (ev) { openEditEvent(ev); return; }
+                  }
+                  openNewEvent({ eventType: 'FF', category: symptom.category, symptomGroup: symptom.category, symptomType: symptom.type });
+                };
                 return (
-                <div
-                  key={symptom.key}
-                  style={{
-                    border: '1px solid #d9d9d9',
-                    borderRadius: 6,
-                    padding: 8,
-                    marginTop: 6,
-                    background: '#fff',
-                  }}
-                >
-                  <div style={{ textAlign: 'center', fontWeight: 700 }}>
-                    {toTitleCase(symptom.category)} · {symptom.type}
-                  </div>
                   <div
+                    key={symptom.key}
+                    onClick={handleClick}
                     style={{
-                      marginTop: 6,
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                      rowGap: 6,
-                      columnGap: 5,
-                      alignItems: 'center',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', marginBottom: 6,
+                      border: '1px solid #d0d8ea', borderLeft: `4px solid ${borderColor}`,
+                      borderRadius: 8, background: '#f7f9fd', cursor: 'pointer',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
-                      <label
-                        htmlFor={`indicator-status-${symptom.key}`}
-                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Status:
-                      </label>
-                      <select
-                        id={`indicator-status-${symptom.key}`}
-                        value={symptom.status}
-                        onChange={(e) => {
-                          const resolvedDefinitionId = ensureDefinitionId();
-                          if (!resolvedDefinitionId) return;
-                          handleIndicatorStatusChange(
-                            resolvedDefinitionId,
-                            e.target.value as 'past' | 'current' | 'none'
-                          );
-                        }}
-                        style={{ width: '20ch' }}
-                      >
-                        <option value="none">None</option>
-                        <option value="current">Current</option>
-                        <option value="past">Past</option>
-                      </select>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{symptom.type}</div>
+                      <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{toTitleCase(symptom.category)}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
-                      <label
-                        htmlFor={`indicator-intensity-${symptom.key}`}
-                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Intensity:
-                      </label>
-                      <select
-                        id={`indicator-intensity-${symptom.key}`}
-                        value={symptom.intensity}
-                        onChange={(e) => {
-                          const resolvedDefinitionId = ensureDefinitionId();
-                          if (!resolvedDefinitionId) return;
-                          handleIndicatorIntensityChange(resolvedDefinitionId, Number(e.target.value));
-                        }}
-                        style={{ width: '20ch' }}
-                        >
-                          {INTENSITY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
-                      <label
-                        htmlFor={`indicator-frequency-${symptom.key}`}
-                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Frequency:
-                      </label>
-                      <select
-                        id={`indicator-frequency-${symptom.key}`}
-                          value={symptom.frequency}
-                          onChange={(e) => {
-                            const resolvedDefinitionId = ensureDefinitionId();
-                            if (!resolvedDefinitionId) return;
-                            handleIndicatorFrequencyChange(resolvedDefinitionId, Number(e.target.value));
-                          }}
-                          style={{ width: '20ch' }}
-                        >
-                          {FREQUENCY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-start' }}>
-                      <label
-                        htmlFor={`indicator-impact-${symptom.key}`}
-                        style={{ fontSize: 12, width: 80, textAlign: 'right', fontWeight: 600 }}
-                      >
-                        Impact:
-                      </label>
-                      <select
-                        id={`indicator-impact-${symptom.key}`}
-                          value={symptom.impact}
-                          onChange={(e) => {
-                            const resolvedDefinitionId = ensureDefinitionId();
-                            if (!resolvedDefinitionId) return;
-                            handleIndicatorImpactChange(resolvedDefinitionId, Number(e.target.value));
-                          }}
-                          style={{ width: '20ch' }}
-                        >
-                          {IMPACT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                      {statusLabel}
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          ) : (
-            <div style={{ marginTop: 12 }}>No symptoms recorded yet. Add a Symptom event to populate this list.</div>
-          )
+              })
+            )}
+          </div>
         ) : (
           <div style={{ marginTop: 12 }}>Symptoms apply only to Person nodes.</div>
         )
       )}
-      {activeTab === 'events' && (
-        <div style={{ marginTop: 12, textAlign: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-            <strong>Events</strong>
-            <button onClick={() => openNewEvent()}>{addEventButtonLabel}</button>
-          </div>
-          <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <label htmlFor="eventListMode">View: </label>
-            <select
-              id="eventListMode"
-              value={eventListMode}
-              onChange={(e) => setEventListMode(e.target.value as 'compact' | 'expanded')}
-            >
-              <option value="compact">Compact</option>
-              <option value="expanded">Expanded</option>
-            </select>
-            <label htmlFor="eventSortOrder">Sort: </label>
-            <select
-              id="eventSortOrder"
-              value={eventSortOrder}
-              onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
-            >
-              <option value="asc">Date Asc</option>
-              <option value="desc">Date Desc</option>
-            </select>
-            <label htmlFor="eventTypeFilter">Type:</label>
-            <select
-              id="eventTypeFilter"
-              value={eventTypeFilter}
-              onChange={(e) => setEventTypeFilter(e.target.value as 'ALL' | EventType)}
-            >
-              <option value="ALL">All</option>
-              <option value="NODAL">Nodal</option>
-              <option value="FF">Symptom</option>
-              <option value="EPE">Emotional Pattern</option>
-            </select>
-            <label htmlFor="anchorTypeFilter">Anchor:</label>
-            <select
-              id="anchorTypeFilter"
-              value={anchorTypeFilter}
-              onChange={(e) => setAnchorTypeFilter(e.target.value as 'ALL' | EventAnchorType)}
-            >
-              <option value="ALL">All</option>
-              <option value="PERSON">Person</option>
-              <option value="RELATIONSHIP_PRL">Relationship PRL</option>
-              <option value="EMOTIONAL_PROCESS_EP">Emotional Pattern</option>
-            </select>
-          </div>
-          {filteredAndSortedEvents.length === 0 ? (
-            <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
-          ) : (
-            <>
-            {eventListMode === 'compact' && isPartnership ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 120px auto',
-                  gap: 12,
-                  marginTop: 8,
-                  padding: '0 0 6px 3px',
-                  borderBottom: '1px solid #cfd7e5',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: '#41546d',
-                }}
-              >
-                <span>Type</span>
-                <span>Status</span>
-                <span>Date</span>
-                <span>Actions</span>
-              </div>
-            ) : null}
-            <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
-              {filteredAndSortedEvents.map((event) => {
-                const eventType = inferEventType(event);
-                const dateText = normalizeEventDate(event) || 'No date';
-                return (
-                <li
-                  key={event.id}
-                  onClick={() => setFocusedEventId(event.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setEventRowMenu({ eventId: event.id, x: e.clientX, y: e.clientY });
-                  }}
+      {activeTab === 'patterns' && isPerson && (
+        <div style={{ marginTop: 12 }}>
+          {(() => {
+            const person = selectedItem as Person;
+            const connected = allEmotionalLines.filter(
+              (el) => el.person1_id === person.id || el.person2_id === person.id
+            );
+            const typeLabels: Record<string, string> = {
+              fusion: '+ / - Adequate',
+              distance: 'Distance',
+              cutoff: 'Cutoff',
+              conflict: 'Conflict',
+              projection: 'Projection',
+            };
+            if (connected.length === 0) {
+              return (
+                <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>
+                  No emotional patterns connected to this person.
+                </div>
+              );
+            }
+            return connected.map((el) => {
+              const otherId = el.person1_id === person.id ? el.person2_id : el.person1_id;
+              const other = people.find((p) => p.id === otherId);
+              const otherName = other?.name || 'Unknown';
+              const typeLabel = typeLabels[el.relationshipType] || el.relationshipType;
+              const statusLabel = el.status === 'ended' ? 'Ended' : 'Ongoing';
+              return (
+                <div
+                  key={el.id}
+                  onClick={() => onSelectEmotionalLine?.(el)}
                   style={{
-                    borderBottom: '1px solid #ddd',
-                    borderLeft: focusedEventId === event.id ? '3px solid #3f51b5' : '3px solid transparent',
-                    padding: '10px 0',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {eventListMode === 'compact' ? (
-                    isPartnership ? (
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 120px auto',
-                          gap: 12,
-                          alignItems: 'center',
-                          paddingLeft: 3,
-                        }}
-                      >
-                        <span style={{ fontWeight: 600 }}>
-                          {formatOptionLabel(event.category || selectedPartnership?.relationshipType || 'relationship')}
-                        </span>
-                        <span>{compactRelationshipStatusLabel(event)}</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => deleteEvent(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                          <span style={{ fontWeight: 600 }}>
-                            {descriptorForEvent(event)}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#555' }}>
-                            {eventTypeLabel(eventType)}
-                          </span>
-                          <span
-                            title={continuationLabel(event)}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              border: '1px solid #9db0c8',
-                              borderRadius: 4,
-                              padding: '1px 4px',
-                              background: '#eef5ff',
-                            }}
-                          >
-                            {continuationBadge(event)}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => deleteEvent(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600 }}>
-                            {formatCategoryStatus(event.category || 'Event', event.statusLabel)}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#555' }}>
-                            {EVENT_CLASS_LABELS[event.eventClass] || 'Event'}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#1f3b57', fontWeight: 700 }}>
-                            {eventTypeLabel(eventType)}
-                          </span>
-                          <span
-                            title={continuationLabel(event)}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              border: '1px solid #9db0c8',
-                              borderRadius: 4,
-                              padding: '1px 4px',
-                              background: '#eef5ff',
-                            }}
-                          >
-                            {continuationBadge(event)}
-                          </span>
-                        </div>
-                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: 8,
-                          fontSize: 12,
-                          color: '#333',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                          <span>Primary: {event.primaryPersonName || '—'}</span>
-                          <span>Other: {event.otherPersonName || '—'}</span>
-                          <span>Status: {event.statusLabel || '—'}</span>
-                          <span>Subtype: {event.nodalEventSubtype || '—'}</span>
-                          <span>
-                            Symptom Category:{' '}
-                            {eventType === 'FF'
-                              ? toTitleCase(normalizeSymptomCategory(event.category || event.symptomGroup))
-                              : '—'}
-                          </span>
-                          <span>
-                            Symptom Type:{' '}
-                            {eventType === 'FF'
-                              ? clampSymptomType(
-                                  event.symptomType ||
-                                    (!isSymptomCategory(event.category) ? event.category : '')
-                                ) || '—'
-                              : '—'}
-                          </span>
-                          <span>Intensity: {event.intensity ?? '—'}</span>
-                          <span>Frequency: {event.frequency ?? '—'}</span>
-                          <span>Impact: {event.impact ?? '—'}</span>
-                          <span>{continuationLabel(event)}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => openEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => deleteEvent(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                      {event.observations && (
-                        <div style={{ fontSize: 12, color: '#4f5b6b', textAlign: 'left' }}>
-                          Notes: {event.observations.slice(0, 140)}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </li>
-                );
-              })}
-            </ul>
-            </>
-          )}
-          {eventRowMenu && (
-            <div
-              style={{
-                position: 'fixed',
-                left: eventRowMenu.x,
-                top: eventRowMenu.y,
-                zIndex: 2050,
-                background: '#fff',
-                border: '1px solid #c8d3e4',
-                borderRadius: 8,
-                boxShadow: '0 10px 24px rgba(0,0,0,0.2)',
-                minWidth: 230,
-              }}
-              onMouseLeave={() => setEventRowMenu(null)}
-            >
-              {[
-                { label: 'Attach to Previous', fn: () => linkEventToAdjacent(eventRowMenu.eventId, 'prev', true) },
-                { label: 'Attach to Next', fn: () => linkEventToAdjacent(eventRowMenu.eventId, 'next', true) },
-                { label: 'Detach Previous', fn: () => linkEventToAdjacent(eventRowMenu.eventId, 'prev', false) },
-                { label: 'Detach Next', fn: () => linkEventToAdjacent(eventRowMenu.eventId, 'next', false) },
-                { label: 'Create and Attach Previous', fn: () => createAndAttachAdjacent(eventRowMenu.eventId, 'prev') },
-                { label: 'Create and Attach Next', fn: () => createAndAttachAdjacent(eventRowMenu.eventId, 'next') },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    item.fn();
-                    setEventRowMenu(null);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
+                    alignItems: 'center',
+                    gap: 10,
                     padding: '8px 10px',
-                    border: 'none',
-                    background: '#fff',
-                    cursor: 'pointer',
+                    marginBottom: 6,
+                    border: '1px solid #d0d8ea',
+                    borderRadius: 8,
+                    background: '#f7f9fd',
+                    cursor: onSelectEmotionalLine ? 'pointer' : 'default',
+                    borderLeft: `4px solid ${el.color || '#444444'}`,
                   }}
                 >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{typeLabel}</div>
+                    <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>with {otherName}</div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: el.status === 'ended' ? '#a08060' : '#2a7a4a',
+                      background: el.status === 'ended' ? '#fdf3e3' : '#edfbf2',
+                      border: `1px solid ${el.status === 'ended' ? '#e0c090' : '#a8e0c0'}`,
+                      borderRadius: 4,
+                      padding: '2px 6px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {statusLabel}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
+      {activeTab === 'events' && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <strong>Events</strong>
+            <button type="button" onClick={() => openNewEvent()} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Event</button>
+          </div>
+          {getEvents().length === 0 ? (
+            <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No events recorded yet.</div>
+          ) : (
+            getEvents()
+              .slice()
+              .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))
+              .map((event) => {
+                const typeLabel =
+                  event.eventType === 'FF' ? 'Symptom'
+                  : event.eventType === 'EPE' ? (event.emotionalProcessType || event.category || 'Emotional Pattern')
+                  : (event.nodalEventSubtype || event.category || 'Nodal');
+                const dateStr = event.startDate || event.date || '';
+                const statusLabel = event.statusLabel || 'Ongoing';
+                const isEnded = ['ended', 'past', 'none'].includes(statusLabel.toLowerCase());
+                return (
+                  <div
+                    key={event.id}
+                    onClick={() => openEditEvent(event)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', marginBottom: 6,
+                      border: '1px solid #d0d8ea', borderLeft: '4px solid #4b68a6',
+                      borderRadius: 8, background: '#f7f9fd', cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{typeLabel}</div>
+                      <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{dateStr}</div>
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                      {statusLabel}
+                    </div>
+                  </div>
+                );
+              })
           )}
         </div>
       )}
       {eventModalOpen && eventDraft && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            display: 'flex',
-            alignItems: eventModalPosition ? 'stretch' : 'center',
-            justifyContent: eventModalPosition ? 'stretch' : 'center',
-            zIndex: 2000,
-          }}
-        >
-          <div
-            style={{
-              background: 'white',
-              padding: 20,
-              borderRadius: 10,
-              width: 520,
-              maxWidth: 'calc(100vw - 24px)',
-              maxHeight: popupMaxHeight ? `${popupMaxHeight}px` : 'calc(100vh - 24px)',
-              overflowY: 'auto',
-              boxSizing: 'border-box',
-              position: eventModalPosition ? 'absolute' : 'relative',
-              left: popupLeft,
-              top: popupTop,
-            }}
-          >
-            <h4 style={{ marginTop: 0 }}>
-              {getEvents().some((event) => event.id === eventDraft.id) ? editEventTitle : newEventTitle}
-            </h4>
-            {(() => {
-              const rowStyle: React.CSSProperties = {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 12,
-                marginTop: 8,
-              };
-              const labelStyle: React.CSSProperties = { width: 170, textAlign: 'right', fontWeight: 600 };
-              const controlStyle: React.CSSProperties = { width: '60%' };
-              const eventType = eventDraft.eventType || inferEventType(eventDraft);
-              const continuationState = getContinuationState(eventDraft);
-              return (
-                <>
-                  <div style={rowStyle}>
-                    <label style={labelStyle}>Anchor:</label>
-                    <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-                      {eventDraft.anchorType || resolveAnchorType()} · {eventDraft.anchorId || selectedItem.id}
-                    </div>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventType" style={labelStyle}>Event Type:</label>
-                    <select
-                      id="eventType"
-                      value={eventType}
-                      onChange={(e) => handleEventDraftChange('eventType', e.target.value)}
-                      style={{ ...controlStyle, width: '60%' }}
-                    >
-                      <option value="NODAL">Nodal</option>
-                      <option value="FF">Symptom</option>
-                      <option value="EPE">Emotional Pattern</option>
-                    </select>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventPrimaryPerson" style={labelStyle}>Primary Person:</label>
-                    <div style={controlStyle}>
-                      <input
-                        type="text"
-                        id="eventPrimaryPerson"
-                        list="eventPrimaryPersonOptions"
-                        value={eventDraft.primaryPersonName || ''}
-                        onChange={(e) => handleEventDraftChange('primaryPersonName', e.target.value)}
-                        style={{ width: '100%' }}
-                      />
-                      <datalist id="eventPrimaryPersonOptions">
-                        {primaryPersonOptions.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventOtherPerson" style={labelStyle}>Other Person:</label>
-                    <div style={controlStyle}>
-                      <input
-                        type="text"
-                        id="eventOtherPerson"
-                        list="eventOtherPersonOptions"
-                        value={eventDraft.otherPersonName}
-                        onChange={(e) => handleEventDraftChange('otherPersonName', e.target.value)}
-                        style={{ width: '100%' }}
-                      />
-                      <datalist id="eventOtherPersonOptions">
-                        <option value="None" />
-                        {otherPersonOptions.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
-                  <div style={rowStyle}>
-                    <label style={labelStyle}>Start / End:</label>
-                    <div style={{ ...controlStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <div>
-                        <DatePickerField
-                          id="eventStartDate"
-                          name="eventStartDate"
-                          value={eventDraft.startDate || eventDraft.date}
-                          placeholder="YYYY-MM-DD"
-                          onChange={(e) => {
-                            handleEventDraftChange('startDate', e.target.value);
-                            handleEventDraftChange('date', e.target.value);
-                          }}
-                          buttonLabel="Select start"
-                        />
-                      </div>
-                      <div>
-                        <DatePickerField
-                          id="eventEndDate"
-                          name="eventEndDate"
-                          value={eventDraft.endDate || ''}
-                          placeholder="YYYY-MM-DD"
-                          onChange={(e) => handleEventDraftChange('endDate', e.target.value)}
-                          buttonLabel="Select end"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {eventType === 'NODAL' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventCategory" style={labelStyle}>Nodal Category:</label>
-                      <select
-                        id="eventCategory"
-                        value={eventDraft.category}
-                        onChange={(e) => handleEventDraftChange('category', e.target.value)}
-                        style={{ ...controlStyle, width: '60%' }}
-                      >
-                        {eventCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {eventType === 'NODAL' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventNodalSubtype" style={labelStyle}>Subtype:</label>
-                      <div style={controlStyle}>
-                        <input
-                          type="text"
-                          id="eventNodalSubtype"
-                          list="eventNodalSubtypeOptions"
-                          value={eventDraft.nodalEventSubtype || ''}
-                          onChange={(e) => handleEventDraftChange('nodalEventSubtype', e.target.value)}
-                          style={{ width: '100%' }}
-                        />
-                        <datalist id="eventNodalSubtypeOptions">
-                          {NODAL_SUBTYPE_OPTIONS.map((subtype) => (
-                            <option key={subtype} value={subtype} />
-                          ))}
-                        </datalist>
-                      </div>
-                    </div>
-                  )}
-                  {eventType === 'EPE' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventEmotionalProcessType" style={labelStyle}>Process Type:</label>
-                      <input
-                        type="text"
-                        id="eventEmotionalProcessType"
-                        value={eventDraft.emotionalProcessType || ''}
-                        onChange={(e) => handleEventDraftChange('emotionalProcessType', e.target.value)}
-                        style={{ ...controlStyle, width: '60%' }}
-                        placeholder="fusion, conflict, distance..."
-                      />
-                    </div>
-                  )}
-                  {eventType === 'FF' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventCategory" style={labelStyle}>Symptom Category:</label>
-                      <select
-                        id="eventCategory"
-                        value={normalizeSymptomCategory(eventDraft.category || eventDraft.symptomGroup)}
-                        onChange={(e) => handleEventDraftChange('category', e.target.value)}
-                        style={{ ...controlStyle, width: '60%' }}
-                      >
-                        {SYMPTOM_GROUP_OPTIONS.map((category) => (
-                          <option key={category} value={category}>
-                            {toTitleCase(category)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {eventType === 'FF' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventSymptomType" style={labelStyle}>Symptom Type:</label>
-                      <div style={controlStyle}>
-                        <input
-                          type="text"
-                          id="eventSymptomType"
-                          list="eventSymptomTypeOptions"
-                          maxLength={30}
-                          value={eventDraft.symptomType || ''}
-                          onChange={(e) => handleEventDraftChange('symptomType', e.target.value)}
-                          style={{ width: '100%' }}
-                        />
-                        <datalist id="eventSymptomTypeOptions">
-                          {symptomTypeOptions.map((label) => (
-                            <option key={label} value={label} />
-                          ))}
-                        </datalist>
-                      </div>
-                    </div>
-                  )}
-                  {eventType === 'EPE' && (
-                    <div style={rowStyle}>
-                      <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
-                      <select
-                        id="eventCategory"
-                        value={eventDraft.category}
-                        onChange={(e) => handleEventDraftChange('category', e.target.value)}
-                        style={{ ...controlStyle, width: '60%' }}
-                      >
-                        {eventCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  <div style={rowStyle}>
-                    <label htmlFor="eventStatusLabel" style={labelStyle}>Status:</label>
-                    <input
-                      type="text"
-                      id="eventStatusLabel"
-                      value={eventDraft.statusLabel || ''}
-                      onChange={(e) => handleEventDraftChange('statusLabel', e.target.value)}
-                      style={{ ...controlStyle, width: '60%' }}
-                      placeholder="e.g., Start, Ended"
-                    />
-                  </div>
-                  <div style={rowStyle}>
-                    <label style={labelStyle}>Event Class:</label>
-                    <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-                      {EVENT_CLASS_LABELS[eventDraft.eventClass || resolveEventClass()]}
-                    </div>
-                  </div>
-                  {eventType !== 'NODAL' && (
-                    <>
-                      <div style={rowStyle}>
-                        <label htmlFor="eventIntensity" style={labelStyle}>Intensity:</label>
-                        <select
-                          id="eventIntensity"
-                          value={eventDraft.intensity ?? 0}
-                          onChange={(e) => handleEventDraftChange('intensity', e.target.value)}
-                          style={{ ...controlStyle, width: '60%' }}
-                        >
-                          {INTENSITY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={rowStyle}>
-                        <label htmlFor="eventFrequency" style={labelStyle}>Frequency:</label>
-                        <select
-                          id="eventFrequency"
-                          value={eventDraft.frequency ?? 0}
-                          onChange={(e) => handleEventDraftChange('frequency', e.target.value)}
-                          style={{ ...controlStyle, width: '60%' }}
-                        >
-                          {FREQUENCY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={rowStyle}>
-                        <label htmlFor="eventImpact" style={labelStyle}>Impact:</label>
-                        <select
-                          id="eventImpact"
-                          value={eventDraft.impact ?? 0}
-                          onChange={(e) => handleEventDraftChange('impact', e.target.value)}
-                          style={{ ...controlStyle, width: '60%' }}
-                        >
-                          {IMPACT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  )}
-                  <div style={rowStyle}>
-                    <label htmlFor="eventContinuationState" style={labelStyle}>Continuation:</label>
-                    <select
-                      id="eventContinuationState"
-                      value={continuationState}
-                      onChange={(e) => {
-                        const flags = continuationToFlags(e.target.value as EventContinuationState);
-                        setEventDraft({
-                          ...eventDraft,
-                          continuesFromPrevious: flags.continuesFromPrevious,
-                          continuesToNext: flags.continuesToNext,
-                        });
-                      }}
-                      style={{ ...controlStyle, width: '60%' }}
-                    >
-                      <option value="discrete">Discrete</option>
-                      <option value="start">Start</option>
-                      <option value="middle">Middle</option>
-                      <option value="end">End</option>
-                    </select>
-                  </div>
-                  <div style={rowStyle}>
-                    <label htmlFor="eventHowWell" style={labelStyle}>How well (1-9):</label>
-                    <input
-                      type="number"
-                      id="eventHowWell"
-                      min={1}
-                      max={9}
-                      value={eventDraft.howWell}
-                      onChange={(e) => handleEventDraftChange('howWell', e.target.value)}
-                      style={{ ...controlStyle, width: '60%' }}
-                    />
-                  </div>
-                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-                    <label htmlFor="eventWwwwh" style={{ ...labelStyle, marginTop: 6 }}>WWWWH:</label>
-                    <textarea
-                      id="eventWwwwh"
-                      value={eventDraft.wwwwh}
-                      onChange={(e) => handleEventDraftChange('wwwwh', e.target.value)}
-                      rows={2}
-                      style={{ ...controlStyle, resize: 'vertical' }}
-                    />
-                  </div>
-                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-                    <label htmlFor="eventObservations" style={{ ...labelStyle, marginTop: 6 }}>Observations:</label>
-                    <textarea
-                      id="eventObservations"
-                      value={eventDraft.observations}
-                      onChange={(e) => handleEventDraftChange('observations', e.target.value)}
-                      rows={2}
-                      style={{ ...controlStyle, resize: 'vertical' }}
-                    />
-                  </div>
-                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-                    <label htmlFor="eventPriorNote" style={{ ...labelStyle, marginTop: 6 }}>Prior Events:</label>
-                    <textarea
-                      id="eventPriorNote"
-                      value={eventDraft.priorEventsNote || ''}
-                      onChange={(e) => handleEventDraftChange('priorEventsNote', e.target.value)}
-                      rows={2}
-                      style={{ ...controlStyle, resize: 'vertical' }}
-                    />
-                  </div>
-                  <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-                    <label htmlFor="eventReflections" style={{ ...labelStyle, marginTop: 6 }}>Reflections:</label>
-                    <textarea
-                      id="eventReflections"
-                      value={eventDraft.reflectionsNote || ''}
-                      onChange={(e) => handleEventDraftChange('reflectionsNote', e.target.value)}
-                      rows={2}
-                      style={{ ...controlStyle, resize: 'vertical' }}
-                    />
-                  </div>
-                </>
-              );
-            })()}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 10 }}>
-              <button
-                onClick={() => {
-                  setEventModalOpen(false);
-                  setEventDraft(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button onClick={saveEvent}>Save</button>
-            </div>
-          </div>
-        </div>
+        <EventModal
+          eventDraft={eventDraft}
+          position={eventModalPosition}
+          popupLeft={popupLeft ?? 0}
+          popupTop={popupTop ?? 0}
+          popupMaxHeight={popupMaxHeight ?? null}
+          isPartnership={isPartnership}
+          isEditingExisting={getEvents().some((evt) => evt.id === eventDraft.id)}
+          primaryPersonOptions={primaryPersonOptions}
+          otherPersonOptions={otherPersonOptions}
+          eventCategories={eventCategories}
+          symptomTypeOptions={symptomTypeOptions}
+          resolvedAnchorType={resolveAnchorType()}
+          resolvedAnchorId={selectedItem.id}
+          resolvedEventClass={resolveEventClass()}
+          editEventTitle={editEventTitle}
+          newEventTitle={newEventTitle}
+          onChange={handleEventDraftChange}
+          onSetDraft={setEventDraft}
+          onSave={saveEvent}
+          onCancel={() => { setEventModalOpen(false); setEventDraft(null); }}
+        />
       )}
     </div>
   );

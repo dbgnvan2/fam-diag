@@ -164,6 +164,85 @@ describe('PersonNode', () => {
         expect(hasCombined).toBe(true);
     });
 
+    it('renders a maturity circle at the upper-left when siblingMaturityLevel is set', () => {
+        const stageRef = React.createRef<Stage>();
+        const maturePerson: Person = {
+            id: 'p-mat',
+            name: 'Mature',
+            x: 0,
+            y: 0,
+            partnerships: [],
+            siblingMaturityLevel: 3,
+        };
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={maturePerson} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        // Circle for the maturity badge
+        // Circle for the maturity badge should be present
+        const circles = group.getChildren().filter((n: any) => n.getClassName() === 'Circle');
+        expect(circles.length).toBeGreaterThan(0);
+        // Text label should show the maturity level
+        const texts = group.find('Text');
+        expect(texts.some((n: any) => n.text() === '3')).toBe(true);
+    });
+
+    it('does not render a maturity circle when siblingMaturityLevel is not set', () => {
+        const stageRef = React.createRef<Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={person} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const circles = group.getChildren().filter((n: any) => n.getClassName() === 'Circle');
+        expect(circles.length).toBe(0);
+    });
+
+    it('renders the sibling effective position code to the left of the person', () => {
+        const stageRef = React.createRef<Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode
+                        person={person}
+                        {...baseProps}
+                        functionalIndicatorDefinitions={definitions}
+                        siblingEffectivePosition="ob/s"
+                    />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const texts = group.find('Text');
+        expect(texts.some((n: any) => n.text() === 'ob/s')).toBe(true);
+    });
+
+    it('does not render a position code label when siblingEffectivePosition is not provided', () => {
+        const stageRef = React.createRef<Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={person} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        const texts = group.find('Text');
+        // Only name text should be present (no position code)
+        expect(texts.every((n: any) => n.text() !== 'ob/s')).toBe(true);
+    });
+
     it('displays age label based on birth/death dates', () => {
         const stageRef = React.createRef<Stage>();
         const datedPerson: Person = {

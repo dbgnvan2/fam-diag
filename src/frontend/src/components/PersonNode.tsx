@@ -7,6 +7,7 @@ import type {
   GenderSymbol,
   BirthSex,
   GenderIdentity,
+  SymptomGroup,
 } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
@@ -20,6 +21,10 @@ interface PersonNodeProps {
   onContextMenu: (e: KonvaEventObject<PointerEvent>, person: Person) => void;
   onHoverChange: (personId: string | null) => void;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
+  siblingEffectivePosition?: string | null;
+  onSiblingSquareClick?: (person: Person, clientX: number, clientY: number) => void;
+  onAutonomySquareClick?: (person: Person) => void;
+  onSymptomBadgeClick?: (person: Person, group: SymptomGroup, clientX: number, clientY: number) => void;
 }
 
 const DEFAULT_BORDER_COLOR = '#000000';
@@ -67,12 +72,14 @@ const IndicatorBadge = ({
   y,
   orientation,
   halfExtent,
+  onClick,
 }: {
   entry: IndicatorEntry;
   size: number;
   y: number;
   orientation: 'left' | 'right';
   halfExtent: number;
+  onClick?: (e: KonvaEventObject<MouseEvent>) => void;
 }) => {
   const icon = useLoadedImage(entry.definition.iconDataUrl);
   const fallbackLetter = entry.definition.label?.trim().charAt(0)?.toUpperCase() || '?';
@@ -95,7 +102,12 @@ const IndicatorBadge = ({
     textX = circleCenterX - size / 2 - gap - textWidth;
   }
   return (
-    <Group y={y} listening={false}>
+    <Group
+      y={y}
+      listening={!!onClick}
+      onClick={onClick ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onClick(e); } : undefined}
+      onTap={onClick ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onClick(e); } : undefined}
+    >
       <Text
         x={textX}
         width={textWidth}
@@ -188,6 +200,10 @@ const PersonNode = ({
   onContextMenu,
   onHoverChange,
   functionalIndicatorDefinitions,
+  siblingEffectivePosition,
+  onSiblingSquareClick,
+  onAutonomySquareClick,
+  onSymptomBadgeClick,
 }: PersonNodeProps) => {
   const genderSymbol = deriveGenderSymbol(person);
   const birthSex = deriveBirthSex(person, genderSymbol);
@@ -217,6 +233,14 @@ const PersonNode = ({
     : DEFAULT_FOREGROUND_COLOR;
   const backgroundPadding = Math.max(10, shapeSize * 0.1);
   const backgroundSize = isMale ? shapeSize * 1.05 : shapeSize + backgroundPadding;
+  const emotionalAutonomyLevel = useMemo(() => {
+    if (!person.events) return null;
+    const latest = person.events
+      .filter((e) => e.emotionalProcessType === 'emotional-autonomy' && typeof e.intensity === 'number')
+      .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))[0];
+    return latest ? (latest.intensity as number) : null;
+  }, [person.events]);
+
   const indicatorEntries: IndicatorEntry[] = useMemo(() => {
     if (!person.functionalIndicators || person.functionalIndicators.length === 0) {
       return [];
@@ -545,6 +569,7 @@ const PersonNode = ({
             y={columnStartY(pastIndicators.length) + index * indicatorSpacing}
             orientation="left"
             halfExtent={halfExtent}
+            onClick={onSymptomBadgeClick ? (e) => onSymptomBadgeClick(person, entry.definition.group || 'physical', e.evt.clientX, e.evt.clientY) : undefined}
           />
         ))}
         {currentIndicators.map((entry, index) => (
@@ -555,8 +580,92 @@ const PersonNode = ({
             y={columnStartY(currentIndicators.length) + index * indicatorSpacing}
             orientation="right"
             halfExtent={halfExtent}
+            onClick={onSymptomBadgeClick ? (e) => onSymptomBadgeClick(person, entry.definition.group || 'physical', e.evt.clientX, e.evt.clientY) : undefined}
           />
         ))}
+        {person.siblingMaturityLevel != null && (() => {
+          const sq = indicatorSize;
+          // Top edge of square aligns with top edge of person shape
+          const sqY = -halfExtent;
+          const sqX = -halfExtent - sq;
+          const handleClick = onSiblingSquareClick
+            ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onSiblingSquareClick(person, e.evt.clientX, e.evt.clientY); }
+            : undefined;
+          return (
+            <Group listening={!!handleClick} onClick={handleClick} onTap={handleClick}>
+              <Rect
+                x={sqX}
+                y={sqY}
+                width={sq}
+                height={sq}
+                fill="#f0f4ff"
+                stroke="#6b83b5"
+                strokeWidth={1.5}
+                cornerRadius={2}
+              />
+              <Text
+                x={sqX}
+                y={sqY}
+                width={sq}
+                height={sq}
+                text={String(person.siblingMaturityLevel)}
+                fontSize={Math.max(10, sq * 0.55)}
+                fontFamily="sans-serif"
+                fill="#23324a"
+                align="center"
+                verticalAlign="middle"
+                listening={false}
+              />
+            </Group>
+          );
+        })()}
+        {emotionalAutonomyLevel != null && (() => {
+          const sq = indicatorSize;
+          // Bottom edge of square aligns with bottom edge of person shape
+          const sqY = halfExtent - sq;
+          const sqX = -halfExtent - sq;
+          const handleClick = onAutonomySquareClick
+            ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onAutonomySquareClick(person); }
+            : undefined;
+          return (
+            <Group listening={!!handleClick} onClick={handleClick} onTap={handleClick}>
+              <Rect
+                x={sqX}
+                y={sqY}
+                width={sq}
+                height={sq}
+                fill="#e8f5e9"
+                stroke="#2e7d32"
+                strokeWidth={1.5}
+                cornerRadius={2}
+              />
+              <Text
+                x={sqX}
+                y={sqY}
+                width={sq}
+                height={sq}
+                text={String(emotionalAutonomyLevel)}
+                fontSize={Math.max(10, sq * 0.55)}
+                fontFamily="sans-serif"
+                fill="#1b5e20"
+                align="center"
+                verticalAlign="middle"
+                listening={false}
+              />
+            </Group>
+          );
+        })()}
+        {siblingEffectivePosition && (
+          <Text
+            x={-halfExtent - 6 - siblingEffectivePosition.length * 7}
+            y={-7}
+            text={siblingEffectivePosition}
+            fontSize={14}
+            fontFamily="sans-serif"
+            fill="#23324a"
+            listening={false}
+          />
+        )}
     </Group>
   );
 };

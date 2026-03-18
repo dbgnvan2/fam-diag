@@ -1,7 +1,8 @@
-import { Group, Line, Text } from 'react-konva';
+import { Group, Line, Rect, Text } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
+import { computeDefaultFamilyName } from '../utils/partnershipUtils';
 
 interface PartnershipNodeProps {
   partnership: Partnership;
@@ -10,6 +11,7 @@ interface PartnershipNodeProps {
   isSelected: boolean;
   onSelect: (partnershipId: string) => void;
   onHorizontalConnectorDragEnd: (partnershipId: string, y: number) => void;
+  onFamilyNameOffsetChange: (partnershipId: string, offsetX: number) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
 }
 
@@ -33,8 +35,8 @@ const getDashStyle = (relationshipType: string) => {
 
 const normalizeCoord = (value: number) => Number(value.toFixed(3));
 
-const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect, onHorizontalConnectorDragEnd, onContextMenu }: PartnershipNodeProps) => {
-  const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate } = partnership;
+const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onContextMenu }: PartnershipNodeProps) => {
+  const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX } = partnership;
   const dashStyle = getDashStyle(relationshipType);
 
   const connectorY = normalizeCoord(horizontalConnectorY);
@@ -169,6 +171,55 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
                 <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke="black" strokeWidth={2} />
             </>
         )}
+        {(() => {
+          const label = familyName !== undefined ? familyName : computeDefaultFamilyName(partner1, partner2);
+          if (!label) return null;
+          const fontSize = 11;
+          const padX = 5;
+          const padY = 3;
+          const charWidth = fontSize * 0.58;
+          const boxW = Math.max(50, label.length * charWidth + padX * 2);
+          const boxH = fontSize + padY * 2;
+          const centerX = midPointX + (familyNameOffsetX ?? 0);
+          const boxY = connectorY + 8;
+          return (
+            <Group
+              x={centerX}
+              y={boxY}
+              draggable
+              dragBoundFunc={(pos) => ({
+                x: Math.max(pLeft_x_center + boxW / 2, Math.min(pRight_x_center - boxW / 2, pos.x)),
+                y: boxY,
+              })}
+              onDragEnd={(e) => {
+                const newCenterX = e.target.x();
+                onFamilyNameOffsetChange(partnership.id, normalizeCoord(newCenterX - midPointX));
+              }}
+              onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'ew-resize'; }}
+              onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
+            >
+              <Rect
+                x={-boxW / 2}
+                y={0}
+                width={boxW}
+                height={boxH}
+                fill="#f8f9fc"
+                stroke="#9aaac4"
+                strokeWidth={1}
+                cornerRadius={3}
+              />
+              <Text
+                x={-boxW / 2 + padX}
+                y={padY}
+                text={label}
+                fontSize={fontSize}
+                fontFamily="sans-serif"
+                fill="#23324a"
+                listening={false}
+              />
+            </Group>
+          );
+        })()}
     </Group>
   );
 };

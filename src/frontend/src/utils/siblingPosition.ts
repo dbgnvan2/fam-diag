@@ -104,8 +104,13 @@ const hasKnownDate = (value?: string) =>
 
 const personSexCode = (person?: Person | null): 'b' | 's' | null => {
   if (!person) return null;
-  if (person.birthSex === 'male' || person.gender === 'male') return 'b';
-  if (person.birthSex === 'female' || person.gender === 'female') return 's';
+  if (person.birthSex === 'male' || person.gender === 'male' || person.gender === 'b') return 'b';
+  if (person.birthSex === 'female' || person.gender === 'female' || person.gender === 's') return 's';
+  if (person.genderIdentity === 'masculine') return 'b';
+  if (person.genderIdentity === 'feminine') return 's';
+  const gs = person.genderSymbol;
+  if (gs === 'male_cis' || gs === 'male_trans' || gs === 'intersex_masculine') return 'b';
+  if (gs === 'female_cis' || gs === 'female_trans' || gs === 'intersex_feminine') return 's';
   return null;
 };
 
@@ -272,7 +277,7 @@ const parsePositionCode = (value: string): PositionParts | null => {
   return { sex, rank, composition: composition as 'b' | 's' | 'bs' };
 };
 
-const partnerForPerson = (
+export const partnerForPerson = (
   person: Person,
   people: Person[],
   partnerships: Partnership[]
@@ -290,7 +295,7 @@ const partnerForPerson = (
   return people.find((entry) => entry.id === otherId) || null;
 };
 
-const parentMatchForRole = (
+export const parentMatchForRole = (
   person: Person,
   people: Person[],
   partnerships: Partnership[],
@@ -303,7 +308,14 @@ const parentMatchForRole = (
   const wantedSex = role === 'father' ? 'b' : 's';
   if (personSexCode(parentA) === wantedSex) return parentA;
   if (personSexCode(parentB) === wantedSex) return parentB;
-  return null;
+  // Neither parent has a determinable sex — fall back to position:
+  // leftmost = father, rightmost = mother
+  if (!parentA && !parentB) return null;
+  if (!parentA) return role === 'mother' ? parentB : null;
+  if (!parentB) return role === 'father' ? parentA : null;
+  const leftParent  = parentA.x <= parentB.x ? parentA : parentB;
+  const rightParent = parentA.x <= parentB.x ? parentB : parentA;
+  return role === 'father' ? leftParent : rightParent;
 };
 
 const confidenceNoteFor = (
@@ -358,6 +370,15 @@ export const getSiblingPositionOptions = ({
       value: code,
       label: `${code} — ${getSiblingPositionLabel(code)}`,
     }));
+};
+
+/** Options filtered to a specific sex ('b'=male, 's'=female, null=all). Ignores sibling composition. */
+export const getPositionOptionsForSex = (sexCode: 'b' | 's' | null): Array<{ value: string; label: string }> => {
+  const source = sexCode === 'b' ? MALE_POSITION_CODES : sexCode === 's' ? FEMALE_POSITION_CODES : ALL_POSITION_CODES;
+  return (source as readonly string[]).map((code) => ({
+    value: code,
+    label: `${code} — ${getSiblingPositionLabel(code)}`,
+  }));
 };
 
 const deriveOwnPosition = (
@@ -605,6 +626,17 @@ const buildConflictResult = (
   };
 };
 
+const syntheticPerson = (id: string, positionOverride: string, sexCode: 'b' | 's'): Person =>
+  ({
+    id,
+    name: '',
+    siblingPositionOverride: positionOverride,
+    birthSex: sexCode === 'b' ? 'male' : 'female',
+    partnerships: [],
+    x: 0,
+    y: 0,
+  }) as unknown as Person;
+
 export const deriveSiblingPositionResult = ({
   person,
   people,
@@ -615,9 +647,21 @@ export const deriveSiblingPositionResult = ({
   partnerships: Partnership[];
 }): SiblingPositionResult => {
   const own = deriveOwnPosition(person, people, partnerships);
-  const father = parentMatchForRole(person, people, partnerships, 'father');
-  const mother = parentMatchForRole(person, people, partnerships, 'mother');
-  const partner = partnerForPerson(person, people, partnerships);
+  const father =
+    parentMatchForRole(person, people, partnerships, 'father') ??
+    (person.fatherPositionOverride
+      ? syntheticPerson('__father__', person.fatherPositionOverride, 'b')
+      : null);
+  const mother =
+    parentMatchForRole(person, people, partnerships, 'mother') ??
+    (person.motherPositionOverride
+      ? syntheticPerson('__mother__', person.motherPositionOverride, 's')
+      : null);
+  const partner =
+    partnerForPerson(person, people, partnerships) ??
+    (person.partnerPositionOverride
+      ? syntheticPerson('__partner__', person.partnerPositionOverride, 'b')
+      : null);
 
   return {
     person_id: own.person_id,

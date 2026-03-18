@@ -110,7 +110,7 @@ describe('ChildConnection', () => {
     expect(line.attrs.points[1]).toBeCloseTo(child.y - top);
   });
 
-  it('renders a double arc marker for family cutoff on the parent-child line', () => {
+  it('renders no cutoff markers on the child line — the arc is a separate FamilyCutoffArc component', () => {
     const stageRef = React.createRef<Stage>();
     render(
       <Stage ref={stageRef}>
@@ -123,7 +123,7 @@ describe('ChildConnection', () => {
               y: 220,
               partnerships: [],
               parentPartnership: 'partnership-1',
-              parentConnectionPattern: 'family-cutoff',
+              familyCutoffLineId: 'some-epl-id',
             }}
             partnership={partnership}
             partner1={partner1}
@@ -139,10 +139,8 @@ describe('ChildConnection', () => {
     const stage = stageRef.current!;
     const layer = stage.getLayers()[0];
     const group = layer.getChildren()[0];
-    const cutoffMarkers = group
-      .getChildren()
-      .filter((node) => node.getClassName() === 'Shape' && node.name() === 'family-cutoff-arc');
-
-    expect(cutoffMarkers).toHaveLength(2);
+    // ChildConnection never renders cutoff decorations — those are in FamilyCutoffArc
+    const shapes = group.getChildren().filter((node: any) => node.getClassName() === 'Shape');
+    expect(shapes).toHaveLength(0);
   });
 });

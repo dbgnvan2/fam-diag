@@ -210,7 +210,7 @@ describe('PropertiesPanel', () => {
         expect(screen.queryByText(/Derived:/i)).not.toBeInTheDocument();
     });
 
-    it('shows the FOO tab for people with the three family measure fields', () => {
+    it('shows FOO as a person subtab with the three family measure fields', () => {
         const person: Person = {
             id: 'harry',
             name: 'Harry',
@@ -229,11 +229,13 @@ describe('PropertiesPanel', () => {
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
-                initialActiveTab="foo"
+                initialActiveTab="properties"
+                initialPersonSection="foo"
                 onClose={() => {}}
             />
         );
 
+        expect(screen.getByRole('tab', { name: /^Person$/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /^FOO$/i })).toBeInTheDocument();
         expect(screen.getByLabelText(/Emotional Cutoff:/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Family Stability:/i)).toBeInTheDocument();
@@ -260,7 +262,8 @@ describe('PropertiesPanel', () => {
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
-                initialActiveTab="foo"
+                initialActiveTab="properties"
+                initialPersonSection="foo"
                 onClose={() => {}}
             />
         );
@@ -299,10 +302,10 @@ describe('PropertiesPanel', () => {
         const intensitySelect = screen.getByLabelText('Intensity:');
         expect(intensitySelect).toBeInTheDocument();
         expect(
-            screen.getByRole('option', { name: /Level 1 \(dashed, very little space\)/i })
+            within(intensitySelect).getByRole('option', { name: /^Minimal$/i })
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('option', { name: /Level 5 \(dots, space\)/i })
+            within(intensitySelect).getByRole('option', { name: /^Severe$/i })
         ).toBeInTheDocument();
     });
 
@@ -329,12 +332,13 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByLabelText('Intensity:')).toBeInTheDocument();
+        const intensitySelect = screen.getByLabelText('Intensity:');
+        expect(intensitySelect).toBeInTheDocument();
         expect(
-            screen.getByRole('option', { name: /Level 1 \(single dotted sawtooth\)/i })
+            within(intensitySelect).getByRole('option', { name: /^Minimum$/i })
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('option', { name: /Level 5 \(triple line sawtooth\)/i })
+            within(intensitySelect).getByRole('option', { name: /^Maximal$/i })
         ).toBeInTheDocument();
     });
 
@@ -742,16 +746,13 @@ describe('PropertiesPanel', () => {
 
         expect(screen.getByLabelText('First Name:')).toBeInTheDocument();
         expect(screen.queryByLabelText('Birth Date:')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('Notes:')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
         expect(screen.queryByLabelText('Size:')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('tab', { name: 'Dates' }));
         expect(screen.getByLabelText('Birth Date:')).toBeInTheDocument();
         expect(screen.queryByLabelText('First Name:')).not.toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('tab', { name: 'Notes' }));
-        expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
-        expect(screen.queryByLabelText('Birth Date:')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Notes:')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('tab', { name: 'Format' }));
         expect(screen.getByLabelText('Size:')).toBeInTheDocument();
@@ -778,19 +779,19 @@ describe('PropertiesPanel', () => {
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
-                initialPersonSection="notes"
+                initialPersonSection="name"
                 compactPersonSectionMode
                 onClose={() => {}}
             />
         );
 
-        expect(screen.getByRole('dialog', { name: /notes properties/i })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: /name properties/i })).toBeInTheDocument();
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
         expect(screen.queryByRole('tablist', { name: /properties tabs/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tablist', { name: /person property sections/i })).not.toBeInTheDocument();
     });
 
-    it('updates functional indicator status and impact for a person', () => {
+    it('updates functional indicator impact via symptom bar modal', () => {
         const updatePerson = vi.fn();
         const person: Person = {
             id: 'p1',
@@ -808,7 +809,7 @@ describe('PropertiesPanel', () => {
                     symptomGroup: 'emotional',
                     symptomType: 'Alcohol',
                     eventType: 'FF',
-                    statusLabel: 'current',
+                    statusLabel: 'Ongoing',
                     intensity: 1,
                     frequency: 1,
                     impact: 2,
@@ -824,7 +825,7 @@ describe('PropertiesPanel', () => {
             functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 2, frequency: 1, intensity: 1 }],
         };
         const defs: FunctionalIndicatorDefinition[] = [{ id: 'fi1', label: 'Alcohol', group: 'emotional' }];
-        const { rerender } = render(
+        render(
             <PropertiesPanel
                 selectedItem={person}
                 people={[person]}
@@ -836,23 +837,44 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
+
+        // Symptoms tab shows a bar for the Alcohol symptom
         fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
-        const statusSelect = screen.getAllByLabelText('Status:')[0];
-        fireEvent.change(statusSelect, { target: { value: 'past' } });
+        expect(screen.getByText('Alcohol')).toBeInTheDocument();
+
+        // Clicking the bar opens Edit Symptom modal
+        fireEvent.click(screen.getByText('Alcohol'));
+        expect(screen.getByText('Edit Symptom')).toBeInTheDocument();
+
+        // Change impact to 4 and save
+        const impactSelect = screen.getByLabelText('Impact:');
+        fireEvent.change(impactSelect, { target: { value: '4' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
         expect(updatePerson).toHaveBeenCalledWith('p1', expect.objectContaining({
             functionalIndicators: expect.arrayContaining([
-                expect.objectContaining({ definitionId: 'fi1', status: 'past', impact: 2, frequency: 1, intensity: 1 }),
+                expect.objectContaining({ definitionId: 'fi1', impact: 4 }),
             ]),
         }));
+    });
 
-        const updatedPerson: Person = {
-            ...person,
+    it('shows the symptom intensity scale and lets the user pick a level from help', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p1',
+            name: 'Person One',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
             functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 2, frequency: 1, intensity: 1 }],
         };
-        rerender(
+        const defs: FunctionalIndicatorDefinition[] = [{ id: 'fi1', label: 'Alcohol', group: 'emotional' }];
+
+        render(
             <PropertiesPanel
-                selectedItem={updatedPerson}
-                people={[updatedPerson]}
+                selectedItem={person}
+                people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={defs}
                 onUpdatePerson={updatePerson}
@@ -861,67 +883,195 @@ describe('PropertiesPanel', () => {
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
 
-        const impactInput = screen.getAllByLabelText('Impact:')[0];
-        fireEvent.change(impactInput, { target: { value: '4' } });
+        // Symptoms tab shows a bar for the indicator
+        fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
+        expect(screen.getByText('Alcohol')).toBeInTheDocument();
+
+        // Clicking the bar (no linked event) opens Add Symptom modal
+        fireEvent.click(screen.getByText('Alcohol'));
+        expect(screen.getByText('Add Symptom')).toBeInTheDocument();
+
+        // Intensity select uses symptom-specific labels
+        const intensitySelect = screen.getByLabelText('Intensity:') as HTMLSelectElement;
+        expect(within(intensitySelect).getByRole('option', { name: /0: None/i })).toBeInTheDocument();
+        expect(within(intensitySelect).getByRole('option', { name: /5: Severe/i })).toBeInTheDocument();
+
+        // Open intensity help and pick Major (level 4)
+        fireEvent.click(screen.getByRole('button', { name: /Symptom event intensity help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Symptom event intensity scale/i });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Major/i }));
+
+        // Save updates the functionalIndicator with the chosen intensity
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
             functionalIndicators: expect.arrayContaining([
-                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }),
+                expect.objectContaining({ definitionId: 'fi1', intensity: 4 }),
             ]),
         }));
+    });
 
-        const personAfterImpact: Person = {
-            ...updatedPerson,
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 1, intensity: 1 }],
+    it('opens a seeded symptom event modal with the selected symptom category', () => {
+        const person: Person = {
+            id: 'p1',
+            name: 'Person One',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
         };
-        rerender(
+
+        render(
             <PropertiesPanel
-                selectedItem={personAfterImpact}
-                people={[personAfterImpact]}
+                selectedItem={person}
+                people={[person]}
                 eventCategories={['Job']}
-                functionalIndicatorDefinitions={defs}
-                onUpdatePerson={updatePerson}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                openNewEventRequestId="seeded-symptom"
+                newEventSeed={{ eventType: 'FF', category: 'emotional', symptomGroup: 'emotional' }}
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
 
-        const frequencySelect = screen.getAllByLabelText('Frequency:')[0];
-        fireEvent.change(frequencySelect, { target: { value: '3' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
-            functionalIndicators: expect.arrayContaining([
-                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }),
-            ]),
-        }));
+        expect(screen.getByText('Add Symptom')).toBeInTheDocument();
+        expect(screen.getByLabelText('Event Type:')).toHaveValue('FF');
+        expect(screen.getByLabelText('Symptom Category:')).toHaveValue('emotional');
+        expect(screen.getByLabelText('Status:')).toHaveValue('Ongoing');
+        expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
+    });
 
-        const personAfterFrequency: Person = {
-            ...personAfterImpact,
-            functionalIndicators: [{ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 1 }],
+    it('opens a seeded emotional autonomy modal and applies an intensity from help', () => {
+        const person: Person = {
+            id: 'p1',
+            name: 'Person One',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
         };
-        rerender(
+
+        render(
             <PropertiesPanel
-                selectedItem={personAfterFrequency}
-                people={[personAfterFrequency]}
+                selectedItem={person}
+                people={[person]}
                 eventCategories={['Job']}
-                functionalIndicatorDefinitions={defs}
-                onUpdatePerson={updatePerson}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                openNewEventRequestId="seeded-autonomy"
+                newEventSeed={{
+                    eventType: 'EPE',
+                    category: 'Emotional Autonomy',
+                    emotionalProcessType: 'emotional-autonomy',
+                    eventClass: 'emotional-pattern',
+                    intensity: 1,
+                }}
                 onClose={() => {}}
             />
         );
-        fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
 
-        const intensitySelect = screen.getAllByLabelText('Intensity:')[0];
-        fireEvent.change(intensitySelect, { target: { value: '5' } });
-        expect(updatePerson).toHaveBeenLastCalledWith('p1', expect.objectContaining({
-            functionalIndicators: expect.arrayContaining([
-                expect.objectContaining({ definitionId: 'fi1', status: 'current', impact: 4, frequency: 3, intensity: 5 }),
-            ]),
-        }));
+        expect(screen.getByText('Add Emotional Autonomy')).toBeInTheDocument();
+        expect(screen.getByLabelText('Event Type:')).toHaveValue('EPE');
+
+        fireEvent.click(screen.getByRole('button', { name: /Emotional autonomy intensity help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Capacity for Emotional Autonomy Scale/i });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Moderate-High/i }));
+
+        expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
+    });
+
+    it('opens a seeded FoO Triangle modal and applies the selected scale level', () => {
+        const person: Person = {
+            id: 'p1',
+            name: 'Person One',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                openNewEventRequestId="seeded-foo-triangle"
+                newEventSeed={{
+                    eventType: 'EPE',
+                    category: 'triangle-functioning-flexibility',
+                    emotionalProcessType: 'foo-triangle',
+                    eventClass: 'emotional-pattern',
+                    intensity: 1,
+                }}
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByText('Add FoO Triangle')).toBeInTheDocument();
+        expect(screen.getByLabelText('Triangle Category:')).toHaveValue('triangle-functioning-flexibility');
+
+        fireEvent.click(screen.getByRole('button', { name: /FoO intensity help/i }));
+        const helpDialog = screen.getByRole('dialog', {
+            name: /Degree of Flexibility in the Functioning of Triangles/i,
+        });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Moderate-high/i }));
+
+        expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
+    });
+
+    it('opens a seeded Extended FoO modal and applies the selected scale level', () => {
+        const person: Person = {
+            id: 'p1',
+            name: 'Person One',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                openNewEventRequestId="seeded-foo-extended"
+                newEventSeed={{
+                    eventType: 'EPE',
+                    category: 'family-stability',
+                    emotionalProcessType: 'foo',
+                    eventClass: 'emotional-pattern',
+                    intensity: 1,
+                }}
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByText('Add FoO')).toBeInTheDocument();
+        expect(screen.getByLabelText('FoO Category:')).toHaveValue('family-stability');
+
+        fireEvent.click(screen.getByRole('button', { name: /FoO intensity help/i }));
+        const helpDialog = screen.getByRole('dialog', {
+            name: /Family Stability Scale/i,
+        });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Semi-stable/i }));
+
+        expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
     });
 
     it('updates first and last name fields immediately while keeping display name in sync', () => {
@@ -1296,7 +1446,8 @@ describe('PropertiesPanel', () => {
         );
         expect(screen.getByRole('tab', { name: 'Events' })).toBeInTheDocument();
         expect(screen.getByText(/2024-04-01/i)).toBeInTheDocument();
-        expect(screen.getAllByText('Symptom').length).toBeGreaterThan(0);
+        // Event bar renders the category as the type label
+        expect(screen.getByText('Individual')).toBeInTheDocument();
     });
 
     it('shows Type, Status, Date, and row actions in compact partnership event rows', () => {
@@ -1357,15 +1508,10 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Type')).toBeInTheDocument();
-        expect(screen.getByText('Status')).toBeInTheDocument();
-        expect(screen.getByText('Date')).toBeInTheDocument();
-        expect(screen.getByText('Actions')).toBeInTheDocument();
-        expect(screen.getByText('Married')).toBeInTheDocument();
-        expect(screen.getByText('Separated')).toBeInTheDocument();
+        // Events are now rendered as clickable bars (no column headers or Edit/Delete buttons)
+        expect(screen.getByText('married')).toBeInTheDocument();
+        expect(screen.getByText('Separated Date')).toBeInTheDocument();
         expect(screen.getByText('2024-04-01')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     });
 
     it('shows tab help content for Person, Symptoms, and Events', () => {

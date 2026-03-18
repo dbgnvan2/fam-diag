@@ -84,9 +84,9 @@ const EmotionalLineNode = ({
     const basePerpendicularAngle = baseAngle + Math.PI / 2;
     const laneOffset =
         siblingCount === 2
-            ? (siblingIndex === 0 ? -8 : 8)
+            ? (siblingIndex === 0 ? -20 : 20)
             : siblingCount > 1
-                ? (siblingIndex - (siblingCount - 1) / 2) * 10
+                ? (siblingIndex - (siblingCount - 1) / 2) * 22
                 : 0;
     const canonicalPair = [person1.id, person2.id].sort();
     const followsCanonicalDirection = person1.id === canonicalPair[0] && person2.id === canonicalPair[1];
@@ -175,9 +175,9 @@ const EmotionalLineNode = ({
                     <Text
                         key={`projection-marker-${idx}`}
                         text={markerText}
-                        x={x - 12}
-                        y={y - 7}
-                        fontSize={12}
+                        x={x - 18}
+                        y={y - 10}
+                        fontSize={18}
                         fontStyle="bold"
                         fill={lineProps.stroke}
                         rotation={markerAngle}
