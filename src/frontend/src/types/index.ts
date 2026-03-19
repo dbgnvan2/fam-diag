@@ -121,6 +121,7 @@ export type Partnership = {
   notesPosition?: { x: number; y: number };
   notesSize?: { width: number; height: number };
   events?: EmotionalProcessEvent[];
+  familyEvents?: EmotionalProcessEvent[];
 };
 
 export type EmotionalLine = {
@@ -173,10 +174,11 @@ export type Triangle = {
   color?: string;
   intensity?: 'low' | 'medium' | 'high';
   tpls?: EmotionalLine[];
+  events?: EmotionalProcessEvent[];
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern';
-export type EventType = 'NODAL' | 'FF' | 'EPE';
+export type EventType = 'NODAL' | 'FF' | 'EPE' | 'FAMILY';
 export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP';
 export type EventContinuationState = 'discrete' | 'start' | 'middle' | 'end';
 

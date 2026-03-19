@@ -7,6 +7,7 @@ import type {
   FunctionalIndicatorDefinition,
   EmotionalProcessEvent,
   EventClass,
+  EventType,
   BirthSex,
   GenderIdentity,
   SymptomGroup,
@@ -17,6 +18,7 @@ import BackupRestoreDialog from './modals/BackupRestoreDialog';
 import AppRibbon from './AppRibbon';
 import VoiceInputModal from './modals/VoiceInputModal';
 import { Stage as StageType } from 'konva/lib/Stage';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import { useAutosave } from '../hooks/useAutosave';
 import { useIndicatorHandlers } from '../hooks/useIndicatorHandlers';
 import { useSessionNoteHandlers } from '../hooks/useSessionNoteHandlers';
@@ -30,6 +32,7 @@ import { useEmotionalLineOperations } from '../hooks/useEmotionalLineOperations'
 import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
 import DiagramModals from './DiagramModals';
 import DiagramCanvas from './DiagramCanvas';
+import EventModal from './EventModal';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import DatePickerField from './DatePickerField';
 import { getSaveButtonState } from '../utils/saveButtonState';
@@ -212,6 +215,18 @@ const DiagramEditor = () => {
   const [propertiesPanelIntent, setPropertiesPanelIntent] = useState<PropertiesPanelIntent>(null);
   const [personSectionPopup, setPersonSectionPopup] = useState<PersonSectionPopupState>(null);
   const [partnershipSectionPopup, setPartnershipSectionPopup] = useState<PartnershipSectionPopupState>(null);
+  const [trianglePropertyModal, setTrianglePropertyModal] = useState<{
+    triangleId: string;
+    draft: EmotionalProcessEvent;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
+  const [familyPropertyModal, setFamilyPropertyModal] = useState<{
+    partnershipId: string;
+    draft: EmotionalProcessEvent;
+    position: { x: number; y: number };
+    editingEventId?: string;
+  } | null>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(() => {
     if (typeof window === 'undefined') return initialEventCategories;
     const stored = parseStoredUserSettings();
@@ -520,6 +535,14 @@ const DiagramEditor = () => {
     const timer = window.setTimeout(() => setPropertiesPanelIntent(null), 0);
     return () => window.clearTimeout(timer);
   }, [propertiesPanelIntent, propertiesPanelItem]);
+
+  // Clear intent when the user navigates away from its target so it doesn't
+  // re-apply (e.g. re-opening the Events tab) the next time the same item is selected.
+  useEffect(() => {
+    if (!propertiesPanelIntent) return;
+    if (propertiesPanelItem && propertiesPanelItem.id === propertiesPanelIntent.targetId) return;
+    setPropertiesPanelIntent(null);
+  }, [propertiesPanelItem?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -3205,6 +3228,168 @@ useEffect(() => {
     ribbonHeight,
   });
 
+  const openTrianglePropertyModal = (
+    triangleId: string,
+    seed: Partial<EmotionalProcessEvent>,
+    position: { x: number; y: number }
+  ) => {
+    const triangle = triangles.find((t) => t.id === triangleId);
+    if (!triangle) return;
+    const person1 = people.find((p) => p.id === triangle.person1_id);
+    const person2 = people.find((p) => p.id === triangle.person2_id);
+    const person3 = people.find((p) => p.id === triangle.person3_id);
+    const today = new Date().toISOString().slice(0, 10);
+    setTrianglePropertyModal({
+      triangleId,
+      position,
+      draft: {
+        date: today,
+        startDate: today,
+        category: 'Triangle',
+        emotionalProcessType: 'triangle-functioning',
+        statusLabel: 'ongoing',
+        intensity: 1,
+        frequency: 1,
+        impact: 1,
+        primaryPersonName: person1?.name || person2?.name || '',
+        otherPersonName: person3?.name || person2?.name || '',
+        ...seed,
+        id: nanoid(),
+        eventType: 'FAMILY',
+        eventClass: 'emotional-pattern',
+        anchorType: 'EMOTIONAL_PROCESS_EP',
+        anchorId: triangleId,
+      },
+    });
+  };
+
+  const openFamilyPropertyModal = (
+    partnershipId: string,
+    seed: Partial<EmotionalProcessEvent>,
+    position: { x: number; y: number }
+  ) => {
+    const partnership = partnerships.find((p) => p.id === partnershipId);
+    if (!partnership) return;
+    const partner1 = people.find((p) => p.id === partnership.partner1_id);
+    const partner2 = people.find((p) => p.id === partnership.partner2_id);
+    const today = new Date().toISOString().slice(0, 10);
+    setFamilyPropertyModal({
+      partnershipId,
+      position,
+      draft: {
+        date: today,
+        startDate: today,
+        category: 'Triangle',
+        emotionalProcessType: 'triangle-functioning',
+        statusLabel: 'ongoing',
+        intensity: 1,
+        frequency: 1,
+        impact: 1,
+        primaryPersonName: partner1?.name || '',
+        otherPersonName: partner2?.name || '',
+        ...seed,
+        id: nanoid(),
+        eventType: (seed?.eventType as EventType | undefined) || 'FAMILY',
+        eventClass: seed?.eventClass || 'emotional-pattern',
+        anchorType: 'EMOTIONAL_PROCESS_EP',
+        anchorId: partnershipId,
+      },
+    });
+  };
+
+  const handleFamilyIndicatorClick = (
+    partnershipId: string,
+    eventId: string,
+    position: { x: number; y: number }
+  ) => {
+    const partnership = partnerships.find((p) => p.id === partnershipId);
+    if (!partnership) return;
+    const event = (partnership.familyEvents || []).find((e) => e.id === eventId);
+    if (!event) return;
+    setSelectedFamilyId(partnershipId);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setFamilyPropertyModal({
+      partnershipId,
+      position,
+      editingEventId: eventId,
+      draft: { ...event },
+    });
+  };
+
+  const handleFamilyClick = (partnershipId: string) => {
+    setSelectedFamilyId((prev) => (prev === partnershipId ? null : partnershipId));
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
+    setPropertiesPanelItem(null);
+  };
+
+  const handleFamilyContextMenu = (e: KonvaEventObject<PointerEvent>, partnershipId: string) => {
+    e.evt.preventDefault();
+    setSelectedFamilyId(partnershipId);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setSelectedPageNoteId(null);
+    setPageNoteDraft(null);
+    setPropertiesPanelItem(null);
+    const pos = { x: e.evt.clientX, y: e.evt.clientY };
+    const makeFamilyItem = (label: string, processType: string, category: string) => ({
+      label,
+      onClick: () => {
+        openFamilyPropertyModal(
+          partnershipId,
+          {
+            eventType: 'FAMILY',
+            emotionalProcessType: processType,
+            category,
+            eventClass: 'emotional-pattern',
+            statusLabel: 'ongoing',
+            intensity: 1,
+            frequency: 1,
+            impact: 1,
+          },
+          pos
+        );
+        setContextMenu(null);
+      },
+    });
+    setContextMenu({
+      x: e.evt.clientX,
+      y: e.evt.clientY,
+      items: [
+        {
+          label: 'Triangles',
+          children: [
+            makeFamilyItem('Triangle Functioning', 'triangle-functioning', 'Triangle'),
+            makeFamilyItem('Triangle Flexibility', 'triangle-flexibility', 'Triangle'),
+            makeFamilyItem('Triangle Stress Response', 'triangle-stress-response', 'Triangle'),
+          ],
+        },
+        {
+          label: 'Stressors',
+          children: [
+            makeFamilyItem('Emotional Reactivity', 'stress-emotional-reactivity', 'Stress'),
+            makeFamilyItem('Family Adaptability', 'stress-family-adaptability', 'Stress'),
+            makeFamilyItem('Family Stressor', 'stress-family-stressor', 'Stress'),
+            makeFamilyItem('Chronic Stress', 'stress-chronic-stress', 'Stress'),
+          ],
+        },
+      ],
+    });
+  };
+
+  const handleFamilyAddGenericEvent = (partnershipId: string, position: { x: number; y: number }) => {
+    openFamilyPropertyModal(partnershipId, { eventType: 'FF' as EventType, eventClass: 'relationship' }, position);
+  };
+
   const {
     handlePageNoteSelect,
     handlePageNoteDraftChange,
@@ -3239,10 +3424,12 @@ useEffect(() => {
     setSelectedPageNoteId,
     setPageNoteDraft,
     setPropertiesPanelItem,
+    setSelectedFamilyId,
     setContextMenu,
     addChildToPartnership,
     handleUpdateEmotionalLine,
     openContextualEventCreator,
+    openTrianglePropertyModal,
     removeTriangle,
     removeEmotionalLine,
   });
@@ -3672,6 +3859,7 @@ useEffect(() => {
             setSelectedPartnershipId={setSelectedPartnershipId}
             setSelectedEmotionalLineId={setSelectedEmotionalLineId}
             setSelectedChildId={setSelectedChildId}
+            setSelectedFamilyId={setSelectedFamilyId}
             setSelectedPageNoteId={setSelectedPageNoteId}
             setPageNoteDraft={setPageNoteDraft}
             setPropertiesPanelItem={setPropertiesPanelItem}
@@ -3694,6 +3882,28 @@ useEffect(() => {
             handlePartnershipSelect={handlePartnershipSelect}
             handleHorizontalConnectorDragEnd={handleHorizontalConnectorDragEnd}
             handlePartnershipContextMenu={handlePartnershipContextMenu}
+            selectedFamilyId={selectedFamilyId}
+            handleFamilyClick={handleFamilyClick}
+            handleFamilyContextMenu={handleFamilyContextMenu}
+            onFamilyIndicatorClick={handleFamilyIndicatorClick}
+            onOpenFamilyProperty={(partnershipId, processType, position) =>
+              openFamilyPropertyModal(
+                partnershipId,
+                {
+                  eventType: 'FAMILY',
+                  emotionalProcessType: processType,
+                  category: 'Triangle',
+                  eventClass: 'emotional-pattern',
+                  statusLabel: 'ongoing',
+                  intensity: 1,
+                  frequency: 1,
+                  impact: 1,
+                },
+                position
+              )
+            }
+            onAddFamilyEvent={handleFamilyAddGenericEvent}
+            onCloseFamilyPanel={() => setSelectedFamilyId(null)}
             handleChildLineSelect={handleChildLineSelect}
             handleChildLineContextMenu={handleChildLineContextMenu}
             handleSelect={handleSelect}
@@ -3921,6 +4131,115 @@ useEffect(() => {
             setIdeasText={setIdeasText}
             setIdeasOpen={setIdeasOpen}
           />
+        {trianglePropertyModal && (
+          <EventModal
+            eventDraft={trianglePropertyModal.draft}
+            position={trianglePropertyModal.position}
+            popupLeft={trianglePropertyModal.position.x}
+            popupTop={trianglePropertyModal.position.y}
+            popupMaxHeight={null}
+            isPartnership={false}
+            isEditingExisting={false}
+            primaryPersonOptions={(() => {
+              const t = triangles.find((tr) => tr.id === trianglePropertyModal.triangleId);
+              if (!t) return [];
+              return [t.person1_id, t.person2_id, t.person3_id]
+                .map((id) => people.find((p) => p.id === id)?.name || '')
+                .filter(Boolean);
+            })()}
+            otherPersonOptions={(() => {
+              const t = triangles.find((tr) => tr.id === trianglePropertyModal.triangleId);
+              if (!t) return ['None'];
+              return ['None', ...[t.person1_id, t.person2_id, t.person3_id]
+                .map((id) => people.find((p) => p.id === id)?.name || '')
+                .filter(Boolean)];
+            })()}
+            eventCategories={eventCategories}
+            symptomTypeOptions={[]}
+            resolvedAnchorType="EMOTIONAL_PROCESS_EP"
+            resolvedAnchorId={trianglePropertyModal.triangleId}
+            resolvedEventClass="emotional-pattern"
+            editEventTitle="Edit Triangle Property"
+            newEventTitle="Add Triangle Property"
+            onChange={(field, value) =>
+              setTrianglePropertyModal((prev) =>
+                prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
+              )
+            }
+            onSetDraft={(draft) =>
+              setTrianglePropertyModal((prev) => (prev ? { ...prev, draft } : prev))
+            }
+            onSave={() => {
+              if (!trianglePropertyModal) return;
+              const { triangleId, draft } = trianglePropertyModal;
+              setTriangles((prev) =>
+                prev.map((t) =>
+                  t.id === triangleId
+                    ? { ...t, events: [...(t.events || []), draft] }
+                    : t
+                )
+              );
+              setTrianglePropertyModal(null);
+            }}
+            onCancel={() => setTrianglePropertyModal(null)}
+          />
+        )}
+        {familyPropertyModal && (
+          <EventModal
+            eventDraft={familyPropertyModal.draft}
+            position={familyPropertyModal.position}
+            popupLeft={familyPropertyModal.position.x}
+            popupTop={familyPropertyModal.position.y}
+            popupMaxHeight={null}
+            isPartnership={false}
+            isEditingExisting={!!familyPropertyModal.editingEventId}
+            primaryPersonOptions={(() => {
+              const p = partnerships.find((p) => p.id === familyPropertyModal.partnershipId);
+              if (!p) return [];
+              return [p.partner1_id, p.partner2_id]
+                .map((id) => people.find((person) => person.id === id)?.name || '')
+                .filter(Boolean);
+            })()}
+            otherPersonOptions={(() => {
+              const p = partnerships.find((p) => p.id === familyPropertyModal.partnershipId);
+              if (!p) return ['None'];
+              return ['None', ...[p.partner1_id, p.partner2_id]
+                .map((id) => people.find((person) => person.id === id)?.name || '')
+                .filter(Boolean)];
+            })()}
+            eventCategories={eventCategories}
+            symptomTypeOptions={[]}
+            resolvedAnchorType="EMOTIONAL_PROCESS_EP"
+            resolvedAnchorId={familyPropertyModal.partnershipId}
+            resolvedEventClass="emotional-pattern"
+            editEventTitle="Edit Family Property"
+            newEventTitle="Add Family Property"
+            onChange={(field, value) =>
+              setFamilyPropertyModal((prev) =>
+                prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
+              )
+            }
+            onSetDraft={(draft) =>
+              setFamilyPropertyModal((prev) => (prev ? { ...prev, draft } : prev))
+            }
+            onSave={() => {
+              if (!familyPropertyModal) return;
+              const { partnershipId, draft, editingEventId } = familyPropertyModal;
+              setPartnerships((prev) =>
+                prev.map((p) => {
+                  if (p.id !== partnershipId) return p;
+                  const existing = p.familyEvents || [];
+                  const updated = editingEventId
+                    ? existing.map((e) => (e.id === editingEventId ? draft : e))
+                    : [...existing, draft];
+                  return { ...p, familyEvents: updated };
+                })
+              );
+              setFamilyPropertyModal(null);
+            }}
+            onCancel={() => setFamilyPropertyModal(null)}
+          />
+        )}
         </div>
       );
     };

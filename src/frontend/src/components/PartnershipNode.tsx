@@ -9,10 +9,14 @@ interface PartnershipNodeProps {
   partner1: Person;
   partner2: Person;
   isSelected: boolean;
+  isFamilySelected: boolean;
   onSelect: (partnershipId: string) => void;
   onHorizontalConnectorDragEnd: (partnershipId: string, y: number) => void;
   onFamilyNameOffsetChange: (partnershipId: string, offsetX: number) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
+  onFamilyClick: (partnershipId: string) => void;
+  onFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
+  onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
 }
 
 const getDashStyle = (relationshipType: string) => {
@@ -35,7 +39,25 @@ const getDashStyle = (relationshipType: string) => {
 
 const normalizeCoord = (value: number) => Number(value.toFixed(3));
 
-const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onContextMenu }: PartnershipNodeProps) => {
+const TRI_SIDE = 16;
+const TRI_HALF = TRI_SIDE / 2;
+const TRI_H = Math.round(TRI_SIDE * Math.sqrt(3) / 2);
+const INDICATOR_DEFS = [
+  { letter: 'V', processType: 'triangle-functioning' },
+  { letter: 'F', processType: 'triangle-flexibility' },
+  { letter: 'R', processType: 'triangle-stress-response' },
+] as const;
+
+const DIA_SIZE = 16;
+const DIA_HALF = DIA_SIZE / 2;
+const STRESSOR_INDICATOR_DEFS = [
+  { letter: 'R', processType: 'stress-emotional-reactivity' },
+  { letter: 'A', processType: 'stress-family-adaptability' },
+  { letter: 'S', processType: 'stress-family-stressor' },
+  { letter: 'C', processType: 'stress-chronic-stress' },
+] as const;
+
+const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamilySelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onContextMenu, onFamilyClick, onFamilyContextMenu, onFamilyIndicatorClick }: PartnershipNodeProps) => {
   const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX } = partnership;
   const dashStyle = getDashStyle(relationshipType);
 
@@ -174,11 +196,11 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
         {(() => {
           const label = familyName !== undefined ? familyName : computeDefaultFamilyName(partner1, partner2);
           if (!label) return null;
-          const fontSize = 11;
-          const padX = 5;
-          const padY = 3;
+          const fontSize = 22;
+          const padX = 10;
+          const padY = 6;
           const charWidth = fontSize * 0.58;
-          const boxW = Math.max(50, label.length * charWidth + padX * 2);
+          const boxW = Math.max(100, label.length * charWidth + padX * 2);
           const boxH = fontSize + padY * 2;
           const centerX = midPointX + (familyNameOffsetX ?? 0);
           const boxY = connectorY + 8;
@@ -195,7 +217,10 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
                 const newCenterX = e.target.x();
                 onFamilyNameOffsetChange(partnership.id, normalizeCoord(newCenterX - midPointX));
               }}
-              onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'ew-resize'; }}
+              onClick={() => onFamilyClick(partnership.id)}
+              onTap={() => onFamilyClick(partnership.id)}
+              onContextMenu={(e) => { e.cancelBubble = true; onFamilyContextMenu(e, partnership.id); }}
+              onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer'; }}
               onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
             >
               <Rect
@@ -203,9 +228,9 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
                 y={0}
                 width={boxW}
                 height={boxH}
-                fill="#f8f9fc"
-                stroke="#9aaac4"
-                strokeWidth={1}
+                fill={isFamilySelected ? '#dbeafe' : '#f8f9fc'}
+                stroke={isFamilySelected ? '#3b82f6' : '#9aaac4'}
+                strokeWidth={isFamilySelected ? 2 : 1}
                 cornerRadius={3}
               />
               <Text
@@ -217,6 +242,141 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, onSelect
                 fill="#23324a"
                 listening={false}
               />
+              {(() => {
+                const active = INDICATOR_DEFS.flatMap((def) => {
+                  const events = (partnership.familyEvents || []).filter(
+                    (ev) => ev.emotionalProcessType === def.processType
+                  );
+                  if (events.length === 0) return [];
+                  return [{ ...def, event: events[events.length - 1] }];
+                });
+                if (active.length === 0) return null;
+                const spacing = 30;
+                const startX = -((active.length - 1) * spacing) / 2;
+                return active.map((ind, i) => {
+                  const cx = startX + i * spacing;
+                  return (
+                    <Group
+                      key={ind.processType}
+                      x={cx}
+                      y={boxH + 2}
+                      onClick={(e) => {
+                        e.cancelBubble = true;
+                        onFamilyIndicatorClick(partnership.id, ind.event.id, {
+                          x: (e.evt as MouseEvent).clientX,
+                          y: (e.evt as MouseEvent).clientY,
+                        });
+                      }}
+                      onTap={(e) => {
+                        e.cancelBubble = true;
+                        onFamilyIndicatorClick(partnership.id, ind.event.id, { x: 0, y: 0 });
+                      }}
+                      onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer'; }}
+                      onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
+                    >
+                      <Rect x={-TRI_HALF - 2} y={-2} width={TRI_SIDE + 18} height={TRI_H + 4} fill="transparent" />
+                      <Line
+                        points={[0, 0, -TRI_HALF, TRI_H, TRI_HALF, TRI_H]}
+                        closed
+                        fill="#dbeafe"
+                        stroke="#4b68a6"
+                        strokeWidth={1.5}
+                        listening={false}
+                      />
+                      <Text
+                        x={-TRI_HALF}
+                        y={Math.round(TRI_H * 0.38)}
+                        width={TRI_SIDE}
+                        text={ind.letter}
+                        fontSize={9}
+                        fontFamily="sans-serif"
+                        fontStyle="bold"
+                        fill="#1e3a6e"
+                        align="center"
+                        listening={false}
+                      />
+                      <Text
+                        x={TRI_HALF + 2}
+                        y={Math.round(TRI_H / 2) - 5}
+                        text={String(ind.event.intensity ?? '')}
+                        fontSize={10}
+                        fontFamily="sans-serif"
+                        fontStyle="bold"
+                        fill="#23324a"
+                        listening={false}
+                      />
+                    </Group>
+                  );
+                });
+              })()}
+              {(() => {
+                const activeStressors = STRESSOR_INDICATOR_DEFS.flatMap((def) => {
+                  const events = (partnership.familyEvents || []).filter(
+                    (ev) => ev.emotionalProcessType === def.processType
+                  );
+                  if (events.length === 0) return [];
+                  return [{ ...def, event: events[events.length - 1] }];
+                });
+                if (activeStressors.length === 0) return null;
+                const spacing = 30;
+                const startX = -((activeStressors.length - 1) * spacing) / 2;
+                const diaRowY = boxH + 2 + TRI_H + 6;
+                return activeStressors.map((ind, i) => {
+                  const cx = startX + i * spacing;
+                  return (
+                    <Group
+                      key={ind.processType}
+                      x={cx}
+                      y={diaRowY}
+                      onClick={(e) => {
+                        e.cancelBubble = true;
+                        onFamilyIndicatorClick(partnership.id, ind.event.id, {
+                          x: (e.evt as MouseEvent).clientX,
+                          y: (e.evt as MouseEvent).clientY,
+                        });
+                      }}
+                      onTap={(e) => {
+                        e.cancelBubble = true;
+                        onFamilyIndicatorClick(partnership.id, ind.event.id, { x: 0, y: 0 });
+                      }}
+                      onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer'; }}
+                      onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
+                    >
+                      <Rect x={-DIA_HALF - 2} y={-2} width={DIA_SIZE + 18} height={DIA_SIZE + 4} fill="transparent" />
+                      <Line
+                        points={[0, 0, DIA_HALF, DIA_HALF, 0, DIA_SIZE, -DIA_HALF, DIA_HALF]}
+                        closed
+                        fill="#f6f0fb"
+                        stroke="#7a5a9e"
+                        strokeWidth={1.5}
+                        listening={false}
+                      />
+                      <Text
+                        x={-DIA_HALF}
+                        y={Math.round(DIA_HALF - 4)}
+                        width={DIA_SIZE}
+                        text={ind.letter}
+                        fontSize={9}
+                        fontFamily="sans-serif"
+                        fontStyle="bold"
+                        fill="#4a2570"
+                        align="center"
+                        listening={false}
+                      />
+                      <Text
+                        x={DIA_HALF + 2}
+                        y={Math.round(DIA_SIZE / 2) - 5}
+                        text={String(ind.event.intensity ?? '')}
+                        fontSize={10}
+                        fontFamily="sans-serif"
+                        fontStyle="bold"
+                        fill="#23324a"
+                        listening={false}
+                      />
+                    </Group>
+                  );
+                });
+              })()}
             </Group>
           );
         })()}

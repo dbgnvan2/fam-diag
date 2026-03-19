@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-18T23:17:00.985Z"
+    "exportedAt": "2026-03-19T03:30:46.938Z"
   },
   "people": [
     {
@@ -430,8 +430,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 603,
-        "y": 594.4140625
+        "x": 573.9999346596461,
+        "y": 645.414128479043
       },
       "notesSize": {
         "width": 145,
@@ -467,7 +467,111 @@
         "width": 206,
         "height": 107
       },
-      "familyNameOffsetX": 45
+      "familyNameOffsetX": 45,
+      "familyEvents": [
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Stress",
+          "emotionalProcessType": "stress-family-stressor",
+          "statusLabel": "ongoing",
+          "intensity": "2",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "lA0qvhEmy7ADa1yo6OFgq",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Triangle",
+          "emotionalProcessType": "triangle-functioning",
+          "statusLabel": "ongoing",
+          "intensity": "2",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "xvG2I5FF2Yprs9bUS5CBG",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Stress",
+          "emotionalProcessType": "stress-emotional-reactivity",
+          "statusLabel": "ongoing",
+          "intensity": 1,
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "usY3FkaPPun4o6jZKZtRW",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Stress",
+          "emotionalProcessType": "stress-family-adaptability",
+          "statusLabel": "ongoing",
+          "intensity": "4",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "va4jzTWu5_XXazK9tRXNZ",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Triangle",
+          "emotionalProcessType": "triangle-flexibility",
+          "statusLabel": "ongoing",
+          "intensity": "2",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "OKTCt3OMLmGJqAlysn0xY",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Triangle",
+          "emotionalProcessType": "triangle-stress-response",
+          "statusLabel": "ongoing",
+          "intensity": "4",
+          "frequency": "4",
+          "impact": 1,
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "NNSetKLdxaRLXUdhvrGIO",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        }
+      ]
     },
     {
       "id": "demo-prl-emma",
@@ -482,13 +586,67 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 908,
-        "y": 738.4140625
+        "x": 916.0000180249252,
+        "y": 588.413868443991
       },
       "notesSize": {
         "width": 187,
         "height": 99
-      }
+      },
+      "familyEvents": [
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Stress",
+          "emotionalProcessType": "stress-chronic-stress",
+          "statusLabel": "ongoing",
+          "intensity": "2",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Noah Reed",
+          "otherPersonName": "Emma Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "So_HAU2XEYoEvKRD8xop0",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-emma"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Triangle",
+          "emotionalProcessType": "triangle-stress-response",
+          "statusLabel": "ongoing",
+          "intensity": "3",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Noah Reed",
+          "otherPersonName": "Emma Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "KaVQsLKQOOHN2aZOFIFcu",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-emma"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Stress",
+          "emotionalProcessType": "stress-emotional-reactivity",
+          "statusLabel": "ongoing",
+          "intensity": "2",
+          "frequency": 1,
+          "impact": 1,
+          "primaryPersonName": "Noah Reed",
+          "otherPersonName": "Emma Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "M3Y9Csz4pjDRF0LbTtqeh",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-emma"
+        }
+      ],
+      "familyNameOffsetX": 3
     }
   ],
   "emotionalLines": [

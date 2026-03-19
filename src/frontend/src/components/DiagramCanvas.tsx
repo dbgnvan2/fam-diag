@@ -19,6 +19,7 @@ import type {
 import ContextMenu from './ContextMenu';
 import PropertiesPanel from './PropertiesPanel';
 import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
+import FamilyPropertiesPanel from './FamilyPropertiesPanel';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
 import ChildConnection from './ChildConnection';
@@ -108,6 +109,7 @@ interface DiagramCanvasProps {
   setSelectedPartnershipId: Dispatch<SetStateAction<string | null>>;
   setSelectedEmotionalLineId: Dispatch<SetStateAction<string | null>>;
   setSelectedChildId: Dispatch<SetStateAction<string | null>>;
+  setSelectedFamilyId: Dispatch<SetStateAction<string | null>>;
   setSelectedPageNoteId: Dispatch<SetStateAction<string | null>>;
   setPageNoteDraft: Dispatch<SetStateAction<{ title: string; text: string; fillColor: string } | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
@@ -142,6 +144,15 @@ interface DiagramCanvasProps {
   handlePartnershipSelect: (partnershipId: string) => void;
   handleHorizontalConnectorDragEnd: (partnershipId: string, y: number) => void;
   handlePartnershipContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
+
+  // Family object handlers
+  selectedFamilyId: string | null;
+  handleFamilyClick: (partnershipId: string) => void;
+  handleFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
+  onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
+  onOpenFamilyProperty: (partnershipId: string, processType: string, position: { x: number; y: number }) => void;
+  onAddFamilyEvent: (partnershipId: string, position: { x: number; y: number }) => void;
+  onCloseFamilyPanel: () => void;
 
   // Child connection handlers
   handleChildLineSelect: (childId: string) => void;
@@ -259,6 +270,7 @@ export default function DiagramCanvas({
   setSelectedPartnershipId,
   setSelectedEmotionalLineId,
   setSelectedChildId,
+  setSelectedFamilyId,
   setSelectedPageNoteId,
   setPageNoteDraft,
   setPropertiesPanelItem,
@@ -281,6 +293,13 @@ export default function DiagramCanvas({
   handlePartnershipSelect,
   handleHorizontalConnectorDragEnd,
   handlePartnershipContextMenu,
+  selectedFamilyId,
+  handleFamilyClick,
+  handleFamilyContextMenu,
+  onFamilyIndicatorClick,
+  onOpenFamilyProperty,
+  onAddFamilyEvent,
+  onCloseFamilyPanel,
   handleChildLineSelect,
   handleChildLineContextMenu,
   handleSelect,
@@ -587,6 +606,7 @@ export default function DiagramCanvas({
               setSelectedPartnershipId(null);
               setSelectedEmotionalLineId(null);
               setSelectedChildId(null);
+              setSelectedFamilyId(null);
               setSelectedPageNoteId(null);
               setPageNoteDraft(null);
               setPropertiesPanelItem(null);
@@ -686,10 +706,14 @@ export default function DiagramCanvas({
                             partner1={partner1}
                             partner2={partner2}
                             isSelected={selectedPartnershipId === p.id}
+                            isFamilySelected={selectedFamilyId === p.id}
                             onSelect={handlePartnershipSelect}
                             onHorizontalConnectorDragEnd={handleHorizontalConnectorDragEnd}
                             onFamilyNameOffsetChange={(id, offsetX) => handleUpdatePartnership(id, { familyNameOffsetX: offsetX })}
                             onContextMenu={handlePartnershipContextMenu}
+                            onFamilyClick={handleFamilyClick}
+                            onFamilyContextMenu={handleFamilyContextMenu}
+                            onFamilyIndicatorClick={onFamilyIndicatorClick}
                         />
                         {childConnections}
                     </React.Fragment>
@@ -1088,9 +1112,57 @@ export default function DiagramCanvas({
             color: '#1f3248',
           }}
         >
-          Properties Panel
+          {(() => {
+            let subjectName = '';
+            if (selectedFamilyId) {
+              const fp = partnerships.find((p) => p.id === selectedFamilyId);
+              if (fp) {
+                const p1 = people.find((p) => p.id === fp.partner1_id);
+                const p2 = people.find((p) => p.id === fp.partner2_id);
+                subjectName = fp.familyName || [p1?.name, p2?.name].filter(Boolean).join(' & ') || 'Family';
+              }
+            } else if (showMultiPersonPanel && multiSelectedPeople.length > 0) {
+              subjectName = multiSelectedPeople.map((p) => p.name).filter(Boolean).join(' & ');
+            } else if (propertiesPanelItem) {
+              const item = propertiesPanelItem;
+              if ('name' in item) {
+                subjectName = (item as Person).name || '';
+              } else if ('partner1_id' in item) {
+                const ps = item as Partnership;
+                const p1 = people.find((p) => p.id === ps.partner1_id);
+                const p2 = people.find((p) => p.id === ps.partner2_id);
+                subjectName = ps.familyName || [p1?.name, p2?.name].filter(Boolean).join(' & ') || '';
+              } else if ('lineStyle' in item) {
+                const el = item as EmotionalLine;
+                const p1 = people.find((p) => p.id === el.person1_id);
+                const p2 = people.find((p) => p.id === el.person2_id);
+                subjectName = [p1?.name, p2?.name].filter(Boolean).join(' & ');
+              }
+            }
+            return subjectName ? `Properties Panel for ${subjectName}` : 'Properties Panel';
+          })()}
         </div>
-        {(showMultiPersonPanel || propertiesPanelItem) && (
+        {selectedFamilyId && (() => {
+          const familyPartnership = partnerships.find((p) => p.id === selectedFamilyId);
+          if (!familyPartnership) return null;
+          return (
+            <FamilyPropertiesPanel
+              partnership={familyPartnership}
+              people={people}
+              onAddProperty={(processType, position) =>
+                onOpenFamilyProperty(selectedFamilyId, processType, position)
+              }
+              onEditEvent={(eventId, position) =>
+                onFamilyIndicatorClick(selectedFamilyId, eventId, position)
+              }
+              onAddEvent={(position) =>
+                onAddFamilyEvent(selectedFamilyId, position)
+              }
+              onClose={onCloseFamilyPanel}
+            />
+          );
+        })()}
+        {!selectedFamilyId && (showMultiPersonPanel || propertiesPanelItem) && (
           showMultiPersonPanel ? (
             <MultiPersonPropertiesPanel
               selectedPeople={multiSelectedPeople}

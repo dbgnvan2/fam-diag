@@ -31,6 +31,7 @@ interface UseSelectionHandlersDeps {
   setSelectedPageNoteId: Dispatch<SetStateAction<string | null>>;
   setPageNoteDraft: Dispatch<SetStateAction<{ title: string; text: string; fillColor: string } | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
+  setSelectedFamilyId: Dispatch<SetStateAction<string | null>>;
   setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
   // Passed functions
   addChildToPartnership: (childIdOverride?: string, partnershipIdOverride?: string) => void;
@@ -40,6 +41,11 @@ interface UseSelectionHandlersDeps {
     targetItem: Person | Partnership | EmotionalLine,
     seed?: Partial<EmotionalProcessEvent>,
     popupPosition?: { x: number; y: number }
+  ) => void;
+  openTrianglePropertyModal: (
+    triangleId: string,
+    seed: Partial<EmotionalProcessEvent>,
+    position: { x: number; y: number }
   ) => void;
   removeTriangle: (triangleId: string) => void;
   removeEmotionalLine: (emotionalLineId: string) => void;
@@ -65,10 +71,12 @@ export function useSelectionHandlers({
   setSelectedPageNoteId,
   setPageNoteDraft,
   setPropertiesPanelItem,
+  setSelectedFamilyId,
   setContextMenu,
   addChildToPartnership,
   handleUpdateEmotionalLine,
   openContextualEventCreator,
+  openTrianglePropertyModal,
   removeTriangle,
   removeEmotionalLine,
 }: UseSelectionHandlersDeps) {
@@ -79,6 +87,7 @@ export function useSelectionHandlers({
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    setSelectedFamilyId(null);
     setPropertiesPanelItem(null);
     setSelectedPageNoteId(noteId);
     setPageNoteDraft({
@@ -138,6 +147,7 @@ export function useSelectionHandlers({
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
+    setSelectedFamilyId(null);
     const child = people.find((p) => p.id === childId) || null;
     setPropertiesPanelItem(child);
   };
@@ -157,6 +167,7 @@ export function useSelectionHandlers({
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
+    setSelectedFamilyId(null);
 
     const selectedLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (selectedLine) {
@@ -172,6 +183,7 @@ export function useSelectionHandlers({
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
+    setSelectedFamilyId(null);
     const emotionalLine = allEmotionalLines.find(el => el.id === emotionalLineId);
     if (!emotionalLine) return;
     const parentTriangleId = triangleByTplLineId.get(emotionalLineId);
@@ -233,6 +245,7 @@ export function useSelectionHandlers({
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
+    setSelectedFamilyId(null);
     setSelectedEmotionalLineId(firstTpl.id);
     setPropertiesPanelItem(firstTpl);
   };
@@ -243,41 +256,48 @@ export function useSelectionHandlers({
   ) => {
     e.evt.preventDefault();
     const triangle = triangles.find((item) => item.id === triangleId);
-    const firstTpl = triangle?.tpls?.[0];
-    if (!firstTpl) return;
+    if (!triangle) return;
+    const firstTpl = triangle.tpls?.[0];
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
-    setSelectedEmotionalLineId(firstTpl.id);
-    setPropertiesPanelItem(firstTpl);
+    setSelectedFamilyId(null);
+    if (firstTpl) {
+      setSelectedEmotionalLineId(firstTpl.id);
+      setPropertiesPanelItem(firstTpl);
+    }
     const pos = { x: e.evt.clientX, y: e.evt.clientY };
     const makeTrianglePropertyItem = (label: string, processType: string) => ({
       label,
       onClick: () => {
-        openContextualEventCreator(
-          { type: 'emotional', id: firstTpl.id },
-          firstTpl,
+        openTrianglePropertyModal(
+          triangleId,
           {
-            eventType: 'EPE',
+            eventType: 'FAMILY',
             emotionalProcessType: processType,
-            category: label,
+            category: 'Triangle',
             eventClass: 'emotional-pattern',
+            statusLabel: 'ongoing',
+            intensity: 1,
+            frequency: 1,
+            impact: 1,
           },
           pos
         );
+        setContextMenu(null);
       },
     });
     setContextMenu({
       x: e.evt.clientX,
       y: e.evt.clientY,
       items: [
-        {
+        ...(firstTpl ? [{
           label: 'Properties',
           onClick: () => {
             setPropertiesPanelItem(firstTpl);
             setContextMenu(null);
           },
-        },
+        }] : []),
         makeTrianglePropertyItem('Triangle Functioning', 'triangle-functioning'),
         makeTrianglePropertyItem('Triangle Flexibility', 'triangle-flexibility'),
         makeTrianglePropertyItem('Triangle Stress Response', 'triangle-stress-response'),
@@ -317,6 +337,7 @@ export function useSelectionHandlers({
       setSelectedChildId(null);
       setSelectedPageNoteId(null);
       setPageNoteDraft(null);
+      setSelectedFamilyId(null);
       setPropertiesPanelItem(next.length === 1 ? selectedPerson : null);
       return;
     }
@@ -326,6 +347,7 @@ export function useSelectionHandlers({
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
+    setSelectedFamilyId(null);
     setSelectedPeopleIds([personId]);
     setPropertiesPanelItem(selectedPerson);
   };
@@ -335,6 +357,7 @@ export function useSelectionHandlers({
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
+    setSelectedFamilyId(null);
     if (selectedPartnershipId === partnershipId) {
         setSelectedPartnershipId(null);
         setPropertiesPanelItem(null);

@@ -24,6 +24,26 @@ import {
   isFooProcess,
   isFooTriangleProcess,
   isTrianglePropertyProcess,
+  isTriangleFunctioningProcess,
+  TRIANGLE_FUNCTIONING_INTENSITY_LABELS,
+  TRIANGLE_FUNCTIONING_INTENSITY_HELP,
+  isTriangleFlexibilityProcess,
+  TRIANGLE_FLEXIBILITY_INTENSITY_LABELS,
+  TRIANGLE_FLEXIBILITY_INTENSITY_HELP,
+  isTriangleStressResponseProcess,
+  TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS,
+  TRIANGLE_STRESS_RESPONSE_INTENSITY_HELP,
+  TRIANGLE_PROPERTY_TYPE_LABELS,
+  isStressorProcess,
+  STRESSOR_TYPE_LABELS,
+  STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS,
+  STRESS_EMOTIONAL_REACTIVITY_INTENSITY_HELP,
+  STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS,
+  STRESS_FAMILY_ADAPTABILITY_INTENSITY_HELP,
+  STRESS_FAMILY_STRESSOR_INTENSITY_LABELS,
+  STRESS_FAMILY_STRESSOR_INTENSITY_HELP,
+  STRESS_CHRONIC_STRESS_INTENSITY_LABELS,
+  STRESS_CHRONIC_STRESS_INTENSITY_HELP,
   normalizeSymptomCategory,
   getContinuationState,
   continuationToFlags,
@@ -95,7 +115,20 @@ const EventModal = ({
   onSave,
   onCancel,
 }: EventModalProps) => {
-  const [intensityHelpOpen, setIntensityHelpOpen] = useState<'symptom' | 'emotional-autonomy' | 'foo' | null>(null);
+  const [intensityHelpOpen, setIntensityHelpOpen] = useState<'symptom' | 'emotional-autonomy' | 'foo' | 'triangle-functioning' | 'triangle-flexibility' | 'triangle-stress-response' | 'stress-emotional-reactivity' | 'stress-family-adaptability' | 'stress-family-stressor' | 'stress-chronic-stress' | null>(null);
+
+  const MODAL_MARGIN = 12;
+  const MODAL_MIN_HEIGHT = 260;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const rawTop = typeof popupTop === 'number' ? popupTop : parseFloat(String(popupTop)) || 0;
+  const clampedTop = position
+    ? Math.max(MODAL_MARGIN, Math.min(rawTop, vh - MODAL_MIN_HEIGHT - MODAL_MARGIN))
+    : rawTop;
+  const computedMaxHeight = position
+    ? popupMaxHeight
+      ? popupMaxHeight
+      : Math.max(MODAL_MIN_HEIGHT, vh - clampedTop - MODAL_MARGIN)
+    : null;
 
   const rowStyle: React.CSSProperties = {
     display: 'flex',
@@ -113,8 +146,17 @@ const EventModal = ({
   const isFooLikeEvent =
     eventType === 'EPE' &&
     (isFooProcess(eventDraft.emotionalProcessType) || isFooTriangleProcess(eventDraft.emotionalProcessType));
-  const isTrianglePropertyEvent = eventType === 'EPE' && isTrianglePropertyProcess(eventDraft.emotionalProcessType);
-  const isCompactEvent = isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isTrianglePropertyEvent;
+  const isTrianglePropertyEvent = isTrianglePropertyProcess(eventDraft.emotionalProcessType);
+  const isTriangleFunctioningEvent = isTriangleFunctioningProcess(eventDraft.emotionalProcessType);
+  const isTriangleFlexibilityEvent = isTriangleFlexibilityProcess(eventDraft.emotionalProcessType);
+  const isTriangleStressResponseEvent = isTriangleStressResponseProcess(eventDraft.emotionalProcessType);
+  const isStressorEvent = isStressorProcess(eventDraft.emotionalProcessType);
+  const isEmotionalReactivityEvent = eventDraft.emotionalProcessType === 'stress-emotional-reactivity';
+  const isFamilyAdaptabilityEvent = eventDraft.emotionalProcessType === 'stress-family-adaptability';
+  const isFamilyStressorEvent = eventDraft.emotionalProcessType === 'stress-family-stressor';
+  const isChronicStressEvent = eventDraft.emotionalProcessType === 'stress-chronic-stress';
+  const isFamilyCompactEvent = isTrianglePropertyEvent || isStressorEvent;
+  const isCompactEvent = isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isFamilyCompactEvent;
 
   const fooCategoryOptions = isFooTriangleProcess(eventDraft.emotionalProcessType)
     ? FOO_TRIANGLE_CATEGORY_OPTIONS
@@ -125,7 +167,10 @@ const EventModal = ({
   const continuationState = getContinuationState(eventDraft);
 
   const modalTitle = (() => {
-    if (eventType === 'EPE' && isTrianglePropertyEvent) {
+    if (isStressorEvent) {
+      return isEditingExisting ? 'Edit Stressor' : 'Add Stressor';
+    }
+    if (isTrianglePropertyEvent) {
       return isEditingExisting ? 'Edit Triangle Property' : 'Add Triangle Property';
     }
     if (eventType === 'EPE' && isFooTriangleProcess(eventDraft.emotionalProcessType)) {
@@ -160,12 +205,12 @@ const EventModal = ({
           borderRadius: 10,
           width: 520,
           maxWidth: 'calc(100vw - 24px)',
-          maxHeight: popupMaxHeight ? `${popupMaxHeight}px` : 'calc(100vh - 24px)',
+          maxHeight: computedMaxHeight ? `${computedMaxHeight}px` : 'calc(100vh - 24px)',
           overflowY: 'auto',
           boxSizing: 'border-box',
           position: position ? 'absolute' : 'relative',
           left: popupLeft,
-          top: popupTop,
+          top: position ? clampedTop : popupTop,
         }}
       >
         <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
@@ -178,25 +223,48 @@ const EventModal = ({
             </div>
           </div>
         )}
-        <div style={rowStyle}>
-          <label htmlFor="eventType" style={labelStyle}>Event Type:</label>
-          <select
-            id="eventType"
-            value={eventType}
-            onChange={(e) => onChange('eventType', e.target.value)}
-            style={{ ...controlStyle, width: '60%' }}
-          >
-            <option value="NODAL">Nodal</option>
-            <option value="FF">Symptom</option>
-            <option value="EPE">
-              {isFooLikeEvent
-                ? 'Family of Origin'
-                : isAutonomyEvent
-                ? 'Emotional Autonomy'
-                : 'Emotional Pattern'}
-            </option>
-          </select>
-        </div>
+        {isFamilyCompactEvent ? (
+          <>
+            <div style={rowStyle}>
+              <label style={labelStyle}>Event Type:</label>
+              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>Family</div>
+            </div>
+            <div style={rowStyle}>
+              <label style={labelStyle}>Category:</label>
+              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
+                {isStressorEvent ? 'Stress' : 'Triangle'}
+              </div>
+            </div>
+            <div style={rowStyle}>
+              <label style={labelStyle}>Type:</label>
+              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
+                {isStressorEvent
+                  ? (STRESSOR_TYPE_LABELS[eventDraft.emotionalProcessType || ''] || eventDraft.emotionalProcessType)
+                  : (TRIANGLE_PROPERTY_TYPE_LABELS[eventDraft.emotionalProcessType || ''] || eventDraft.emotionalProcessType)}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={rowStyle}>
+            <label htmlFor="eventType" style={labelStyle}>Event Type:</label>
+            <select
+              id="eventType"
+              value={eventType}
+              onChange={(e) => onChange('eventType', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            >
+              <option value="NODAL">Nodal</option>
+              <option value="FF">Symptom</option>
+              <option value="EPE">
+                {isFooLikeEvent
+                  ? 'Family of Origin'
+                  : isAutonomyEvent
+                  ? 'Emotional Autonomy'
+                  : 'Emotional Pattern'}
+              </option>
+            </select>
+          </div>
+        )}
         {!isCompactEvent && (
           <div style={rowStyle}>
             <label htmlFor="eventPrimaryPerson" style={labelStyle}>Primary Person:</label>
@@ -449,6 +517,20 @@ const EventModal = ({
                   ? EMOTIONAL_AUTONOMY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
                   : isFooLikeEvent
                   ? fooCategoryMeta.levelLabels.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isTriangleFunctioningEvent
+                  ? TRIANGLE_FUNCTIONING_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isTriangleFlexibilityEvent
+                  ? TRIANGLE_FLEXIBILITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isTriangleStressResponseEvent
+                  ? TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isEmotionalReactivityEvent
+                  ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isFamilyAdaptabilityEvent
+                  ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isFamilyStressorEvent
+                  ? STRESS_FAMILY_STRESSOR_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
+                  : isChronicStressEvent
+                  ? STRESS_CHRONIC_STRESS_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
                   : INTENSITY_OPTIONS
                 ).map((option) => (
                   <option key={option.value} value={option.value}>
@@ -456,7 +538,7 @@ const EventModal = ({
                   </option>
                 ))}
               </select>
-              {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent) && (
+              {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isTriangleFunctioningEvent || isTriangleFlexibilityEvent || isTriangleStressResponseEvent || isEmotionalReactivityEvent || isFamilyAdaptabilityEvent || isFamilyStressorEvent || isChronicStressEvent) && (
                 <button
                   type="button"
                   aria-label={
@@ -464,11 +546,34 @@ const EventModal = ({
                       ? 'Symptom event intensity help'
                       : isAutonomyEvent
                       ? 'Emotional autonomy intensity help'
+                      : isTriangleFunctioningEvent
+                      ? 'Triangle functioning intensity help'
+                      : isTriangleFlexibilityEvent
+                      ? 'Triangle flexibility intensity help'
+                      : isTriangleStressResponseEvent
+                      ? 'Triangle stress response intensity help'
+                      : isEmotionalReactivityEvent
+                      ? 'Emotional reactivity intensity help'
+                      : isFamilyAdaptabilityEvent
+                      ? 'Family adaptability intensity help'
+                      : isFamilyStressorEvent
+                      ? 'Family stressor intensity help'
+                      : isChronicStressEvent
+                      ? 'Chronic stress intensity help'
                       : 'FoO intensity help'
                   }
                   onClick={() =>
                     setIntensityHelpOpen(
-                      isSymptomEvent ? 'symptom' : isAutonomyEvent ? 'emotional-autonomy' : 'foo'
+                      isSymptomEvent ? 'symptom'
+                      : isAutonomyEvent ? 'emotional-autonomy'
+                      : isTriangleFunctioningEvent ? 'triangle-functioning'
+                      : isTriangleFlexibilityEvent ? 'triangle-flexibility'
+                      : isTriangleStressResponseEvent ? 'triangle-stress-response'
+                      : isEmotionalReactivityEvent ? 'stress-emotional-reactivity'
+                      : isFamilyAdaptabilityEvent ? 'stress-family-adaptability'
+                      : isFamilyStressorEvent ? 'stress-family-stressor'
+                      : isChronicStressEvent ? 'stress-chronic-stress'
+                      : 'foo'
                     )
                   }
                   style={helpBadgeStyle}
@@ -477,7 +582,7 @@ const EventModal = ({
                 </button>
               )}
             </div>
-            {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent) && intensityHelpOpen && (
+            {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isTriangleFunctioningEvent || isTriangleFlexibilityEvent || isTriangleStressResponseEvent || isEmotionalReactivityEvent || isFamilyAdaptabilityEvent || isFamilyStressorEvent || isChronicStressEvent) && intensityHelpOpen && (
               <div
                 role="dialog"
                 aria-label={
@@ -485,6 +590,20 @@ const EventModal = ({
                     ? 'Symptom event intensity scale'
                     : isAutonomyEvent
                     ? 'Capacity for Emotional Autonomy Scale'
+                    : isTriangleFunctioningEvent
+                    ? 'Triangle Functioning Scale'
+                    : isTriangleFlexibilityEvent
+                    ? 'Triangle Flexibility Scale'
+                    : isTriangleStressResponseEvent
+                    ? 'Triangle Stress Response Scale'
+                    : isEmotionalReactivityEvent
+                    ? 'Emotional Reactivity Scale'
+                    : isFamilyAdaptabilityEvent
+                    ? 'Family Adaptability Scale'
+                    : isFamilyStressorEvent
+                    ? 'Family Stressor Scale'
+                    : isChronicStressEvent
+                    ? 'Chronic Stress Scale'
                     : fooCategoryMeta.label
                 }
                 style={{
@@ -505,6 +624,20 @@ const EventModal = ({
                       ? 'Symptom Intensity Scale'
                       : isAutonomyEvent
                       ? 'Capacity for Emotional Autonomy Scale'
+                      : isTriangleFunctioningEvent
+                      ? 'Triangle Functioning Scale'
+                      : isTriangleFlexibilityEvent
+                      ? 'Triangle Flexibility Scale'
+                      : isTriangleStressResponseEvent
+                      ? 'Triangle Stress Response Scale'
+                      : isEmotionalReactivityEvent
+                      ? 'Emotional Reactivity Scale'
+                      : isFamilyAdaptabilityEvent
+                      ? 'Family Adaptability Scale'
+                      : isFamilyStressorEvent
+                      ? 'Family Stressor Scale'
+                      : isChronicStressEvent
+                      ? 'Chronic Stress Scale'
                       : fooCategoryMeta.label}
                   </strong>
                   <button type="button" onClick={() => setIntensityHelpOpen(null)} style={{ padding: '4px 10px' }}>
@@ -516,6 +649,20 @@ const EventModal = ({
                     ? SYMPTOM_INTENSITY_HELP
                     : isAutonomyEvent
                     ? EMOTIONAL_AUTONOMY_INTENSITY_HELP
+                    : isTriangleFunctioningEvent
+                    ? TRIANGLE_FUNCTIONING_INTENSITY_HELP
+                    : isTriangleFlexibilityEvent
+                    ? TRIANGLE_FLEXIBILITY_INTENSITY_HELP
+                    : isTriangleStressResponseEvent
+                    ? TRIANGLE_STRESS_RESPONSE_INTENSITY_HELP
+                    : isEmotionalReactivityEvent
+                    ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_HELP
+                    : isFamilyAdaptabilityEvent
+                    ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_HELP
+                    : isFamilyStressorEvent
+                    ? STRESS_FAMILY_STRESSOR_INTENSITY_HELP
+                    : isChronicStressEvent
+                    ? STRESS_CHRONIC_STRESS_INTENSITY_HELP
                     : fooCategoryMeta.helpLines
                   ).map((line, index) => {
                     const levelValue = isSymptomEvent ? index : index + 1;
@@ -523,6 +670,20 @@ const EventModal = ({
                       ? SYMPTOM_INTENSITY_LABELS[index]
                       : isAutonomyEvent
                       ? EMOTIONAL_AUTONOMY_INTENSITY_LABELS[index]
+                      : isTriangleFunctioningEvent
+                      ? TRIANGLE_FUNCTIONING_INTENSITY_LABELS[index]
+                      : isTriangleFlexibilityEvent
+                      ? TRIANGLE_FLEXIBILITY_INTENSITY_LABELS[index]
+                      : isTriangleStressResponseEvent
+                      ? TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS[index]
+                      : isEmotionalReactivityEvent
+                      ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS[index]
+                      : isFamilyAdaptabilityEvent
+                      ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS[index]
+                      : isFamilyStressorEvent
+                      ? STRESS_FAMILY_STRESSOR_INTENSITY_LABELS[index]
+                      : isChronicStressEvent
+                      ? STRESS_CHRONIC_STRESS_INTENSITY_LABELS[index]
                       : fooCategoryMeta.levelLabels[index];
                     const isActive = (eventDraft.intensity ?? 0) === levelValue;
                     return (
