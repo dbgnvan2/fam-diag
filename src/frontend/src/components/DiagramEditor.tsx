@@ -2796,8 +2796,6 @@ useEffect(() => {
     eventCategories,
     relationshipTypes,
     relationshipStatuses,
-    pendingImportData,
-    pendingImportFileName,
     backupRestoreVersions,
     buildDemoSnapshots,
     buildDemoSteps,

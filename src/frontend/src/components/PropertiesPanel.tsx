@@ -782,37 +782,6 @@ const PropertiesPanel = ({
     onUpdatePerson(person.id, updates);
   };
 
-  const handleIndicatorStatusChange = (
-    definitionId: string,
-    status: 'past' | 'current' | 'none'
-  ) => {
-    const person = selectedItem as Person;
-    if (status === 'none') {
-      const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, null);
-      onUpdatePerson(person.id, { functionalIndicators: nextIndicators });
-      return;
-    }
-    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, status }));
-  };
-
-  const handleIndicatorImpactChange = (definitionId: string, impactValue: number) => {
-    if (Number.isNaN(impactValue)) return;
-    const clamped = clampIndicatorDimension(impactValue);
-    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, impact: clamped }));
-  };
-
-  const handleIndicatorFrequencyChange = (definitionId: string, frequencyValue: number) => {
-    if (Number.isNaN(frequencyValue)) return;
-    const clamped = clampIndicatorDimension(frequencyValue);
-    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, frequency: clamped }));
-  };
-
-  const handleIndicatorIntensityChange = (definitionId: string, intensityValue: number) => {
-    if (Number.isNaN(intensityValue)) return;
-    const clamped = clampIndicatorDimension(intensityValue);
-    updateIndicatorEntry(definitionId, (entry) => ({ ...entry, intensity: clamped }));
-  };
-
   const updatePersonDraftState = (updates: Partial<Person>) => {
     setPersonDraft((prev) => (prev ? { ...prev, ...updates } : prev));
   };
@@ -1633,11 +1602,7 @@ const PropertiesPanel = ({
       return a.type.localeCompare(b.type);
     });
   }, [selectedPerson, functionalIndicatorDefinitions]);
-  const currentAnchorType: EventAnchorType = isEmotionalLine
-    ? 'EMOTIONAL_PROCESS_EP'
-    : isPartnership
-    ? 'RELATIONSHIP_PRL'
-    : 'PERSON';
+
 
   const buildEventDraft = useCallback((
     eventType: EventType,
@@ -1970,66 +1935,6 @@ const PropertiesPanel = ({
     };
   };
 
-  const linkEventToAdjacent = (eventId: string, direction: 'prev' | 'next', attach: boolean) => {
-    const events = [...getEvents()];
-    const { index, prevIndex, nextIndex } = getSeriesOrderedIndexes(events, eventId);
-    if (index === -1) return;
-    const adjacentIndex = direction === 'prev' ? prevIndex : nextIndex;
-    if (adjacentIndex === -1) return;
-    if (direction === 'prev') {
-      events[index] = { ...events[index], continuesFromPrevious: attach };
-      events[adjacentIndex] = { ...events[adjacentIndex], continuesToNext: attach };
-    } else {
-      events[index] = { ...events[index], continuesToNext: attach };
-      events[adjacentIndex] = { ...events[adjacentIndex], continuesFromPrevious: attach };
-    }
-    saveEvents(events);
-  };
-
-  const createAndAttachAdjacent = (eventId: string, direction: 'prev' | 'next') => {
-    const events = [...getEvents()];
-    const sourceIndex = events.findIndex((event) => event.id === eventId);
-    if (sourceIndex === -1) return;
-    const source = events[sourceIndex];
-    const created: EmotionalProcessEvent = {
-      ...source,
-      id: createEventId(),
-      createdAt: Date.now(),
-      continuesFromPrevious: direction === 'next' ? true : false,
-      continuesToNext: direction === 'prev' ? true : false,
-    };
-    const nextEvents = [...events, created];
-    const updatedSource = { ...source };
-    if (direction === 'prev') {
-      updatedSource.continuesFromPrevious = true;
-    } else {
-      updatedSource.continuesToNext = true;
-    }
-    nextEvents[sourceIndex] = updatedSource;
-    saveEvents(nextEvents);
-  };
-
-  const deleteEvent = (eventId: string) => {
-    const events = [...getEvents()];
-    const { prevIndex, nextIndex } = getSeriesOrderedIndexes(events, eventId);
-    const nextEvents = events.filter((evt) => evt.id !== eventId);
-    if (prevIndex !== -1) {
-      const prevId = events[prevIndex].id;
-      const idx = nextEvents.findIndex((evt) => evt.id === prevId);
-      if (idx !== -1) {
-        nextEvents[idx] = { ...nextEvents[idx], continuesToNext: false };
-      }
-    }
-    if (nextIndex !== -1) {
-      const nextId = events[nextIndex].id;
-      const idx = nextEvents.findIndex((evt) => evt.id === nextId);
-      if (idx !== -1) {
-        nextEvents[idx] = { ...nextEvents[idx], continuesFromPrevious: false };
-      }
-    }
-    saveEvents(nextEvents);
-  };
-
   const panelTitle = triangleId
     ? 'Triangle Properties'
     : isEmotionalLine
@@ -2037,11 +1942,6 @@ const PropertiesPanel = ({
     : isPartnership
     ? 'Partner Relationship Functional Facts'
     : 'Individual Functional Facts';
-  const addEventButtonLabel = isEmotionalLine
-    ? 'Add Emotional Pattern Event'
-    : isPartnership
-    ? 'Add Relationship Event'
-    : 'Add Event';
   const newEventTitle = isEmotionalLine
     ? 'New Emotional Pattern Event'
     : isPartnership

@@ -18,7 +18,7 @@ import productDefaultDiagramDataJson from '../../../../PRODUCT_DEFAULT.diagram.j
 // ---------------------------------------------------------------------------
 
 export const DEMO_DIAGRAM_DATA: DiagramImportData =
-  productDefaultDiagramDataJson as DiagramImportData;
+  productDefaultDiagramDataJson as unknown as DiagramImportData;
 export const DEFAULT_DEMO_FILE_NAME = 'PRODUCT_DEFAULT.diagram.json';
 const LEGACY_DEMO_FILE_NAMES = new Set([
   'demo family diagram',

@@ -7,7 +7,6 @@ import type {
   Triangle,
   FunctionalIndicatorDefinition,
   PageNote,
-  EmotionalProcessEvent,
 } from '../types';
 import type {
   DiagramImportData,
@@ -53,8 +52,6 @@ interface UseFileOperationsDeps {
   eventCategories: string[];
   relationshipTypes: string[];
   relationshipStatuses: string[];
-  pendingImportData: DiagramImportData | null;
-  pendingImportFileName: string;
   backupRestoreVersions: { v1?: string | null; v2?: string | null; v3?: string | null } | null;
   buildDemoSnapshots: any[];
   buildDemoSteps: any[];
@@ -109,8 +106,6 @@ export function useFileOperations({
   eventCategories,
   relationshipTypes,
   relationshipStatuses,
-  pendingImportData,
-  pendingImportFileName,
   backupRestoreVersions,
   buildDemoSnapshots,
   buildDemoSteps,
