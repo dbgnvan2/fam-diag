@@ -223,12 +223,12 @@ interface DiagramCanvasProps {
   handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
   handleUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
-  panelTriangleContext: { id: string; color: string; intensity: number } | null;
+  panelTriangleContext: { id: string; color: string; intensity: 'low' | 'medium' | 'high' } | null;
   updateTriangleColor: (triangleId: string, color: string) => void;
-  updateTriangleIntensity: (triangleId: string, intensity: number) => void;
+  updateTriangleIntensity: (triangleId: string, intensity: 'low' | 'medium' | 'high') => void;
   propertiesPanelIntent: PropertiesPanelIntent;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
-  ensureSymptomDefinition: (group: string, name: string) => void;
+  ensureSymptomDefinition: (label: string, group: string) => string | null;
   onSiblingSquareClick: (person: Person, clientX: number, clientY: number) => void;
   onAutonomySquareClick: (person: Person) => void;
   onSymptomBadgeClick: (person: Person, group: import('../types').SymptomGroup, clientX: number, clientY: number) => void;
