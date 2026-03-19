@@ -23,7 +23,7 @@ interface SessionNoteHandlerDeps {
   setSessionNoteContent: Dispatch<SetStateAction<string>>;
   setSessionNotesTarget: Dispatch<SetStateAction<string | null>>;
   setSessionNoteRecordId: Dispatch<SetStateAction<string | null>>;
-  setSessionNoteStartedAt: Dispatch<SetStateAction<number>>;
+  setSessionNoteStartedAt: Dispatch<SetStateAction<number | null>>;
   setSessionSaveLocationLabel: Dispatch<SetStateAction<string>>;
   setSessionOpenCandidateId: Dispatch<SetStateAction<string | null>>;
   setSessionEventTarget: Dispatch<

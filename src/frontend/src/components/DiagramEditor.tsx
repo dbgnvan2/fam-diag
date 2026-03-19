@@ -6,7 +6,6 @@ import type {
   Triangle,
   FunctionalIndicatorDefinition,
   EmotionalProcessEvent,
-  EventClass,
   EventType,
   BirthSex,
   GenderIdentity,
@@ -34,8 +33,6 @@ import DiagramModals from './DiagramModals';
 import DiagramCanvas from './DiagramCanvas';
 import EventModal from './EventModal';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
-import DatePickerField from './DatePickerField';
-import { getSaveButtonState } from '../utils/saveButtonState';
 import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
@@ -55,16 +52,9 @@ import {
   type VoiceCommandOperation,
 } from '../utils/voiceCommands';
 import {
-  normalizeEmotionalLine,
   normalizeEmotionalLines,
   normalizeTriangles,
-  buildDefaultTpl,
 } from '../utils/emotionalLineNormalization';
-// --- Extracted utilities & types ---
-import {
-  DEFAULT_LINE_COLOR,
-  intensityValueForLineStyle,
-} from '../utils/emotionalPatternOptions';
 import {
   getStoredValue,
   setStoredValue,
@@ -75,33 +65,21 @@ import {
   persistDiagramFileHandle,
   restoreDiagramFileHandle,
   rotateDiagramBackups,
-  loadDiagramBackups,
 } from '../utils/storage';
 import {
   sanitizePeopleIndicators,
-  sanitizeSinglePersonIndicators,
   parseIsoDateToTimestamp,
   attachEventClassToEntities,
   inferGenderFromName,
   normalizeImportedChildLayout,
-  GENDER_SYMBOL_OPTIONS,
 } from '../utils/dataNormalization';
 import {
   DEMO_DIAGRAM_DATA,
-  DEFAULT_DEMO_FILE_NAME,
-  isDemoDiagramFileName,
   buildDemoTourStepsFromNotes,
   DEFAULT_DEMO_TOUR_STEPS,
   buildCreationDemoSnapshots,
   buildBuildDemoStepsFromNotes,
 } from '../utils/demoTour';
-import {
-  isDiagramImportData,
-  isFactsImportData,
-  isSessionCaptureImportData,
-  parseTranscriptToDraftDiagram,
-  factsToDiagramImportData,
-} from '../utils/dataImport';
 import type {
   StoredUserSettings,
   SessionNoteFileRecord,
@@ -342,7 +320,7 @@ const DiagramEditor = () => {
   const [pendingSessionCaptureFileName, setPendingSessionCaptureFileName] = useState('');
   const [sessionCaptureSelections, setSessionCaptureSelections] = useState<Record<string, boolean>>({});
   const stageRef = useRef<StageType>(null);
-  const ribbonRef = useRef<HTMLDivElement | null>(null);
+  const ribbonRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const DEFAULT_PANEL_WIDTH = 425;
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
@@ -369,7 +347,7 @@ const DiagramEditor = () => {
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
   } | null>(null);
   const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
- const dragGroupRef = useRef<{
+  const dragGroupRef = useRef<{
     personId: string;
     startX: number;
     startY: number;
@@ -377,6 +355,7 @@ const DiagramEditor = () => {
     people: Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>;
     partnerships: Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>;
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
+    pageNotes: Map<string, { x: number; y: number }>;
   } | null>(null);
   const savedSnapshotRef = useRef(
     JSON.stringify({
@@ -391,15 +370,15 @@ const DiagramEditor = () => {
       relationshipStatuses: initialRelationshipStatuses,
     })
   );
-  const fileMenuRef = useRef<HTMLDivElement | null>(null);
-  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
-  const optionsMenuRef = useRef<HTMLDivElement | null>(null);
-  const helpMenuRef = useRef<HTMLDivElement | null>(null);
-  const loadInputRef = useRef<HTMLInputElement | null>(null);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
+  const helpMenuRef = useRef<HTMLDivElement>(null);
+  const loadInputRef = useRef<HTMLInputElement>(null);
   const diagramFileHandleRef = useRef<any>(null);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
-  const importPersonEventsInputRef = useRef<HTMLInputElement | null>(null);
-  const transcriptInputRef = useRef<HTMLInputElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const importPersonEventsInputRef = useRef<HTMLInputElement>(null);
+  const transcriptInputRef = useRef<HTMLInputElement>(null);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
@@ -521,7 +500,6 @@ const DiagramEditor = () => {
       fileName,
     ]
   );
-  const isCurrentDemoDiagram = useMemo(() => isDemoDiagramFileName(fileName), [fileName]);
   const buildDemoSnapshots = useMemo(
     () => buildCreationDemoSnapshots(DEMO_DIAGRAM_DATA),
     []
@@ -1229,7 +1207,6 @@ const DiagramEditor = () => {
 
   const {
     applyIndicatorDefinitionArray,
-    updateIndicatorDefinitions,
     addFunctionalIndicatorDefinition,
     addFunctionalIndicatorDefinitionForGroup,
     updateFunctionalIndicatorLabel,
@@ -1568,7 +1545,6 @@ useEffect(() => {
     handleUpdatePartnership,
     handleUpdateEmotionalLine,
     getEventClassForTargetType,
-    focusItemInPropertiesPanel,
     openPersonSectionPopup,
     openPartnershipSectionPopup,
     openContextualEventCreator,
@@ -2768,7 +2744,6 @@ useEffect(() => {
 
 
   const {
-    resetDiagramToBlankState,
     handleSave,
     handleSaveAs,
     handleOpenBackupRestore,
@@ -2783,7 +2758,6 @@ useEffect(() => {
     handleProcessTranscriptPicker,
     handleLoadDemoDiagram,
     handleStartDemoTour,
-    applyBuildDemoStep,
     handleStartBuildDemo,
     handleCloseBuildDemo,
     handleBuildDemoStepChange,
@@ -2792,6 +2766,10 @@ useEffect(() => {
     fileName,
     isDirty,
     people,
+    partnerships,
+    emotionalLines,
+    pageNotes,
+    triangles,
     functionalIndicatorDefinitions,
     eventCategories,
     relationshipTypes,
@@ -3250,6 +3228,8 @@ useEffect(() => {
         frequency: 1,
         impact: 1,
         howWell: 0,
+        wwwwh: '',
+        observations: '',
         primaryPersonName: person1?.name || person2?.name || '',
         otherPersonName: person3?.name || person2?.name || '',
         ...seed,
@@ -3285,6 +3265,8 @@ useEffect(() => {
         frequency: 1,
         impact: 1,
         howWell: 0,
+        wwwwh: '',
+        observations: '',
         primaryPersonName: partner1?.name || '',
         otherPersonName: partner2?.name || '',
         ...seed,

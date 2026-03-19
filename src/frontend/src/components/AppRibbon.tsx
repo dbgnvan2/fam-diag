@@ -6,15 +6,15 @@ import type { DemoTourStep } from '../types/diagramEditor';
 
 export interface AppRibbonProps {
   // Refs
-  ribbonRef: React.RefObject<HTMLDivElement | null>;
-  fileMenuRef: React.RefObject<HTMLDivElement | null>;
-  settingsMenuRef: React.RefObject<HTMLDivElement | null>;
-  optionsMenuRef: React.RefObject<HTMLDivElement | null>;
-  helpMenuRef: React.RefObject<HTMLDivElement | null>;
-  loadInputRef: React.RefObject<HTMLInputElement | null>;
-  importInputRef: React.RefObject<HTMLInputElement | null>;
-  importPersonEventsInputRef: React.RefObject<HTMLInputElement | null>;
-  transcriptInputRef: React.RefObject<HTMLInputElement | null>;
+  ribbonRef: React.RefObject<HTMLDivElement>;
+  fileMenuRef: React.RefObject<HTMLDivElement>;
+  settingsMenuRef: React.RefObject<HTMLDivElement>;
+  optionsMenuRef: React.RefObject<HTMLDivElement>;
+  helpMenuRef: React.RefObject<HTMLDivElement>;
+  loadInputRef: React.RefObject<HTMLInputElement>;
+  importInputRef: React.RefObject<HTMLInputElement>;
+  importPersonEventsInputRef: React.RefObject<HTMLInputElement>;
+  transcriptInputRef: React.RefObject<HTMLInputElement>;
 
   // State values
   fileMenuOpen: boolean;
@@ -106,10 +106,8 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   isDirty,
   lastDirtyTimestamp,
   demoBlinkVisible,
-  ribbonHelpKey,
   notesLayerEnabled,
   autoSaveMinutes,
-  timelineYear,
   timelinePlaying,
   timelineSliderDisabled,
   timelineYearBounds,

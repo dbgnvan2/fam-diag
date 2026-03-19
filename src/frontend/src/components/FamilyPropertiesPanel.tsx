@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Partnership, Person } from '../types';
+import type { Partnership, Person, EmotionalProcessEvent } from '../types';
 import { isTrianglePropertyProcess, isStressorProcess, STRESSOR_DEFS } from '../constants/eventConstants';
 
 interface FamilyPropertiesPanelProps {
@@ -40,7 +40,7 @@ const eventCardStyle: React.CSSProperties = {
 };
 
 const renderEventCards = (
-  events: ReturnType<Partnership['familyEvents'] extends Array<infer E> ? () => E[] : never>,
+  events: EmotionalProcessEvent[],
   onEditEvent: FamilyPropertiesPanelProps['onEditEvent']
 ) =>
   events.map((ev) => (

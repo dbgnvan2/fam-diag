@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Person,
@@ -162,7 +161,7 @@ interface DiagramModalsProps {
   handleSessionChooseLocation: () => void;
   handleSaveSessionNoteJson: () => void;
   handleSaveSessionNoteMarkdown: () => void;
-  handleSessionNotesMakeEvent: () => void;
+  handleSessionNotesMakeEvent: (text: string) => void;
 
   // RibbonHelpModal
   selectedRibbonHelp: { title: string; body: string } | null;
@@ -576,7 +575,7 @@ export default function DiagramModals({
       <SessionEventModal
         open={!!sessionEventDraft && !!sessionEventTarget}
         draft={sessionEventDraft}
-        eventClass={sessionEventTarget ? getEventClassForTargetType(sessionEventTarget.type) : 'person-event'}
+        eventClass={sessionEventTarget ? getEventClassForTargetType(sessionEventTarget.type) : 'individual'}
         primaryOptions={sessionEventPrimaryOptions}
         otherOptions={sessionEventOtherOptions}
         eventCategories={eventCategories}

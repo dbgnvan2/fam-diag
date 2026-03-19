@@ -5,20 +5,15 @@ import type {
   EmotionalLine,
   EmotionalProcessEvent,
   FunctionalIndicatorDefinition,
-  PersonFunctionalIndicator,
   EventClass,
   EventType,
   EventAnchorType,
   SymptomGroup,
 } from '../types';
 import {
-  FREQUENCY_OPTIONS,
-  IMPACT_OPTIONS,
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
 import {
-  SYMPTOM_INTENSITY_HELP,
-  SYMPTOM_INTENSITY_LABELS,
   isSymptomCategory,
   normalizeSymptomCategory,
   clampSymptomType,
@@ -36,13 +31,11 @@ import PersonSiblingSection from './sections/PersonSiblingSection';
 import PartnershipPropertiesSection from './sections/PartnershipPropertiesSection';
 import EPLPropertiesSection from './sections/EPLPropertiesSection';
 import EventModal from './EventModal';
-import EventsSection from './EventsSection';
 
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
 const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-const ONE_HOUR_MS = 60 * 60 * 1000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', string> = {
   birthDate: 'Birth Date',
@@ -363,7 +356,7 @@ const PropertiesPanel = ({
   const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | null>(null);
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
-  const [symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
+  const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
   const [emotionalPristine, setEmotionalPristine] = useState(true);
@@ -675,111 +668,6 @@ const PropertiesPanel = ({
       overrides.name !== undefined ? overrides.name : basePerson.name || '';
     const combined = [first?.trim(), last?.trim()].filter(Boolean).join(' ').trim();
     return combined || fallback;
-  };
-
-  const sanitizePersonIndicators = (
-    indicators: PersonFunctionalIndicator[] | undefined,
-    definitionId: string,
-    next: PersonFunctionalIndicator | null
-  ) => {
-    const existing = indicators || [];
-    const remaining = existing.filter((entry) => entry.definitionId !== definitionId);
-    if (!next) {
-      return remaining.length ? remaining : undefined;
-    }
-    return [...remaining, next];
-  };
-
-  const buildIndicatorEvent = (
-    person: Person,
-    definition: FunctionalIndicatorDefinition,
-    entry: PersonFunctionalIndicator
-  ): EmotionalProcessEvent => {
-    const timestamp = entry.lastUpdatedAt ?? Date.now();
-    const isoDate =
-      entry.date && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
-        ? entry.date
-        : new Date(timestamp).toISOString().slice(0, 10);
-    return {
-      id: createEventId(),
-      date: isoDate,
-      category: definition.label,
-      eventType: 'FF',
-      statusLabel: entry.status === 'none' ? '' : entry.status,
-      intensity: entry.intensity ?? 0,
-      frequency: entry.frequency ?? 0,
-      impact: entry.impact ?? 0,
-      howWell: entry.handledWell ?? 5,
-      otherPersonName: '',
-      primaryPersonName: person.name || '',
-      wwwwh: '',
-      observations: `Indicator ${definition.label} updated (${entry.status}).`,
-      isNodalEvent: false,
-      priorEventsNote: '',
-      reflectionsNote: '',
-      createdAt: timestamp,
-      sourceIndicatorId: definition.id,
-      symptomGroup: definition.group,
-      eventClass: 'individual',
-    };
-  };
-
-  const normalizeIndicatorEntry = (
-    definitionId: string,
-    entry?: PersonFunctionalIndicator
-  ): PersonFunctionalIndicator => ({
-    definitionId,
-    status: entry?.status ?? 'current',
-    impact: clampIndicatorDimension(entry?.impact),
-    frequency: clampIndicatorDimension(entry?.frequency),
-    intensity: clampIndicatorDimension(entry?.intensity),
-    handledWell: entry?.handledWell,
-    lastUpdatedAt: entry?.lastUpdatedAt,
-    date: entry?.date,
-  });
-
-  const updateIndicatorEntry = (
-    definitionId: string,
-    transform: (entry: PersonFunctionalIndicator) => PersonFunctionalIndicator
-  ) => {
-    const person = selectedItem as Person;
-    const existing = person.functionalIndicators?.find((entry) => entry.definitionId === definitionId);
-    const normalized = normalizeIndicatorEntry(definitionId, existing);
-    const definition = functionalIndicatorDefinitions.find((def) => def.id === definitionId);
-    const nextEntry = transform(normalized);
-    const now = Date.now();
-    const isoDate = new Date(now).toISOString().slice(0, 10);
-    const timestampedEntry: PersonFunctionalIndicator = {
-      ...nextEntry,
-      date: isoDate,
-      lastUpdatedAt: now,
-    };
-    const nextIndicators = sanitizePersonIndicators(person.functionalIndicators, definitionId, timestampedEntry);
-    const updates: Partial<Person> = { functionalIndicators: nextIndicators };
-    if (definition) {
-      const existingEvents = person.events || [];
-      const cutoff = now - ONE_HOUR_MS;
-      const recentIndex = existingEvents.findIndex(
-        (evt) =>
-          evt.sourceIndicatorId === definition.id &&
-          typeof evt.createdAt === 'number' &&
-          evt.createdAt >= cutoff
-      );
-      const indicatorEvent = buildIndicatorEvent(person, definition, timestampedEntry);
-      if (recentIndex !== -1) {
-        const prior = existingEvents[recentIndex];
-        const mergedEvent: EmotionalProcessEvent = {
-          ...prior,
-          ...indicatorEvent,
-          id: prior.id,
-          createdAt: prior.createdAt,
-        };
-        updates.events = existingEvents.map((evt, idx) => (idx === recentIndex ? mergedEvent : evt));
-      } else {
-        updates.events = [...existingEvents, indicatorEvent];
-      }
-    }
-    onUpdatePerson(person.id, updates);
   };
 
   const updatePersonDraftState = (updates: Partial<Person>) => {
@@ -1448,14 +1336,6 @@ const PropertiesPanel = ({
   };
   const normalizeEventDate = (event: EmotionalProcessEvent): string =>
     event.startDate || event.date || '';
-  const eventSeriesKey = (event: EmotionalProcessEvent) => {
-    const eventType = inferEventType(event);
-    const anchorType = event.anchorType || resolveAnchorType();
-    const anchorId = event.anchorId || selectedItem.id;
-    const process =
-      eventType === 'EPE' ? event.emotionalProcessType || event.category || '' : '';
-    return `${anchorType}|${anchorId}|${eventType}|${process}`;
-  };
   const symptomTypeOptions = useMemo(() => {
     const currentCategory = normalizeSymptomCategory(eventDraft?.category || eventDraft?.symptomGroup);
     const labels = functionalIndicatorDefinitions
@@ -1901,38 +1781,6 @@ const PropertiesPanel = ({
     }
     setEventModalOpen(false);
     setEventDraft(null);
-  };
-
-  const saveEvents = (nextEvents: EmotionalProcessEvent[]) => {
-    if (isPerson) {
-      onUpdatePerson(selectedItem.id, { events: nextEvents });
-      return;
-    }
-    if (isPartnership) {
-      onUpdatePartnership(selectedItem.id, { events: nextEvents });
-      return;
-    }
-    onUpdateEmotionalLine(selectedItem.id, { events: nextEvents });
-  };
-
-  const getSeriesOrderedIndexes = (events: EmotionalProcessEvent[], eventId: string) => {
-    const index = events.findIndex((event) => event.id === eventId);
-    if (index === -1) return { index: -1, prevIndex: -1, nextIndex: -1 };
-    const key = eventSeriesKey(events[index]);
-    const series = events
-      .map((event, idx) => ({ event, idx }))
-      .filter((entry) => eventSeriesKey(entry.event) === key)
-      .sort((a, b) => {
-        const aTs = normalizeEventDate(a.event) ? new Date(normalizeEventDate(a.event)).getTime() : Number.MAX_SAFE_INTEGER;
-        const bTs = normalizeEventDate(b.event) ? new Date(normalizeEventDate(b.event)).getTime() : Number.MAX_SAFE_INTEGER;
-        return aTs - bTs;
-      });
-    const seriesPos = series.findIndex((entry) => entry.idx === index);
-    return {
-      index,
-      prevIndex: seriesPos > 0 ? series[seriesPos - 1].idx : -1,
-      nextIndex: seriesPos >= 0 && seriesPos < series.length - 1 ? series[seriesPos + 1].idx : -1,
-    };
   };
 
   const panelTitle = triangleId

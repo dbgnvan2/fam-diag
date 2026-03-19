@@ -10,6 +10,7 @@ import type {
   Triangle,
   FunctionalIndicatorDefinition,
   PageNote,
+  SymptomGroup,
 } from '../types';
 import type {
   PersonSectionPopupState,
@@ -84,7 +85,7 @@ interface DiagramCanvasProps {
   canvasHeight: number;
   stageOffset: { x: number; y: number };
   zoom: number;
-  stageRef: RefObject<StageType | null>;
+  stageRef: RefObject<StageType>;
 
   // Panning / scroll
   spacePanActive: boolean;
@@ -206,7 +207,7 @@ interface DiagramCanvasProps {
   handleCanvasScrollHint: () => void;
 
   // Panel
-  panelRef: RefObject<HTMLDivElement | null>;
+  panelRef: RefObject<HTMLDivElement>;
   panelWidth: number;
   resizeStateRef: MutableRefObject<{ startX: number; startWidth: number } | null>;
 
@@ -228,10 +229,10 @@ interface DiagramCanvasProps {
   updateTriangleIntensity: (triangleId: string, intensity: 'low' | 'medium' | 'high') => void;
   propertiesPanelIntent: PropertiesPanelIntent;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
-  ensureSymptomDefinition: (label: string, group: string) => string | null;
+  ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
   onSiblingSquareClick: (person: Person, clientX: number, clientY: number) => void;
   onAutonomySquareClick: (person: Person) => void;
-  onSymptomBadgeClick: (person: Person, group: import('../types').SymptomGroup, clientX: number, clientY: number) => void;
+  onSymptomBadgeClick: (person: Person, group: SymptomGroup, clientX: number, clientY: number) => void;
 }
 
 export default function DiagramCanvas({
