@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Partnership, Person, EmotionalProcessEvent } from '../types';
+import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 
 interface FamilyPropertiesPanelProps {
   partnership: Partnership;
@@ -287,13 +288,18 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
                   fontSize: 12,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, color: '#23324a' }}>{ev.category}{ev.subtype ? ` · ${ev.subtype}` : ''}</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: '#7a8aaa' }}>{EVENT_TYPE_LABELS[ev.eventType] || ev.eventType || '—'}</div>
+                    <div style={{ fontWeight: 600, color: '#23324a' }}>
+                      {ev.category || '—'}{ev.subtype ? ` · ${ev.subtype}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                     {ev.intensity != null && ev.intensity !== 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#23324a' }}>{ev.intensity}</span>
                     )}
-                    <span style={{ fontSize: 11, color: ev.status === 'ongoing' ? '#2a7a4a' : '#a08060', background: ev.status === 'ongoing' ? '#edfbf2' : '#fdf3e3', border: `1px solid ${ev.status === 'ongoing' ? '#a8e0c0' : '#e0c090'}`, borderRadius: 4, padding: '1px 5px' }}>
+                    <span style={{ fontSize: 11, color: ev.status === 'ongoing' ? '#2a7a4a' : '#a08060', background: ev.status === 'ongoing' ? '#edfbf2' : '#fdf3e3', border: `1px solid ${ev.status === 'ongoing' ? '#a8e0c0' : '#e0c090'}`, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap' }}>
                       {ev.status || 'discrete'}
                     </span>
                   </div>
