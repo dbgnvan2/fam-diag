@@ -97,9 +97,7 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
   const stressorEvents = allFamilyEvents.filter(
     (e) => e.eventType === 'FAMILY' && e.category === 'Stress'
   );
-  const otherEvents = allFamilyEvents.filter(
-    (e) => !(e.eventType === 'FAMILY' && (e.category === 'Triangles' || e.category === 'Stress'))
-  );
+
 
   const tabs = [
     { id: 'family', label: 'Family' },
@@ -268,10 +266,10 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
               + Add Family Event
             </button>
           </div>
-          {otherEvents.length === 0 ? (
+          {allFamilyEvents.length === 0 ? (
             <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic' }}>No events recorded</div>
           ) : (
-            otherEvents.map((ev) => (
+            allFamilyEvents.map((ev) => (
               <div
                 key={ev.id}
                 onClick={(e) => {
@@ -282,15 +280,25 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
                   cursor: 'pointer',
                   padding: '5px 8px',
                   border: '1px solid #d0d8ea',
-                  borderLeft: '3px solid #8b9cba',
+                  borderLeft: `3px solid ${ev.category === 'Stress' ? '#7a5a9e' : '#4b68a6'}`,
                   borderRadius: 6,
                   marginBottom: 4,
                   background: '#f7f9fd',
                   fontSize: 12,
                 }}
               >
-                <div style={{ fontWeight: 600, color: '#23324a' }}>{ev.category}</div>
-                <div style={{ color: '#5a6a88', marginTop: 2 }}>{ev.date}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, color: '#23324a' }}>{ev.category}{ev.subtype ? ` · ${ev.subtype}` : ''}</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {ev.intensity != null && ev.intensity !== 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#23324a' }}>{ev.intensity}</span>
+                    )}
+                    <span style={{ fontSize: 11, color: ev.status === 'ongoing' ? '#2a7a4a' : '#a08060', background: ev.status === 'ongoing' ? '#edfbf2' : '#fdf3e3', border: `1px solid ${ev.status === 'ongoing' ? '#a8e0c0' : '#e0c090'}`, borderRadius: 4, padding: '1px 5px' }}>
+                      {ev.status || 'discrete'}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ color: '#5a6a88', marginTop: 2 }}>{ev.startDate || ev.date || ''}</div>
               </div>
             ))
           )}
