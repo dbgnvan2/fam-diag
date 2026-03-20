@@ -2016,7 +2016,8 @@ const PropertiesPanel = ({
   }
 
   if (isFamilyView && isPartnership && selectedPartnership) {
-    const familyPartnership = selectedPartnership;
+    const familyPartnership =
+      partnerships.find((p) => p.id === selectedPartnership.id) || selectedPartnership;
     const partner1 = people.find((p) => p.id === familyPartnership.partner1_id);
     const partner2 = people.find((p) => p.id === familyPartnership.partner2_id);
     const partnerNames = [partner1?.name, partner2?.name].filter(Boolean).join(' & ');
