@@ -2307,10 +2307,6 @@ const PropertiesPanel = ({
               .slice()
               .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))
               .map((event) => {
-                const typeLabel =
-                  event.eventType === 'SYMPTOM' ? 'Symptom'
-                  : event.eventType === 'EPE' ? (event.category || 'Emotional Pattern')
-                  : (event.subtype || event.category || event.eventType || 'Event');
                 const dateStr = event.startDate || event.date || '';
                 const eventStatus = event.status || 'discrete';
                 const isEnded = ['end', 'discrete'].includes(eventStatus);
@@ -2326,11 +2322,23 @@ const PropertiesPanel = ({
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{typeLabel}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{event.category || '—'}</span>
+                        {event.subtype && (
+                          <span style={{ fontSize: 11, color: '#5a6a88' }}>{event.subtype}</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{dateStr}</div>
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                      {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {event.intensity != null && (
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#23324a', minWidth: 16, textAlign: 'center' }}>
+                          {event.intensity}
+                        </span>
+                      )}
+                      <div style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                        {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
+                      </div>
                     </div>
                   </div>
                 );
