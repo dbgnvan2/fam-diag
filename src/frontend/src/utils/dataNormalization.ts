@@ -127,12 +127,15 @@ export const normalizeFamilyEventList = (
     ? events.map((ev) => {
         const raw = ev as EmotionalProcessEvent & { emotionalProcessType?: string; statusLabel?: string };
         const mapped = raw.emotionalProcessType ? OLD_PROCESS_TYPE_MAP[raw.emotionalProcessType] : undefined;
+        const rawCategory = mapped?.category ?? (ev.category || 'Triangles');
+        // Normalize singular 'Triangle' → 'Triangles' from older data
+        const normalizedCategory = rawCategory === 'Triangle' ? 'Triangles' : rawCategory;
         return {
           ...ev,
           eventType: 'FAMILY',
           eventClass: ev.eventClass || 'family',
           status: ev.status || raw.statusLabel || 'discrete',
-          category: mapped?.category ?? (ev.category || 'Triangles'),
+          category: normalizedCategory,
           subtype: mapped?.subtype ?? (ev.subtype || ''),
           intensity: typeof ev.intensity === 'string' ? Number(ev.intensity) : (ev.intensity ?? 0),
         };

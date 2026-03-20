@@ -2183,6 +2183,16 @@ const PropertiesPanel = ({
                 </div>
               );
             })}
+            {(() => {
+              const knownSubtypes = TRIANGLE_SUBTYPES.map((pt) => pt.subtype) as string[];
+              const orphans = triangleEvents.filter((e) => !knownSubtypes.includes(e.subtype || ''));
+              return orphans.length > 0 ? (
+                <div style={{ marginBottom: 14 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#4b68a6' }}>Other</span>
+                  {orphans.map(renderFamilyEventCard)}
+                </div>
+              ) : null;
+            })()}
           </div>
         )}
 
