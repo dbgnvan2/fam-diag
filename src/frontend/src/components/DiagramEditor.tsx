@@ -2224,7 +2224,8 @@ useEffect(() => {
           id: payload.id || nanoid(),
           date: payload.date || new Date().toISOString().slice(0, 10),
           category: payload.category || 'Session Event',
-          statusLabel: payload.statusLabel || '',
+          eventType: payload.eventType || 'NODAL',
+          status: payload.status || 'discrete',
           intensity: typeof payload.intensity === 'number' ? payload.intensity : 0,
           frequency: typeof payload.frequency === 'number' ? payload.frequency : 0,
           impact: typeof payload.impact === 'number' ? payload.impact : 0,
@@ -2235,7 +2236,6 @@ useEffect(() => {
           observations: payload.observations || payload.notes || '',
           priorEventsNote: payload.priorEventsNote || '',
           reflectionsNote: payload.reflectionsNote || '',
-          isNodalEvent: !!payload.isNodalEvent,
           createdAt: payload.createdAt || Date.now(),
           eventClass: 'individual',
         };
@@ -3222,8 +3222,8 @@ useEffect(() => {
         date: today,
         startDate: today,
         category: 'Triangle',
-        emotionalProcessType: 'triangle-functioning',
-        statusLabel: 'ongoing',
+        subtype: 'Functioning',
+        status: 'ongoing',
         intensity: 1,
         frequency: 1,
         impact: 1,
@@ -3234,8 +3234,8 @@ useEffect(() => {
         otherPersonName: person3?.name || person2?.name || '',
         ...seed,
         id: nanoid(),
-        eventType: 'FAMILY',
-        eventClass: 'emotional-pattern',
+        eventType: 'TRIANGLE',
+        eventClass: 'triangle',
         anchorType: 'EMOTIONAL_PROCESS_EP',
         anchorId: triangleId,
       },
@@ -3259,8 +3259,8 @@ useEffect(() => {
         date: today,
         startDate: today,
         category: 'Triangle',
-        emotionalProcessType: 'triangle-functioning',
-        statusLabel: 'ongoing',
+        subtype: 'Functioning',
+        status: 'ongoing',
         intensity: 1,
         frequency: 1,
         impact: 1,
@@ -3330,10 +3330,10 @@ useEffect(() => {
           partnershipId,
           {
             eventType: 'FAMILY',
-            emotionalProcessType: processType,
+            subtype: processType,
             category,
             eventClass: 'emotional-pattern',
-            statusLabel: 'ongoing',
+            status: 'ongoing',
             intensity: 1,
             frequency: 1,
             impact: 1,
@@ -3369,7 +3369,7 @@ useEffect(() => {
   };
 
   const handleFamilyAddGenericEvent = (partnershipId: string, position: { x: number; y: number }) => {
-    openFamilyPropertyModal(partnershipId, { eventType: 'FF' as EventType, eventClass: 'relationship' }, position);
+    openFamilyPropertyModal(partnershipId, { eventType: 'FAMILY' as EventType, eventClass: 'relationship' }, position);
   };
 
   const {
@@ -3873,10 +3873,10 @@ useEffect(() => {
                 partnershipId,
                 {
                   eventType: 'FAMILY',
-                  emotionalProcessType: processType,
+                  subtype: processType,
                   category: 'Triangle',
                   eventClass: 'emotional-pattern',
-                  statusLabel: 'ongoing',
+                  status: 'ongoing',
                   intensity: 1,
                   frequency: 1,
                   impact: 1,
@@ -3945,7 +3945,7 @@ useEffect(() => {
               if (found) openContextualEventCreator(
                 { type: 'person', id: found.id },
                 found,
-                { eventType: 'FF', category: group, symptomGroup: group },
+                { eventType: 'SYMPTOM', category: group },
                 { x, y }
               );
             }}
@@ -3956,11 +3956,10 @@ useEffect(() => {
                 { type: 'person', id: found.id },
                 found,
                 {
-                  eventType: 'EPE',
+                  eventType: 'EA',
                   category: 'Emotional Autonomy',
-                  emotionalProcessType: 'emotional-autonomy',
                   eventClass: 'emotional-pattern',
-                  statusLabel: 'ongoing',
+                  status: 'ongoing',
                 }
               );
             }}

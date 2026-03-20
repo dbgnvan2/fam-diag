@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { EmotionalProcessEvent, EventClass } from '../../types';
-import { EVENT_CLASS_LABELS } from '../../constants/eventConstants';
+import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS } from '../../constants/eventConstants';
 import DatePickerField from '../DatePickerField';
 
 interface SessionEventModalProps {
@@ -37,6 +37,7 @@ const SessionEventModal = ({
   onSave,
 }: SessionEventModalProps) => {
   if (!open || !draft) return null;
+  const typeLabel = EVENT_TYPE_LABELS[draft.eventType] || draft.eventType;
   return (
     <div
       style={{
@@ -51,6 +52,14 @@ const SessionEventModal = ({
     >
       <div style={{ background: '#fff', borderRadius: 10, padding: 20, width: 420 }}>
         <h4 style={{ marginTop: 0 }}>Session Note Event</h4>
+        <div style={rowStyle}>
+          <label style={labelStyle}>Event Type:</label>
+          <div style={{ ...controlStyle, textAlign: 'left' }}>{typeLabel}</div>
+        </div>
+        <div style={rowStyle}>
+          <label style={labelStyle}>Event Class:</label>
+          <div style={{ ...controlStyle, textAlign: 'left' }}>{draft.eventClass || eventClass}</div>
+        </div>
         <div style={rowStyle}>
           <label htmlFor="sessionEventPrimaryPerson" style={labelStyle}>Primary Person:</label>
           <div style={controlStyle}>
@@ -99,20 +108,16 @@ const SessionEventModal = ({
         </div>
         <div style={rowStyle}>
           <label htmlFor="sessionEventStatus" style={labelStyle}>Status:</label>
-          <input
-            type="text"
+          <select
             id="sessionEventStatus"
-            value={draft.statusLabel || ''}
-            onChange={(e) => onFieldChange('statusLabel', e.target.value)}
+            value={draft.status || 'discrete'}
+            onChange={(e) => onFieldChange('status', e.target.value)}
             style={controlStyle}
-            placeholder="e.g., Start"
-          />
-        </div>
-        <div style={rowStyle}>
-          <label style={labelStyle}>Event Class:</label>
-          <div style={{ ...controlStyle, textAlign: 'left' }}>
-            {EVENT_CLASS_LABELS[draft.eventClass || eventClass]}
-          </div>
+          >
+            {EVENT_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
         <div style={rowStyle}>
           <label htmlFor="sessionEventIntensity" style={labelStyle}>Intensity (1-10):</label>
@@ -174,16 +179,6 @@ const SessionEventModal = ({
             onChange={(e) => onFieldChange('observations', e.target.value)}
             rows={3}
             style={{ ...controlStyle, resize: 'vertical' }}
-          />
-        </div>
-        <div style={rowStyle}>
-          <label htmlFor="sessionEventIsNodal" style={labelStyle}>Nodal Event:</label>
-          <input
-            type="checkbox"
-            id="sessionEventIsNodal"
-            checked={!!draft.isNodalEvent}
-            onChange={(e) => onFieldChange('isNodalEvent', e.target.checked ? 'true' : 'false')}
-            style={{ marginRight: 'auto' }}
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>

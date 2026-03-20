@@ -279,7 +279,7 @@ export function useUpdateHandlers({
         : target.type === 'partnership'
         ? 'RELATIONSHIP_PRL'
         : 'EMOTIONAL_PROCESS_EP';
-    const eventType = seed?.eventType || (target.type === 'emotional' ? 'EPE' : 'FF');
+    const eventType = seed?.eventType || (target.type === 'emotional' ? 'EPE' : 'NODAL');
     const baseSeed: Partial<EmotionalProcessEvent> = {
       ...seed,
       eventType,
@@ -341,7 +341,6 @@ export function useUpdateHandlers({
       newEventSeed: {
         ...baseSeed,
         eventType: 'EPE',
-        emotionalProcessType: seed?.emotionalProcessType || line.relationshipType,
         category: seed?.category || 'Emotional Pattern',
         primaryPersonName: person1?.name || '',
         otherPersonName: person2?.name || '',

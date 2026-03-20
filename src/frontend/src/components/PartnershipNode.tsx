@@ -43,18 +43,18 @@ const TRI_SIDE = 16;
 const TRI_HALF = TRI_SIDE / 2;
 const TRI_H = Math.round(TRI_SIDE * Math.sqrt(3) / 2);
 const INDICATOR_DEFS = [
-  { letter: 'V', processType: 'triangle-functioning' },
-  { letter: 'F', processType: 'triangle-flexibility' },
-  { letter: 'R', processType: 'triangle-stress-response' },
+  { letter: 'V', subtype: 'Functioning' },
+  { letter: 'F', subtype: 'Flexibility' },
+  { letter: 'R', subtype: 'Stress Response' },
 ] as const;
 
 const DIA_SIZE = 16;
 const DIA_HALF = DIA_SIZE / 2;
 const STRESSOR_INDICATOR_DEFS = [
-  { letter: 'R', processType: 'stress-emotional-reactivity' },
-  { letter: 'A', processType: 'stress-family-adaptability' },
-  { letter: 'S', processType: 'stress-family-stressor' },
-  { letter: 'C', processType: 'stress-chronic-stress' },
+  { letter: 'R', subtype: 'Emotional Reactivity' },
+  { letter: 'A', subtype: 'Adaptability' },
+  { letter: 'S', subtype: 'Family Stressor' },
+  { letter: 'C', subtype: 'Chronic Stress' },
 ] as const;
 
 const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamilySelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onContextMenu, onFamilyClick, onFamilyContextMenu, onFamilyIndicatorClick }: PartnershipNodeProps) => {
@@ -245,7 +245,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
               {(() => {
                 const active = INDICATOR_DEFS.flatMap((def) => {
                   const events = (partnership.familyEvents || []).filter(
-                    (ev) => ev.emotionalProcessType === def.processType
+                    (ev) => ev.eventType === 'FAMILY' && ev.category === 'Triangles' && ev.subtype === def.subtype
                   );
                   if (events.length === 0) return [];
                   return [{ ...def, event: events[events.length - 1] }];
@@ -257,7 +257,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                   const cx = startX + i * spacing;
                   return (
                     <Group
-                      key={ind.processType}
+                      key={ind.subtype}
                       x={cx}
                       y={boxH + 2}
                       onClick={(e) => {
@@ -312,7 +312,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
               {(() => {
                 const activeStressors = STRESSOR_INDICATOR_DEFS.flatMap((def) => {
                   const events = (partnership.familyEvents || []).filter(
-                    (ev) => ev.emotionalProcessType === def.processType
+                    (ev) => ev.eventType === 'FAMILY' && ev.category === 'Stress' && ev.subtype === def.subtype
                   );
                   if (events.length === 0) return [];
                   return [{ ...def, event: events[events.length - 1] }];
@@ -325,7 +325,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                   const cx = startX + i * spacing;
                   return (
                     <Group
-                      key={ind.processType}
+                      key={ind.subtype}
                       x={cx}
                       y={diaRowY}
                       onClick={(e) => {

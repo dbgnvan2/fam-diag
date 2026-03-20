@@ -5,22 +5,9 @@
  */
 import React, { useMemo, useState } from 'react';
 import type { EmotionalProcessEvent, EventAnchorType, EventType, Partnership } from '../types';
-import {
-  EVENT_CLASS_LABELS,
-  getContinuationState,
-  isSymptomCategory,
-  normalizeSymptomCategory,
-  clampSymptomType,
-} from '../constants/eventConstants';
+import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 
 // ── pure helpers ───────────────────────────────────────────────────
-
-const inferEventType = (event: EmotionalProcessEvent): EventType => {
-  if (event.eventType) return event.eventType;
-  if (event.isNodalEvent) return 'NODAL';
-  if (event.eventClass === 'emotional-pattern') return 'EPE';
-  return 'FF';
-};
 
 const normalizeEventDate = (event: EmotionalProcessEvent) => event.startDate || event.date || '';
 
@@ -28,42 +15,20 @@ const formatCategoryStatus = (category: string, status?: string) =>
   status ? `${category} – ${status}` : category;
 
 const compactRelationshipStatusLabel = (event: EmotionalProcessEvent) =>
-  (event.statusLabel || formatCategoryStatus(event.category || 'Event', event.statusLabel)).replace(/\s+Date$/i, '').trim();
-
-const toTitleCase = (value: string) => value.replace(/\b\w/g, (c) => c.toUpperCase());
-
-const eventTypeLabel = (eventType: EventType): string => {
-  if (eventType === 'FF') return 'Symptom';
-  if (eventType === 'EPE') return 'Emotional Pattern';
-  return 'Nodal';
-};
+  (event.status || formatCategoryStatus(event.category || 'Event', event.status)).replace(/\s+Date$/i, '').trim();
 
 const descriptorForEvent = (event: EmotionalProcessEvent) => {
-  const et = inferEventType(event);
-  if (et === 'NODAL') return event.nodalEventSubtype || event.statusLabel || 'Nodal Event';
+  const et = event.eventType;
+  if (et === 'NODAL') return event.category || 'Nodal Event';
   if (et === 'EPE') {
-    const process = event.emotionalProcessType || event.category || 'EPE';
-    return `${process} · F${event.frequency ?? 0}/I${event.intensity ?? 0}/Imp${event.impact ?? 0}`;
+    return `${event.category || 'EPE'} · F${event.frequency ?? 0}/I${event.intensity ?? 0}/Imp${event.impact ?? 0}`;
   }
-  const symptomCategory = toTitleCase(normalizeSymptomCategory(event.category || event.symptomGroup));
-  const symptomType = clampSymptomType(event.symptomType || (!isSymptomCategory(event.category) ? event.category : ''));
-  return symptomType ? `${symptomCategory} · ${symptomType}` : symptomCategory;
-};
-
-const continuationLabel = (event: EmotionalProcessEvent) => {
-  const state = getContinuationState(event);
-  if (state === 'start') return 'Continues to next';
-  if (state === 'middle') return 'Continues from previous and to next';
-  if (state === 'end') return 'Continues from previous';
-  return 'Discrete';
-};
-
-const continuationBadge = (event: EmotionalProcessEvent) => {
-  const state = getContinuationState(event);
-  if (state === 'start') return 'S';
-  if (state === 'middle') return 'M';
-  if (state === 'end') return 'E';
-  return 'D';
+  if (et === 'SYMPTOM') {
+    const symptomCategory = event.category || 'Physical';
+    const symptomType = (event.subtype || '').trim().slice(0, 30);
+    return symptomType ? `${symptomCategory} · ${symptomType}` : symptomCategory;
+  }
+  return event.category || et;
 };
 
 // ── component ──────────────────────────────────────────────────────
@@ -112,7 +77,7 @@ const EventsSection = ({
 
   const filteredAndSortedEvents = useMemo(() => {
     const filtered = allEvents.filter((event) => {
-      const et = inferEventType(event);
+      const et = event.eventType;
       const anchorType = event.anchorType || currentAnchorType;
       if (eventTypeFilter !== 'ALL' && et !== eventTypeFilter) return false;
       if (anchorTypeFilter !== 'ALL' && anchorType !== anchorTypeFilter) return false;
@@ -167,8 +132,12 @@ const EventsSection = ({
         >
           <option value="ALL">All</option>
           <option value="NODAL">Nodal</option>
-          <option value="FF">Symptom</option>
+          <option value="SYMPTOM">Symptom</option>
           <option value="EPE">Emotional Pattern</option>
+          <option value="EA">Emotional Autonomy</option>
+          <option value="FAMILY">Family</option>
+          <option value="FOO">Family of Origin</option>
+          <option value="TRIANGLE">Triangle</option>
         </select>
         <label htmlFor="anchorTypeFilter">Anchor:</label>
         <select
@@ -180,6 +149,8 @@ const EventsSection = ({
           <option value="PERSON">Person</option>
           <option value="RELATIONSHIP_PRL">Relationship PRL</option>
           <option value="EMOTIONAL_PROCESS_EP">Emotional Pattern</option>
+          <option value="FAMILY">Family</option>
+          <option value="TRIANGLE">Triangle</option>
         </select>
       </div>
       {filteredAndSortedEvents.length === 0 ? (
@@ -208,7 +179,7 @@ const EventsSection = ({
           ) : null}
           <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
             {filteredAndSortedEvents.map((event) => {
-              const et = inferEventType(event);
+              const et = event.eventType;
               const dateText = normalizeEventDate(event) || 'No date';
               return (
                 <li
@@ -261,9 +232,8 @@ const EventsSection = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
                           <span style={{ fontWeight: 600 }}>{descriptorForEvent(event)}</span>
-                          <span style={{ fontSize: 11, color: '#555' }}>{eventTypeLabel(et)}</span>
+                          <span style={{ fontSize: 11, color: '#555' }}>{EVENT_TYPE_LABELS[et] || et}</span>
                           <span
-                            title={continuationLabel(event)}
                             style={{
                               fontSize: 11,
                               fontWeight: 700,
@@ -273,7 +243,7 @@ const EventsSection = ({
                               background: '#eef5ff',
                             }}
                           >
-                            {continuationBadge(event)}
+                            {event.status || 'discrete'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 4 }}>
@@ -294,16 +264,15 @@ const EventsSection = ({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 600 }}>
-                            {formatCategoryStatus(event.category || 'Event', event.statusLabel)}
+                            {formatCategoryStatus(event.category || 'Event', event.status)}
                           </span>
                           <span style={{ fontSize: 11, color: '#555' }}>
-                            {EVENT_CLASS_LABELS[event.eventClass] || 'Event'}
+                            {event.eventClass || 'event'}
                           </span>
                           <span style={{ fontSize: 11, color: '#1f3b57', fontWeight: 700 }}>
-                            {eventTypeLabel(et)}
+                            {EVENT_TYPE_LABELS[et] || et}
                           </span>
                           <span
-                            title={continuationLabel(event)}
                             style={{
                               fontSize: 11,
                               fontWeight: 700,
@@ -313,7 +282,7 @@ const EventsSection = ({
                               background: '#eef5ff',
                             }}
                           >
-                            {continuationBadge(event)}
+                            {event.status || 'discrete'}
                           </span>
                         </div>
                         <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
@@ -332,27 +301,19 @@ const EventsSection = ({
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                           <span>Primary: {event.primaryPersonName || '—'}</span>
                           <span>Other: {event.otherPersonName || '—'}</span>
-                          <span>Status: {event.statusLabel || '—'}</span>
-                          <span>Subtype: {event.nodalEventSubtype || '—'}</span>
+                          <span>Status: {event.status || '—'}</span>
+                          <span>Subtype: {event.subtype || '—'}</span>
                           <span>
                             Symptom Category:{' '}
-                            {et === 'FF'
-                              ? toTitleCase(normalizeSymptomCategory(event.category || event.symptomGroup))
-                              : '—'}
+                            {et === 'SYMPTOM' ? event.category : '—'}
                           </span>
                           <span>
                             Symptom Type:{' '}
-                            {et === 'FF'
-                              ? clampSymptomType(
-                                  event.symptomType ||
-                                    (!isSymptomCategory(event.category) ? event.category : '')
-                                ) || '—'
-                              : '—'}
+                            {et === 'SYMPTOM' ? (event.subtype || '').trim().slice(0, 30) || '—' : '—'}
                           </span>
                           <span>Intensity: {event.intensity ?? '—'}</span>
                           <span>Frequency: {event.frequency ?? '—'}</span>
                           <span>Impact: {event.impact ?? '—'}</span>
-                          <span>{continuationLabel(event)}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>

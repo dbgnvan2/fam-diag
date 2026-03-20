@@ -94,7 +94,8 @@ export const normalizeEventList = (
   events
     ? events.map((event) => ({
         ...event,
-        statusLabel: event.statusLabel ?? '',
+        eventType: event.eventType || 'NODAL',
+        status: event.status || 'discrete',
         eventClass: event.eventClass || fallbackClass,
       }))
     : undefined;

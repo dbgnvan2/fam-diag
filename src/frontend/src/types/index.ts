@@ -177,10 +177,10 @@ export type Triangle = {
   events?: EmotionalProcessEvent[];
 };
 
-export type EventClass = 'individual' | 'relationship' | 'emotional-pattern';
-export type EventType = 'NODAL' | 'FF' | 'EPE' | 'FAMILY';
-export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP';
-export type EventContinuationState = 'discrete' | 'start' | 'middle' | 'end';
+export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
+export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE';
+export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';
+export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP' | 'FAMILY' | 'TRIANGLE';
 
 export type EmotionalProcessEvent = {
   id: string;
@@ -188,28 +188,23 @@ export type EmotionalProcessEvent = {
   startDate?: string;
   endDate?: string;
   category: string;
-  eventType?: EventType;
-  nodalEventSubtype?: string;
-  emotionalProcessType?: string;
+  eventType: EventType;
+  subtype?: string;
   anchorType?: EventAnchorType;
   anchorId?: string;
-  statusLabel?: string;
+  status: EventStatus;
   intensity: number;
   howWell: number;
   otherPersonName: string;
   primaryPersonName?: string;
   wwwwh: string;
   observations: string;
-  isNodalEvent?: boolean;
   frequency?: number;
   impact?: number;
   priorEventsNote?: string;
   reflectionsNote?: string;
-  continuesFromPrevious?: boolean;
-  continuesToNext?: boolean;
   createdAt?: number;
   sourceIndicatorId?: string;
-  symptomGroup?: SymptomGroup;
   symptomType?: string;
   eventClass: EventClass;
 };

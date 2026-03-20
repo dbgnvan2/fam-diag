@@ -398,7 +398,8 @@ export default function TimelineBoardModal({
       id: nanoid(),
       date: new Date().toISOString().slice(0, 10),
       category: eventCategories[0] || 'Event',
-      statusLabel: '',
+      eventType: 'NODAL',
+      status: 'discrete',
       intensity: 0,
       frequency: 0,
       impact: 0,
@@ -409,7 +410,6 @@ export default function TimelineBoardModal({
       observations: '',
       priorEventsNote: '',
       reflectionsNote: '',
-      isNodalEvent: false,
       createdAt: Date.now(),
       eventClass: 'individual',
     };

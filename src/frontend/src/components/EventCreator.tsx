@@ -13,7 +13,8 @@ const defaultEvent = (personName: string): EmotionalProcessEvent => ({
   id: createEventId(),
   date: today(),
   category: 'Individual',
-  statusLabel: '',
+  eventType: 'NODAL',
+  status: 'discrete',
   intensity: 0,
   frequency: 0,
   impact: 0,
@@ -24,7 +25,6 @@ const defaultEvent = (personName: string): EmotionalProcessEvent => ({
   observations: '',
   priorEventsNote: '',
   reflectionsNote: '',
-  isNodalEvent: false,
   createdAt: Date.now(),
   eventClass: 'individual',
 });
@@ -34,7 +34,8 @@ const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => 
   id: event.id || createEventId(),
   date: event.date || today(),
   category: event.category || 'Event',
-  statusLabel: event.statusLabel || '',
+  eventType: event.eventType || 'NODAL',
+  status: event.status || 'discrete',
   intensity: typeof event.intensity === 'number' ? event.intensity : 0,
   frequency: typeof event.frequency === 'number' ? event.frequency : 0,
   impact: typeof event.impact === 'number' ? event.impact : 0,
@@ -45,7 +46,7 @@ const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => 
   observations: event.observations || '',
   priorEventsNote: event.priorEventsNote || '',
   reflectionsNote: event.reflectionsNote || '',
-  eventClass: 'individual',
+  eventClass: event.eventClass || 'individual',
 });
 
 const bundleToTimeline = (bundle: PersonEventBundle, sourceName?: string): TimelineJson => ({

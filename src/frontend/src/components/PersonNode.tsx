@@ -236,7 +236,7 @@ const PersonNode = ({
   const emotionalAutonomyLevel = useMemo(() => {
     if (!person.events) return null;
     const latest = person.events
-      .filter((e) => e.emotionalProcessType === 'emotional-autonomy' && typeof e.intensity === 'number')
+      .filter((e) => e.eventType === 'EA' && typeof e.intensity === 'number')
       .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))[0];
     return latest ? (latest.intensity as number) : null;
   }, [person.events]);

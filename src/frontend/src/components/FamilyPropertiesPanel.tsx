@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { Partnership, Person, EmotionalProcessEvent } from '../types';
-import { isTrianglePropertyProcess, isStressorProcess, STRESSOR_DEFS } from '../constants/eventConstants';
 
 interface FamilyPropertiesPanelProps {
   partnership: Partnership;
@@ -11,10 +10,18 @@ interface FamilyPropertiesPanelProps {
   onClose: () => void;
 }
 
-const PATTERN_TYPES = [
-  { processType: 'triangle-functioning', label: 'Triangle Functioning', letter: 'V' },
-  { processType: 'triangle-flexibility', label: 'Triangle Flexibility', letter: 'F' },
-  { processType: 'triangle-stress-response', label: 'Triangle Stress Response', letter: 'R' },
+// New category/subtype values matching the hierarchy
+const TRIANGLE_SUBTYPES = [
+  { subtype: 'Functioning', label: 'Triangle Functioning', letter: 'V' },
+  { subtype: 'Flexibility', label: 'Triangle Flexibility', letter: 'F' },
+  { subtype: 'Stress Response', label: 'Triangle Stress Response', letter: 'R' },
+] as const;
+
+const STRESS_SUBTYPES = [
+  { subtype: 'Emotional Reactivity', label: 'Emotional Reactivity' },
+  { subtype: 'Adaptability', label: 'Family Adaptability' },
+  { subtype: 'Family Stressor', label: 'Family Stressor' },
+  { subtype: 'Chronic Stress', label: 'Chronic Stress' },
 ] as const;
 
 const addBtnStyle: React.CSSProperties = {
@@ -57,14 +64,14 @@ const renderEventCards = (
         <span
           style={{
             fontSize: 11,
-            color: ev.statusLabel === 'ongoing' ? '#2a7a4a' : '#a08060',
-            background: ev.statusLabel === 'ongoing' ? '#edfbf2' : '#fdf3e3',
-            border: `1px solid ${ev.statusLabel === 'ongoing' ? '#a8e0c0' : '#e0c090'}`,
+            color: ev.status === 'ongoing' ? '#2a7a4a' : '#a08060',
+            background: ev.status === 'ongoing' ? '#edfbf2' : '#fdf3e3',
+            border: `1px solid ${ev.status === 'ongoing' ? '#a8e0c0' : '#e0c090'}`,
             borderRadius: 4,
             padding: '1px 5px',
           }}
         >
-          {ev.statusLabel}
+          {ev.status}
         </span>
       </div>
       <div style={{ color: '#5a6a88', marginTop: 2 }}>{ev.date}</div>
@@ -83,10 +90,15 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
     'Family';
 
   const allFamilyEvents = partnership.familyEvents || [];
-  const triangleEvents = allFamilyEvents.filter((e) => isTrianglePropertyProcess(e.emotionalProcessType));
-  const stressorEvents = allFamilyEvents.filter((e) => isStressorProcess(e.emotionalProcessType));
+  // Filter by category+subtype instead of emotionalProcessType
+  const triangleEvents = allFamilyEvents.filter(
+    (e) => e.eventType === 'FAMILY' && e.category === 'Triangles'
+  );
+  const stressorEvents = allFamilyEvents.filter(
+    (e) => e.eventType === 'FAMILY' && e.category === 'Stress'
+  );
   const otherEvents = allFamilyEvents.filter(
-    (e) => !isTrianglePropertyProcess(e.emotionalProcessType) && !isStressorProcess(e.emotionalProcessType)
+    (e) => !(e.eventType === 'FAMILY' && (e.category === 'Triangles' || e.category === 'Stress'))
   );
 
   const tabs = [
@@ -171,10 +183,10 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
       {/* Triangles tab */}
       {activeTab === 'triangles' && (
         <div style={{ marginTop: 14 }}>
-          {PATTERN_TYPES.map((pt) => {
-            const events = triangleEvents.filter((e) => e.emotionalProcessType === pt.processType);
+          {TRIANGLE_SUBTYPES.map((pt) => {
+            const events = triangleEvents.filter((e) => e.subtype === pt.subtype);
             return (
-              <div key={pt.processType} style={{ marginBottom: 14 }}>
+              <div key={pt.subtype} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#4b68a6' }}>
                     [{pt.letter}] {pt.label}
@@ -183,7 +195,7 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
                     type="button"
                     onClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      onAddProperty(pt.processType, { x: rect.left, y: rect.bottom + 4 });
+                      onAddProperty(pt.subtype, { x: rect.left, y: rect.bottom + 4 });
                     }}
                     style={addBtnStyle}
                   >
@@ -204,17 +216,17 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
       {/* Stressors tab */}
       {activeTab === 'stressors' && (
         <div style={{ marginTop: 14 }}>
-          {STRESSOR_DEFS.map((st) => {
-            const events = stressorEvents.filter((e) => e.emotionalProcessType === st.processType);
+          {STRESS_SUBTYPES.map((st) => {
+            const events = stressorEvents.filter((e) => e.subtype === st.subtype);
             return (
-              <div key={st.processType} style={{ marginBottom: 14 }}>
+              <div key={st.subtype} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#7a5a9e' }}>{st.label}</span>
                   <button
                     type="button"
                     onClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      onAddProperty(st.processType, { x: rect.left, y: rect.bottom + 4 });
+                      onAddProperty(st.subtype, { x: rect.left, y: rect.bottom + 4 });
                     }}
                     style={{ ...addBtnStyle, color: '#7a5a9e', border: '1px solid #c8b8df', background: '#f6f0fb' }}
                   >

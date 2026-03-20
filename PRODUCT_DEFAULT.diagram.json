@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-19T03:30:46.938Z"
+    "exportedAt": "2026-03-20T15:54:21.029Z"
   },
   "people": [
     {
@@ -11,8 +11,8 @@
       "firstName": "Alex",
       "lastName": "Carter",
       "gender": "male",
-      "x": 377,
-      "y": 122.4140625,
+      "x": 423.0000000000001,
+      "y": 150.8705842391305,
       "birthDate": "1978-04-16",
       "partnerships": [
         "demo-prl-parents"
@@ -130,6 +130,130 @@
           "symptomType": "Drinkig",
           "eventClass": "individual",
           "sourceIndicatorId": "symptom-social-default"
+        },
+        {
+          "id": "1773955344079-69e7b4b4af534",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "",
+          "category": "physical",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1773955344079,
+          "symptomGroup": "physical",
+          "symptomType": "Anxiety",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1773955417986-f4b04c37917d38",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "",
+          "category": "physical",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1773955417986,
+          "symptomGroup": "physical",
+          "symptomType": "Anxiety",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1773955501610-126d570f371b88",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "",
+          "category": "physical",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 1,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1773955501610,
+          "symptomGroup": "physical",
+          "symptomType": "Anxiety",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1773955565905-3bce4bbc219c08",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "",
+          "category": "social",
+          "eventType": "FF",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "statusLabel": "Continuing ",
+          "intensity": 2,
+          "frequency": 3,
+          "impact": 3,
+          "howWell": 4,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "If I get tired it's worse",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1773955565905,
+          "symptomGroup": "social",
+          "symptomType": "Drinking",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-social-default"
         }
       ],
       "size": 60,
@@ -138,8 +262,8 @@
         "height": 122
       },
       "notesPosition": {
-        "x": 481,
-        "y": 145.4140625
+        "x": 561.0000000000001,
+        "y": 170.8705842391305
       },
       "functionalIndicators": [
         {
@@ -152,22 +276,22 @@
           "lastUpdatedAt": 1772769789229
         },
         {
-          "definitionId": "symptom-social-default",
-          "status": "current",
-          "impact": 2,
-          "frequency": 2,
-          "intensity": 2,
-          "date": "2026-03-06",
-          "lastUpdatedAt": 1772769898503
-        },
-        {
           "definitionId": "symptom-physical-default",
           "status": "current",
-          "impact": 2,
-          "frequency": 2,
+          "impact": 3,
+          "frequency": 3,
+          "intensity": 1,
+          "date": "2026-03-19",
+          "lastUpdatedAt": 1773955501610
+        },
+        {
+          "definitionId": "symptom-social-default",
+          "status": "current",
+          "impact": 3,
+          "frequency": 3,
           "intensity": 2,
-          "date": "2021-06-10",
-          "lastUpdatedAt": 1772770148016
+          "date": "2026-03-19",
+          "lastUpdatedAt": 1773955565905
         }
       ],
       "siblingPositionOverride": "ob/b",
@@ -181,8 +305,8 @@
       "firstName": "Renee",
       "lastName": "Carter",
       "gender": "female",
-      "x": 948,
-      "y": 125.4140625,
+      "x": 1028,
+      "y": 150.8705842391305,
       "birthDate": "1980-09-06",
       "partnerships": [
         "demo-prl-parents"
@@ -238,8 +362,8 @@
       ],
       "size": 60,
       "notesPosition": {
-        "x": 1016,
-        "y": 111.4140625
+        "x": 1096,
+        "y": 136.8705842391305
       },
       "siblingPositionOverride": "os/s",
       "siblingMaturityLevel": 3,
@@ -252,8 +376,8 @@
       "firstName": "Liam",
       "lastName": "Carter",
       "gender": "male",
-      "x": 492,
-      "y": 459.4140625,
+      "x": 460.8000000000003,
+      "y": 462.47058423913063,
       "birthDate": "2000-08-13",
       "partnerships": [],
       "parentPartnership": "demo-prl-parents",
@@ -293,12 +417,40 @@
           "isNodalEvent": true,
           "eventClass": "individual",
           "createdAt": 1773795324254
+        },
+        {
+          "id": "1773955082399-284406299ec9c",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "",
+          "category": "physical",
+          "eventType": "EPE",
+          "nodalEventSubtype": "",
+          "emotionalProcessType": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-son",
+          "statusLabel": "",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Noah Reed",
+          "primaryPersonName": "Liam Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "isNodalEvent": false,
+          "continuesFromPrevious": false,
+          "continuesToNext": false,
+          "createdAt": 1773955082399,
+          "eventClass": "individual"
         }
       ],
       "size": 54,
       "notesPosition": {
-        "x": 417,
-        "y": 574.4140625
+        "x": 441.8000000000001,
+        "y": 565.4705842391307
       },
       "notesSize": {
         "width": 154,
@@ -312,8 +464,8 @@
       "firstName": "Emma",
       "lastName": "Carter",
       "gender": "female",
-      "x": 863,
-      "y": 457.4140625,
+      "x": 931.8000000000003,
+      "y": 470.07058423913054,
       "birthDate": "2005-01-05",
       "partnerships": [
         "demo-prl-emma"
@@ -360,8 +512,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 925,
-        "y": 452.4140625
+        "x": 1005.0000000000001,
+        "y": 477.8705842391305
       },
       "isClient": true,
       "backgroundEnabled": true,
@@ -384,8 +536,8 @@
       "firstName": "Noah",
       "lastName": "Reed",
       "gender": "male",
-      "x": 661,
-      "y": 466.4140625,
+      "x": 731.6000000000004,
+      "y": 459.07058423913077,
       "birthDate": "2004-03-18",
       "partnerships": [
         "demo-prl-emma"
@@ -430,8 +582,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 573.9999346596461,
-        "y": 645.414128479043
+        "x": 620.3999346596462,
+        "y": 587.6706502181737
       },
       "notesSize": {
         "width": 145,
@@ -441,6 +593,22 @@
       "siblingMaturityLevel": 2,
       "motherPositionOverride": "yb/b",
       "fatherPositionOverride": "yb/bs"
+    },
+    {
+      "id": "gpG0pHe4SmANLqMwi8A1y",
+      "name": "Coach",
+      "x": 1283.1000000000006,
+      "y": 437.0999999999999,
+      "gender": "female",
+      "partnerships": [],
+      "lifeStatus": "alive",
+      "isCoach": true,
+      "events": [],
+      "coachThinking": {
+        "thinking": "a dfa sdf as dfsa df",
+        "notes": "asdf.  fasdfasfasdf",
+        "updatedAt": 1773956304295
+      }
     }
   ],
   "partnerships": [
@@ -448,7 +616,7 @@
       "id": "demo-prl-parents",
       "partner1_id": "demo-dad",
       "partner2_id": "demo-mom",
-      "horizontalConnectorY": 295.4140625,
+      "horizontalConnectorY": 331.3057826086956,
       "relationshipType": "married",
       "relationshipStatus": "married",
       "relationshipStartDate": "2003-05-20",
@@ -460,14 +628,14 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 647,
-        "y": 158.4140625
+        "x": 727.0000000000001,
+        "y": 183.8705842391305
       },
       "notesSize": {
         "width": 206,
         "height": 107
       },
-      "familyNameOffsetX": 45,
+      "familyNameOffsetX": 105.07,
       "familyEvents": [
         {
           "date": "2026-03-19",
@@ -570,6 +738,26 @@
           "id": "NNSetKLdxaRLXUdhvrGIO",
           "anchorType": "EMOTIONAL_PROCESS_EP",
           "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Triangle",
+          "emotionalProcessType": "triangle-functioning",
+          "statusLabel": "ongoing",
+          "intensity": "5",
+          "frequency": 1,
+          "impact": 1,
+          "howWell": 0,
+          "wwwwh": "",
+          "observations": "",
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "zswlagZDurWoOk-JcnyFx",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
         }
       ]
     },
@@ -577,7 +765,7 @@
       "id": "demo-prl-emma",
       "partner1_id": "demo-emma-partner",
       "partner2_id": "demo-daughter",
-      "horizontalConnectorY": 566.414,
+      "horizontalConnectorY": 560.671,
       "relationshipType": "dating",
       "relationshipStatus": "ongoing",
       "relationshipStartDate": "2024-03-01",
@@ -586,8 +774,8 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 916.0000180249252,
-        "y": 588.413868443991
+        "x": 996.0000180249253,
+        "y": 613.8703901831215
       },
       "notesSize": {
         "width": 187,
@@ -664,8 +852,8 @@
       "events": [],
       "color": "#444444",
       "notesPosition": {
-        "x": 141,
-        "y": 339.4140625
+        "x": 221.0000000000001,
+        "y": 364.8705842391305
       }
     },
     {
@@ -709,8 +897,8 @@
         "height": 88
       },
       "notesPosition": {
-        "x": 922,
-        "y": 349.9140625
+        "x": 1002.0000000000001,
+        "y": 375.3705842391305
       }
     },
     {
@@ -719,9 +907,9 @@
       "person2_id": "demo-mom",
       "status": "ongoing",
       "relationshipType": "fusion",
-      "lineStyle": "medium",
+      "lineStyle": "fusion-dotted-wide",
       "lineEnding": "none",
-      "startDate": "2024-01-16",
+      "startDate": "2025-01-16",
       "color": "#FF9100",
       "events": [
         {
@@ -745,6 +933,123 @@
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
           "createdAt": 1772770322557
+        },
+        {
+          "id": "1773955688922-917d959c3fe58",
+          "date": "2022-01-16",
+          "category": "Fusion",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955688922
+        },
+        {
+          "id": "1773955688922-ba75863a6f99a8",
+          "date": "2022-01-16",
+          "startDate": "2022-01-16",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "fusion",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "bxwrotpEvuizkIWo_krB6",
+          "statusLabel": "Ongoing",
+          "intensity": 4,
+          "frequency": 3,
+          "impact": 2,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955688922
+        },
+        {
+          "id": "1773955718936-9c0e416677595",
+          "date": "2023-01-16",
+          "category": "Fusion",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955718936
+        },
+        {
+          "id": "1773955740823-aa18d9e394afe8",
+          "date": "2025-01-16",
+          "category": "Fusion",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955740823
+        },
+        {
+          "id": "1773955740823-b5d32e71f0ca6",
+          "date": "2025-01-16",
+          "startDate": "2025-01-16",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "fusion",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "bxwrotpEvuizkIWo_krB6",
+          "statusLabel": "Ongoing",
+          "intensity": 1,
+          "frequency": 2,
+          "impact": 1,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955740823
+        },
+        {
+          "id": "1773955742626-d707707ccb715",
+          "date": "2025-01-16",
+          "startDate": "2025-01-16",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "fusion",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "bxwrotpEvuizkIWo_krB6",
+          "statusLabel": "Ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955742626
         }
       ]
     },
@@ -780,6 +1085,123 @@
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
           "createdAt": 1773853927957
+        },
+        {
+          "id": "1773956010354-dd0fc4a0cd0d9",
+          "date": "2023-03-18",
+          "category": "Cutoff",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956010354
+        },
+        {
+          "id": "1773956022126-f851946866d71",
+          "date": "2023-03-18",
+          "startDate": "2023-03-18",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "cutoff",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "xZf6237quYJk8RafqnRY6",
+          "statusLabel": "Ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956022126
+        },
+        {
+          "id": "1773956031376-5bd7a17f0bc56",
+          "date": "2025-03-18",
+          "category": "Cutoff",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956031376
+        },
+        {
+          "id": "1773956031376-c94818cb7c4c6",
+          "date": "2025-03-18",
+          "startDate": "2025-03-18",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "cutoff",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "xZf6237quYJk8RafqnRY6",
+          "statusLabel": "Ongoing",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956031376
+        },
+        {
+          "id": "1773956043872-5fe6f21c33411",
+          "date": "2026-03-18",
+          "category": "Cutoff",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956043872
+        },
+        {
+          "id": "1773956043872-dd2e1f74e6764",
+          "date": "2026-03-18",
+          "startDate": "2026-03-18",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "cutoff",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "xZf6237quYJk8RafqnRY6",
+          "statusLabel": "Ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Emma Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773956043872
         }
       ]
     },
@@ -918,13 +1340,126 @@
           "createdAt": 1773875317481
         }
       ]
+    },
+    {
+      "id": "ZKx248PhuNDl1Y-Ef2tQO",
+      "person1_id": "demo-dad",
+      "person2_id": "demo-mom",
+      "status": "ongoing",
+      "relationshipType": "conflict",
+      "lineStyle": "conflict-dotted-tight",
+      "lineEnding": "none",
+      "startDate": "2026-03-19",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "x8u76jJtO_zxm-GQjLR6-",
+          "date": "2024-03-19",
+          "startDate": "2024-03-19",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "conflict",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "ZKx248PhuNDl1Y-Ef2tQO",
+          "statusLabel": "ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955828819
+        },
+        {
+          "id": "1773955851545-6aca4c7c7f1b28",
+          "date": "2025-03-19",
+          "category": "Conflict",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955851545
+        },
+        {
+          "id": "1773955851545-66a3516a508998",
+          "date": "2025-03-19",
+          "startDate": "2025-03-19",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "conflict",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "ZKx248PhuNDl1Y-Ef2tQO",
+          "statusLabel": "Ongoing",
+          "intensity": 4,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955851545
+        },
+        {
+          "id": "1773955862763-38478d6e65ee1",
+          "date": "2026-03-19",
+          "category": "Conflict",
+          "statusLabel": "Ongoing – Pattern Start",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955862763
+        },
+        {
+          "id": "1773955862763-0d0a1f709ec888",
+          "date": "2026-03-19",
+          "startDate": "2026-03-19",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "conflict",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "ZKx248PhuNDl1Y-Ef2tQO",
+          "statusLabel": "Ongoing",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773955862763
+        }
+      ]
     }
   ],
   "pageNotes": [
     {
       "id": "9UThrI14h5C-rr7iadBR4",
-      "x": 153,
-      "y": 527.5859375,
+      "x": 198.98260869565226,
+      "y": 527.4424592391306,
       "title": "General Note",
       "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
       "width": 220,
@@ -932,7 +1467,167 @@
       "fillColor": "#fff8c6"
     }
   ],
-  "triangles": [],
+  "triangles": [
+    {
+      "id": "TQiD8hUDQ419UZVsbSbas",
+      "person1_id": "demo-dad",
+      "person2_id": "demo-son",
+      "person3_id": "demo-emma-partner",
+      "color": "#8a5a00",
+      "intensity": "medium",
+      "tpls": [
+        {
+          "id": "hTyhCdM9rR7crQNHvgR7v",
+          "person1_id": "demo-dad",
+          "person2_id": "demo-son",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "fusion-dotted-tight",
+          "lineEnding": "none",
+          "startDate": "2026-03-19",
+          "color": "#8a5a00",
+          "events": [
+            {
+              "id": "1773954667140-183d1bc12a4d68",
+              "date": "2026-03-19",
+              "startDate": "2026-03-19",
+              "category": "Emotional Pattern",
+              "eventType": "EPE",
+              "emotionalProcessType": "fusion",
+              "anchorType": "EMOTIONAL_PROCESS_EP",
+              "anchorId": "hTyhCdM9rR7crQNHvgR7v",
+              "statusLabel": "Ongoing",
+              "intensity": 2,
+              "frequency": 0,
+              "impact": 0,
+              "howWell": 1,
+              "otherPersonName": "Liam Carter",
+              "primaryPersonName": "Alex Carter",
+              "wwwwh": "Not recorded - ask client",
+              "observations": "Not recorded - ask client",
+              "isNodalEvent": false,
+              "eventClass": "emotional-pattern",
+              "createdAt": 1773954667140
+            }
+          ]
+        },
+        {
+          "id": "kAXozssHBxnwQUsdTanTu",
+          "person1_id": "demo-son",
+          "person2_id": "demo-emma-partner",
+          "status": "ongoing",
+          "relationshipType": "distance",
+          "lineStyle": "distance-dashed-tight",
+          "lineEnding": "none",
+          "startDate": "2026-03-19",
+          "color": "#8a5a00",
+          "events": [
+            {
+              "id": "1773954698819-45f9e806634f68",
+              "date": "2026-03-19",
+              "startDate": "2026-03-19",
+              "category": "Emotional Pattern",
+              "eventType": "EPE",
+              "emotionalProcessType": "conflict",
+              "anchorType": "EMOTIONAL_PROCESS_EP",
+              "anchorId": "kAXozssHBxnwQUsdTanTu",
+              "statusLabel": "Ongoing",
+              "intensity": 1,
+              "frequency": 0,
+              "impact": 0,
+              "howWell": 1,
+              "otherPersonName": "Noah Reed",
+              "primaryPersonName": "Liam Carter",
+              "wwwwh": "Not recorded - ask client",
+              "observations": "Not recorded - ask client",
+              "isNodalEvent": false,
+              "eventClass": "emotional-pattern",
+              "createdAt": 1773954698819
+            }
+          ]
+        },
+        {
+          "id": "Q4eAvF0ApZPuyWNoppQGY",
+          "person1_id": "demo-emma-partner",
+          "person2_id": "demo-dad",
+          "status": "ongoing",
+          "relationshipType": "conflict",
+          "lineStyle": "conflict-dotted-wide",
+          "lineEnding": "none",
+          "startDate": "2026-03-19",
+          "color": "#8a5a00",
+          "events": [
+            {
+              "id": "1773954685818-a724a75762e43",
+              "date": "2026-03-19",
+              "startDate": "2026-03-19",
+              "category": "Emotional Pattern",
+              "eventType": "EPE",
+              "emotionalProcessType": "distance",
+              "anchorType": "EMOTIONAL_PROCESS_EP",
+              "anchorId": "Q4eAvF0ApZPuyWNoppQGY",
+              "statusLabel": "Ongoing",
+              "intensity": 4,
+              "frequency": 0,
+              "impact": 0,
+              "howWell": 1,
+              "otherPersonName": "Alex Carter",
+              "primaryPersonName": "Noah Reed",
+              "wwwwh": "Not recorded - ask client",
+              "observations": "Not recorded - ask client",
+              "isNodalEvent": false,
+              "eventClass": "emotional-pattern",
+              "createdAt": 1773954685818
+            },
+            {
+              "id": "1773954986610-57147f9e6477a8",
+              "date": "2026-03-19",
+              "startDate": "2026-03-19",
+              "category": "Emotional Pattern",
+              "eventType": "EPE",
+              "emotionalProcessType": "cutoff",
+              "anchorType": "EMOTIONAL_PROCESS_EP",
+              "anchorId": "Q4eAvF0ApZPuyWNoppQGY",
+              "statusLabel": "Ongoing",
+              "intensity": 1,
+              "frequency": 0,
+              "impact": 0,
+              "howWell": 1,
+              "otherPersonName": "Alex Carter",
+              "primaryPersonName": "Noah Reed",
+              "wwwwh": "Not recorded - ask client",
+              "observations": "Not recorded - ask client",
+              "isNodalEvent": false,
+              "eventClass": "emotional-pattern",
+              "createdAt": 1773954986610
+            },
+            {
+              "id": "1773954992278-8e77632a688a8",
+              "date": "2026-03-19",
+              "startDate": "2026-03-19",
+              "category": "Emotional Pattern",
+              "eventType": "EPE",
+              "emotionalProcessType": "conflict",
+              "anchorType": "EMOTIONAL_PROCESS_EP",
+              "anchorId": "Q4eAvF0ApZPuyWNoppQGY",
+              "statusLabel": "Ongoing",
+              "intensity": 1,
+              "frequency": 0,
+              "impact": 0,
+              "howWell": 1,
+              "otherPersonName": "Alex Carter",
+              "primaryPersonName": "Noah Reed",
+              "wwwwh": "Not recorded - ask client",
+              "observations": "Not recorded - ask client",
+              "isNodalEvent": false,
+              "eventClass": "emotional-pattern",
+              "createdAt": 1773954992278
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "functionalIndicatorDefinitions": [
     {
       "id": "symptom-physical-default",

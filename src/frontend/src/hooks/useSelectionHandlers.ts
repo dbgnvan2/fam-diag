@@ -215,7 +215,6 @@ export function useSelectionHandlers({
             emotionalLine,
             {
               eventType: 'EPE',
-              emotionalProcessType: emotionalLine.relationshipType,
               category: 'Emotional Pattern',
             },
             { x: e.evt.clientX, y: e.evt.clientY }
@@ -273,11 +272,11 @@ export function useSelectionHandlers({
         openTrianglePropertyModal(
           triangleId,
           {
-            eventType: 'FAMILY',
-            emotionalProcessType: processType,
+            eventType: 'TRIANGLE',
+            subtype: processType,
             category: 'Triangle',
-            eventClass: 'emotional-pattern',
-            statusLabel: 'ongoing',
+            eventClass: 'triangle',
+            status: 'ongoing',
             intensity: 1,
             frequency: 1,
             impact: 1,

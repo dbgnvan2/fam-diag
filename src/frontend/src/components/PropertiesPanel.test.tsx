@@ -806,10 +806,9 @@ describe('PropertiesPanel', () => {
                     date: '2026-01-02',
                     startDate: '2026-01-02',
                     category: 'emotional',
-                    symptomGroup: 'emotional',
                     symptomType: 'Alcohol',
-                    eventType: 'FF',
-                    statusLabel: 'Ongoing',
+                    eventType: 'SYMPTOM',
+                    status: 'ongoing',
                     intensity: 1,
                     frequency: 1,
                     impact: 2,
@@ -894,12 +893,12 @@ describe('PropertiesPanel', () => {
 
         // Intensity select uses symptom-specific labels
         const intensitySelect = screen.getByLabelText('Intensity:') as HTMLSelectElement;
-        expect(within(intensitySelect).getByRole('option', { name: /0: None/i })).toBeInTheDocument();
+        expect(within(intensitySelect).getByRole('option', { name: /1: Minimal/i })).toBeInTheDocument();
         expect(within(intensitySelect).getByRole('option', { name: /5: Severe/i })).toBeInTheDocument();
 
         // Open intensity help and pick Major (level 4)
-        fireEvent.click(screen.getByRole('button', { name: /Symptom event intensity help/i }));
-        const helpDialog = screen.getByRole('dialog', { name: /Symptom event intensity scale/i });
+        fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
         fireEvent.click(within(helpDialog).getByRole('button', { name: /Major/i }));
 
         // Save updates the functionalIndicator with the chosen intensity
@@ -932,15 +931,13 @@ describe('PropertiesPanel', () => {
                 onUpdateEmotionalLine={() => {}}
                 initialActiveTab="events"
                 openNewEventRequestId="seeded-symptom"
-                newEventSeed={{ eventType: 'FF', category: 'emotional', symptomGroup: 'emotional' }}
+                newEventSeed={{ eventType: 'SYMPTOM', category: 'emotional' }}
                 onClose={() => {}}
             />
         );
 
         expect(screen.getByText('Add Symptom')).toBeInTheDocument();
-        expect(screen.getByLabelText('Event Type:')).toHaveValue('FF');
-        expect(screen.getByLabelText('Symptom Category:')).toHaveValue('emotional');
-        expect(screen.getByLabelText('Status:')).toHaveValue('Ongoing');
+        expect(screen.getByLabelText('Category:')).toHaveValue('Emotional');
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
     });
 
@@ -966,9 +963,8 @@ describe('PropertiesPanel', () => {
                 initialActiveTab="events"
                 openNewEventRequestId="seeded-autonomy"
                 newEventSeed={{
-                    eventType: 'EPE',
+                    eventType: 'EA',
                     category: 'Emotional Autonomy',
-                    emotionalProcessType: 'emotional-autonomy',
                     eventClass: 'emotional-pattern',
                     intensity: 1,
                 }}
@@ -977,10 +973,9 @@ describe('PropertiesPanel', () => {
         );
 
         expect(screen.getByText('Add Emotional Autonomy')).toBeInTheDocument();
-        expect(screen.getByLabelText('Event Type:')).toHaveValue('EPE');
 
-        fireEvent.click(screen.getByRole('button', { name: /Emotional autonomy intensity help/i }));
-        const helpDialog = screen.getByRole('dialog', { name: /Capacity for Emotional Autonomy Scale/i });
+        fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
         fireEvent.click(within(helpDialog).getByRole('button', { name: /Moderate-High/i }));
 
         expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
@@ -1008,9 +1003,8 @@ describe('PropertiesPanel', () => {
                 initialActiveTab="events"
                 openNewEventRequestId="seeded-foo-triangle"
                 newEventSeed={{
-                    eventType: 'EPE',
-                    category: 'triangle-functioning-flexibility',
-                    emotionalProcessType: 'foo-triangle',
+                    eventType: 'FOO',
+                    category: 'Triangle Flexibility',
                     eventClass: 'emotional-pattern',
                     intensity: 1,
                 }}
@@ -1018,14 +1012,11 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add FoO Triangle')).toBeInTheDocument();
-        expect(screen.getByLabelText('Triangle Category:')).toHaveValue('triangle-functioning-flexibility');
+        expect(screen.getByText('Add Family of Origin')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /FoO intensity help/i }));
-        const helpDialog = screen.getByRole('dialog', {
-            name: /Degree of Flexibility in the Functioning of Triangles/i,
-        });
-        fireEvent.click(within(helpDialog).getByRole('button', { name: /Moderate-high/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
+        fireEvent.click(within(helpDialog).getByRole('button', { name: /Moderate-High/i }));
 
         expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
     });
@@ -1052,9 +1043,8 @@ describe('PropertiesPanel', () => {
                 initialActiveTab="events"
                 openNewEventRequestId="seeded-foo-extended"
                 newEventSeed={{
-                    eventType: 'EPE',
-                    category: 'family-stability',
-                    emotionalProcessType: 'foo',
+                    eventType: 'FOO',
+                    category: 'Family Stability',
                     eventClass: 'emotional-pattern',
                     intensity: 1,
                 }}
@@ -1062,13 +1052,10 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add FoO')).toBeInTheDocument();
-        expect(screen.getByLabelText('FoO Category:')).toHaveValue('family-stability');
+        expect(screen.getByText('Add Family of Origin')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /FoO intensity help/i }));
-        const helpDialog = screen.getByRole('dialog', {
-            name: /Family Stability Scale/i,
-        });
+        fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
+        const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
         fireEvent.click(within(helpDialog).getByRole('button', { name: /Semi-stable/i }));
 
         expect(screen.getByLabelText('Intensity:')).toHaveValue('4');
@@ -1203,9 +1190,9 @@ describe('PropertiesPanel', () => {
                 genderDate: '2020-05-01',
                 genderIdentity: 'masculine',
                 events: expect.arrayContaining([
-                    expect.objectContaining({ statusLabel: 'Birth Sex: Male' }),
-                    expect.objectContaining({ statusLabel: 'Gender Date' }),
-                    expect.objectContaining({ statusLabel: 'Gender: Masculine' }),
+                    expect.objectContaining({ subtype: 'Birth Sex: Male' }),
+                    expect.objectContaining({ subtype: 'Gender Date' }),
+                    expect.objectContaining({ subtype: 'Gender: Masculine' }),
                 ]),
             })
         );
@@ -1464,7 +1451,9 @@ describe('PropertiesPanel', () => {
                     id: 'rel-event-1',
                     date: '2024-04-01',
                     category: 'married',
-                    statusLabel: 'Separated Date',
+                    eventType: 'NODAL',
+                    status: 'discrete',
+                    subtype: 'Separated Date',
                     intensity: 1,
                     frequency: 1,
                     impact: 1,
@@ -1509,7 +1498,6 @@ describe('PropertiesPanel', () => {
         );
 
         // Events are now rendered as clickable bars (no column headers or Edit/Delete buttons)
-        expect(screen.getByText('married')).toBeInTheDocument();
         expect(screen.getByText('Separated Date')).toBeInTheDocument();
         expect(screen.getByText('2024-04-01')).toBeInTheDocument();
     });

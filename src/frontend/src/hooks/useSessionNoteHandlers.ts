@@ -273,16 +273,16 @@ export function useSessionNoteHandlers({
         id: nanoid(),
         date: yearMatch ? `${yearMatch[0]}-01-01` : '',
         category: eventCategories[0] || 'Session Note',
+        eventType: 'NODAL' as const,
+        status: 'discrete' as const,
         intensity: 5,
         howWell: 5,
         otherPersonName: matchedPerson?.name || '',
         primaryPersonName: '',
         wwwwh: trimmed,
         observations: trimmed,
-        isNodalEvent: false,
         createdAt: Date.now(),
-        statusLabel: '',
-        eventClass: 'individual',
+        eventClass: 'individual' as const,
       };
     },
     [people, eventCategories]
@@ -369,8 +369,8 @@ export function useSessionNoteHandlers({
         const numeric = Number(value);
         return { ...prev, [field]: Number.isNaN(numeric) ? 0 : numeric };
       }
-      if (field === 'isNodalEvent') {
-        return { ...prev, isNodalEvent: value === 'true' };
+      if (field === 'eventType') {
+        return { ...prev, eventType: value as EmotionalProcessEvent['eventType'] };
       }
       return { ...prev, [field]: value };
     });
@@ -384,7 +384,7 @@ export function useSessionNoteHandlers({
     const eventWithTimestamp: EmotionalProcessEvent = {
       ...event,
       createdAt: event.createdAt ?? Date.now(),
-      statusLabel: event.statusLabel ?? '',
+      status: event.status || 'discrete',
       eventClass: event.eventClass || fallbackClass,
     };
     if (target.type === 'person') {

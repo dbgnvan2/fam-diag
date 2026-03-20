@@ -14,11 +14,6 @@ import {
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
 import {
-  isSymptomCategory,
-  normalizeSymptomCategory,
-  clampSymptomType,
-} from '../constants/eventConstants';
-import {
   deriveSiblingPositionResult,
   getSiblingPositionOptions,
 } from '../utils/siblingPosition';
@@ -907,7 +902,9 @@ const PropertiesPanel = ({
       id: createEventId(),
       date: dateValue,
       category: 'Individual',
-      statusLabel: PERSON_DATE_LABELS[field],
+      eventType: 'NODAL' as const,
+      status: 'discrete' as const,
+      subtype: PERSON_DATE_LABELS[field],
       intensity: 0,
       frequency: 0,
       impact: 0,
@@ -916,8 +913,7 @@ const PropertiesPanel = ({
       primaryPersonName: displayName,
       wwwwh: DEFAULT_OBSERVATION,
       observations: person.notes || DEFAULT_OBSERVATION,
-      isNodalEvent: true,
-      eventClass: 'individual',
+      eventClass: 'individual' as const,
       createdAt: Date.now(),
     };
   };
@@ -929,14 +925,16 @@ const PropertiesPanel = ({
   ): EmotionalProcessEvent => {
     const displayName = composeDisplayName({}, person) || person.name || '';
     const isBirthSex = field === 'birthSex';
-    const statusLabel = isBirthSex
+    const subtype = isBirthSex
       ? `Birth Sex: ${getBirthSexLabel(value as Person['birthSex'])}`
       : `Gender: ${getGenderIdentityLabel(value as Person['genderIdentity'])}`;
     return {
       id: createEventId(),
       date: normalizePersonEventDate(dateValue),
       category: 'Individual',
-      statusLabel,
+      eventType: 'NODAL' as const,
+      status: 'discrete' as const,
+      subtype,
       intensity: 0,
       frequency: 0,
       impact: 0,
@@ -945,8 +943,7 @@ const PropertiesPanel = ({
       primaryPersonName: displayName,
       wwwwh: DEFAULT_OBSERVATION,
       observations: person.notes || DEFAULT_OBSERVATION,
-      isNodalEvent: true,
-      eventClass: 'individual',
+      eventClass: 'individual' as const,
       createdAt: Date.now(),
     };
   };
@@ -965,7 +962,9 @@ const PropertiesPanel = ({
       id: createEventId(),
       date: dateValue,
       category: toTitleCase(partnership.relationshipType),
-      statusLabel: label,
+      eventType: 'NODAL' as const,
+      status: 'discrete' as const,
+      subtype: label,
       intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(status)] ?? 0,
       frequency: 0,
       impact: 0,
@@ -974,8 +973,7 @@ const PropertiesPanel = ({
       primaryPersonName: partner1.name || '',
       wwwwh: DEFAULT_OBSERVATION,
       observations: partnership.notes || DEFAULT_OBSERVATION,
-      isNodalEvent: true,
-      eventClass: 'relationship',
+      eventClass: 'relationship' as const,
       createdAt: Date.now(),
     };
   };
@@ -997,7 +995,9 @@ const PropertiesPanel = ({
       id: createEventId(),
       date: dateValue,
       category: toTitleCase(line.relationshipType),
-      statusLabel: `${statusText} – ${stageLabel}`,
+      eventType: 'NODAL' as const,
+      status: 'discrete' as const,
+      subtype: `${statusText} – ${stageLabel}`,
       intensity: 0,
       frequency: 0,
       impact: 0,
@@ -1006,8 +1006,7 @@ const PropertiesPanel = ({
       primaryPersonName: person1.name || '',
       wwwwh: DEFAULT_OBSERVATION,
       observations: line.notes || DEFAULT_OBSERVATION,
-      isNodalEvent: true,
-      eventClass: 'emotional-pattern',
+      eventClass: 'emotional-pattern' as const,
       createdAt: Date.now(),
     };
   };
@@ -1029,11 +1028,10 @@ const PropertiesPanel = ({
       startDate: start,
       endDate: line.endDate || undefined,
       category: 'Emotional Pattern',
-      eventType: 'EPE',
-      emotionalProcessType: line.relationshipType,
-      anchorType: 'EMOTIONAL_PROCESS_EP',
+      eventType: 'EPE' as const,
+      anchorType: 'EMOTIONAL_PROCESS_EP' as const,
       anchorId: line.id,
-      statusLabel: toTitleCase(line.status || 'ongoing'),
+      status: ((line.status || 'ongoing') as any),
       intensity,
       frequency,
       impact,
@@ -1042,8 +1040,7 @@ const PropertiesPanel = ({
       primaryPersonName: person1.name || '',
       wwwwh: DEFAULT_OBSERVATION,
       observations: line.notes || DEFAULT_OBSERVATION,
-      isNodalEvent: false,
-      eventClass: 'emotional-pattern',
+      eventClass: 'emotional-pattern' as const,
       createdAt: Date.now(),
     };
   };
@@ -1325,25 +1322,24 @@ const PropertiesPanel = ({
     [isEmotionalLine, isPartnership]
   );
   const resolveDefaultEventType = useCallback(
-    (): EventType => (isEmotionalLine ? 'EPE' : 'FF'),
+    (): EventType => (isEmotionalLine ? 'EPE' : 'NODAL'),
     [isEmotionalLine]
   );
   const inferEventType = (event: EmotionalProcessEvent): EventType => {
     if (event.eventType) return event.eventType;
-    if (event.isNodalEvent) return 'NODAL';
     if (event.eventClass === 'emotional-pattern') return 'EPE';
-    return 'FF';
+    return 'NODAL';
   };
   const normalizeEventDate = (event: EmotionalProcessEvent): string =>
     event.startDate || event.date || '';
   const symptomTypeOptions = useMemo(() => {
-    const currentCategory = normalizeSymptomCategory(eventDraft?.category || eventDraft?.symptomGroup);
+    const currentCategory = (eventDraft?.category || 'physical').toLowerCase().trim();
     const labels = functionalIndicatorDefinitions
-      .filter((definition) => (definition.group || 'physical') === currentCategory)
+      .filter((definition) => (definition.group || 'physical').toLowerCase() === currentCategory)
       .map((definition) => definition.label?.trim())
       .filter((label): label is string => !!label);
     return Array.from(new Set(labels));
-  }, [functionalIndicatorDefinitions, eventDraft?.category, eventDraft?.symptomGroup]);
+  }, [functionalIndicatorDefinitions, eventDraft?.category]);
   const emotionalLinePeople = useMemo(() => {
     if (!isEmotionalLine) return { person1Name: '', person2Name: '' };
     const line = selectedItem as EmotionalLine;
@@ -1415,13 +1411,10 @@ const PropertiesPanel = ({
       }
     >();
     (selectedPerson.events || [])
-      .filter((event) => inferEventType(event) === 'FF')
+      .filter((event) => inferEventType(event) === 'SYMPTOM')
       .forEach((event) => {
-        const category = normalizeSymptomCategory(event.category || event.symptomGroup);
-        const type =
-          clampSymptomType(
-            event.symptomType || (!isSymptomCategory(event.category) ? event.category : '')
-          ) || 'General';
+        const category = (event.category || 'physical').toLowerCase();
+        const type = (event.symptomType || event.subtype || event.category || 'General').slice(0, 30);
         const eventTime = event.startDate || event.date || '';
         const parsed = eventTime ? new Date(eventTime).getTime() : 0;
         const timestamp =
@@ -1432,17 +1425,15 @@ const PropertiesPanel = ({
         if (existing && existing.lastTimestamp >= timestamp) {
           return;
         }
-        const statusLower = (event.statusLabel || '').trim().toLowerCase();
-        const status =
-          statusLower === 'past' || statusLower === 'none' || statusLower === 'current'
-            ? (statusLower as 'past' | 'none' | 'current')
-            : 'current';
+        const eventStatus = event.status || 'discrete';
+        const status: 'past' | 'current' | 'none' =
+          eventStatus === 'end' ? 'past' : 'current';
         const sourceDef = event.sourceIndicatorId
           ? definitionById.get(event.sourceIndicatorId)
           : undefined;
         buckets.set(key, {
           key,
-          category,
+          category: category as any,
           type,
           definitionId: sourceDef?.id,
           sourceEventId: event.id,
@@ -1456,15 +1447,15 @@ const PropertiesPanel = ({
     (selectedPerson.functionalIndicators || []).forEach((entry) => {
       const definition = definitionById.get(entry.definitionId);
       if (!definition) return;
-      const category = normalizeSymptomCategory(definition.group || 'physical');
-      const type = clampSymptomType(definition.label) || 'General';
+      const category = (definition.group || 'physical').toLowerCase();
+      const type = (definition.label || 'General').slice(0, 30);
       const key = `${category}|${type.toLowerCase()}`;
       const existing = buckets.get(key);
       const indicatorTimestamp = entry.lastUpdatedAt || 0;
       if (!existing || indicatorTimestamp >= existing.lastTimestamp) {
         buckets.set(key, {
           key,
-          category,
+          category: category as any,
           type,
           definitionId: definition.id,
           status: entry.status,
@@ -1491,20 +1482,12 @@ const PropertiesPanel = ({
     const anchorType = resolveAnchorType();
     const anchorId = selectedItem.id;
     const anchorEvents = getEvents();
-    const processType =
-      seed?.emotionalProcessType ||
-      (eventType === 'EPE' && isEmotionalLine
-        ? (selectedItem as EmotionalLine).relationshipType
-        : '');
     const similarEvents = anchorEvents
       .filter((event) => {
         const eType = inferEventType(event);
         if (eType !== eventType) return false;
         if ((event.anchorType || anchorType) !== anchorType) return false;
         if ((event.anchorId || anchorId) !== anchorId) return false;
-        if (eventType === 'EPE') {
-          return (event.emotionalProcessType || event.category || '') === processType;
-        }
         return true;
       })
       .sort((a, b) => {
@@ -1515,22 +1498,13 @@ const PropertiesPanel = ({
     const latest = similarEvents[0];
     const baseDate = seed?.startDate || seed?.date || latest?.startDate || latest?.date || new Date().toISOString().slice(0, 10);
     const baseEndDate = seed?.endDate || latest?.endDate || '';
-    const baseSymptomCategory = normalizeSymptomCategory(
-      (seed?.category as string | undefined) ||
-        (seed?.symptomGroup as string | undefined) ||
-        (latest?.category as string | undefined) ||
-        (latest?.symptomGroup as string | undefined)
-    );
-    const baseSymptomType = clampSymptomType(
-      (seed?.symptomType as string | undefined) ||
-        (latest?.symptomType as string | undefined) ||
-        (latest && inferEventType(latest) === 'FF' && !isSymptomCategory(latest.category)
-          ? latest.category
-          : '')
-    );
+    const normalizeSymptomCat = (cat: string) => {
+      const lower = cat.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    };
     const baseCategory =
-      eventType === 'FF'
-        ? baseSymptomCategory
+      eventType === 'SYMPTOM'
+        ? normalizeSymptomCat(seed?.category || latest?.category || 'Physical')
         : seed?.category ||
           latest?.category ||
           (eventType === 'EPE' ? 'Emotional Pattern' : eventCategories[0] || 'Nodal');
@@ -1541,11 +1515,10 @@ const PropertiesPanel = ({
       endDate: baseEndDate,
       category: baseCategory,
       eventType,
-      nodalEventSubtype: seed?.nodalEventSubtype || latest?.nodalEventSubtype || '',
-      emotionalProcessType: processType || latest?.emotionalProcessType || '',
+      subtype: seed?.subtype || latest?.subtype || '',
       anchorType,
       anchorId,
-      statusLabel: seed?.statusLabel || latest?.statusLabel || '',
+      status: seed?.status || latest?.status || 'discrete',
       intensity: typeof (seed?.intensity ?? latest?.intensity) === 'number' ? Number(seed?.intensity ?? latest?.intensity) : 0,
       frequency: typeof (seed?.frequency ?? latest?.frequency) === 'number' ? Number(seed?.frequency ?? latest?.frequency) : 0,
       impact: typeof (seed?.impact ?? latest?.impact) === 'number' ? Number(seed?.impact ?? latest?.impact) : 0,
@@ -1556,12 +1529,8 @@ const PropertiesPanel = ({
       observations: seed?.observations || latest?.observations || '',
       priorEventsNote: seed?.priorEventsNote || latest?.priorEventsNote || '',
       reflectionsNote: seed?.reflectionsNote || latest?.reflectionsNote || '',
-      isNodalEvent: eventType === 'NODAL',
-      continuesFromPrevious: seed?.continuesFromPrevious ?? false,
-      continuesToNext: seed?.continuesToNext ?? false,
       createdAt: Date.now(),
-      symptomGroup: eventType === 'FF' ? baseSymptomCategory : undefined,
-      symptomType: eventType === 'FF' ? baseSymptomType : undefined,
+      symptomType: eventType === 'SYMPTOM' ? (seed?.symptomType || latest?.symptomType || '') : undefined,
       eventClass: (seed?.eventClass as EventClass) || latest?.eventClass || resolveEventClass(),
     };
   }, [
@@ -1583,14 +1552,14 @@ const PropertiesPanel = ({
   };
 
   const openEditEvent = (event: EmotionalProcessEvent) => {
+    const eType = inferEventType(event);
     setEventDraft({
       ...event,
       category: event.category || eventCategories[0] || '',
-      eventType: inferEventType(event),
+      eventType: eType,
       startDate: event.startDate || event.date || '',
       endDate: event.endDate || '',
-      nodalEventSubtype: event.nodalEventSubtype || '',
-      emotionalProcessType: event.emotionalProcessType || '',
+      subtype: event.subtype || '',
       anchorType: event.anchorType || resolveAnchorType(),
       anchorId: event.anchorId || selectedItem.id,
       otherPersonName: event.otherPersonName || 'None',
@@ -1600,18 +1569,9 @@ const PropertiesPanel = ({
       intensity: typeof event.intensity === 'number' ? event.intensity : 0,
       priorEventsNote: event.priorEventsNote || '',
       reflectionsNote: event.reflectionsNote || '',
-      statusLabel: event.statusLabel || '',
-      continuesFromPrevious: !!event.continuesFromPrevious,
-      continuesToNext: !!event.continuesToNext,
+      status: event.status || 'discrete',
       createdAt: event.createdAt ?? Date.now(),
-      symptomGroup:
-        inferEventType(event) === 'FF'
-          ? normalizeSymptomCategory(event.symptomGroup || event.category)
-          : undefined,
-      symptomType:
-        inferEventType(event) === 'FF'
-          ? clampSymptomType(event.symptomType || (!isSymptomCategory(event.category) ? event.category : ''))
-          : undefined,
+      symptomType: eType === 'SYMPTOM' ? (event.symptomType || '') : undefined,
       eventClass: event.eventClass || resolveEventClass(),
     });
     setEventModalPosition(null);
@@ -1632,15 +1592,13 @@ const PropertiesPanel = ({
     if (!eventDraft) return;
     if (field === 'eventType') {
       const nextType = value as EventType;
-      if (nextType === 'FF') {
-        const nextCategory = normalizeSymptomCategory(eventDraft.category);
+      if (nextType === 'SYMPTOM') {
+        const nextCategory = (eventDraft.category || 'physical').toLowerCase();
         setEventDraft({
           ...eventDraft,
           eventType: nextType,
           category: nextCategory,
-          symptomGroup: nextCategory,
-          symptomType: clampSymptomType(eventDraft.symptomType || ''),
-          isNodalEvent: false,
+          symptomType: eventDraft.symptomType || '',
         });
         return;
       }
@@ -1649,18 +1607,14 @@ const PropertiesPanel = ({
           ...eventDraft,
           eventType: nextType,
           category: eventDraft.category || 'Emotional Pattern',
-          symptomGroup: undefined,
           symptomType: undefined,
-          isNodalEvent: false,
         });
         return;
       }
       setEventDraft({
         ...eventDraft,
         eventType: nextType,
-        symptomGroup: undefined,
         symptomType: undefined,
-        isNodalEvent: nextType === 'NODAL',
       });
       return;
     }
@@ -1669,25 +1623,15 @@ const PropertiesPanel = ({
       setEventDraft({ ...eventDraft, [field]: Number.isNaN(numeric) ? 0 : numeric });
       return;
     }
-    if (field === 'isNodalEvent') {
-      const isNodal = value === 'true';
+    if (field === 'category' && inferEventType(eventDraft) === 'SYMPTOM') {
+      const normalizedCat = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
       setEventDraft({
         ...eventDraft,
-        isNodalEvent: isNodal,
-        eventType: isNodal ? 'NODAL' : eventDraft.eventType || resolveDefaultEventType(),
+        category: normalizedCat,
       });
       return;
     }
-    if (field === 'category' && (eventDraft.eventType || inferEventType(eventDraft)) === 'FF') {
-      const normalizedCategory = normalizeSymptomCategory(value);
-      setEventDraft({
-        ...eventDraft,
-        category: normalizedCategory,
-        symptomGroup: normalizedCategory,
-      });
-      return;
-    }
-    if (field === 'symptomType' && (eventDraft.eventType || inferEventType(eventDraft)) === 'FF') {
+    if (field === 'symptomType' && inferEventType(eventDraft) === 'SYMPTOM') {
       setEventDraft({
         ...eventDraft,
         symptomType: value.slice(0, 30),
@@ -1705,8 +1649,8 @@ const PropertiesPanel = ({
       ...eventDraft,
       eventType: normalizedType,
       category:
-        normalizedType === 'FF'
-          ? normalizeSymptomCategory(eventDraft.category || eventDraft.symptomGroup)
+        normalizedType === 'SYMPTOM'
+          ? (() => { const c = eventDraft.category || 'Physical'; return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase(); })()
           : eventDraft.category,
       anchorType: eventDraft.anchorType || resolveAnchorType(),
       anchorId: eventDraft.anchorId || selectedItem.id,
@@ -1719,16 +1663,11 @@ const PropertiesPanel = ({
       impact: typeof eventDraft.impact === 'number' ? eventDraft.impact : 0,
       priorEventsNote: eventDraft.priorEventsNote || '',
       reflectionsNote: eventDraft.reflectionsNote || '',
-      statusLabel: eventDraft.statusLabel || '',
+      status: eventDraft.status || 'discrete',
       createdAt: eventDraft.createdAt ?? Date.now(),
       sourceIndicatorId: eventDraft.sourceIndicatorId,
-      symptomGroup:
-        normalizedType === 'FF'
-          ? normalizeSymptomCategory(eventDraft.category || eventDraft.symptomGroup)
-          : undefined,
-      symptomType: normalizedType === 'FF' ? clampSymptomType(eventDraft.symptomType) : undefined,
+      symptomType: normalizedType === 'SYMPTOM' ? (eventDraft.symptomType || '') : undefined,
       eventClass: eventDraft.eventClass || resolveEventClass(),
-      isNodalEvent: normalizedType === 'NODAL',
     };
     const events = getEvents();
     const existingIndex = events.findIndex((evt) => evt.id === eventDraft.id);
@@ -1738,9 +1677,9 @@ const PropertiesPanel = ({
     if (isPerson) {
       const person = selectedItem as Person;
       const updates: Partial<Person> = { events: nextEvents };
-      if (normalizedType === 'FF') {
-        const normalizedGroup = normalizeSymptomCategory(cleanedDraft.category);
-        const normalizedTypeLabel = clampSymptomType(cleanedDraft.symptomType);
+      if (normalizedType === 'SYMPTOM') {
+        const normalizedGroup = (cleanedDraft.category || 'physical').toLowerCase();
+        const normalizedTypeLabel = (cleanedDraft.symptomType || '').slice(0, 30);
         const definition =
           (normalizedTypeLabel
             ? functionalIndicatorDefinitions.find(
@@ -1750,7 +1689,7 @@ const PropertiesPanel = ({
           functionalIndicatorDefinitions.find((entry) => entry.group === normalizedGroup);
         const ensuredDefinitionId =
           definition?.id ||
-          onEnsureSymptomCategoryDefinition?.(normalizedTypeLabel, normalizedGroup) ||
+          onEnsureSymptomCategoryDefinition?.(normalizedTypeLabel, normalizedGroup as any) ||
           null;
         if (ensuredDefinitionId) {
           cleanedDraft.sourceIndicatorId = ensuredDefinitionId;
@@ -2238,7 +2177,7 @@ const PropertiesPanel = ({
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <strong>Symptoms</strong>
-              <button type="button" onClick={() => openNewEvent({ eventType: 'FF' })} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Symptom</button>
+              <button type="button" onClick={() => openNewEvent({ eventType: 'SYMPTOM' })} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Symptom</button>
             </div>
             {symptomRows.length === 0 ? (
               <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No symptoms recorded yet.</div>
@@ -2258,7 +2197,7 @@ const PropertiesPanel = ({
                     const ev = (selectedPerson.events || []).find((e) => e.id === symptom.sourceEventId);
                     if (ev) { openEditEvent(ev); return; }
                   }
-                  openNewEvent({ eventType: 'FF', category: symptom.category, symptomGroup: symptom.category, symptomType: symptom.type });
+                  openNewEvent({ eventType: 'SYMPTOM', category: symptom.category, symptomType: symptom.type });
                 };
                 return (
                   <div
@@ -2369,12 +2308,12 @@ const PropertiesPanel = ({
               .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))
               .map((event) => {
                 const typeLabel =
-                  event.eventType === 'FF' ? 'Symptom'
-                  : event.eventType === 'EPE' ? (event.emotionalProcessType || event.category || 'Emotional Pattern')
-                  : (event.nodalEventSubtype || event.category || 'Nodal');
+                  event.eventType === 'SYMPTOM' ? 'Symptom'
+                  : event.eventType === 'EPE' ? (event.category || 'Emotional Pattern')
+                  : (event.subtype || event.category || event.eventType || 'Event');
                 const dateStr = event.startDate || event.date || '';
-                const statusLabel = event.statusLabel || 'Ongoing';
-                const isEnded = ['ended', 'past', 'none'].includes(statusLabel.toLowerCase());
+                const eventStatus = event.status || 'discrete';
+                const isEnded = ['end', 'discrete'].includes(eventStatus);
                 return (
                   <div
                     key={event.id}
@@ -2391,7 +2330,7 @@ const PropertiesPanel = ({
                       <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{dateStr}</div>
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                      {statusLabel}
+                      {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
                     </div>
                   </div>
                 );

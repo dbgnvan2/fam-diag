@@ -4,58 +4,22 @@
  * Manages its own intensity help open/close state.
  */
 import React, { useState } from 'react';
-import type { EmotionalProcessEvent, EventClass, EventContinuationState, EventType } from '../types';
+import type { EmotionalProcessEvent, EventClass, EventType } from '../types';
 import {
   INTENSITY_OPTIONS,
   FREQUENCY_OPTIONS,
   IMPACT_OPTIONS,
 } from '../constants/functionalIndicatorScales';
 import {
-  EVENT_CLASS_LABELS,
-  EMOTIONAL_AUTONOMY_INTENSITY_HELP,
-  EMOTIONAL_AUTONOMY_INTENSITY_LABELS,
-  FOO_TRIANGLE_CATEGORY_OPTIONS,
-  FOO_EXTENDED_CATEGORY_OPTIONS,
-  SYMPTOM_INTENSITY_HELP,
-  SYMPTOM_INTENSITY_LABELS,
-  NODAL_SUBTYPE_OPTIONS,
-  SYMPTOM_GROUP_OPTIONS,
-  isEmotionalAutonomyProcess,
-  isFooProcess,
-  isFooTriangleProcess,
-  isTrianglePropertyProcess,
-  isTriangleFunctioningProcess,
-  TRIANGLE_FUNCTIONING_INTENSITY_LABELS,
-  TRIANGLE_FUNCTIONING_INTENSITY_HELP,
-  isTriangleFlexibilityProcess,
-  TRIANGLE_FLEXIBILITY_INTENSITY_LABELS,
-  TRIANGLE_FLEXIBILITY_INTENSITY_HELP,
-  isTriangleStressResponseProcess,
-  TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS,
-  TRIANGLE_STRESS_RESPONSE_INTENSITY_HELP,
-  TRIANGLE_PROPERTY_TYPE_LABELS,
-  isStressorProcess,
-  STRESSOR_TYPE_LABELS,
-  STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS,
-  STRESS_EMOTIONAL_REACTIVITY_INTENSITY_HELP,
-  STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS,
-  STRESS_FAMILY_ADAPTABILITY_INTENSITY_HELP,
-  STRESS_FAMILY_STRESSOR_INTENSITY_LABELS,
-  STRESS_FAMILY_STRESSOR_INTENSITY_HELP,
-  STRESS_CHRONIC_STRESS_INTENSITY_LABELS,
-  STRESS_CHRONIC_STRESS_INTENSITY_HELP,
-  normalizeSymptomCategory,
-  getContinuationState,
-  continuationToFlags,
+  EVENT_STATUS_OPTIONS,
+  EVENT_CATEGORIES,
+  EVENT_SUBTYPES,
+  EVENT_TYPE_LABELS,
+  EVENT_TYPE_HAS_PERSONS,
+  EVENT_TYPE_HAS_SUBTYPE,
+  getIntensityScale,
 } from '../constants/eventConstants';
 import DatePickerField from './DatePickerField';
-
-const inferEventType = (event: EmotionalProcessEvent): EventType => {
-  if (event.eventType) return event.eventType;
-  if (event.isNodalEvent) return 'NODAL';
-  if (event.eventClass === 'emotional-pattern') return 'EPE';
-  return 'FF';
-};
 
 const helpBadgeStyle: React.CSSProperties = {
   width: 20,
@@ -103,19 +67,14 @@ const EventModal = ({
   isEditingExisting,
   primaryPersonOptions,
   otherPersonOptions,
-  eventCategories,
   symptomTypeOptions,
   resolvedAnchorType,
   resolvedAnchorId,
-  resolvedEventClass,
-  editEventTitle,
-  newEventTitle,
   onChange,
-  onSetDraft,
   onSave,
   onCancel,
 }: EventModalProps) => {
-  const [intensityHelpOpen, setIntensityHelpOpen] = useState<'symptom' | 'emotional-autonomy' | 'foo' | 'triangle-functioning' | 'triangle-flexibility' | 'triangle-stress-response' | 'stress-emotional-reactivity' | 'stress-family-adaptability' | 'stress-family-stressor' | 'stress-chronic-stress' | null>(null);
+  const [intensityHelpOpen, setIntensityHelpOpen] = useState(false);
 
   const MODAL_MARGIN = 12;
   const MODAL_MIN_HEIGHT = 260;
@@ -140,50 +99,23 @@ const EventModal = ({
   const labelStyle: React.CSSProperties = { width: 170, textAlign: 'right', fontWeight: 600 };
   const controlStyle: React.CSSProperties = { width: '60%' };
 
-  const eventType = inferEventType(eventDraft);
-  const isSymptomEvent = eventType === 'FF';
-  const isAutonomyEvent = eventType === 'EPE' && isEmotionalAutonomyProcess(eventDraft.emotionalProcessType);
-  const isFooLikeEvent =
-    eventType === 'EPE' &&
-    (isFooProcess(eventDraft.emotionalProcessType) || isFooTriangleProcess(eventDraft.emotionalProcessType));
-  const isTrianglePropertyEvent = isTrianglePropertyProcess(eventDraft.emotionalProcessType);
-  const isTriangleFunctioningEvent = isTriangleFunctioningProcess(eventDraft.emotionalProcessType);
-  const isTriangleFlexibilityEvent = isTriangleFlexibilityProcess(eventDraft.emotionalProcessType);
-  const isTriangleStressResponseEvent = isTriangleStressResponseProcess(eventDraft.emotionalProcessType);
-  const isStressorEvent = isStressorProcess(eventDraft.emotionalProcessType);
-  const isEmotionalReactivityEvent = eventDraft.emotionalProcessType === 'stress-emotional-reactivity';
-  const isFamilyAdaptabilityEvent = eventDraft.emotionalProcessType === 'stress-family-adaptability';
-  const isFamilyStressorEvent = eventDraft.emotionalProcessType === 'stress-family-stressor';
-  const isChronicStressEvent = eventDraft.emotionalProcessType === 'stress-chronic-stress';
-  const isFamilyCompactEvent = isTrianglePropertyEvent || isStressorEvent;
-  const isCompactEvent = isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isFamilyCompactEvent;
+  const eventType: EventType = eventDraft.eventType;
+  const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
+  const showSubtype = EVENT_TYPE_HAS_SUBTYPE[eventType];
+  const isNoPersonEvent = !showPersons; // FAMILY or TRIANGLE
+  const isSymptomEvent = eventType === 'SYMPTOM';
 
-  const fooCategoryOptions = isFooTriangleProcess(eventDraft.emotionalProcessType)
-    ? FOO_TRIANGLE_CATEGORY_OPTIONS
-    : FOO_EXTENDED_CATEGORY_OPTIONS;
-  const fooCategoryMeta =
-    fooCategoryOptions.find((option) => option.value === eventDraft.category) || fooCategoryOptions[0];
+  const categoryOptions = EVENT_CATEGORIES[eventType] || [];
+  const subtypeOptions =
+    showSubtype && eventType !== 'SYMPTOM' && eventType !== 'TRIANGLE'
+      ? (EVENT_SUBTYPES[eventType]?.[eventDraft.category] || [])
+      : [];
 
-  const continuationState = getContinuationState(eventDraft);
+  const intensityScale = getIntensityScale(eventType, eventDraft.category, eventDraft.subtype);
 
   const modalTitle = (() => {
-    if (isStressorEvent) {
-      return isEditingExisting ? 'Edit Stressor' : 'Add Stressor';
-    }
-    if (isTrianglePropertyEvent) {
-      return isEditingExisting ? 'Edit Triangle Property' : 'Add Triangle Property';
-    }
-    if (eventType === 'EPE' && isFooTriangleProcess(eventDraft.emotionalProcessType)) {
-      return isEditingExisting ? 'Edit FoO Triangle' : 'Add FoO Triangle';
-    }
-    if (eventType === 'EPE' && isFooProcess(eventDraft.emotionalProcessType)) {
-      return isEditingExisting ? 'Edit FoO' : 'Add FoO';
-    }
-    if (eventType === 'EPE' && isAutonomyEvent) {
-      return isEditingExisting ? 'Edit Emotional Autonomy' : 'Add Emotional Autonomy';
-    }
-    if (eventType === 'FF') return isEditingExisting ? 'Edit Symptom' : 'Add Symptom';
-    return isEditingExisting ? editEventTitle : newEventTitle;
+    const typeLabel = EVENT_TYPE_LABELS[eventType] || eventType;
+    return isEditingExisting ? `Edit ${typeLabel}` : `Add ${typeLabel}`;
   })();
 
   return (
@@ -215,7 +147,16 @@ const EventModal = ({
       >
         <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
 
-        {!isCompactEvent && (
+        {/* Event Type — read-only label */}
+        <div style={rowStyle}>
+          <label style={labelStyle}>Event Type:</label>
+          <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
+            {EVENT_TYPE_LABELS[eventType] || eventType}
+          </div>
+        </div>
+
+        {/* Anchor — shown when persons field is hidden */}
+        {isNoPersonEvent && (
           <div style={rowStyle}>
             <label style={labelStyle}>Anchor:</label>
             <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
@@ -223,49 +164,9 @@ const EventModal = ({
             </div>
           </div>
         )}
-        {isFamilyCompactEvent ? (
-          <>
-            <div style={rowStyle}>
-              <label style={labelStyle}>Event Type:</label>
-              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>Family</div>
-            </div>
-            <div style={rowStyle}>
-              <label style={labelStyle}>Category:</label>
-              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-                {isStressorEvent ? 'Stress' : 'Triangle'}
-              </div>
-            </div>
-            <div style={rowStyle}>
-              <label style={labelStyle}>Type:</label>
-              <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-                {isStressorEvent
-                  ? (STRESSOR_TYPE_LABELS[eventDraft.emotionalProcessType || ''] || eventDraft.emotionalProcessType)
-                  : (TRIANGLE_PROPERTY_TYPE_LABELS[eventDraft.emotionalProcessType || ''] || eventDraft.emotionalProcessType)}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div style={rowStyle}>
-            <label htmlFor="eventType" style={labelStyle}>Event Type:</label>
-            <select
-              id="eventType"
-              value={eventType}
-              onChange={(e) => onChange('eventType', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              <option value="NODAL">Nodal</option>
-              <option value="FF">Symptom</option>
-              <option value="EPE">
-                {isFooLikeEvent
-                  ? 'Family of Origin'
-                  : isAutonomyEvent
-                  ? 'Emotional Autonomy'
-                  : 'Emotional Pattern'}
-              </option>
-            </select>
-          </div>
-        )}
-        {!isCompactEvent && (
+
+        {/* Primary Person */}
+        {showPersons && (
           <div style={rowStyle}>
             <label htmlFor="eventPrimaryPerson" style={labelStyle}>Primary Person:</label>
             <div style={controlStyle}>
@@ -285,7 +186,9 @@ const EventModal = ({
             </div>
           </div>
         )}
-        {!isCompactEvent && (
+
+        {/* Other Person */}
+        {showPersons && (
           <div style={rowStyle}>
             <label htmlFor="eventOtherPerson" style={labelStyle}>Other Person:</label>
             <div style={controlStyle}>
@@ -306,6 +209,8 @@ const EventModal = ({
             </div>
           </div>
         )}
+
+        {/* Start / End dates */}
         <div style={rowStyle}>
           <label style={labelStyle}>Start / End:</label>
           <div style={{ ...controlStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -334,87 +239,49 @@ const EventModal = ({
             </div>
           </div>
         </div>
-        {eventType === 'NODAL' && (
+
+        {/* Category */}
+        {categoryOptions.length > 0 && !(eventType === 'EA') && (
           <div style={rowStyle}>
-            <label htmlFor="eventCategory" style={labelStyle}>Nodal Category:</label>
+            <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
             <select
               id="eventCategory"
               value={eventDraft.category}
               onChange={(e) => onChange('category', e.target.value)}
               style={{ ...controlStyle, width: '60%' }}
             >
-              {eventCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
                 </option>
               ))}
             </select>
           </div>
         )}
-        {eventType === 'NODAL' && (
+
+        {/* EA: category is fixed */}
+        {eventType === 'EA' && (
           <div style={rowStyle}>
-            <label htmlFor="eventNodalSubtype" style={labelStyle}>Subtype:</label>
+            <label style={labelStyle}>Category:</label>
+            <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>Emotional Autonomy</div>
+          </div>
+        )}
+
+        {/* Subtype — dropdown for FAMILY, free text for SYMPTOM/TRIANGLE */}
+        {showSubtype && isSymptomEvent && (
+          <div style={rowStyle}>
+            <label htmlFor="eventSubtype" style={labelStyle}>Symptom Type:</label>
             <div style={controlStyle}>
               <input
                 type="text"
-                id="eventNodalSubtype"
-                list="eventNodalSubtypeOptions"
-                value={eventDraft.nodalEventSubtype || ''}
-                onChange={(e) => onChange('nodalEventSubtype', e.target.value)}
-                style={{ width: '100%' }}
-              />
-              <datalist id="eventNodalSubtypeOptions">
-                {NODAL_SUBTYPE_OPTIONS.map((subtype) => (
-                  <option key={subtype} value={subtype} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-        )}
-        {eventType === 'EPE' && !isFooLikeEvent && !isTrianglePropertyEvent && (
-          <div style={rowStyle}>
-            <label htmlFor="eventEmotionalProcessType" style={labelStyle}>Process Type:</label>
-            <input
-              type="text"
-              id="eventEmotionalProcessType"
-              value={eventDraft.emotionalProcessType || ''}
-              onChange={(e) => onChange('emotionalProcessType', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-              placeholder="fusion, conflict, distance..."
-            />
-          </div>
-        )}
-        {eventType === 'FF' && (
-          <div style={rowStyle}>
-            <label htmlFor="eventCategory" style={labelStyle}>Symptom Category:</label>
-            <select
-              id="eventCategory"
-              value={normalizeSymptomCategory(eventDraft.category || eventDraft.symptomGroup)}
-              onChange={(e) => onChange('category', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              {SYMPTOM_GROUP_OPTIONS.map((category) => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {eventType === 'FF' && (
-          <div style={rowStyle}>
-            <label htmlFor="eventSymptomType" style={labelStyle}>Symptom Type:</label>
-            <div style={controlStyle}>
-              <input
-                type="text"
-                id="eventSymptomType"
-                list="eventSymptomTypeOptions"
+                id="eventSubtype"
+                list="eventSubtypeOptions"
                 maxLength={30}
-                value={eventDraft.symptomType || ''}
-                onChange={(e) => onChange('symptomType', e.target.value)}
+                value={eventDraft.subtype || ''}
+                onChange={(e) => onChange('subtype', e.target.value)}
                 style={{ width: '100%' }}
               />
-              <datalist id="eventSymptomTypeOptions">
+              <datalist id="eventSubtypeOptions">
                 {symptomTypeOptions.map((label) => (
                   <option key={label} value={label} />
                 ))}
@@ -422,334 +289,170 @@ const EventModal = ({
             </div>
           </div>
         )}
-        {eventType === 'EPE' && !isTrianglePropertyEvent && (
+        {showSubtype && eventType === 'TRIANGLE' && (
           <div style={rowStyle}>
-            <label htmlFor="eventCategory" style={labelStyle}>
-              {isFooTriangleProcess(eventDraft.emotionalProcessType)
-                ? 'Triangle Category:'
-                : isFooProcess(eventDraft.emotionalProcessType)
-                ? 'FoO Category:'
-                : 'Category:'}
-            </label>
+            <label htmlFor="eventSubtype" style={labelStyle}>Subtype:</label>
+            <input
+              type="text"
+              id="eventSubtype"
+              value={eventDraft.subtype || ''}
+              onChange={(e) => onChange('subtype', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            />
+          </div>
+        )}
+        {showSubtype && subtypeOptions.length > 0 && (
+          <div style={rowStyle}>
+            <label htmlFor="eventSubtype" style={labelStyle}>Type:</label>
             <select
-              id="eventCategory"
-              value={
-                isFooLikeEvent
-                  ? eventDraft.category || fooCategoryOptions[0].value
-                  : eventDraft.category
-              }
-              onChange={(e) => onChange('category', e.target.value)}
+              id="eventSubtype"
+              value={eventDraft.subtype || ''}
+              onChange={(e) => onChange('subtype', e.target.value)}
               style={{ ...controlStyle, width: '60%' }}
             >
-              {(isFooLikeEvent ? fooCategoryOptions : eventCategories).map((category) => (
-                <option
-                  key={typeof category === 'string' ? category : category.value}
-                  value={typeof category === 'string' ? category : category.value}
-                >
-                  {typeof category === 'string' ? category : category.label}
-                </option>
+              <option value="">— select —</option>
+              {subtypeOptions.map((st) => (
+                <option key={st} value={st}>{st}</option>
               ))}
             </select>
           </div>
         )}
 
+        {/* Status */}
         <div style={rowStyle}>
-          <label htmlFor="eventStatusLabel" style={labelStyle}>Status:</label>
-          {isCompactEvent ? (
-            <select
-              id="eventStatusLabel"
-              value={eventDraft.statusLabel || 'Ongoing'}
-              onChange={(e) => onChange('statusLabel', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
+          <label htmlFor="eventStatus" style={labelStyle}>Status:</label>
+          <select
+            id="eventStatus"
+            value={eventDraft.status || 'discrete'}
+            onChange={(e) => onChange('status', e.target.value)}
+            style={{ ...controlStyle, width: '60%' }}
+          >
+            {EVENT_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Intensity */}
+        <div style={rowStyle}>
+          <label htmlFor="eventIntensity" style={labelStyle}>Intensity:</label>
+          <select
+            id="eventIntensity"
+            value={eventDraft.intensity ?? 0}
+            onChange={(e) => onChange('intensity', e.target.value)}
+            style={{ ...controlStyle, width: '60%' }}
+          >
+            {intensityScale.labels.length > 0
+              ? intensityScale.labels.map((label, index) => {
+                  const val = index + 1;
+                  return (
+                    <option key={val} value={val}>{val}: {label}</option>
+                  );
+                })
+              : INTENSITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+          </select>
+          {intensityScale.help.length > 0 && (
+            <button
+              type="button"
+              aria-label="Intensity scale help"
+              onClick={() => setIntensityHelpOpen((prev) => !prev)}
+              style={helpBadgeStyle}
             >
-              <option value="Ongoing">Ongoing</option>
-              <option value="Episodic">Episodic</option>
-              <option value="Ended">Ended</option>
-            </select>
-          ) : (
-            <input
-              type="text"
-              id="eventStatusLabel"
-              value={eventDraft.statusLabel || ''}
-              onChange={(e) => onChange('statusLabel', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-              placeholder="e.g., Start, Ended"
-            />
+              ?
+            </button>
           )}
         </div>
-        {!isCompactEvent && (
-          <div style={rowStyle}>
-            <label style={labelStyle}>Event Class:</label>
-            <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-              {EVENT_CLASS_LABELS[eventDraft.eventClass || resolvedEventClass]}
+
+        {intensityHelpOpen && intensityScale.help.length > 0 && (
+          <div
+            role="dialog"
+            aria-label="Intensity scale"
+            style={{
+              marginTop: 8,
+              width: '100%',
+              maxWidth: '100%',
+              border: '1px solid #c6cfde',
+              borderRadius: 10,
+              background: '#fff',
+              padding: '12px 14px',
+              boxSizing: 'border-box',
+              boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <strong>{EVENT_TYPE_LABELS[eventType]} Intensity Scale</strong>
+              <button type="button" onClick={() => setIntensityHelpOpen(false)} style={{ padding: '4px 10px' }}>
+                Cancel
+              </button>
             </div>
-          </div>
-        )}
-        {eventType !== 'NODAL' && (
-          <>
-            <div style={rowStyle}>
-              <label htmlFor="eventIntensity" style={labelStyle}>Intensity:</label>
-              <select
-                id="eventIntensity"
-                value={eventDraft.intensity ?? 0}
-                onChange={(e) => onChange('intensity', e.target.value)}
-                style={{ ...controlStyle, width: '60%' }}
-              >
-                {(isSymptomEvent
-                  ? SYMPTOM_INTENSITY_LABELS.map((label, index) => ({ value: index, label: `${index}: ${label}` }))
-                  : isAutonomyEvent
-                  ? EMOTIONAL_AUTONOMY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isFooLikeEvent
-                  ? fooCategoryMeta.levelLabels.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isTriangleFunctioningEvent
-                  ? TRIANGLE_FUNCTIONING_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isTriangleFlexibilityEvent
-                  ? TRIANGLE_FLEXIBILITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isTriangleStressResponseEvent
-                  ? TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isEmotionalReactivityEvent
-                  ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isFamilyAdaptabilityEvent
-                  ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isFamilyStressorEvent
-                  ? STRESS_FAMILY_STRESSOR_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : isChronicStressEvent
-                  ? STRESS_CHRONIC_STRESS_INTENSITY_LABELS.map((label, index) => ({ value: index + 1, label: `${index + 1}: ${label}` }))
-                  : INTENSITY_OPTIONS
-                ).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isTriangleFunctioningEvent || isTriangleFlexibilityEvent || isTriangleStressResponseEvent || isEmotionalReactivityEvent || isFamilyAdaptabilityEvent || isFamilyStressorEvent || isChronicStressEvent) && (
-                <button
-                  type="button"
-                  aria-label={
-                    isSymptomEvent
-                      ? 'Symptom event intensity help'
-                      : isAutonomyEvent
-                      ? 'Emotional autonomy intensity help'
-                      : isTriangleFunctioningEvent
-                      ? 'Triangle functioning intensity help'
-                      : isTriangleFlexibilityEvent
-                      ? 'Triangle flexibility intensity help'
-                      : isTriangleStressResponseEvent
-                      ? 'Triangle stress response intensity help'
-                      : isEmotionalReactivityEvent
-                      ? 'Emotional reactivity intensity help'
-                      : isFamilyAdaptabilityEvent
-                      ? 'Family adaptability intensity help'
-                      : isFamilyStressorEvent
-                      ? 'Family stressor intensity help'
-                      : isChronicStressEvent
-                      ? 'Chronic stress intensity help'
-                      : 'FoO intensity help'
-                  }
-                  onClick={() =>
-                    setIntensityHelpOpen(
-                      isSymptomEvent ? 'symptom'
-                      : isAutonomyEvent ? 'emotional-autonomy'
-                      : isTriangleFunctioningEvent ? 'triangle-functioning'
-                      : isTriangleFlexibilityEvent ? 'triangle-flexibility'
-                      : isTriangleStressResponseEvent ? 'triangle-stress-response'
-                      : isEmotionalReactivityEvent ? 'stress-emotional-reactivity'
-                      : isFamilyAdaptabilityEvent ? 'stress-family-adaptability'
-                      : isFamilyStressorEvent ? 'stress-family-stressor'
-                      : isChronicStressEvent ? 'stress-chronic-stress'
-                      : 'foo'
-                    )
-                  }
-                  style={helpBadgeStyle}
-                >
-                  ?
-                </button>
-              )}
-            </div>
-            {(isSymptomEvent || isAutonomyEvent || isFooLikeEvent || isTriangleFunctioningEvent || isTriangleFlexibilityEvent || isTriangleStressResponseEvent || isEmotionalReactivityEvent || isFamilyAdaptabilityEvent || isFamilyStressorEvent || isChronicStressEvent) && intensityHelpOpen && (
-              <div
-                role="dialog"
-                aria-label={
-                  isSymptomEvent
-                    ? 'Symptom event intensity scale'
-                    : isAutonomyEvent
-                    ? 'Capacity for Emotional Autonomy Scale'
-                    : isTriangleFunctioningEvent
-                    ? 'Triangle Functioning Scale'
-                    : isTriangleFlexibilityEvent
-                    ? 'Triangle Flexibility Scale'
-                    : isTriangleStressResponseEvent
-                    ? 'Triangle Stress Response Scale'
-                    : isEmotionalReactivityEvent
-                    ? 'Emotional Reactivity Scale'
-                    : isFamilyAdaptabilityEvent
-                    ? 'Family Adaptability Scale'
-                    : isFamilyStressorEvent
-                    ? 'Family Stressor Scale'
-                    : isChronicStressEvent
-                    ? 'Chronic Stress Scale'
-                    : fooCategoryMeta.label
-                }
-                style={{
-                  marginTop: 8,
-                  width: '100%',
-                  maxWidth: '100%',
-                  border: '1px solid #c6cfde',
-                  borderRadius: 10,
-                  background: '#fff',
-                  padding: '12px 14px',
-                  boxSizing: 'border-box',
-                  boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <strong>
-                    {isSymptomEvent
-                      ? 'Symptom Intensity Scale'
-                      : isAutonomyEvent
-                      ? 'Capacity for Emotional Autonomy Scale'
-                      : isTriangleFunctioningEvent
-                      ? 'Triangle Functioning Scale'
-                      : isTriangleFlexibilityEvent
-                      ? 'Triangle Flexibility Scale'
-                      : isTriangleStressResponseEvent
-                      ? 'Triangle Stress Response Scale'
-                      : isEmotionalReactivityEvent
-                      ? 'Emotional Reactivity Scale'
-                      : isFamilyAdaptabilityEvent
-                      ? 'Family Adaptability Scale'
-                      : isFamilyStressorEvent
-                      ? 'Family Stressor Scale'
-                      : isChronicStressEvent
-                      ? 'Chronic Stress Scale'
-                      : fooCategoryMeta.label}
-                  </strong>
-                  <button type="button" onClick={() => setIntensityHelpOpen(null)} style={{ padding: '4px 10px' }}>
-                    Cancel
+            <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+              {intensityScale.help.map((line, index) => {
+                const levelValue = index + 1;
+                const levelLabel = intensityScale.labels[index];
+                const isActive = (eventDraft.intensity ?? 0) === levelValue;
+                return (
+                  <button
+                    key={`event-intensity-${index}`}
+                    type="button"
+                    onClick={() => {
+                      onChange('intensity', String(levelValue));
+                      setIntensityHelpOpen(false);
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
+                      borderRadius: 8,
+                      background: isActive ? '#eef3ff' : '#fff',
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, color: '#23324a' }}>{levelLabel}</div>
+                    <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
                   </button>
-                </div>
-                <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-                  {(isSymptomEvent
-                    ? SYMPTOM_INTENSITY_HELP
-                    : isAutonomyEvent
-                    ? EMOTIONAL_AUTONOMY_INTENSITY_HELP
-                    : isTriangleFunctioningEvent
-                    ? TRIANGLE_FUNCTIONING_INTENSITY_HELP
-                    : isTriangleFlexibilityEvent
-                    ? TRIANGLE_FLEXIBILITY_INTENSITY_HELP
-                    : isTriangleStressResponseEvent
-                    ? TRIANGLE_STRESS_RESPONSE_INTENSITY_HELP
-                    : isEmotionalReactivityEvent
-                    ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_HELP
-                    : isFamilyAdaptabilityEvent
-                    ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_HELP
-                    : isFamilyStressorEvent
-                    ? STRESS_FAMILY_STRESSOR_INTENSITY_HELP
-                    : isChronicStressEvent
-                    ? STRESS_CHRONIC_STRESS_INTENSITY_HELP
-                    : fooCategoryMeta.helpLines
-                  ).map((line, index) => {
-                    const levelValue = isSymptomEvent ? index : index + 1;
-                    const levelLabel = isSymptomEvent
-                      ? SYMPTOM_INTENSITY_LABELS[index]
-                      : isAutonomyEvent
-                      ? EMOTIONAL_AUTONOMY_INTENSITY_LABELS[index]
-                      : isTriangleFunctioningEvent
-                      ? TRIANGLE_FUNCTIONING_INTENSITY_LABELS[index]
-                      : isTriangleFlexibilityEvent
-                      ? TRIANGLE_FLEXIBILITY_INTENSITY_LABELS[index]
-                      : isTriangleStressResponseEvent
-                      ? TRIANGLE_STRESS_RESPONSE_INTENSITY_LABELS[index]
-                      : isEmotionalReactivityEvent
-                      ? STRESS_EMOTIONAL_REACTIVITY_INTENSITY_LABELS[index]
-                      : isFamilyAdaptabilityEvent
-                      ? STRESS_FAMILY_ADAPTABILITY_INTENSITY_LABELS[index]
-                      : isFamilyStressorEvent
-                      ? STRESS_FAMILY_STRESSOR_INTENSITY_LABELS[index]
-                      : isChronicStressEvent
-                      ? STRESS_CHRONIC_STRESS_INTENSITY_LABELS[index]
-                      : fooCategoryMeta.levelLabels[index];
-                    const isActive = (eventDraft.intensity ?? 0) === levelValue;
-                    return (
-                      <button
-                        key={`event-intensity-${index}`}
-                        type="button"
-                        onClick={() => {
-                          onChange('intensity', String(levelValue));
-                          setIntensityHelpOpen(null);
-                        }}
-                        style={{
-                          textAlign: 'left',
-                          border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
-                          borderRadius: 8,
-                          background: isActive ? '#eef3ff' : '#fff',
-                          padding: '8px 10px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, color: '#23324a' }}>{levelLabel}</div>
-                        <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.4 }}>{line}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            <div style={rowStyle}>
-              <label htmlFor="eventFrequency" style={labelStyle}>Frequency:</label>
-              <select
-                id="eventFrequency"
-                value={eventDraft.frequency ?? 0}
-                onChange={(e) => onChange('frequency', e.target.value)}
-                style={{ ...controlStyle, width: '60%' }}
-              >
-                {FREQUENCY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                );
+              })}
             </div>
-            <div style={rowStyle}>
-              <label htmlFor="eventImpact" style={labelStyle}>Impact:</label>
-              <select
-                id="eventImpact"
-                value={eventDraft.impact ?? 0}
-                onChange={(e) => onChange('impact', e.target.value)}
-                style={{ ...controlStyle, width: '60%' }}
-              >
-                {IMPACT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </>
-        )}
-        {!isCompactEvent && (
-          <div style={rowStyle}>
-            <label htmlFor="eventContinuationState" style={labelStyle}>Continuation:</label>
-            <select
-              id="eventContinuationState"
-              value={continuationState}
-              onChange={(e) => {
-                const flags = continuationToFlags(e.target.value as EventContinuationState);
-                onSetDraft({
-                  ...eventDraft,
-                  continuesFromPrevious: flags.continuesFromPrevious,
-                  continuesToNext: flags.continuesToNext,
-                });
-              }}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              <option value="discrete">Discrete</option>
-              <option value="start">Start</option>
-              <option value="middle">Middle</option>
-              <option value="end">End</option>
-            </select>
           </div>
         )}
+
+        {/* Frequency */}
+        <div style={rowStyle}>
+          <label htmlFor="eventFrequency" style={labelStyle}>Frequency:</label>
+          <select
+            id="eventFrequency"
+            value={eventDraft.frequency ?? 0}
+            onChange={(e) => onChange('frequency', e.target.value)}
+            style={{ ...controlStyle, width: '60%' }}
+          >
+            {FREQUENCY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Impact */}
+        <div style={rowStyle}>
+          <label htmlFor="eventImpact" style={labelStyle}>Impact:</label>
+          <select
+            id="eventImpact"
+            value={eventDraft.impact ?? 0}
+            onChange={(e) => onChange('impact', e.target.value)}
+            style={{ ...controlStyle, width: '60%' }}
+          >
+            {IMPACT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* How Well */}
         <div style={rowStyle}>
           <label htmlFor="eventHowWell" style={labelStyle}>How well (1-9):</label>
           <input
@@ -762,6 +465,8 @@ const EventModal = ({
             style={{ ...controlStyle, width: '60%' }}
           />
         </div>
+
+        {/* WWWWH */}
         <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
           <label htmlFor="eventWwwwh" style={{ ...labelStyle, marginTop: 6 }}>WWWWH:</label>
           <textarea
@@ -772,6 +477,8 @@ const EventModal = ({
             style={{ ...controlStyle, resize: 'vertical' }}
           />
         </div>
+
+        {/* Observations / Notes */}
         <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
           <label htmlFor="eventObservations" style={{ ...labelStyle, marginTop: 6 }}>
             {isSymptomEvent ? 'Notes:' : 'Observations:'}
@@ -784,30 +491,31 @@ const EventModal = ({
             style={{ ...controlStyle, resize: 'vertical' }}
           />
         </div>
-        {!isCompactEvent && (
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-            <label htmlFor="eventPriorNote" style={{ ...labelStyle, marginTop: 6 }}>Prior Events:</label>
-            <textarea
-              id="eventPriorNote"
-              value={eventDraft.priorEventsNote || ''}
-              onChange={(e) => onChange('priorEventsNote', e.target.value)}
-              rows={2}
-              style={{ ...controlStyle, resize: 'vertical' }}
-            />
-          </div>
-        )}
-        {!isCompactEvent && (
-          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
-            <label htmlFor="eventReflections" style={{ ...labelStyle, marginTop: 6 }}>Reflections:</label>
-            <textarea
-              id="eventReflections"
-              value={eventDraft.reflectionsNote || ''}
-              onChange={(e) => onChange('reflectionsNote', e.target.value)}
-              rows={2}
-              style={{ ...controlStyle, resize: 'vertical' }}
-            />
-          </div>
-        )}
+
+        {/* Prior Events */}
+        <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+          <label htmlFor="eventPriorNote" style={{ ...labelStyle, marginTop: 6 }}>Prior Events:</label>
+          <textarea
+            id="eventPriorNote"
+            value={eventDraft.priorEventsNote || ''}
+            onChange={(e) => onChange('priorEventsNote', e.target.value)}
+            rows={2}
+            style={{ ...controlStyle, resize: 'vertical' }}
+          />
+        </div>
+
+        {/* Client Reflections */}
+        <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+          <label htmlFor="eventReflections" style={{ ...labelStyle, marginTop: 6 }}>Reflections:</label>
+          <textarea
+            id="eventReflections"
+            value={eventDraft.reflectionsNote || ''}
+            onChange={(e) => onChange('reflectionsNote', e.target.value)}
+            rows={2}
+            style={{ ...controlStyle, resize: 'vertical' }}
+          />
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 10 }}>
           <button onClick={onCancel}>Cancel</button>
           <button onClick={onSave}>Save</button>
