@@ -3868,14 +3868,14 @@ useEffect(() => {
             handleFamilyClick={handleFamilyClick}
             handleFamilyContextMenu={handleFamilyContextMenu}
             onFamilyIndicatorClick={handleFamilyIndicatorClick}
-            onOpenFamilyProperty={(partnershipId, processType, position) =>
+            onOpenFamilyProperty={(partnershipId, category, subtype, position) =>
               openFamilyPropertyModal(
                 partnershipId,
                 {
                   eventType: 'FAMILY',
-                  subtype: processType,
-                  category: 'Triangle',
-                  eventClass: 'emotional-pattern',
+                  category,
+                  subtype,
+                  eventClass: 'family',
                   status: 'ongoing',
                   intensity: 1,
                   frequency: 1,

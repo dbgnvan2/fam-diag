@@ -4,7 +4,7 @@ import type { Partnership, Person, EmotionalProcessEvent } from '../types';
 interface FamilyPropertiesPanelProps {
   partnership: Partnership;
   people: Person[];
-  onAddProperty: (processType: string, position: { x: number; y: number }) => void;
+  onAddProperty: (category: string, subtype: string, position: { x: number; y: number }) => void;
   onEditEvent: (eventId: string, position: { x: number; y: number }) => void;
   onAddEvent: (position: { x: number; y: number }) => void;
   onClose: () => void;
@@ -195,7 +195,7 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
                     type="button"
                     onClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      onAddProperty(pt.subtype, { x: rect.left, y: rect.bottom + 4 });
+                      onAddProperty('Triangles', pt.subtype, { x: rect.left, y: rect.bottom + 4 });
                     }}
                     style={addBtnStyle}
                   >
@@ -226,7 +226,7 @@ const FamilyPropertiesPanel = ({ partnership, people, onAddProperty, onEditEvent
                     type="button"
                     onClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      onAddProperty(st.subtype, { x: rect.left, y: rect.bottom + 4 });
+                      onAddProperty('Stress', st.subtype, { x: rect.left, y: rect.bottom + 4 });
                     }}
                     style={{ ...addBtnStyle, color: '#7a5a9e', border: '1px solid #c8b8df', background: '#f6f0fb' }}
                   >

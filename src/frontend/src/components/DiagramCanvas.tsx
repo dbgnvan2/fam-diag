@@ -151,7 +151,7 @@ interface DiagramCanvasProps {
   handleFamilyClick: (partnershipId: string) => void;
   handleFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
   onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
-  onOpenFamilyProperty: (partnershipId: string, processType: string, position: { x: number; y: number }) => void;
+  onOpenFamilyProperty: (partnershipId: string, category: string, subtype: string, position: { x: number; y: number }) => void;
   onAddFamilyEvent: (partnershipId: string, position: { x: number; y: number }) => void;
   onCloseFamilyPanel: () => void;
 
@@ -1150,8 +1150,8 @@ export default function DiagramCanvas({
             <FamilyPropertiesPanel
               partnership={familyPartnership}
               people={people}
-              onAddProperty={(processType, position) =>
-                onOpenFamilyProperty(selectedFamilyId, processType, position)
+              onAddProperty={(category, subtype, position) =>
+                onOpenFamilyProperty(selectedFamilyId, category, subtype, position)
               }
               onEditEvent={(eventId, position) =>
                 onFamilyIndicatorClick(selectedFamilyId, eventId, position)
