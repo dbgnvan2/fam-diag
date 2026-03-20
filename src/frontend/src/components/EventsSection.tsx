@@ -4,7 +4,7 @@
  * Rendered inside PropertiesPanel when activeTab === 'events'.
  */
 import React, { useMemo, useState } from 'react';
-import type { EmotionalProcessEvent, EventAnchorType, EventType, Partnership } from '../types';
+import type { EmotionalProcessEvent, EventAnchorType, EventType } from '../types';
 import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 
 // ── pure helpers ───────────────────────────────────────────────────
@@ -14,33 +14,13 @@ const normalizeEventDate = (event: EmotionalProcessEvent) => event.startDate || 
 const formatCategoryStatus = (category: string, status?: string) =>
   status ? `${category} – ${status}` : category;
 
-const compactRelationshipStatusLabel = (event: EmotionalProcessEvent) =>
-  (event.status || formatCategoryStatus(event.category || 'Event', event.status)).replace(/\s+Date$/i, '').trim();
-
-const descriptorForEvent = (event: EmotionalProcessEvent) => {
-  const et = event.eventType;
-  if (et === 'NODAL') return event.category || 'Nodal Event';
-  if (et === 'EPE') {
-    return `${event.category || 'EPE'} · F${event.frequency ?? 0}/I${event.intensity ?? 0}/Imp${event.impact ?? 0}`;
-  }
-  if (et === 'SYMPTOM') {
-    const symptomCategory = event.category || 'Physical';
-    const symptomType = (event.subtype || '').trim().slice(0, 30);
-    return symptomType ? `${symptomCategory} · ${symptomType}` : symptomCategory;
-  }
-  return event.category || et;
-};
-
 // ── component ──────────────────────────────────────────────────────
 
 interface EventsSectionProps {
   allEvents: EmotionalProcessEvent[];
   currentAnchorType: EventAnchorType;
   currentAnchorId: string;
-  isPartnership: boolean;
-  selectedPartnership?: Partnership | null;
   addEventButtonLabel: string;
-  formatOptionLabel: (value: string) => string;
   onAddEvent: () => void;
   onEditEvent: (event: EmotionalProcessEvent) => void;
   onDeleteEvent: (id: string) => void;
@@ -58,10 +38,7 @@ const EventsSection = ({
   allEvents,
   currentAnchorType,
   currentAnchorId,
-  isPartnership,
-  selectedPartnership,
   addEventButtonLabel,
-  formatOptionLabel,
   onAddEvent,
   onEditEvent,
   onDeleteEvent,
@@ -157,12 +134,12 @@ const EventsSection = ({
         <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
       ) : (
         <>
-          {eventListMode === 'compact' && isPartnership ? (
+          {eventListMode === 'compact' ? (
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr 120px auto',
-                gap: 12,
+                gridTemplateColumns: '1fr 1fr auto auto 110px auto',
+                gap: 8,
                 marginTop: 8,
                 padding: '0 0 6px 3px',
                 borderBottom: '1px solid #cfd7e5',
@@ -171,8 +148,10 @@ const EventsSection = ({
                 color: '#41546d',
               }}
             >
+              <span>Category</span>
               <span>Type</span>
               <span>Status</span>
+              <span>Int.</span>
               <span>Date</span>
               <span>Actions</span>
             </div>
@@ -200,65 +179,50 @@ const EventsSection = ({
                   }}
                 >
                   {eventListMode === 'compact' ? (
-                    isPartnership ? (
-                      <div
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr auto auto 110px auto',
+                        gap: 8,
+                        alignItems: 'center',
+                        paddingLeft: 3,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {event.category || '—'}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {event.subtype || EVENT_TYPE_LABELS[et] || et}
+                      </span>
+                      <span
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 120px auto',
-                          gap: 12,
-                          alignItems: 'center',
-                          paddingLeft: 3,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: '1px solid #9db0c8',
+                          borderRadius: 4,
+                          padding: '1px 4px',
+                          background: '#eef5ff',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        <span style={{ fontWeight: 600 }}>
-                          {formatOptionLabel(event.category || selectedPartnership?.relationshipType || 'relationship')}
-                        </span>
-                        <span>{compactRelationshipStatusLabel(event)}</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => handleDelete(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
+                        {event.status || '—'}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#23324a', minWidth: 20, textAlign: 'center' }}>
+                        {event.intensity != null ? event.intensity : '—'}
+                      </span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>
+                        <button
+                          aria-label="Delete"
+                          title="Delete"
+                          style={eventActionButtonStyle}
+                          onClick={() => handleDelete(event.id)}
+                        >
+                          🗑
+                        </button>
                       </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                          <span style={{ fontWeight: 600 }}>{descriptorForEvent(event)}</span>
-                          <span style={{ fontSize: 11, color: '#555' }}>{EVENT_TYPE_LABELS[et] || et}</span>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              border: '1px solid #9db0c8',
-                              borderRadius: 4,
-                              padding: '1px 4px',
-                              background: '#eef5ff',
-                            }}
-                          >
-                            {event.status || 'discrete'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => handleDelete(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                    )
+                    </div>
                   ) : (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
