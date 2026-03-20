@@ -841,9 +841,9 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
         expect(screen.getByText('Alcohol')).toBeInTheDocument();
 
-        // Clicking the bar opens Edit Symptom modal
+        // Clicking the bar opens Event modal
         fireEvent.click(screen.getByText('Alcohol'));
-        expect(screen.getByText('Edit Symptom')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
 
         // Change impact to 4 and save
         const impactSelect = screen.getByLabelText('Impact:');
@@ -887,9 +887,9 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
         expect(screen.getByText('Alcohol')).toBeInTheDocument();
 
-        // Clicking the bar (no linked event) opens Add Symptom modal
+        // Clicking the bar (no linked event) opens Event modal
         fireEvent.click(screen.getByText('Alcohol'));
-        expect(screen.getByText('Add Symptom')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
 
         // Intensity select uses symptom-specific labels
         const intensitySelect = screen.getByLabelText('Intensity:') as HTMLSelectElement;
@@ -936,7 +936,7 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add Symptom')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
         expect(screen.getByLabelText('Category:')).toHaveValue('Emotional');
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
     });
@@ -972,7 +972,7 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add Emotional Autonomy')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
         const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
@@ -1012,7 +1012,7 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add Family of Origin')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
         const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });
@@ -1052,7 +1052,7 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByText('Add Family of Origin')).toBeInTheDocument();
+        expect(screen.getByText('Event')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Intensity scale help/i }));
         const helpDialog = screen.getByRole('dialog', { name: /Intensity scale/i });

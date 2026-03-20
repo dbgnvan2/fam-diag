@@ -98,7 +98,7 @@ import type {
 } from '../types/diagramEditor';
 
 const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
-const initialPartnerships: Partnership[] = DEFAULT_DIAGRAM_STATE.partnerships;
+const initialPartnerships: Partnership[] = attachFamilyEventsToPartnerships(DEFAULT_DIAGRAM_STATE.partnerships);
 const initialEmotionalLines: EmotionalLine[] = DEFAULT_DIAGRAM_STATE.emotionalLines;
 const initialPageNotes: PageNote[] = DEFAULT_DIAGRAM_STATE.pageNotes;
 const initialTriangles: Triangle[] = DEFAULT_DIAGRAM_STATE.triangles;
