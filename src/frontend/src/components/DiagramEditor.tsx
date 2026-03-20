@@ -3307,14 +3307,22 @@ useEffect(() => {
   };
 
   const handleFamilyClick = (partnershipId: string) => {
-    setSelectedFamilyId((prev) => (prev === partnershipId ? null : partnershipId));
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
-    setPropertiesPanelItem(null);
+    setSelectedFamilyId((prev) => {
+      const next = prev === partnershipId ? null : partnershipId;
+      if (next === null) {
+        setPropertiesPanelItem(null);
+      } else {
+        const partnership = partnerships.find((p) => p.id === partnershipId);
+        setPropertiesPanelItem(partnership || null);
+      }
+      return next;
+    });
   };
 
   const handleFamilyContextMenu = (e: KonvaEventObject<PointerEvent>, partnershipId: string) => {

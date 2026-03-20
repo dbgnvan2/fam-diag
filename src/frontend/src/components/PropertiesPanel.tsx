@@ -28,6 +28,30 @@ import PartnershipPropertiesSection from './sections/PartnershipPropertiesSectio
 import EPLPropertiesSection from './sections/EPLPropertiesSection';
 import EventModal from './EventModal';
 
+const TRIANGLE_SUBTYPES = [
+  { subtype: 'Functioning', label: 'Triangle Functioning', letter: 'V' },
+  { subtype: 'Flexibility', label: 'Triangle Flexibility', letter: 'F' },
+  { subtype: 'Stress Response', label: 'Triangle Stress Response', letter: 'R' },
+] as const;
+
+const STRESS_SUBTYPES = [
+  { subtype: 'Emotional Reactivity', label: 'Emotional Reactivity' },
+  { subtype: 'Adaptability', label: 'Family Adaptability' },
+  { subtype: 'Family Stressor', label: 'Family Stressor' },
+  { subtype: 'Chronic Stress', label: 'Chronic Stress' },
+] as const;
+
+const familyAddBtnStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+  color: '#4b68a6',
+  border: '1px solid #c0ccdf',
+  borderRadius: 4,
+  background: '#f0f4fb',
+  padding: '1px 7px',
+  cursor: 'pointer',
+};
+
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
@@ -295,6 +319,10 @@ interface PropertiesPanelProps {
   onEnsureSymptomCategoryDefinition?: (label: string, group: SymptomGroup) => string | null;
   compactPersonSectionMode?: boolean;
   compactPartnershipSectionMode?: boolean;
+  isFamilyView?: boolean;
+  onOpenFamilyProperty?: (category: string, subtype: string, position: { x: number; y: number }) => void;
+  onAddFamilyEvent?: (position: { x: number; y: number }) => void;
+  onOpenFamilyEventEdit?: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
   onClose: () => void;
 }
 
@@ -326,6 +354,10 @@ const PropertiesPanel = ({
   onEnsureSymptomCategoryDefinition,
   compactPersonSectionMode = false,
   compactPartnershipSectionMode = false,
+  isFamilyView = false,
+  onOpenFamilyProperty,
+  onAddFamilyEvent,
+  onOpenFamilyEventEdit,
   onClose,
 }: PropertiesPanelProps) => {
   const colorInputRefs = {
@@ -343,6 +375,7 @@ const PropertiesPanel = ({
     null
   );
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns'>('properties');
+  const [activeFamilyTab, setActiveFamilyTab] = useState<'family' | 'triangles' | 'stressors' | 'events'>('family');
   const [activePersonSection, setActivePersonSection] = useState<
     'name' | 'dates' | 'format' | 'sibling' | 'foo'
   >('name');
@@ -541,6 +574,7 @@ const PropertiesPanel = ({
     setSiblingHelpOpen(false);
     setFooHelpOpen(null);
     setSymptomIntensityHelpOpen(null);
+    setActiveFamilyTab('family');
   }, [selectedItem.id, initialActiveTab, initialPersonSection, focusEventId]);
 
   useEffect(() => {
@@ -1977,6 +2011,232 @@ const PropertiesPanel = ({
           <button type="button" onClick={cancelPartnershipChanges} disabled={!partnershipDirty}>Cancel</button>
           <button type="button" onClick={savePartnershipProperties} disabled={!partnershipDirty}>Save</button>
         </div>
+      </div>
+    );
+  }
+
+  if (isFamilyView && isPartnership && selectedPartnership) {
+    const familyPartnership = selectedPartnership;
+    const partner1 = people.find((p) => p.id === familyPartnership.partner1_id);
+    const partner2 = people.find((p) => p.id === familyPartnership.partner2_id);
+    const partnerNames = [partner1?.name, partner2?.name].filter(Boolean).join(' & ');
+    const familyName =
+      familyPartnership.familyName ||
+      [partner1?.name, partner2?.name].filter(Boolean).join(' / ') ||
+      'Family';
+    const allFamilyEvents = familyPartnership.familyEvents || [];
+    const triangleEvents = allFamilyEvents.filter(
+      (e) => e.eventType === 'FAMILY' && e.category === 'Triangles'
+    );
+    const stressorEvents = allFamilyEvents.filter(
+      (e) => e.eventType === 'FAMILY' && e.category === 'Stress'
+    );
+    const familyTabs = [
+      { id: 'family' as const, label: 'Family' },
+      { id: 'triangles' as const, label: 'Triangles' },
+      { id: 'stressors' as const, label: 'Stressors' },
+      { id: 'events' as const, label: 'Events' },
+    ];
+
+    const renderFamilyEventCard = (ev: { id: string; eventType: string; category?: string; subtype?: string; status?: string; intensity?: number | null; startDate?: string; date?: string }) => {
+      const isEnded = ['end', 'discrete'].includes(ev.status || '');
+      const typeLabel = EVENT_TYPE_LABELS[ev.eventType as keyof typeof EVENT_TYPE_LABELS] || ev.eventType || '—';
+      return (
+        <div
+          key={ev.id}
+          onClick={(e) => {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            onOpenFamilyEventEdit?.(familyPartnership.id, ev.id, { x: rect.left, y: rect.bottom + 4 });
+          }}
+          style={{
+            cursor: 'pointer',
+            padding: '8px 10px',
+            marginBottom: 6,
+            border: '1px solid #d0d8ea',
+            borderLeft: `4px solid ${ev.category === 'Stress' ? '#7a5a9e' : '#4b68a6'}`,
+            borderRadius: 8,
+            background: '#f7f9fd',
+            fontSize: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+              <span style={{ fontSize: 11, color: '#7a8aaa' }}>{typeLabel}</span>
+              <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{ev.category || '—'}</span>
+              {ev.subtype && <span style={{ fontSize: 11, color: '#5a6a88' }}>{ev.subtype}</span>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              {ev.intensity != null && ev.intensity !== 0 && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#23324a' }}>{ev.intensity}</span>
+              )}
+              <span style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                {ev.status ? ev.status.charAt(0).toUpperCase() + ev.status.slice(1) : 'Discrete'}
+              </span>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 3 }}>{ev.startDate || ev.date || ''}</div>
+        </div>
+      );
+    };
+
+    return (
+      <div
+        style={{
+          background: '#f0f0f0',
+          padding: '10px 12px 12px 12px',
+          border: '1px solid #ccc',
+          height: '100vh',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>Family Function Facts</div>
+            <div style={{ fontSize: 11, color: '#555' }}>Family</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div
+            role="tablist"
+            aria-label="Family properties tabs"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'stretch',
+              border: '1px solid #b8c2d3',
+              borderRadius: 8,
+              overflow: 'hidden',
+              background: '#ffffff',
+            }}
+          >
+            {familyTabs.map((tab, index) => {
+              const isActive = tab.id === activeFamilyTab;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveFamilyTab(tab.id)}
+                  style={{
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderLeft: index === 0 ? 'none' : '1px solid #d0d6e2',
+                    background: isActive ? '#dfe7f7' : '#fff',
+                    color: isActive ? '#1f3f78' : '#23324a',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {activeFamilyTab === 'family' && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#23324a', marginBottom: 6 }}>{familyName}</div>
+            <div style={{ fontSize: 12, color: '#6b7a93' }}>
+              {partnerNames ? `Partners: ${partnerNames}` : 'No partners recorded'}
+            </div>
+          </div>
+        )}
+
+        {activeFamilyTab === 'triangles' && (
+          <div style={{ marginTop: 14 }}>
+            {TRIANGLE_SUBTYPES.map((pt) => {
+              const events = triangleEvents.filter((e) => e.subtype === pt.subtype);
+              return (
+                <div key={pt.subtype} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#4b68a6' }}>
+                      [{pt.letter}] {pt.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        onOpenFamilyProperty?.('Triangles', pt.subtype, { x: rect.left, y: rect.bottom + 4 });
+                      }}
+                      style={familyAddBtnStyle}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {events.length === 0 ? (
+                    <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic', paddingLeft: 4 }}>None recorded</div>
+                  ) : (
+                    events.map(renderFamilyEventCard)
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeFamilyTab === 'stressors' && (
+          <div style={{ marginTop: 14 }}>
+            {STRESS_SUBTYPES.map((st) => {
+              const events = stressorEvents.filter((e) => e.subtype === st.subtype);
+              return (
+                <div key={st.subtype} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#7a5a9e' }}>{st.label}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        onOpenFamilyProperty?.('Stress', st.subtype, { x: rect.left, y: rect.bottom + 4 });
+                      }}
+                      style={{ ...familyAddBtnStyle, color: '#7a5a9e', border: '1px solid #c8b8df', background: '#f6f0fb' }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {events.length === 0 ? (
+                    <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic', paddingLeft: 4 }}>None recorded</div>
+                  ) : (
+                    events.map(renderFamilyEventCard)
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeFamilyTab === 'events' && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  onAddFamilyEvent?.({ x: rect.left, y: rect.bottom + 4 });
+                }}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#4b68a6',
+                  border: '1px solid #c0ccdf',
+                  borderRadius: 4,
+                  background: '#f0f4fb',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                + Add Family Event
+              </button>
+            </div>
+            {allFamilyEvents.length === 0 ? (
+              <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic' }}>No events recorded</div>
+            ) : (
+              allFamilyEvents.map(renderFamilyEventCard)
+            )}
+          </div>
+        )}
       </div>
     );
   }

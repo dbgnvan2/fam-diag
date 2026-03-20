@@ -20,7 +20,6 @@ import type {
 import ContextMenu from './ContextMenu';
 import PropertiesPanel from './PropertiesPanel';
 import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
-import FamilyPropertiesPanel from './FamilyPropertiesPanel';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
 import ChildConnection from './ChildConnection';
@@ -1143,27 +1142,7 @@ export default function DiagramCanvas({
             return subjectName ? `Properties Panel for ${subjectName}` : 'Properties Panel';
           })()}
         </div>
-        {selectedFamilyId && (() => {
-          const familyPartnership = partnerships.find((p) => p.id === selectedFamilyId);
-          if (!familyPartnership) return null;
-          return (
-            <FamilyPropertiesPanel
-              partnership={familyPartnership}
-              people={people}
-              onAddProperty={(category, subtype, position) =>
-                onOpenFamilyProperty(selectedFamilyId, category, subtype, position)
-              }
-              onEditEvent={(eventId, position) =>
-                onFamilyIndicatorClick(selectedFamilyId, eventId, position)
-              }
-              onAddEvent={(position) =>
-                onAddFamilyEvent(selectedFamilyId, position)
-              }
-              onClose={onCloseFamilyPanel}
-            />
-          );
-        })()}
-        {!selectedFamilyId && (showMultiPersonPanel || propertiesPanelItem) && (
+        {(showMultiPersonPanel || propertiesPanelItem) && (
           showMultiPersonPanel ? (
             <MultiPersonPropertiesPanel
               selectedPeople={multiSelectedPeople}
@@ -1191,6 +1170,16 @@ export default function DiagramCanvas({
                 triangleIntensity={panelTriangleContext?.intensity}
                 onUpdateTriangleColor={updateTriangleColor}
                 onUpdateTriangleIntensity={updateTriangleIntensity}
+                isFamilyView={propertiesPanelItem.id === selectedFamilyId}
+                onOpenFamilyProperty={(category, subtype, position) =>
+                  selectedFamilyId && onOpenFamilyProperty(selectedFamilyId, category, subtype, position)
+                }
+                onAddFamilyEvent={(position) =>
+                  selectedFamilyId && onAddFamilyEvent(selectedFamilyId, position)
+                }
+                onOpenFamilyEventEdit={(partnershipId, eventId, position) =>
+                  onFamilyIndicatorClick(partnershipId, eventId, position)
+                }
                 initialActiveTab={
                   propertiesPanelIntent?.targetId === propertiesPanelItem.id
                     ? propertiesPanelIntent.tab
@@ -1231,6 +1220,7 @@ export default function DiagramCanvas({
                 onClose={() => {
                   setPropertiesPanelItem(null);
                   setPropertiesPanelIntent(null);
+                  if (selectedFamilyId) onCloseFamilyPanel();
                 }}
               />
             )
