@@ -68,11 +68,17 @@ const EventModal = ({
 
   const MODAL_MARGIN = 12;
   const MODAL_MIN_HEIGHT = 260;
+  const MODAL_WIDTH = 520;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
   const rawTop = typeof popupTop === 'number' ? popupTop : parseFloat(String(popupTop)) || 0;
+  const rawLeft = typeof popupLeft === 'number' ? popupLeft : parseFloat(String(popupLeft)) || 0;
   const clampedTop = position
     ? Math.max(MODAL_MARGIN, Math.min(rawTop, vh - MODAL_MIN_HEIGHT - MODAL_MARGIN))
     : rawTop;
+  const clampedLeft = position
+    ? Math.max(MODAL_MARGIN, Math.min(rawLeft, vw - MODAL_WIDTH - MODAL_MARGIN))
+    : rawLeft;
   const computedMaxHeight = position
     ? popupMaxHeight
       ? popupMaxHeight
@@ -124,7 +130,7 @@ const EventModal = ({
           overflowY: 'auto',
           boxSizing: 'border-box',
           position: position ? 'absolute' : 'relative',
-          left: popupLeft,
+          left: clampedLeft,
           top: position ? clampedTop : popupTop,
         }}
       >

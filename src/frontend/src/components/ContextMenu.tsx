@@ -75,8 +75,21 @@ const ContextMenuList = ({ items, onClose, isRoot = false }: ContextMenuListProp
   );
 };
 
+const MARGIN = 8;
+
 const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
   const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = React.useState({ left: x, top: y });
+
+  React.useEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const clampedLeft = Math.max(MARGIN, Math.min(x, vw - rect.width - MARGIN));
+    const clampedTop = Math.max(MARGIN, Math.min(y, vh - rect.height - MARGIN));
+    setPos({ left: clampedLeft, top: clampedTop });
+  }, [x, y]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,9 +109,9 @@ const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
     <div
       ref={menuRef}
       style={{
-        position: 'absolute',
-        top: y,
-        left: x,
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
         backgroundColor: 'white',
         border: '1px solid #ccc',
         borderRadius: '4px',

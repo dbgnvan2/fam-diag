@@ -3258,7 +3258,7 @@ useEffect(() => {
       draft: {
         date: today,
         startDate: today,
-        category: 'Triangle',
+        category: 'Triangles',
         subtype: 'Functioning',
         status: 'ongoing',
         intensity: 1,
@@ -3350,18 +3350,18 @@ useEffect(() => {
         {
           label: 'Triangles',
           children: [
-            makeFamilyItem('Triangle Functioning', 'triangle-functioning', 'Triangle'),
-            makeFamilyItem('Triangle Flexibility', 'triangle-flexibility', 'Triangle'),
-            makeFamilyItem('Triangle Stress Response', 'triangle-stress-response', 'Triangle'),
+            makeFamilyItem('Functioning', 'Functioning', 'Triangles'),
+            makeFamilyItem('Flexibility', 'Flexibility', 'Triangles'),
+            makeFamilyItem('Stress Response', 'Stress Response', 'Triangles'),
           ],
         },
         {
           label: 'Stressors',
           children: [
-            makeFamilyItem('Emotional Reactivity', 'stress-emotional-reactivity', 'Stress'),
-            makeFamilyItem('Family Adaptability', 'stress-family-adaptability', 'Stress'),
-            makeFamilyItem('Family Stressor', 'stress-family-stressor', 'Stress'),
-            makeFamilyItem('Chronic Stress', 'stress-chronic-stress', 'Stress'),
+            makeFamilyItem('Emotional Reactivity', 'Emotional Reactivity', 'Stress'),
+            makeFamilyItem('Adaptability', 'Adaptability', 'Stress'),
+            makeFamilyItem('Family Stressor', 'Family Stressor', 'Stress'),
+            makeFamilyItem('Chronic Stress', 'Chronic Stress', 'Stress'),
           ],
         },
       ],
