@@ -323,6 +323,7 @@ interface PropertiesPanelProps {
   onOpenFamilyProperty?: (category: string, subtype: string, position: { x: number; y: number }) => void;
   onAddFamilyEvent?: (position: { x: number; y: number }) => void;
   onOpenFamilyEventEdit?: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
+  onDeleteFamilyEvent?: (partnershipId: string, eventId: string) => void;
   onClose: () => void;
 }
 
@@ -358,6 +359,7 @@ const PropertiesPanel = ({
   onOpenFamilyProperty,
   onAddFamilyEvent,
   onOpenFamilyEventEdit,
+  onDeleteFamilyEvent,
   onClose,
 }: PropertiesPanelProps) => {
   const colorInputRefs = {
@@ -2026,12 +2028,8 @@ const PropertiesPanel = ({
       [partner1?.name, partner2?.name].filter(Boolean).join(' / ') ||
       'Family';
     const allFamilyEvents = familyPartnership.familyEvents || [];
-    const triangleEvents = allFamilyEvents.filter(
-      (e) => e.eventType === 'FAMILY' && e.category === 'Triangles'
-    );
-    const stressorEvents = allFamilyEvents.filter(
-      (e) => e.eventType === 'FAMILY' && e.category === 'Stress'
-    );
+    const triangleEvents = allFamilyEvents.filter((e) => e.category === 'Triangles');
+    const stressorEvents = allFamilyEvents.filter((e) => e.category === 'Stress');
     const familyTabs = [
       { id: 'family' as const, label: 'Family' },
       { id: 'triangles' as const, label: 'Triangles' },
@@ -2045,12 +2043,7 @@ const PropertiesPanel = ({
       return (
         <div
           key={ev.id}
-          onClick={(e) => {
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            onOpenFamilyEventEdit?.(familyPartnership.id, ev.id, { x: rect.left, y: rect.bottom + 4 });
-          }}
           style={{
-            cursor: 'pointer',
             padding: '8px 10px',
             marginBottom: 6,
             border: '1px solid #d0d8ea',
@@ -2061,7 +2054,13 @@ const PropertiesPanel = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+            <div
+              style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0, cursor: 'pointer', flex: 1 }}
+              onClick={(e) => {
+                const rect = (e.currentTarget as HTMLElement).closest('[data-family-card]')?.getBoundingClientRect() ?? (e.currentTarget as HTMLElement).getBoundingClientRect();
+                onOpenFamilyEventEdit?.(familyPartnership.id, ev.id, { x: rect.left, y: rect.bottom + 4 });
+              }}
+            >
               <span style={{ fontSize: 11, color: '#7a8aaa' }}>{typeLabel}</span>
               <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{ev.category || '—'}</span>
               {ev.subtype && <span style={{ fontSize: 11, color: '#5a6a88' }}>{ev.subtype}</span>}
@@ -2073,6 +2072,15 @@ const PropertiesPanel = ({
               <span style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
                 {ev.status ? ev.status.charAt(0).toUpperCase() + ev.status.slice(1) : 'Discrete'}
               </span>
+              <button
+                type="button"
+                aria-label="Delete event"
+                title="Delete"
+                onClick={(e) => { e.stopPropagation(); onDeleteFamilyEvent?.(familyPartnership.id, ev.id); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#b04040', lineHeight: 1 }}
+              >
+                🗑
+              </button>
             </div>
           </div>
           <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 3 }}>{ev.startDate || ev.date || ''}</div>

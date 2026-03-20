@@ -3306,6 +3306,16 @@ useEffect(() => {
     });
   };
 
+  const handleDeleteFamilyEvent = (partnershipId: string, eventId: string) => {
+    setPartnerships((prev) =>
+      prev.map((p) =>
+        p.id !== partnershipId
+          ? p
+          : { ...p, familyEvents: (p.familyEvents || []).filter((e) => e.id !== eventId) }
+      )
+    );
+  };
+
   const handleFamilyClick = (partnershipId: string) => {
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
@@ -3898,6 +3908,7 @@ useEffect(() => {
               )
             }
             onAddFamilyEvent={handleFamilyAddGenericEvent}
+            onDeleteFamilyEvent={handleDeleteFamilyEvent}
             onCloseFamilyPanel={() => setSelectedFamilyId(null)}
             handleChildLineSelect={handleChildLineSelect}
             handleChildLineContextMenu={handleChildLineContextMenu}
@@ -4207,13 +4218,14 @@ useEffect(() => {
             onSave={() => {
               if (!familyPropertyModal) return;
               const { partnershipId, draft, editingEventId } = familyPropertyModal;
+              const savedDraft = { ...draft, eventType: 'FAMILY' as const };
               setPartnerships((prev) =>
                 prev.map((p) => {
                   if (p.id !== partnershipId) return p;
                   const existing = p.familyEvents || [];
                   const updated = editingEventId
-                    ? existing.map((e) => (e.id === editingEventId ? draft : e))
-                    : [...existing, draft];
+                    ? existing.map((e) => (e.id === editingEventId ? savedDraft : e))
+                    : [...existing, savedDraft];
                   return { ...p, familyEvents: updated };
                 })
               );

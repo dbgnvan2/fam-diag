@@ -152,6 +152,7 @@ interface DiagramCanvasProps {
   onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
   onOpenFamilyProperty: (partnershipId: string, category: string, subtype: string, position: { x: number; y: number }) => void;
   onAddFamilyEvent: (partnershipId: string, position: { x: number; y: number }) => void;
+  onDeleteFamilyEvent: (partnershipId: string, eventId: string) => void;
   onCloseFamilyPanel: () => void;
 
   // Child connection handlers
@@ -299,6 +300,7 @@ export default function DiagramCanvas({
   onFamilyIndicatorClick,
   onOpenFamilyProperty,
   onAddFamilyEvent,
+  onDeleteFamilyEvent,
   onCloseFamilyPanel,
   handleChildLineSelect,
   handleChildLineContextMenu,
@@ -1180,6 +1182,7 @@ export default function DiagramCanvas({
                 onOpenFamilyEventEdit={(partnershipId, eventId, position) =>
                   onFamilyIndicatorClick(partnershipId, eventId, position)
                 }
+                onDeleteFamilyEvent={onDeleteFamilyEvent}
                 initialActiveTab={
                   propertiesPanelIntent?.targetId === propertiesPanelItem.id
                     ? propertiesPanelIntent.tab
