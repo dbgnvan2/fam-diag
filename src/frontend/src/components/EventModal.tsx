@@ -41,8 +41,6 @@ export interface EventModalProps {
   popupLeft: number | string;
   popupTop: number | string;
   popupMaxHeight: number | null;
-  isPartnership: boolean;
-  isEditingExisting: boolean;
   primaryPersonOptions: string[];
   otherPersonOptions: string[];
   eventCategories: string[];
@@ -50,8 +48,6 @@ export interface EventModalProps {
   resolvedAnchorType: string;
   resolvedAnchorId: string;
   resolvedEventClass: EventClass;
-  editEventTitle: string;
-  newEventTitle: string;
   onChange: (field: keyof EmotionalProcessEvent, value: string) => void;
   onSetDraft: (draft: EmotionalProcessEvent) => void;
   onSave: () => void;
@@ -64,7 +60,6 @@ const EventModal = ({
   popupLeft,
   popupTop,
   popupMaxHeight,
-  isEditingExisting,
   primaryPersonOptions,
   otherPersonOptions,
   symptomTypeOptions,
@@ -113,10 +108,7 @@ const EventModal = ({
 
   const intensityScale = getIntensityScale(eventType, eventDraft.category, eventDraft.subtype);
 
-  const modalTitle = (() => {
-    const typeLabel = EVENT_TYPE_LABELS[eventType] || eventType;
-    return isEditingExisting ? `Edit ${typeLabel}` : `Add ${typeLabel}`;
-  })();
+  const modalTitle = 'Event';
 
   return (
     <div
@@ -149,7 +141,7 @@ const EventModal = ({
 
         {/* Event Type — read-only label */}
         <div style={rowStyle}>
-          <label style={labelStyle}>Event Type:</label>
+          <label style={labelStyle}>Type:</label>
           <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
             {EVENT_TYPE_LABELS[eventType] || eventType}
           </div>

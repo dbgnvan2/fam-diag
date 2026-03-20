@@ -13,6 +13,7 @@ import type {
 import {
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
+import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 import {
   deriveSiblingPositionResult,
   getSiblingPositionOptions,
@@ -1729,16 +1730,6 @@ const PropertiesPanel = ({
     : isPartnership
     ? 'Partner Relationship Functional Facts'
     : 'Individual Functional Facts';
-  const newEventTitle = isEmotionalLine
-    ? 'New Emotional Pattern Event'
-    : isPartnership
-    ? 'New Relationship Event'
-    : 'New Event';
-  const editEventTitle = isEmotionalLine
-    ? 'Edit Emotional Pattern Event'
-    : isPartnership
-    ? 'Edit Relationship Event'
-    : 'Edit Event';
   const popupLeft =
     eventModalPosition && typeof window !== 'undefined'
       ? Math.max(12, Math.min(eventModalPosition.x + 8, window.innerWidth - 560))
@@ -2310,36 +2301,37 @@ const PropertiesPanel = ({
                 const dateStr = event.startDate || event.date || '';
                 const eventStatus = event.status || 'discrete';
                 const isEnded = ['end', 'discrete'].includes(eventStatus);
+                const typeLabel = EVENT_TYPE_LABELS[event.eventType] || event.eventType || '—';
                 return (
                   <div
                     key={event.id}
                     onClick={() => openEditEvent(event)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
                       padding: '8px 10px', marginBottom: 6,
                       border: '1px solid #d0d8ea', borderLeft: '4px solid #4b68a6',
                       borderRadius: 8, background: '#f7f9fd', cursor: 'pointer',
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ fontSize: 11, color: '#7a8aaa' }}>{typeLabel}</span>
                         <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{event.category || '—'}</span>
                         {event.subtype && (
                           <span style={{ fontSize: 11, color: '#5a6a88' }}>{event.subtype}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{dateStr}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      {event.intensity != null && (
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#23324a', minWidth: 16, textAlign: 'center' }}>
-                          {event.intensity}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        {event.intensity != null && event.intensity !== 0 && (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#23324a' }}>
+                            {event.intensity}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                          {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
                         </span>
-                      )}
-                      <div style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                        {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
                       </div>
                     </div>
+                    <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 3 }}>{dateStr}</div>
                   </div>
                 );
               })
@@ -2353,8 +2345,6 @@ const PropertiesPanel = ({
           popupLeft={popupLeft ?? 0}
           popupTop={popupTop ?? 0}
           popupMaxHeight={popupMaxHeight ?? null}
-          isPartnership={isPartnership}
-          isEditingExisting={getEvents().some((evt) => evt.id === eventDraft.id)}
           primaryPersonOptions={primaryPersonOptions}
           otherPersonOptions={otherPersonOptions}
           eventCategories={eventCategories}
@@ -2362,8 +2352,6 @@ const PropertiesPanel = ({
           resolvedAnchorType={resolveAnchorType()}
           resolvedAnchorId={selectedItem.id}
           resolvedEventClass={resolveEventClass()}
-          editEventTitle={editEventTitle}
-          newEventTitle={newEventTitle}
           onChange={handleEventDraftChange}
           onSetDraft={setEventDraft}
           onSave={saveEvent}

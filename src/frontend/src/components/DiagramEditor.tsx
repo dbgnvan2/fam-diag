@@ -4119,8 +4119,6 @@ useEffect(() => {
             popupLeft={trianglePropertyModal.position.x}
             popupTop={trianglePropertyModal.position.y}
             popupMaxHeight={null}
-            isPartnership={false}
-            isEditingExisting={false}
             primaryPersonOptions={(() => {
               const t = triangles.find((tr) => tr.id === trianglePropertyModal.triangleId);
               if (!t) return [];
@@ -4140,8 +4138,6 @@ useEffect(() => {
             resolvedAnchorType="EMOTIONAL_PROCESS_EP"
             resolvedAnchorId={trianglePropertyModal.triangleId}
             resolvedEventClass="emotional-pattern"
-            editEventTitle="Edit Triangle Property"
-            newEventTitle="Add Triangle Property"
             onChange={(field, value) =>
               setTrianglePropertyModal((prev) =>
                 prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
@@ -4172,8 +4168,6 @@ useEffect(() => {
             popupLeft={familyPropertyModal.position.x}
             popupTop={familyPropertyModal.position.y}
             popupMaxHeight={null}
-            isPartnership={false}
-            isEditingExisting={!!familyPropertyModal.editingEventId}
             primaryPersonOptions={(() => {
               const p = partnerships.find((p) => p.id === familyPropertyModal.partnershipId);
               if (!p) return [];
@@ -4193,8 +4187,6 @@ useEffect(() => {
             resolvedAnchorType="EMOTIONAL_PROCESS_EP"
             resolvedAnchorId={familyPropertyModal.partnershipId}
             resolvedEventClass="emotional-pattern"
-            editEventTitle="Edit Family Property"
-            newEventTitle="Add Family Property"
             onChange={(field, value) =>
               setFamilyPropertyModal((prev) =>
                 prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
