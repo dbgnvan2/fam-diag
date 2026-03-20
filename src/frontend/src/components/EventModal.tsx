@@ -452,23 +452,7 @@ const EventModal = ({
             </select>
           </div>
         )}
-        {eventType === 'EPE' && !isFooLikeEvent && !isTrianglePropertyEvent && (
-          <div style={rowStyle}>
-            <label htmlFor="eventCategoryFallback" style={labelStyle}>Category:</label>
-            <select
-              id="eventCategoryFallback"
-              value={eventDraft.category}
-              onChange={(e) => onChange('category', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              {eventCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+
         <div style={rowStyle}>
           <label htmlFor="eventStatusLabel" style={labelStyle}>Status:</label>
           {isCompactEvent ? (
