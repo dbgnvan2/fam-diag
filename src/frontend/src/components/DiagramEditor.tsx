@@ -4135,8 +4135,6 @@ useEffect(() => {
             })()}
             eventCategories={eventCategories}
             symptomTypeOptions={[]}
-            resolvedAnchorType="EMOTIONAL_PROCESS_EP"
-            resolvedAnchorId={trianglePropertyModal.triangleId}
             resolvedEventClass="emotional-pattern"
             onChange={(field, value) =>
               setTrianglePropertyModal((prev) =>
@@ -4184,8 +4182,6 @@ useEffect(() => {
             })()}
             eventCategories={eventCategories}
             symptomTypeOptions={[]}
-            resolvedAnchorType="EMOTIONAL_PROCESS_EP"
-            resolvedAnchorId={familyPropertyModal.partnershipId}
             resolvedEventClass="emotional-pattern"
             onChange={(field, value) =>
               setFamilyPropertyModal((prev) =>

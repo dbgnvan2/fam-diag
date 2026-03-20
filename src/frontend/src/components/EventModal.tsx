@@ -16,7 +16,6 @@ import {
   EVENT_SUBTYPES,
   EVENT_TYPE_LABELS,
   EVENT_TYPE_HAS_PERSONS,
-  EVENT_TYPE_HAS_SUBTYPE,
   getIntensityScale,
 } from '../constants/eventConstants';
 import DatePickerField from './DatePickerField';
@@ -45,8 +44,6 @@ export interface EventModalProps {
   otherPersonOptions: string[];
   eventCategories: string[];
   symptomTypeOptions: string[];
-  resolvedAnchorType: string;
-  resolvedAnchorId: string;
   resolvedEventClass: EventClass;
   onChange: (field: keyof EmotionalProcessEvent, value: string) => void;
   onSetDraft: (draft: EmotionalProcessEvent) => void;
@@ -63,8 +60,6 @@ const EventModal = ({
   primaryPersonOptions,
   otherPersonOptions,
   symptomTypeOptions,
-  resolvedAnchorType,
-  resolvedAnchorId,
   onChange,
   onSave,
   onCancel,
@@ -96,15 +91,11 @@ const EventModal = ({
 
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
-  const showSubtype = EVENT_TYPE_HAS_SUBTYPE[eventType];
-  const isNoPersonEvent = !showPersons; // FAMILY or TRIANGLE
-  const isSymptomEvent = eventType === 'SYMPTOM';
-
   const categoryOptions = EVENT_CATEGORIES[eventType] || [];
-  const subtypeOptions =
-    showSubtype && eventType !== 'SYMPTOM' && eventType !== 'TRIANGLE'
-      ? (EVENT_SUBTYPES[eventType]?.[eventDraft.category] || [])
-      : [];
+  // Subtype dropdown options (FAMILY has a predefined list per category)
+  const subtypeDropdownOptions = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
+  const isSymptomSubtype = eventType === 'SYMPTOM';
+  const isSymptomEvent = isSymptomSubtype;
 
   const intensityScale = getIntensityScale(eventType, eventDraft.category, eventDraft.subtype);
 
@@ -139,23 +130,83 @@ const EventModal = ({
       >
         <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
 
-        {/* Event Type — read-only label */}
+        {/* Type — always shown, editable dropdown */}
         <div style={rowStyle}>
-          <label style={labelStyle}>Type:</label>
-          <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-            {EVENT_TYPE_LABELS[eventType] || eventType}
-          </div>
+          <label htmlFor="eventType" style={labelStyle}>Type:</label>
+          <select
+            id="eventType"
+            value={eventType}
+            onChange={(e) => onChange('eventType', e.target.value)}
+            style={{ ...controlStyle, width: '60%' }}
+          >
+            {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((et) => (
+              <option key={et} value={et}>{EVENT_TYPE_LABELS[et]}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Anchor — shown when persons field is hidden */}
-        {isNoPersonEvent && (
-          <div style={rowStyle}>
-            <label style={labelStyle}>Anchor:</label>
-            <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>
-              {eventDraft.anchorType || resolvedAnchorType} · {eventDraft.anchorId || resolvedAnchorId}
+        {/* Category — always shown */}
+        <div style={rowStyle}>
+          <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
+          {categoryOptions.length > 0 ? (
+            <select
+              id="eventCategory"
+              value={eventDraft.category}
+              onChange={(e) => onChange('category', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            >
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="eventCategory"
+              type="text"
+              value={eventDraft.category || ''}
+              onChange={(e) => onChange('category', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            />
+          )}
+        </div>
+
+        {/* Type (subtype) — always shown; dropdown when options exist, text otherwise */}
+        <div style={rowStyle}>
+          <label htmlFor="eventSubtype" style={labelStyle}>Subtype:</label>
+          {subtypeDropdownOptions ? (
+            <select
+              id="eventSubtype"
+              value={eventDraft.subtype || ''}
+              onChange={(e) => onChange('subtype', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            >
+              <option value="">— select —</option>
+              {subtypeDropdownOptions.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+          ) : (
+            <div style={controlStyle}>
+              <input
+                type="text"
+                id="eventSubtype"
+                list="eventSubtypeOptions"
+                maxLength={60}
+                value={eventDraft.subtype || ''}
+                onChange={(e) => onChange('subtype', e.target.value)}
+                style={{ width: '100%' }}
+                placeholder={isSymptomSubtype ? 'e.g. Anxiety, Headache…' : ''}
+              />
+              {isSymptomSubtype && (
+                <datalist id="eventSubtypeOptions">
+                  {symptomTypeOptions.map((label) => (
+                    <option key={label} value={label} />
+                  ))}
+                </datalist>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Primary Person */}
         {showPersons && (
@@ -231,84 +282,6 @@ const EventModal = ({
             </div>
           </div>
         </div>
-
-        {/* Category */}
-        {categoryOptions.length > 0 && !(eventType === 'EA') && (
-          <div style={rowStyle}>
-            <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
-            <select
-              id="eventCategory"
-              value={eventDraft.category}
-              onChange={(e) => onChange('category', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* EA: category is fixed */}
-        {eventType === 'EA' && (
-          <div style={rowStyle}>
-            <label style={labelStyle}>Category:</label>
-            <div style={{ ...controlStyle, width: '60%', textAlign: 'left' }}>Emotional Autonomy</div>
-          </div>
-        )}
-
-        {/* Subtype — dropdown for FAMILY, free text for SYMPTOM/TRIANGLE */}
-        {showSubtype && isSymptomEvent && (
-          <div style={rowStyle}>
-            <label htmlFor="eventSubtype" style={labelStyle}>Symptom Type:</label>
-            <div style={controlStyle}>
-              <input
-                type="text"
-                id="eventSubtype"
-                list="eventSubtypeOptions"
-                maxLength={30}
-                value={eventDraft.subtype || ''}
-                onChange={(e) => onChange('subtype', e.target.value)}
-                style={{ width: '100%' }}
-              />
-              <datalist id="eventSubtypeOptions">
-                {symptomTypeOptions.map((label) => (
-                  <option key={label} value={label} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-        )}
-        {showSubtype && eventType === 'TRIANGLE' && (
-          <div style={rowStyle}>
-            <label htmlFor="eventSubtype" style={labelStyle}>Subtype:</label>
-            <input
-              type="text"
-              id="eventSubtype"
-              value={eventDraft.subtype || ''}
-              onChange={(e) => onChange('subtype', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            />
-          </div>
-        )}
-        {showSubtype && subtypeOptions.length > 0 && (
-          <div style={rowStyle}>
-            <label htmlFor="eventSubtype" style={labelStyle}>Type:</label>
-            <select
-              id="eventSubtype"
-              value={eventDraft.subtype || ''}
-              onChange={(e) => onChange('subtype', e.target.value)}
-              style={{ ...controlStyle, width: '60%' }}
-            >
-              <option value="">— select —</option>
-              {subtypeOptions.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         {/* Status */}
         <div style={rowStyle}>
