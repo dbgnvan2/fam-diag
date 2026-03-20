@@ -70,6 +70,7 @@ import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
   attachEventClassToEntities,
+  attachFamilyEventsToPartnerships,
   inferGenderFromName,
   normalizeImportedChildLayout,
 } from '../utils/dataNormalization';
@@ -2006,7 +2007,9 @@ useEffect(() => {
     const aligned = alignAllAnchors(normalizedImportedPeople, cleaned.partnerships);
     const sanitizedPeople = sanitizePeopleIndicators(aligned, nextDefinitions);
     const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
-    const partnershipsWithEvents = attachEventClassToEntities(cleaned.partnerships, 'relationship');
+    const partnershipsWithEvents = attachFamilyEventsToPartnerships(
+      attachEventClassToEntities(cleaned.partnerships, 'relationship')
+    );
     const linesWithEvents = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
     const peopleIdSet = new Set(peopleWithEvents.map((person) => person.id));
     const trianglesWithKnownPeople = normalizedTriangles.filter(
@@ -2317,7 +2320,9 @@ useEffect(() => {
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
     const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
     const incomingPeople = attachEventClassToEntities(cleaned.people, 'individual');
-    const incomingPartnerships = attachEventClassToEntities(cleaned.partnerships, 'relationship');
+    const incomingPartnerships = attachFamilyEventsToPartnerships(
+      attachEventClassToEntities(cleaned.partnerships, 'relationship')
+    );
     const incomingLines = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
 
     const usedPersonIds = new Set(people.map((p) => p.id));

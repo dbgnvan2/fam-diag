@@ -109,6 +109,42 @@ export const attachEventClassToEntities = <T extends { events?: EmotionalProcess
     events: normalizeEventList(entity.events, fallbackClass),
   }));
 
+// Map old emotionalProcessType strings to new category+subtype
+const OLD_PROCESS_TYPE_MAP: Record<string, { category: string; subtype: string }> = {
+  'triangle-functioning':       { category: 'Triangles', subtype: 'Functioning' },
+  'triangle-flexibility':       { category: 'Triangles', subtype: 'Flexibility' },
+  'triangle-stress-response':   { category: 'Triangles', subtype: 'Stress Response' },
+  'stress-emotional-reactivity':{ category: 'Stress',    subtype: 'Emotional Reactivity' },
+  'stress-family-adaptability': { category: 'Stress',    subtype: 'Adaptability' },
+  'stress-family-stressor':     { category: 'Stress',    subtype: 'Family Stressor' },
+  'stress-chronic-stress':      { category: 'Stress',    subtype: 'Chronic Stress' },
+};
+
+export const normalizeFamilyEventList = (
+  events: EmotionalProcessEvent[] | undefined
+): EmotionalProcessEvent[] | undefined =>
+  events
+    ? events.map((ev) => {
+        const raw = ev as EmotionalProcessEvent & { emotionalProcessType?: string; statusLabel?: string };
+        const mapped = raw.emotionalProcessType ? OLD_PROCESS_TYPE_MAP[raw.emotionalProcessType] : undefined;
+        return {
+          ...ev,
+          eventType: 'FAMILY',
+          eventClass: ev.eventClass || 'family',
+          status: ev.status || raw.statusLabel || 'discrete',
+          category: mapped?.category ?? (ev.category || 'Triangles'),
+          subtype: mapped?.subtype ?? (ev.subtype || ''),
+          intensity: typeof ev.intensity === 'string' ? Number(ev.intensity) : (ev.intensity ?? 0),
+        };
+      })
+    : undefined;
+
+export const attachFamilyEventsToPartnerships = (partnerships: Partnership[]): Partnership[] =>
+  partnerships.map((p) => ({
+    ...p,
+    familyEvents: normalizeFamilyEventList(p.familyEvents),
+  }));
+
 // ---------------------------------------------------------------------------
 // Name / gender inference
 // ---------------------------------------------------------------------------
