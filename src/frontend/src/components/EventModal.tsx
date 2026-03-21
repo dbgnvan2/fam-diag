@@ -101,6 +101,22 @@ const EventModal = ({
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
   const categoryOptions = EVENT_CATEGORIES[eventType] || [];
+
+  // On mount: if category or subtype is invalid for the current eventType, auto-correct.
+  // This handles editing old events that have stale/wrong category values.
+  React.useEffect(() => {
+    const catOk = categoryOptions.length === 0 || categoryOptions.includes(eventDraft.category);
+    const subOpts = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
+    const subOk = !subOpts || subOpts.includes(eventDraft.subtype || '');
+    if (!catOk || !subOk) {
+      const newCat = catOk ? eventDraft.category : (categoryOptions[0] ?? eventDraft.category);
+      const newSubOpts = EVENT_SUBTYPES[eventType]?.[newCat] ?? null;
+      const newSub = (catOk && subOk) ? eventDraft.subtype : (newSubOpts?.[0] ?? '');
+      onSetDraft({ ...eventDraft, category: newCat, subtype: newSub });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Subtype dropdown options (FAMILY has a predefined list per category)
   const subtypeDropdownOptions = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
   const isSymptomSubtype = eventType === 'SYMPTOM';

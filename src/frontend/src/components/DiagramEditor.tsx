@@ -4219,7 +4219,9 @@ useEffect(() => {
             onSave={() => {
               if (!familyPropertyModal) return;
               const { partnershipId, draft, editingEventId } = familyPropertyModal;
-              const savedDraft = { ...draft, eventType: 'FAMILY' as const };
+              const rawCat = (draft.category || '').toLowerCase();
+              const normalizedCat = rawCat.startsWith('triangle') ? 'Triangles' : rawCat === 'stress' ? 'Stress' : (draft.category || 'Triangles');
+              const savedDraft = { ...draft, eventType: 'FAMILY' as const, category: normalizedCat };
               setPartnerships((prev) =>
                 prev.map((p) => {
                   if (p.id !== partnershipId) return p;
