@@ -13,7 +13,7 @@ import type {
 import {
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
-import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
+import { EVENT_TYPE_LABELS, inferEventType as inferEventTypeFromConstants } from '../constants/eventConstants';
 import {
   deriveSiblingPositionResult,
   getSiblingPositionOptions,
@@ -27,19 +27,12 @@ import PersonSiblingSection from './sections/PersonSiblingSection';
 import PartnershipPropertiesSection from './sections/PartnershipPropertiesSection';
 import EPLPropertiesSection from './sections/EPLPropertiesSection';
 import EventModal from './EventModal';
+import EventsSection from './EventsSection';
+import EventCard from './EventCard';
+import EmotionalPatternModal from './modals/EmotionalPatternModal';
+import type { EmotionalPatternDraft } from '../types/diagramEditor';
+import { LINE_STYLE_VALUES, intensityValueForLineStyle } from '../utils/emotionalPatternOptions';
 
-const TRIANGLE_SUBTYPES = [
-  { subtype: 'Functioning', label: 'Triangle Functioning', letter: 'V' },
-  { subtype: 'Flexibility', label: 'Triangle Flexibility', letter: 'F' },
-  { subtype: 'Stress Response', label: 'Triangle Stress Response', letter: 'R' },
-] as const;
-
-const STRESS_SUBTYPES = [
-  { subtype: 'Emotional Reactivity', label: 'Emotional Reactivity' },
-  { subtype: 'Adaptability', label: 'Family Adaptability' },
-  { subtype: 'Family Stressor', label: 'Family Stressor' },
-  { subtype: 'Chronic Stress', label: 'Chronic Stress' },
-] as const;
 
 const familyAddBtnStyle: React.CSSProperties = {
   fontSize: 13,
@@ -309,6 +302,7 @@ interface PropertiesPanelProps {
   ) => void;
   allEmotionalLines?: EmotionalLine[];
   onSelectEmotionalLine?: (line: EmotionalLine) => void;
+  onRemoveEmotionalLine?: (id: string) => void;
   initialActiveTab?: 'properties' | 'functional' | 'events' | 'patterns';
   initialPersonSection?: 'name' | 'dates' | 'format' | 'sibling' | 'foo';
   initialPartnershipType?: string;
@@ -351,7 +345,8 @@ const PropertiesPanel = ({
   newEventSeed,
   openNewEventPosition,
   allEmotionalLines = [],
-  onSelectEmotionalLine,
+  onSelectEmotionalLine: _onSelectEmotionalLine,
+  onRemoveEmotionalLine,
   onEnsureSymptomCategoryDefinition,
   compactPersonSectionMode = false,
   compactPartnershipSectionMode = false,
@@ -388,6 +383,8 @@ const PropertiesPanel = ({
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
   const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
+  const [editingPatternDraft, setEditingPatternDraft] = useState<EmotionalPatternDraft | null>(null);
+  const [editingPatternLineId, setEditingPatternLineId] = useState<string | null>(null);
   const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
   const [emotionalPristine, setEmotionalPristine] = useState(true);
@@ -818,18 +815,24 @@ const PropertiesPanel = ({
     if (name === 'relationshipType') {
       const nextType = value;
       const nextStatusOptions = relationshipStatusRowsForType(nextType).map((entry) => entry.status);
+      const nextStatusKeys = new Set(nextStatusOptions.map(canonicalRelationshipStatusKey));
       const nextStatus =
         nextStatusOptions.length > 0 &&
-        !nextStatusOptions.some(
-          (status) =>
-            canonicalRelationshipStatusKey(status) ===
-            canonicalRelationshipStatusKey(partnershipDraft.relationshipStatus)
-        )
+        !nextStatusKeys.has(canonicalRelationshipStatusKey(partnershipDraft.relationshipStatus))
           ? nextStatusOptions[0]
           : partnershipDraft.relationshipStatus;
+      // Filter statusDates to only keep entries valid for the new type
+      const currentDates = partnershipDraft.statusDates || {};
+      const filteredDates: Record<string, string> = {};
+      for (const [key, val] of Object.entries(currentDates)) {
+        if (nextStatusKeys.has(canonicalRelationshipStatusKey(key))) {
+          filteredDates[key] = val;
+        }
+      }
       updatePartnershipDraftState({
         relationshipType: nextType,
         relationshipStatus: nextStatus,
+        statusDates: filteredDates,
       });
       setPartnershipPristine(false);
       return;
@@ -938,6 +941,7 @@ const PropertiesPanel = ({
     return {
       id: createEventId(),
       date: dateValue,
+      startDate: dateValue,
       category: 'Individual',
       eventType: 'NODAL' as const,
       status: 'discrete' as const,
@@ -965,9 +969,11 @@ const PropertiesPanel = ({
     const subtype = isBirthSex
       ? `Birth Sex: ${getBirthSexLabel(value as Person['birthSex'])}`
       : `Gender: ${getGenderIdentityLabel(value as Person['genderIdentity'])}`;
+    const normalizedDate = normalizePersonEventDate(dateValue);
     return {
       id: createEventId(),
-      date: normalizePersonEventDate(dateValue),
+      date: normalizedDate,
+      startDate: normalizedDate,
       category: 'Individual',
       eventType: 'NODAL' as const,
       status: 'discrete' as const,
@@ -1027,14 +1033,18 @@ const PropertiesPanel = ({
     const person2 = people.find((person) => person.id === line.person2_id);
     if (!person1 || !person2) return null;
     const stageLabel = field === 'startDate' ? 'Pattern Start' : 'Pattern End';
+    const typeLabel = toTitleCase(line.relationshipType);
     const statusText = toTitleCase(line.status || 'ongoing');
     return {
       id: createEventId(),
       date: dateValue,
-      category: toTitleCase(line.relationshipType),
-      eventType: 'NODAL' as const,
+      startDate: dateValue,
+      category: 'Emotional Pattern',
+      eventType: 'EPE' as const,
+      anchorType: 'EMOTIONAL_PROCESS_EP' as const,
+      anchorId: line.id,
       status: 'discrete' as const,
-      subtype: `${statusText} – ${stageLabel}`,
+      subtype: `${typeLabel} – ${statusText} – ${stageLabel}`,
       intensity: 0,
       frequency: 0,
       impact: 0,
@@ -1056,19 +1066,19 @@ const PropertiesPanel = ({
     const person1 = people.find((person) => person.id === line.person1_id);
     const person2 = people.find((person) => person.id === line.person2_id);
     if (!person1 || !person2) return null;
-    const start = line.startDate && DATE_PATTERN.test(line.startDate)
-      ? line.startDate
-      : new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const typeLabel = toTitleCase(line.relationshipType);
     return {
       id: createEventId(),
-      date: start,
-      startDate: start,
+      date: today,
+      startDate: today,
       endDate: line.endDate || undefined,
       category: 'Emotional Pattern',
       eventType: 'EPE' as const,
       anchorType: 'EMOTIONAL_PROCESS_EP' as const,
       anchorId: line.id,
-      status: ((line.status || 'ongoing') as any),
+      status: line.status === 'ended' ? 'end' as const : 'ongoing' as const,
+      subtype: `${typeLabel} – Measurement`,
       intensity,
       frequency,
       impact,
@@ -1121,6 +1131,27 @@ const PropertiesPanel = ({
     });
     if ((selectedPerson.adoptionDate ?? '') !== (personDraft.adoptionDate ?? '')) {
       updates.adoptionDate = personDraft.adoptionDate || undefined;
+      if (personDraft.adoptionDate && DATE_PATTERN.test(personDraft.adoptionDate)) {
+        newEvents.push({
+          id: createEventId(),
+          date: personDraft.adoptionDate,
+          startDate: personDraft.adoptionDate,
+          category: 'Individual',
+          eventType: 'NODAL' as const,
+          status: 'discrete' as const,
+          subtype: 'Adoption Date',
+          intensity: 0,
+          frequency: 0,
+          impact: 0,
+          howWell: DEFAULT_HOW_WELL,
+          otherPersonName: 'None',
+          primaryPersonName: personDraft.name || '',
+          wwwwh: DEFAULT_OBSERVATION,
+          observations: DEFAULT_OBSERVATION,
+          eventClass: 'individual' as const,
+          createdAt: Date.now(),
+        });
+      }
     }
     PERSON_DEFERRED_IDENTITY_FIELDS.forEach((field) => {
       const prev = selectedPerson[field];
@@ -1184,6 +1215,34 @@ const PropertiesPanel = ({
       }
     });
     const newEvents: EmotionalProcessEvent[] = [];
+    // Create event when type or status changes
+    const typeChanged = stringDiffers(partnershipDraft.relationshipType, selectedPartnership.relationshipType);
+    const statusChanged = stringDiffers(partnershipDraft.relationshipStatus, selectedPartnership.relationshipStatus);
+    if (typeChanged || statusChanged) {
+      const today = new Date().toISOString().slice(0, 10);
+      const statusLabel = typeChanged
+        ? `Type changed to ${humanizeOptionLabel(partnershipDraft.relationshipType)}`
+        : `Status changed to ${humanizeOptionLabel(partnershipDraft.relationshipStatus)}`;
+      newEvents.push({
+        id: createEventId(),
+        date: today,
+        startDate: today,
+        category: toTitleCase(partnershipDraft.relationshipType),
+        eventType: 'NODAL' as const,
+        status: 'discrete' as const,
+        subtype: statusLabel,
+        intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(partnershipDraft.relationshipStatus)] ?? 0,
+        frequency: 0,
+        impact: 0,
+        howWell: DEFAULT_HOW_WELL,
+        otherPersonName: partner2?.name || '',
+        primaryPersonName: partner1?.name || '',
+        wwwwh: DEFAULT_OBSERVATION,
+        observations: DEFAULT_OBSERVATION,
+        eventClass: 'relationship' as const,
+        createdAt: Date.now(),
+      });
+    }
     allRelationshipStatuses.forEach((status) => {
       const prev = readPartnershipStatusDate(selectedPartnership, status);
       const next = readPartnershipStatusDate(partnershipDraft, status);
@@ -1293,6 +1352,46 @@ const PropertiesPanel = ({
         }
       }
     });
+    // Create event for non-date property changes (relationshipType, status, lineStyle, etc.)
+    const nonDateChanged = (['relationshipType', 'status', 'lineStyle'] as const).some(
+      (field) => stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
+    );
+    if (nonDateChanged) {
+      const today = new Date().toISOString().slice(0, 10);
+      const person1 = people.find((p) => p.id === emotionalDraft.person1_id);
+      const person2 = people.find((p) => p.id === emotionalDraft.person2_id);
+      const changes: string[] = [];
+      if (stringDiffers(emotionalDraft.relationshipType, selectedEmotionalLine.relationshipType)) {
+        changes.push(`Type: ${humanizeOptionLabel(emotionalDraft.relationshipType)}`);
+      }
+      if (stringDiffers(emotionalDraft.status, selectedEmotionalLine.status)) {
+        changes.push(`Status: ${humanizeOptionLabel(emotionalDraft.status || 'ongoing')}`);
+      }
+      if (stringDiffers(emotionalDraft.lineStyle, selectedEmotionalLine.lineStyle)) {
+        changes.push(`Style: ${humanizeOptionLabel(emotionalDraft.lineStyle)}`);
+      }
+      newEvents.push({
+        id: createEventId(),
+        date: today,
+        startDate: today,
+        category: 'Emotional Pattern',
+        eventType: 'EPE' as const,
+        anchorType: 'EMOTIONAL_PROCESS_EP' as const,
+        anchorId: selectedEmotionalLine.id,
+        status: 'discrete' as const,
+        subtype: changes.join(', '),
+        intensity: 0,
+        frequency: 0,
+        impact: 0,
+        howWell: DEFAULT_HOW_WELL,
+        otherPersonName: person2?.name || '',
+        primaryPersonName: person1?.name || '',
+        wwwwh: DEFAULT_OBSERVATION,
+        observations: DEFAULT_OBSERVATION,
+        eventClass: 'emotional-pattern' as const,
+        createdAt: Date.now(),
+      });
+    }
     if (emotionalMetricDirty) {
       const metricEvent = buildEmotionalPatternMeasurementEvent(
         { ...selectedEmotionalLine, ...emotionalDraft },
@@ -1362,11 +1461,7 @@ const PropertiesPanel = ({
     (): EventType => (isEmotionalLine ? 'EPE' : 'NODAL'),
     [isEmotionalLine]
   );
-  const inferEventType = (event: EmotionalProcessEvent): EventType => {
-    if (event.eventType) return event.eventType;
-    if (event.eventClass === 'emotional-pattern') return 'EPE';
-    return 'NODAL';
-  };
+  const inferEventType = inferEventTypeFromConstants;
   const normalizeEventDate = (event: EmotionalProcessEvent): string =>
     event.startDate || event.date || '';
   const symptomTypeOptions = useMemo(() => {
@@ -1495,6 +1590,7 @@ const PropertiesPanel = ({
           category: category as any,
           type,
           definitionId: definition.id,
+          sourceEventId: existing?.sourceEventId,
           status: entry.status,
           intensity: clampIndicatorDimension(entry.intensity),
           frequency: clampIndicatorDimension(entry.frequency),
@@ -1556,7 +1652,7 @@ const PropertiesPanel = ({
       anchorType,
       anchorId,
       status: seed?.status || latest?.status || 'discrete',
-      intensity: typeof (seed?.intensity ?? latest?.intensity) === 'number' ? Number(seed?.intensity ?? latest?.intensity) : 0,
+      intensity: typeof (seed?.intensity ?? latest?.intensity) === 'number' ? Number(seed?.intensity ?? latest?.intensity) : 1,
       frequency: typeof (seed?.frequency ?? latest?.frequency) === 'number' ? Number(seed?.frequency ?? latest?.frequency) : 0,
       impact: typeof (seed?.impact ?? latest?.impact) === 'number' ? Number(seed?.impact ?? latest?.impact) : 0,
       howWell: typeof (seed?.howWell ?? latest?.howWell) === 'number' ? Number(seed?.howWell ?? latest?.howWell) : 5,
@@ -1757,6 +1853,21 @@ const PropertiesPanel = ({
     }
     setEventModalOpen(false);
     setEventDraft(null);
+  };
+
+  const deleteEvent = (id: string) => {
+    const events = getEvents().filter((ev) => ev.id !== id);
+    if (isPerson) onUpdatePerson(selectedItem.id, { events });
+    else if (isPartnership) onUpdatePartnership(selectedItem.id, { events });
+    else onUpdateEmotionalLine(selectedItem.id, { events });
+  };
+
+  const deleteIndicatorOnly = (definitionId: string) => {
+    if (!isPerson || !selectedPerson) return;
+    const indicators = (selectedPerson.functionalIndicators || []).filter(
+      (ind) => ind.definitionId !== definitionId
+    );
+    onUpdatePerson(selectedItem.id, { functionalIndicators: indicators });
   };
 
   const panelTitle = triangleId
@@ -2041,56 +2152,23 @@ const PropertiesPanel = ({
       { id: 'events' as const, label: 'Events' },
     ];
 
-    const renderFamilyEventCard = (ev: { id: string; eventType: string; category?: string; subtype?: string; status?: string; intensity?: number | null; startDate?: string; date?: string }) => {
-      const isEnded = ['end', 'discrete'].includes(ev.status || '');
-      const typeLabel = EVENT_TYPE_LABELS[ev.eventType as keyof typeof EVENT_TYPE_LABELS] || ev.eventType || '—';
-      return (
-        <div
-          key={ev.id}
-          style={{
-            padding: '8px 10px',
-            marginBottom: 6,
-            border: '1px solid #d0d8ea',
-            borderLeft: `4px solid ${ev.category === 'Stress' ? '#7a5a9e' : '#4b68a6'}`,
-            borderRadius: 8,
-            background: '#f7f9fd',
-            fontSize: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <div
-              style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0, cursor: 'pointer', flex: 1 }}
-              onClick={(e) => {
-                const rect = (e.currentTarget as HTMLElement).closest('[data-family-card]')?.getBoundingClientRect() ?? (e.currentTarget as HTMLElement).getBoundingClientRect();
-                onOpenFamilyEventEdit?.(familyPartnership.id, ev.id, { x: rect.left, y: rect.bottom + 4 });
-              }}
-            >
-              <span style={{ fontSize: 11, color: '#7a8aaa' }}>{typeLabel}</span>
-              <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{ev.category || '—'}</span>
-              {ev.subtype && <span style={{ fontSize: 11, color: '#5a6a88' }}>{ev.subtype}</span>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              {ev.intensity != null && ev.intensity !== 0 && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#23324a' }}>{ev.intensity}</span>
-              )}
-              <span style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                {ev.status ? ev.status.charAt(0).toUpperCase() + ev.status.slice(1) : 'Discrete'}
-              </span>
-              <button
-                type="button"
-                aria-label="Delete event"
-                title="Delete"
-                onClick={(e) => { e.stopPropagation(); onDeleteFamilyEvent?.(familyPartnership.id, ev.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#b04040', lineHeight: 1 }}
-              >
-                🗑
-              </button>
-            </div>
-          </div>
-          <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 3 }}>{ev.startDate || ev.date || ''}</div>
-        </div>
-      );
-    };
+    const renderFamilyEventCard = (ev: EmotionalProcessEvent) => (
+      <EventCard
+        key={ev.id}
+        date={ev.startDate || ev.date || ''}
+        type={EVENT_TYPE_LABELS[ev.eventType as keyof typeof EVENT_TYPE_LABELS] || ev.eventType || '—'}
+        category={ev.category || '—'}
+        subtype={ev.subtype || undefined}
+        status={ev.status || 'discrete'}
+        intensity={typeof ev.intensity === 'number' ? ev.intensity : null}
+        onEdit={() => {
+          const el = document.querySelector(`[data-ev-id="${ev.id}"]`) as HTMLElement | null;
+          const rect = el?.getBoundingClientRect() ?? { left: 0, bottom: 0 };
+          onOpenFamilyEventEdit?.(familyPartnership.id, ev.id, { x: rect.left, y: (rect as DOMRect).bottom + 4 });
+        }}
+        onDelete={() => onDeleteFamilyEvent?.(familyPartnership.id, ev.id)}
+      />
+    );
 
     return (
       <div
@@ -2160,95 +2238,58 @@ const PropertiesPanel = ({
 
         {activeFamilyTab === 'triangles' && (
           <div style={{ marginTop: 14 }}>
-            {TRIANGLE_SUBTYPES.map((pt) => {
-              const events = triangleEvents.filter((e) => e.subtype === pt.subtype);
-              return (
-                <div key={pt.subtype} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#4b68a6' }}>
-                      [{pt.letter}] {pt.label}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        onOpenFamilyProperty?.('Triangles', pt.subtype, { x: rect.left, y: rect.bottom + 4 });
-                      }}
-                      style={familyAddBtnStyle}
-                    >
-                      +
-                    </button>
-                  </div>
-                  {events.length === 0 ? (
-                    <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic', paddingLeft: 4 }}>None recorded</div>
-                  ) : (
-                    events.map(renderFamilyEventCard)
-                  )}
-                </div>
-              );
-            })}
-            {(() => {
-              const knownSubtypes = TRIANGLE_SUBTYPES.map((pt) => pt.subtype) as string[];
-              const orphans = triangleEvents.filter((e) => !knownSubtypes.includes(e.subtype || ''));
-              return orphans.length > 0 ? (
-                <div style={{ marginBottom: 14 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#4b68a6' }}>Other</span>
-                  {orphans.map(renderFamilyEventCard)}
-                </div>
-              ) : null;
-            })()}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  onOpenFamilyProperty?.('Triangles', 'Functioning', { x: rect.left, y: rect.bottom + 4 });
+                }}
+                style={familyAddBtnStyle}
+              >
+                + Add Triangle
+              </button>
+            </div>
+            {triangleEvents.length === 0 ? (
+              <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic' }}>No triangle events recorded</div>
+            ) : (
+              triangleEvents.map(renderFamilyEventCard)
+            )}
           </div>
         )}
 
         {activeFamilyTab === 'stressors' && (
           <div style={{ marginTop: 14 }}>
-            {STRESS_SUBTYPES.map((st) => {
-              const events = stressorEvents.filter((e) => e.subtype === st.subtype);
-              return (
-                <div key={st.subtype} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#7a5a9e' }}>{st.label}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        onOpenFamilyProperty?.('Stress', st.subtype, { x: rect.left, y: rect.bottom + 4 });
-                      }}
-                      style={{ ...familyAddBtnStyle, color: '#7a5a9e', border: '1px solid #c8b8df', background: '#f6f0fb' }}
-                    >
-                      +
-                    </button>
-                  </div>
-                  {events.length === 0 ? (
-                    <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic', paddingLeft: 4 }}>None recorded</div>
-                  ) : (
-                    events.map(renderFamilyEventCard)
-                  )}
-                </div>
-              );
-            })}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  onOpenFamilyProperty?.('Stress', 'Emotional Reactivity', { x: rect.left, y: rect.bottom + 4 });
+                }}
+                style={{ ...familyAddBtnStyle, color: '#7a5a9e', border: '1px solid #c8b8df', background: '#f6f0fb' }}
+              >
+                + Add Stressor
+              </button>
+            </div>
+            {stressorEvents.length === 0 ? (
+              <div style={{ fontSize: 11, color: '#9aaac4', fontStyle: 'italic' }}>No stressor events recorded</div>
+            ) : (
+              stressorEvents.map(renderFamilyEventCard)
+            )}
           </div>
         )}
 
         {activeFamilyTab === 'events' && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
               <button
                 type="button"
                 onClick={(e) => {
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   onAddFamilyEvent?.({ x: rect.left, y: rect.bottom + 4 });
                 }}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#4b68a6',
-                  border: '1px solid #c0ccdf',
-                  borderRadius: 4,
-                  background: '#f0f4fb',
-                  padding: '4px 12px',
-                  cursor: 'pointer',
-                }}
+                style={familyAddBtnStyle}
               >
                 + Add Family Event
               </button>
@@ -2457,41 +2498,32 @@ const PropertiesPanel = ({
               <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No symptoms recorded yet.</div>
             ) : (
               symptomRows.map((symptom) => {
-                const categoryColors: Record<string, string> = { physical: '#1f77b4', emotional: '#d81b60', social: '#2e7d32' };
-                const statusStyleMap: Record<string, { color: string; bg: string; border: string }> = {
-                  current: { color: '#2a7a4a', bg: '#edfbf2', border: '#a8e0c0' },
-                  past:    { color: '#a08060', bg: '#fdf3e3', border: '#e0c090' },
-                  none:    { color: '#7a8aaa', bg: '#f5f5f5', border: '#d0d0d0' },
-                };
-                const borderColor = categoryColors[symptom.category] || '#444';
-                const statusStyle = statusStyleMap[symptom.status] || statusStyleMap.none;
-                const statusLabel = symptom.status.charAt(0).toUpperCase() + symptom.status.slice(1);
-                const handleClick = () => {
-                  if (symptom.sourceEventId) {
-                    const ev = (selectedPerson.events || []).find((e) => e.id === symptom.sourceEventId);
-                    if (ev) { openEditEvent(ev); return; }
-                  }
-                  openNewEvent({ eventType: 'SYMPTOM', category: symptom.category, symptomType: symptom.type });
-                };
+                const categoryBorderColors: Record<string, string> = { physical: '#1f77b4', emotional: '#d81b60', social: '#2e7d32' };
+                const sourceEvent = symptom.sourceEventId
+                  ? (selectedPerson.events || []).find((e) => e.id === symptom.sourceEventId)
+                  : undefined;
                 return (
-                  <div
+                  <EventCard
                     key={symptom.key}
-                    onClick={handleClick}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 10px', marginBottom: 6,
-                      border: '1px solid #d0d8ea', borderLeft: `4px solid ${borderColor}`,
-                      borderRadius: 8, background: '#f7f9fd', cursor: 'pointer',
+                    date={sourceEvent?.startDate || sourceEvent?.date || ''}
+                    type="Symptom"
+                    category={toTitleCase(symptom.category)}
+                    subtype={symptom.type}
+                    status={symptom.status}
+                    intensity={symptom.intensity ?? null}
+                    leftBorderColor={categoryBorderColors[symptom.category] || '#4b68a6'}
+                    onEdit={() => {
+                      if (sourceEvent) { openEditEvent(sourceEvent); return; }
+                      openNewEvent({ eventType: 'SYMPTOM', category: symptom.category, symptomType: symptom.type });
                     }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{symptom.type}</div>
-                      <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>{toTitleCase(symptom.category)}</div>
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                      {statusLabel}
-                    </div>
-                  </div>
+                    onDelete={
+                      symptom.sourceEventId
+                        ? () => deleteEvent(symptom.sourceEventId!)
+                        : symptom.definitionId
+                          ? () => deleteIndicatorOnly(symptom.definitionId!)
+                          : undefined
+                    }
+                  />
                 );
               })
             )}
@@ -2502,6 +2534,9 @@ const PropertiesPanel = ({
       )}
       {activeTab === 'patterns' && isPerson && (
         <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <strong>Patterns</strong>
+          </div>
           {(() => {
             const person = selectedItem as Person;
             const connected = allEmotionalLines.filter(
@@ -2526,100 +2561,53 @@ const PropertiesPanel = ({
               const other = people.find((p) => p.id === otherId);
               const otherName = other?.name || 'Unknown';
               const typeLabel = typeLabels[el.relationshipType] || el.relationshipType;
-              const statusLabel = el.status === 'ended' ? 'Ended' : 'Ongoing';
+              const status = el.status === 'ended' ? 'ended' : 'ongoing';
               return (
-                <div
+                <EventCard
                   key={el.id}
-                  onClick={() => onSelectEmotionalLine?.(el)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 10px',
-                    marginBottom: 6,
-                    border: '1px solid #d0d8ea',
-                    borderRadius: 8,
-                    background: '#f7f9fd',
-                    cursor: onSelectEmotionalLine ? 'pointer' : 'default',
-                    borderLeft: `4px solid ${el.color || '#444444'}`,
+                  date={el.startDate || ''}
+                  type="Emotional Pattern"
+                  category={typeLabel}
+                  subtype={`with ${otherName}`}
+                  status={status}
+                  intensity={null}
+                  leftBorderColor={el.color || '#444444'}
+                  onEdit={() => {
+                    setEditingPatternLineId(el.id);
+                    setEditingPatternDraft({
+                      person1Id: el.person1_id,
+                      person2Id: el.person2_id,
+                      relationshipType: el.relationshipType,
+                      status: el.status || 'ongoing',
+                      lineStyle: el.lineStyle,
+                      startDate: el.startDate || '',
+                      endDate: el.endDate || '',
+                      intensityLevel: intensityValueForLineStyle(el.lineStyle),
+                      frequency: 0,
+                      impact: 0,
+                      notes: el.notes || '',
+                      color: el.color || '#444444',
+                    });
                   }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{typeLabel}</div>
-                    <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 2 }}>with {otherName}</div>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: el.status === 'ended' ? '#a08060' : '#2a7a4a',
-                      background: el.status === 'ended' ? '#fdf3e3' : '#edfbf2',
-                      border: `1px solid ${el.status === 'ended' ? '#e0c090' : '#a8e0c0'}`,
-                      borderRadius: 4,
-                      padding: '2px 6px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {statusLabel}
-                  </div>
-                </div>
+                  onDelete={onRemoveEmotionalLine ? () => onRemoveEmotionalLine(el.id) : undefined}
+                />
               );
             });
           })()}
         </div>
       )}
       {activeTab === 'events' && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong>Events</strong>
-            <button type="button" onClick={() => openNewEvent()} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Event</button>
-          </div>
-          {getEvents().length === 0 ? (
-            <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No events recorded yet.</div>
-          ) : (
-            getEvents()
-              .slice()
-              .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))
-              .map((event) => {
-                const dateStr = event.startDate || event.date || '';
-                const eventStatus = event.status || 'discrete';
-                const isEnded = ['end', 'discrete'].includes(eventStatus);
-                const typeLabel = EVENT_TYPE_LABELS[event.eventType] || event.eventType || '—';
-                return (
-                  <div
-                    key={event.id}
-                    onClick={() => openEditEvent(event)}
-                    style={{
-                      padding: '8px 10px', marginBottom: 6,
-                      border: '1px solid #d0d8ea', borderLeft: '4px solid #4b68a6',
-                      borderRadius: 8, background: '#f7f9fd', cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-                        <span style={{ fontSize: 11, color: '#7a8aaa' }}>{typeLabel}</span>
-                        <span style={{ fontWeight: 600, fontSize: 13, color: '#23324a' }}>{event.category || '—'}</span>
-                        {event.subtype && (
-                          <span style={{ fontSize: 11, color: '#5a6a88' }}>{event.subtype}</span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        {event.intensity != null && event.intensity !== 0 && (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#23324a' }}>
-                            {event.intensity}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 11, fontWeight: 600, color: isEnded ? '#a08060' : '#2a7a4a', background: isEnded ? '#fdf3e3' : '#edfbf2', border: `1px solid ${isEnded ? '#e0c090' : '#a8e0c0'}`, borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                          {eventStatus.charAt(0).toUpperCase() + eventStatus.slice(1)}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#5a6a88', marginTop: 3 }}>{dateStr}</div>
-                  </div>
-                );
-              })
-          )}
-        </div>
+        <EventsSection
+          allEvents={getEvents()}
+          currentAnchorType={resolveAnchorType()}
+          currentAnchorId={selectedItem.id}
+          addEventButtonLabel="+ Add Event"
+          onAddEvent={() => openNewEvent()}
+          onEditEvent={openEditEvent}
+          onDeleteEvent={deleteEvent}
+          onLinkEvent={() => {}}
+          onCreateAndAttach={() => {}}
+        />
       )}
       {eventModalOpen && eventDraft && (
         <EventModal
@@ -2639,6 +2627,31 @@ const PropertiesPanel = ({
           onCancel={() => { setEventModalOpen(false); setEventDraft(null); }}
         />
       )}
+      <EmotionalPatternModal
+        open={!!editingPatternDraft}
+        draft={editingPatternDraft}
+        onUpdate={(updates) => setEditingPatternDraft((prev) => prev ? { ...prev, ...updates } : prev)}
+        onCancel={() => { setEditingPatternDraft(null); setEditingPatternLineId(null); }}
+        onSave={() => {
+          if (editingPatternDraft && editingPatternLineId) {
+            const validStyles = LINE_STYLE_VALUES[editingPatternDraft.relationshipType] || [];
+            const lineStyle = validStyles.includes(editingPatternDraft.lineStyle)
+              ? editingPatternDraft.lineStyle
+              : (validStyles[0] as EmotionalLine['lineStyle']);
+            onUpdateEmotionalLine(editingPatternLineId, {
+              relationshipType: editingPatternDraft.relationshipType,
+              status: editingPatternDraft.status,
+              lineStyle,
+              startDate: editingPatternDraft.startDate || undefined,
+              endDate: editingPatternDraft.endDate || undefined,
+              notes: editingPatternDraft.notes || undefined,
+              color: editingPatternDraft.color,
+            });
+          }
+          setEditingPatternDraft(null);
+          setEditingPatternLineId(null);
+        }}
+      />
     </div>
   );
 };

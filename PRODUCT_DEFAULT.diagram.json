@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-20T15:54:21.029Z"
+    "exportedAt": "2026-03-21T03:03:45.153Z"
   },
   "people": [
     {
@@ -96,9 +96,10 @@
           "continuesToNext": true,
           "createdAt": 1772769789229,
           "symptomGroup": "emotional",
-          "symptomType": "Anxiety",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-emotional-default"
+          "sourceIndicatorId": "symptom-emotional-default",
+          "subtype": "anxiety",
+          "status": "discrete"
         },
         {
           "id": "1772769898503-249eac687b2b88",
@@ -158,9 +159,10 @@
           "continuesToNext": false,
           "createdAt": 1773955344079,
           "symptomGroup": "physical",
-          "symptomType": "Anxiety",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-physical-default"
+          "sourceIndicatorId": "symptom-physical-default",
+          "subtype": "sub",
+          "status": "discrete"
         },
         {
           "id": "1773955417986-f4b04c37917d38",
@@ -254,6 +256,110 @@
           "symptomType": "Drinking",
           "eventClass": "individual",
           "sourceIndicatorId": "symptom-social-default"
+        },
+        {
+          "id": "1774061911172-2d31b4d69a5ff8",
+          "date": "2026-03-21",
+          "startDate": "2026-03-21",
+          "endDate": "",
+          "category": "Physical",
+          "eventType": "SYMPTOM",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "status": "discrete",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774061911172,
+          "symptomType": "",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1774061948230-9b02b8b366f65",
+          "date": "2026-03-21",
+          "startDate": "2026-03-21",
+          "endDate": "",
+          "category": "Emotional",
+          "eventType": "SYMPTOM",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "status": "discrete",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774061948230,
+          "symptomType": "Emotional Symptom",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-emotional-default"
+        },
+        {
+          "id": "1774061951848-83ea856bcf20c8",
+          "date": "2026-03-21",
+          "startDate": "2026-03-21",
+          "endDate": "",
+          "category": "Physical",
+          "eventType": "SYMPTOM",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "status": "discrete",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774061951848,
+          "symptomType": "Physical Symptom",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1774061954994-c8774a311adc1",
+          "date": "2026-03-21",
+          "startDate": "2026-03-21",
+          "endDate": "",
+          "category": "Social",
+          "eventType": "SYMPTOM",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "demo-dad",
+          "status": "discrete",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774061954994,
+          "symptomType": "Social Symptom",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-social-default"
         }
       ],
       "size": 60,
@@ -269,29 +375,29 @@
         {
           "definitionId": "symptom-emotional-default",
           "status": "current",
-          "impact": 3,
-          "frequency": 3,
-          "intensity": 2,
-          "date": "2026-03-06",
-          "lastUpdatedAt": 1772769789229
+          "impact": 0,
+          "frequency": 0,
+          "intensity": 0,
+          "date": "2026-03-21",
+          "lastUpdatedAt": 1774061948230
         },
         {
           "definitionId": "symptom-physical-default",
           "status": "current",
-          "impact": 3,
-          "frequency": 3,
-          "intensity": 1,
-          "date": "2026-03-19",
-          "lastUpdatedAt": 1773955501610
+          "impact": 0,
+          "frequency": 0,
+          "intensity": 0,
+          "date": "2026-03-21",
+          "lastUpdatedAt": 1774061951848
         },
         {
           "definitionId": "symptom-social-default",
           "status": "current",
-          "impact": 3,
-          "frequency": 3,
-          "intensity": 2,
-          "date": "2026-03-19",
-          "lastUpdatedAt": 1773955565905
+          "impact": 0,
+          "frequency": 0,
+          "intensity": 0,
+          "date": "2026-03-21",
+          "lastUpdatedAt": 1774061954994
         }
       ],
       "siblingPositionOverride": "ob/b",
@@ -307,7 +413,7 @@
       "gender": "female",
       "x": 1028,
       "y": 150.8705842391305,
-      "birthDate": "1980-09-06",
+      "birthDate": "1970-09-06",
       "partnerships": [
         "demo-prl-parents"
       ],
@@ -358,6 +464,50 @@
           "continuesToNext": false,
           "createdAt": 1773871634785,
           "eventClass": "individual"
+        },
+        {
+          "id": "1774048345577-01fb69b8efbc58",
+          "date": "1970-09-06",
+          "category": "Individual",
+          "eventType": "NODAL",
+          "status": "discrete",
+          "subtype": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[2] Female Person. Right Click on a person to change sex / gender",
+          "eventClass": "individual",
+          "createdAt": 1774048345577
+        },
+        {
+          "id": "1774062163217-35d84f94569348",
+          "date": "2026-03-21",
+          "startDate": "2026-03-21",
+          "endDate": "",
+          "category": "Physical",
+          "eventType": "SYMPTOM",
+          "subtype": "Physical Symptom",
+          "anchorType": "PERSON",
+          "anchorId": "demo-mom",
+          "status": "discrete",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774062163217,
+          "symptomType": "",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
         }
       ],
       "size": 60,
@@ -368,7 +518,18 @@
       "siblingPositionOverride": "os/s",
       "siblingMaturityLevel": 3,
       "fatherPositionOverride": "os/b",
-      "motherPositionOverride": "ys/b"
+      "motherPositionOverride": "ys/b",
+      "functionalIndicators": [
+        {
+          "definitionId": "symptom-physical-default",
+          "status": "current",
+          "impact": 0,
+          "frequency": 0,
+          "intensity": 1,
+          "date": "2026-03-21",
+          "lastUpdatedAt": 1774062163217
+        }
+      ]
     },
     {
       "id": "demo-son",
@@ -643,7 +804,7 @@
           "category": "Stress",
           "emotionalProcessType": "stress-family-stressor",
           "statusLabel": "ongoing",
-          "intensity": "2",
+          "intensity": 2,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Alex Carter",
@@ -652,15 +813,17 @@
           "eventClass": "emotional-pattern",
           "id": "lA0qvhEmy7ADa1yo6OFgq",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "subtype": "Family Stressor",
+          "status": "ongoing"
         },
         {
           "date": "2026-03-19",
           "startDate": "2026-03-19",
-          "category": "Triangle",
+          "category": "Triangles",
           "emotionalProcessType": "triangle-functioning",
           "statusLabel": "ongoing",
-          "intensity": "2",
+          "intensity": 2,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Alex Carter",
@@ -669,7 +832,9 @@
           "eventClass": "emotional-pattern",
           "id": "xvG2I5FF2Yprs9bUS5CBG",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "status": "ongoing",
+          "subtype": "Functioning"
         },
         {
           "date": "2026-03-19",
@@ -686,7 +851,9 @@
           "eventClass": "emotional-pattern",
           "id": "usY3FkaPPun4o6jZKZtRW",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "subtype": "Emotional Reactivity",
+          "status": "ongoing"
         },
         {
           "date": "2026-03-19",
@@ -694,7 +861,7 @@
           "category": "Stress",
           "emotionalProcessType": "stress-family-adaptability",
           "statusLabel": "ongoing",
-          "intensity": "4",
+          "intensity": 4,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Alex Carter",
@@ -703,15 +870,17 @@
           "eventClass": "emotional-pattern",
           "id": "va4jzTWu5_XXazK9tRXNZ",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "subtype": "Adaptability",
+          "status": "ongoing"
         },
         {
           "date": "2026-03-19",
           "startDate": "2026-03-19",
-          "category": "Triangle",
+          "category": "Triangles",
           "emotionalProcessType": "triangle-flexibility",
           "statusLabel": "ongoing",
-          "intensity": "2",
+          "intensity": 2,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Alex Carter",
@@ -720,15 +889,17 @@
           "eventClass": "emotional-pattern",
           "id": "OKTCt3OMLmGJqAlysn0xY",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "status": "ongoing",
+          "subtype": "Flexibility"
         },
         {
           "date": "2026-03-19",
           "startDate": "2026-03-19",
-          "category": "Triangle",
+          "category": "Triangles",
           "emotionalProcessType": "triangle-stress-response",
           "statusLabel": "ongoing",
-          "intensity": "4",
+          "intensity": 4,
           "frequency": "4",
           "impact": 1,
           "primaryPersonName": "Alex Carter",
@@ -737,15 +908,17 @@
           "eventClass": "emotional-pattern",
           "id": "NNSetKLdxaRLXUdhvrGIO",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-parents"
+          "anchorId": "demo-prl-parents",
+          "status": "ongoing",
+          "subtype": "Stress Response"
         },
         {
           "date": "2026-03-19",
           "startDate": "2026-03-19",
-          "category": "Triangle",
+          "category": "Triangles",
           "emotionalProcessType": "triangle-functioning",
           "statusLabel": "ongoing",
-          "intensity": "5",
+          "intensity": 5,
           "frequency": 1,
           "impact": 1,
           "howWell": 0,
@@ -756,6 +929,48 @@
           "eventType": "FAMILY",
           "eventClass": "emotional-pattern",
           "id": "zswlagZDurWoOk-JcnyFx",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents",
+          "status": "ongoing",
+          "subtype": "Functioning"
+        },
+        {
+          "date": "2026-03-20",
+          "startDate": "2026-03-20",
+          "category": "Stress",
+          "subtype": "Family Stressor",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 1,
+          "impact": 1,
+          "howWell": 0,
+          "wwwwh": "",
+          "observations": "",
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "family",
+          "id": "1Y8UK1-DdL-qzP372kjDN",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-prl-parents"
+        },
+        {
+          "date": "2023-03-20",
+          "startDate": "2023-03-20",
+          "category": "Stress",
+          "subtype": "Chronic Stress",
+          "status": "ongoing",
+          "intensity": 2,
+          "frequency": 1,
+          "impact": 1,
+          "howWell": 0,
+          "wwwwh": "",
+          "observations": "",
+          "primaryPersonName": "Alex Carter",
+          "otherPersonName": "Renee Carter",
+          "eventType": "FAMILY",
+          "eventClass": "family",
+          "id": "4itaX-Mo-D9j70rOhOvGl",
           "anchorType": "EMOTIONAL_PROCESS_EP",
           "anchorId": "demo-prl-parents"
         }
@@ -788,7 +1003,7 @@
           "category": "Stress",
           "emotionalProcessType": "stress-chronic-stress",
           "statusLabel": "ongoing",
-          "intensity": "2",
+          "intensity": 2,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Noah Reed",
@@ -797,15 +1012,17 @@
           "eventClass": "emotional-pattern",
           "id": "So_HAU2XEYoEvKRD8xop0",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-emma"
+          "anchorId": "demo-prl-emma",
+          "status": "ongoing",
+          "subtype": "Chronic Stress"
         },
         {
           "date": "2026-03-19",
           "startDate": "2026-03-19",
-          "category": "Triangle",
+          "category": "Triangles",
           "emotionalProcessType": "triangle-stress-response",
           "statusLabel": "ongoing",
-          "intensity": "3",
+          "intensity": 3,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Noah Reed",
@@ -814,7 +1031,9 @@
           "eventClass": "emotional-pattern",
           "id": "KaVQsLKQOOHN2aZOFIFcu",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-emma"
+          "anchorId": "demo-prl-emma",
+          "status": "ongoing",
+          "subtype": "Stress Response"
         },
         {
           "date": "2026-03-19",
@@ -822,7 +1041,7 @@
           "category": "Stress",
           "emotionalProcessType": "stress-emotional-reactivity",
           "statusLabel": "ongoing",
-          "intensity": "2",
+          "intensity": 2,
           "frequency": 1,
           "impact": 1,
           "primaryPersonName": "Noah Reed",
@@ -831,7 +1050,9 @@
           "eventClass": "emotional-pattern",
           "id": "M3Y9Csz4pjDRF0LbTtqeh",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "demo-prl-emma"
+          "anchorId": "demo-prl-emma",
+          "status": "ongoing",
+          "subtype": "Emotional Reactivity"
         }
       ],
       "familyNameOffsetX": 3
@@ -843,13 +1064,34 @@
       "person1_id": "demo-dad",
       "person2_id": "demo-son",
       "relationshipType": "distance",
-      "lineStyle": "dashed",
+      "lineStyle": "distance-dashed-wide",
       "lineEnding": "none",
       "startDate": "2022-01-01",
       "status": "ongoing",
       "notes": "[8] Example Emotional Pattern Line. Click on the line - it turns blue - the Properties Panel shows on the right.",
       "notesEnabled": true,
-      "events": [],
+      "events": [
+        {
+          "id": "1774061829642-dfda75761be078",
+          "date": "2022-01-01",
+          "startDate": "2022-01-01",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-epl-distance",
+          "status": "ongoing",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Liam Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[8] Example Emotional Pattern Line. Click on the line - it turns blue - the Properties Panel shows on the right.",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774061829642
+        }
+      ],
       "color": "#444444",
       "notesPosition": {
         "x": 221.0000000000001,

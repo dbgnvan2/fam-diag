@@ -155,9 +155,9 @@ const EventModal = ({
       >
         <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
 
-        {/* Type — read-only when locked (family events), editable dropdown otherwise */}
+        {/* Group — read-only when locked (family events), editable dropdown otherwise */}
         <div style={rowStyle}>
-          <label htmlFor="eventType" style={labelStyle}>Type:</label>
+          <label htmlFor="eventType" style={labelStyle}>Group:</label>
           {lockEventType ? (
             <span style={{ ...controlStyle, width: '60%', padding: '4px 0', fontWeight: 600 }}>
               {EVENT_TYPE_LABELS[eventType] || eventType}
@@ -205,9 +205,9 @@ const EventModal = ({
           )}
         </div>
 
-        {/* Type (subtype) — always shown; dropdown when options exist, text otherwise */}
+        {/* Type — always shown; dropdown when options exist, text otherwise */}
         <div style={rowStyle}>
-          <label htmlFor="eventSubtype" style={labelStyle}>Subtype:</label>
+          <label htmlFor="eventSubtype" style={labelStyle}>Type:</label>
           {subtypeDropdownOptions ? (
             <select
               id="eventSubtype"
@@ -342,6 +342,7 @@ const EventModal = ({
             onChange={(e) => onChange('intensity', e.target.value)}
             style={{ ...controlStyle, width: '60%' }}
           >
+            <option value={0}>— Select —</option>
             {intensityScale.labels.length > 0
               ? intensityScale.labels.map((label, index) => {
                   const val = index + 1;

@@ -837,12 +837,12 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        // Symptoms tab shows a bar for the Alcohol symptom
+        // Symptoms tab shows an EventCard for the Alcohol symptom
         fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
         expect(screen.getByText('Alcohol')).toBeInTheDocument();
 
-        // Clicking the bar opens Event modal
-        fireEvent.click(screen.getByText('Alcohol'));
+        // Clicking the pencil Edit button opens the Event modal
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         expect(screen.getByText('Event')).toBeInTheDocument();
 
         // Change impact to 4 and save
@@ -883,12 +883,12 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        // Symptoms tab shows a bar for the indicator
+        // Symptoms tab shows an EventCard for the indicator
         fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
         expect(screen.getByText('Alcohol')).toBeInTheDocument();
 
-        // Clicking the bar (no linked event) opens Event modal
-        fireEvent.click(screen.getByText('Alcohol'));
+        // Clicking the pencil Edit button opens the Event modal
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         expect(screen.getByText('Event')).toBeInTheDocument();
 
         // Intensity select uses symptom-specific labels
@@ -1497,9 +1497,182 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        // Events are now rendered as clickable bars (no column headers or Edit/Delete buttons)
+        // EventsSection compact mode: subtype appears in Type column, date in Date column
         expect(screen.getByText('Separated Date')).toBeInTheDocument();
         expect(screen.getByText('2024-04-01')).toBeInTheDocument();
+        // EventsSection renders Edit and Delete (🗑) action buttons
+        expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    });
+
+    // ── Events tab uses EventsSection (trash + edit) ─────────────────────────────
+
+    it('Events tab: Delete button calls onUpdatePerson with event removed', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-del',
+            name: 'Del Person',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+            events: [
+                {
+                    id: 'ev-del-1',
+                    date: '2024-05-01',
+                    startDate: '2024-05-01',
+                    category: 'Birth',
+                    eventType: 'NODAL',
+                    status: 'discrete',
+                    subtype: '',
+                    intensity: 1,
+                    frequency: 1,
+                    impact: 1,
+                    howWell: 0,
+                    otherPersonName: 'None',
+                    primaryPersonName: 'Del Person',
+                    wwwwh: '',
+                    observations: '',
+                    eventClass: 'individual',
+                },
+            ],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Birth']}
+                functionalIndicatorDefinitions={[]}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                initialActiveTab="events"
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByText('Birth')).toBeInTheDocument();
+        const deleteBtn = screen.getByRole('button', { name: 'Delete' });
+        fireEvent.click(deleteBtn);
+        expect(updatePerson).toHaveBeenCalledWith('p-del', { events: [] });
+    });
+
+    // ── Symptoms tab: trash button on sourced symptoms ────────────────────────────
+
+    it('Symptoms tab: shows trash button for symptoms with a source event and clicking it deletes the event', () => {
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-sym-del',
+            name: 'Sym Person',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+            events: [
+                {
+                    id: 'sym-ev-1',
+                    date: '2026-01-01',
+                    startDate: '2026-01-01',
+                    category: 'emotional',
+                    symptomType: 'Anxiety',
+                    eventType: 'SYMPTOM',
+                    status: 'ongoing',
+                    intensity: 1,
+                    frequency: 1,
+                    impact: 1,
+                    howWell: 0,
+                    otherPersonName: 'None',
+                    primaryPersonName: 'Sym Person',
+                    wwwwh: '',
+                    observations: '',
+                    eventClass: 'individual',
+                    sourceIndicatorId: 'fi-anx',
+                },
+            ],
+            functionalIndicators: [{ definitionId: 'fi-anx', status: 'current', impact: 1, frequency: 1, intensity: 1 }],
+        };
+        const defs: FunctionalIndicatorDefinition[] = [{ id: 'fi-anx', label: 'Anxiety', group: 'emotional' }];
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={defs}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('tab', { name: /^Symptoms$/i }));
+        expect(screen.getByText('Anxiety')).toBeInTheDocument();
+
+        const trashBtn = screen.getByRole('button', { name: 'Delete' });
+        expect(trashBtn).toBeInTheDocument();
+
+        fireEvent.click(trashBtn);
+        expect(updatePerson).toHaveBeenCalledWith('p-sym-del', { events: [] });
+    });
+
+    // ── Emotional Patterns tab: shows "Category" not "Type" ───────────────────────
+
+    it('Patterns tab: shows "Category" label for emotional pattern cards', () => {
+        const person: Person = {
+            id: 'p-patterns',
+            name: 'Pat Person',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+        };
+        const other: Person = {
+            id: 'p-other',
+            name: 'Other Person',
+            x: 100,
+            y: 0,
+            gender: 'female',
+            partnerships: [],
+        };
+        const el: EmotionalLine = {
+            id: 'el-fusion-1',
+            person1_id: 'p-patterns',
+            person2_id: 'p-other',
+            relationshipType: 'fusion',
+            lineStyle: 'fusion-dotted-wide',
+            lineEnding: 'none',
+            status: 'ongoing',
+            color: '#888888',
+        };
+
+        const selectLine = vi.fn();
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person, other]}
+                allEmotionalLines={[el]}
+                eventCategories={[]}
+                functionalIndicatorDefinitions={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onSelectEmotionalLine={selectLine}
+                initialActiveTab="patterns"
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('tab', { name: /Patterns/i })).toBeInTheDocument();
+        // EventCard: Type is "Emotional Pattern" (bold), category is the relationship label
+        expect(screen.getByText('Emotional Pattern')).toBeInTheDocument();
+        expect(screen.getByText('+ / - Adequate')).toBeInTheDocument();
+        expect(screen.getByText(/with Other Person/i)).toBeInTheDocument();
+        // Pencil edit button opens EmotionalPatternModal inline (does not navigate away)
+        fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        // Modal should now be visible (EPLPropertiesSection renders a Type select)
+        expect(screen.getByLabelText('Type:')).toBeInTheDocument();
     });
 
     it('shows tab help content for Person, Symptoms, and Events', () => {

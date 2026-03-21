@@ -53,7 +53,7 @@ const SessionEventModal = ({
       <div style={{ background: '#fff', borderRadius: 10, padding: 20, width: 420 }}>
         <h4 style={{ marginTop: 0 }}>Session Note Event</h4>
         <div style={rowStyle}>
-          <label style={labelStyle}>Event Type:</label>
+          <label style={labelStyle}>Event Group:</label>
           <div style={{ ...controlStyle, textAlign: 'left' }}>{typeLabel}</div>
         </div>
         <div style={rowStyle}>

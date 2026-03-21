@@ -2,7 +2,7 @@
  * Event type hierarchy: EventType → Category → Subtype
  * Intensity scales per EventType/Category/Subtype
  */
-import type { EventType, EventStatus } from '../types';
+import type { EventType, EventStatus, EmotionalProcessEvent } from '../types';
 
 // ─── Status ──────────────────────────────────────────────────────────────────
 export const EVENT_STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
@@ -214,6 +214,37 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   FAMILY: 'Family',
   FOO: 'Family of Origin',
   TRIANGLE: 'Triangle Property',
+};
+
+// ─── Infer EventType from legacy event data ───────────────────────────────────
+// Category-to-type reverse lookup (built once)
+const CATEGORY_TO_EVENT_TYPE: Record<string, EventType> = (() => {
+  const map: Record<string, EventType> = {};
+  for (const [type, cats] of Object.entries(EVENT_CATEGORIES) as [EventType, string[]][]) {
+    cats.forEach((cat) => { map[cat.toLowerCase()] = type; });
+  }
+  return map;
+})();
+
+export const inferEventType = (event: EmotionalProcessEvent): EventType => {
+  // If stored type is valid, verify its category also matches. If not, infer from category.
+  const stored = event.eventType;
+  const catKey = (event.category || '').toLowerCase();
+  if (stored && stored in EVENT_TYPE_LABELS) {
+    const validCats = EVENT_CATEGORIES[stored];
+    // EA and TRIANGLE have single or small categories — trust stored type for these
+    if (!validCats || validCats.length === 0) return stored;
+    // If category is empty or matches the stored type's category list, trust stored type
+    if (!catKey || validCats.some((c) => c.toLowerCase() === catKey)) return stored;
+    // Category belongs to a different type — infer from category
+    const inferred = CATEGORY_TO_EVENT_TYPE[catKey];
+    if (inferred) return inferred;
+    return stored; // category unknown, keep stored type
+  }
+  if (event.eventClass === 'emotional-pattern') return 'EPE';
+  // Try to infer from category alone
+  if (catKey && CATEGORY_TO_EVENT_TYPE[catKey]) return CATEGORY_TO_EVENT_TYPE[catKey];
+  return 'NODAL';
 };
 
 // ─── Which event types show Primary/Other Person fields ───────────────────────

@@ -230,6 +230,7 @@ interface DiagramCanvasProps {
   propertiesPanelIntent: PropertiesPanelIntent;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
   ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
+  onRemoveEmotionalLine: (id: string) => void;
   onSiblingSquareClick: (person: Person, clientX: number, clientY: number) => void;
   onAutonomySquareClick: (person: Person) => void;
   onSymptomBadgeClick: (person: Person, group: SymptomGroup, clientX: number, clientY: number) => void;
@@ -356,6 +357,7 @@ export default function DiagramCanvas({
   propertiesPanelIntent,
   setPropertiesPanelIntent,
   ensureSymptomDefinition,
+  onRemoveEmotionalLine,
   onSiblingSquareClick,
   onAutonomySquareClick,
   onSymptomBadgeClick,
@@ -1218,6 +1220,11 @@ export default function DiagramCanvas({
                   setPropertiesPanelItem(line);
                   setSelectedEmotionalLineId(line.id);
                   setSelectedPeopleIds([]);
+                }}
+                onRemoveEmotionalLine={(id) => {
+                  onRemoveEmotionalLine(id);
+                  setPropertiesPanelItem(null);
+                  setSelectedEmotionalLineId(null);
                 }}
                 onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
                 onClose={() => {

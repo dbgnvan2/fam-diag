@@ -59,7 +59,7 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Triangles', subtype: 'Functioning' })}
       />
     );
-    const subtypeSelect = screen.getByLabelText('Subtype:') as HTMLSelectElement;
+    const subtypeSelect = screen.getByLabelText('Type:') as HTMLSelectElement;
     expect(subtypeSelect.tagName).toBe('SELECT');
     expect(screen.getByRole('option', { name: 'Functioning' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Flexibility' })).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Stress', subtype: 'Adaptability' })}
       />
     );
-    const subtypeSelect = screen.getByLabelText('Subtype:') as HTMLSelectElement;
+    const subtypeSelect = screen.getByLabelText('Type:') as HTMLSelectElement;
     expect(subtypeSelect.tagName).toBe('SELECT');
     expect(screen.getByRole('option', { name: 'Emotional Reactivity' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Adaptability' })).toBeInTheDocument();
@@ -123,7 +123,7 @@ describe('EventModal', () => {
     );
     // Type label row should show "Family" as text, not a select
     expect(screen.getByText('Family')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Type:')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Group:')).not.toBeInTheDocument();
   });
 
   it('shows Type as editable dropdown when lockEventType is false', () => {
@@ -133,8 +133,8 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
       />
     );
-    expect(screen.getByLabelText('Type:')).toBeInTheDocument();
-    expect((screen.getByLabelText('Type:') as HTMLSelectElement).tagName).toBe('SELECT');
+    expect(screen.getByLabelText('Group:')).toBeInTheDocument();
+    expect((screen.getByLabelText('Group:') as HTMLSelectElement).tagName).toBe('SELECT');
   });
 
   it('resets subtype to first valid option when category changes', () => {
@@ -187,7 +187,7 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
       />
     );
-    const subtypeInput = screen.getByLabelText('Subtype:') as HTMLInputElement;
+    const subtypeInput = screen.getByLabelText('Type:') as HTMLInputElement;
     expect(subtypeInput.tagName).toBe('INPUT');
   });
 
@@ -211,7 +211,7 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Physical', subtype: '' })}
       />
     );
-    const subtypeInput = screen.getByLabelText('Subtype:') as HTMLInputElement;
+    const subtypeInput = screen.getByLabelText('Type:') as HTMLInputElement;
     expect(subtypeInput.tagName).toBe('INPUT');
     expect(subtypeInput.getAttribute('list')).toBe('eventSubtypeOptions');
     // datalist options are not accessible via getByRole — query the datalist directly
@@ -271,7 +271,7 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'EPE', category: 'Conflict', subtype: '' })}
       />
     );
-    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
   });
 
   // ── EA ───────────────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ describe('EventModal', () => {
     const catSelect = screen.getByLabelText('Category:') as HTMLSelectElement;
     expect(catSelect.tagName).toBe('SELECT');
     expect(catSelect.value).toBe('Emotional Autonomy');
-    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
   });
 
   // ── FOO ──────────────────────────────────────────────────────────────────────
@@ -301,7 +301,7 @@ describe('EventModal', () => {
     expect(screen.getByRole('option', { name: 'Family Stability' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Family Intactness' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Triangle Flexibility' })).toBeInTheDocument();
-    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
   });
 
   // ── TRIANGLE ─────────────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ describe('EventModal', () => {
     );
     expect(screen.getByRole('option', { name: 'Primary' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Secondary' })).toBeInTheDocument();
-    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
   });
 
   // ── Person fields visibility ──────────────────────────────────────────────────

@@ -3974,6 +3974,7 @@ useEffect(() => {
               );
             }}
             onSiblingSquareClick={(person, x, y) => openPersonSectionPopup(person, 'sibling', x, y)}
+            onRemoveEmotionalLine={removeEmotionalLine}
             onAutonomySquareClick={(person) => {
               const found = people.find((p) => p.id === person.id);
               if (found) openContextualEventCreator(

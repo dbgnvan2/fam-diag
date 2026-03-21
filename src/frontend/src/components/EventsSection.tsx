@@ -1,18 +1,27 @@
 /**
- * EventsSection — events list, filter controls, and row context menu.
- * Manages its own filter/sort/focus/context-menu state.
- * Rendered inside PropertiesPanel when activeTab === 'events'.
+ * EventsSection — events list with filter/sort controls.
+ * Each event is rendered as a shared EventCard (uniform layout across the app).
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { EmotionalProcessEvent, EventAnchorType, EventType } from '../types';
-import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
+import { EVENT_TYPE_LABELS, EVENT_CATEGORIES, inferEventType } from '../constants/eventConstants';
+
+const toTitleCase = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+
+// Return the canonical (properly-cased) category for an event, or the raw value if unknown.
+const normalizeCategory = (event: Parameters<typeof inferEventType>[0]): string => {
+  const type = inferEventType(event);
+  const raw = (event.category || '').trim();
+  if (!raw) return '—';
+  const cats = EVENT_CATEGORIES[type] || [];
+  const match = cats.find((c) => c.toLowerCase() === raw.toLowerCase());
+  return match || toTitleCase(raw);
+};
+import EventCard from './EventCard';
 
 // ── pure helpers ───────────────────────────────────────────────────
 
 const normalizeEventDate = (event: EmotionalProcessEvent) => event.startDate || event.date || '';
-
-const formatCategoryStatus = (category: string, status?: string) =>
-  status ? `${category} – ${status}` : category;
 
 // ── component ──────────────────────────────────────────────────────
 
@@ -28,12 +37,6 @@ interface EventsSectionProps {
   onCreateAndAttach: (eventId: string, direction: 'prev' | 'next') => void;
 }
 
-const eventActionButtonStyle: React.CSSProperties = {
-  fontSize: 12,
-  padding: '2px 8px',
-  cursor: 'pointer',
-};
-
 const EventsSection = ({
   allEvents,
   currentAnchorType,
@@ -45,11 +48,9 @@ const EventsSection = ({
   onLinkEvent,
   onCreateAndAttach,
 }: EventsSectionProps) => {
-  const [eventListMode, setEventListMode] = useState<'compact' | 'expanded'>('compact');
   const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
   const [eventTypeFilter, setEventTypeFilter] = useState<'ALL' | EventType>('ALL');
   const [anchorTypeFilter, setAnchorTypeFilter] = useState<'ALL' | EventAnchorType>('ALL');
-  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [eventRowMenu, setEventRowMenu] = useState<{ eventId: string; x: number; y: number } | null>(null);
 
   const filteredAndSortedEvents = useMemo(() => {
@@ -59,7 +60,11 @@ const EventsSection = ({
       if (eventTypeFilter !== 'ALL' && et !== eventTypeFilter) return false;
       if (anchorTypeFilter !== 'ALL' && anchorType !== anchorTypeFilter) return false;
       if (!event.anchorId) return true;
-      return event.anchorId === currentAnchorId;
+      if (event.anchorId === currentAnchorId) return true;
+      // EPE events are stored in a person's events but anchored to an emotional line — always show them
+      const resolvedAnchorType = event.anchorType || currentAnchorType;
+      if (resolvedAnchorType === 'EMOTIONAL_PROCESS_EP') return true;
+      return false;
     });
     const direction = eventSortOrder === 'asc' ? 1 : -1;
     filtered.sort((a, b) => {
@@ -71,41 +76,35 @@ const EventsSection = ({
     return filtered;
   }, [allEvents, eventSortOrder, eventTypeFilter, anchorTypeFilter, currentAnchorId, currentAnchorType]);
 
-  const handleDelete = (eventId: string) => {
-    if (focusedEventId === eventId) setFocusedEventId(null);
-    onDeleteEvent(eventId);
-  };
-
   return (
-    <div style={{ marginTop: 12, textAlign: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <strong>Events</strong>
-        <button onClick={onAddEvent}>{addEventButtonLabel}</button>
-      </div>
-      <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <label htmlFor="eventListMode">View: </label>
-        <select
-          id="eventListMode"
-          value={eventListMode}
-          onChange={(e) => setEventListMode(e.target.value as 'compact' | 'expanded')}
+        <button
+          type="button"
+          onClick={onAddEvent}
+          style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}
         >
-          <option value="compact">Compact</option>
-          <option value="expanded">Expanded</option>
-        </select>
+          {addEventButtonLabel}
+        </button>
+      </div>
+      <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
         <label htmlFor="eventSortOrder">Sort: </label>
         <select
           id="eventSortOrder"
           value={eventSortOrder}
           onChange={(e) => setEventSortOrder(e.target.value as 'asc' | 'desc')}
+          style={{ fontSize: 12 }}
         >
           <option value="asc">Date Asc</option>
           <option value="desc">Date Desc</option>
         </select>
-        <label htmlFor="eventTypeFilter">Type:</label>
+        <label htmlFor="eventTypeFilter">Group:</label>
         <select
           id="eventTypeFilter"
           value={eventTypeFilter}
           onChange={(e) => setEventTypeFilter(e.target.value as 'ALL' | EventType)}
+          style={{ fontSize: 12 }}
         >
           <option value="ALL">All</option>
           <option value="NODAL">Nodal</option>
@@ -121,188 +120,43 @@ const EventsSection = ({
           id="anchorTypeFilter"
           value={anchorTypeFilter}
           onChange={(e) => setAnchorTypeFilter(e.target.value as 'ALL' | EventAnchorType)}
+          style={{ fontSize: 12 }}
         >
           <option value="ALL">All</option>
           <option value="PERSON">Person</option>
-          <option value="RELATIONSHIP_PRL">Relationship PRL</option>
+          <option value="RELATIONSHIP_PRL">Relationship</option>
           <option value="EMOTIONAL_PROCESS_EP">Emotional Pattern</option>
           <option value="FAMILY">Family</option>
           <option value="TRIANGLE">Triangle</option>
         </select>
       </div>
       {filteredAndSortedEvents.length === 0 ? (
-        <div style={{ marginTop: 6, fontStyle: 'italic' }}>No events yet.</div>
+        <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No events recorded yet.</div>
       ) : (
-        <>
-          {eventListMode === 'compact' ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr auto auto 110px auto',
-                gap: 8,
-                marginTop: 8,
-                padding: '0 0 6px 3px',
-                borderBottom: '1px solid #cfd7e5',
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#41546d',
-              }}
-            >
-              <span>Category</span>
-              <span>Type</span>
-              <span>Status</span>
-              <span>Int.</span>
-              <span>Date</span>
-              <span>Actions</span>
-            </div>
-          ) : null}
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
-            {filteredAndSortedEvents.map((event) => {
-              const et = event.eventType;
-              const dateText = normalizeEventDate(event) || 'No date';
-              return (
-                <li
-                  key={event.id}
-                  onClick={() => setFocusedEventId(event.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setEventRowMenu({ eventId: event.id, x: e.clientX, y: e.clientY });
-                  }}
-                  style={{
-                    borderBottom: '1px solid #ddd',
-                    borderLeft: focusedEventId === event.id ? '3px solid #3f51b5' : '3px solid transparent',
-                    padding: '10px 0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {eventListMode === 'compact' ? (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr auto auto 110px auto',
-                        gap: 8,
-                        alignItems: 'center',
-                        paddingLeft: 3,
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {event.category || '—'}
-                      </span>
-                      <span style={{ fontSize: 11, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {event.subtype || EVENT_TYPE_LABELS[et] || et}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          border: '1px solid #9db0c8',
-                          borderRadius: 4,
-                          padding: '1px 4px',
-                          background: '#eef5ff',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {event.status || '—'}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#23324a', minWidth: 20, textAlign: 'center' }}>
-                        {event.intensity != null ? event.intensity : '—'}
-                      </span>
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>
-                        <button
-                          aria-label="Delete"
-                          title="Delete"
-                          style={eventActionButtonStyle}
-                          onClick={() => handleDelete(event.id)}
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600 }}>
-                            {formatCategoryStatus(event.category || 'Event', event.status)}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#555' }}>
-                            {event.eventClass || 'event'}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#1f3b57', fontWeight: 700 }}>
-                            {EVENT_TYPE_LABELS[et] || et}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              border: '1px solid #9db0c8',
-                              borderRadius: 4,
-                              padding: '1px 4px',
-                              background: '#eef5ff',
-                            }}
-                          >
-                            {event.status || 'discrete'}
-                          </span>
-                        </div>
-                        <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{dateText}</span>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: 8,
-                          fontSize: 12,
-                          color: '#333',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                          <span>Primary: {event.primaryPersonName || '—'}</span>
-                          <span>Other: {event.otherPersonName || '—'}</span>
-                          <span>Status: {event.status || '—'}</span>
-                          <span>Subtype: {event.subtype || '—'}</span>
-                          <span>
-                            Symptom Category:{' '}
-                            {et === 'SYMPTOM' ? event.category : '—'}
-                          </span>
-                          <span>
-                            Symptom Type:{' '}
-                            {et === 'SYMPTOM' ? (event.subtype || '').trim().slice(0, 30) || '—' : '—'}
-                          </span>
-                          <span>Intensity: {event.intensity ?? '—'}</span>
-                          <span>Frequency: {event.frequency ?? '—'}</span>
-                          <span>Impact: {event.impact ?? '—'}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button style={eventActionButtonStyle} onClick={() => onEditEvent(event)}>Edit</button>
-                          <button
-                            aria-label="Delete"
-                            title="Delete"
-                            style={eventActionButtonStyle}
-                            onClick={() => handleDelete(event.id)}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                      {event.observations && (
-                        <div style={{ fontSize: 12, color: '#4f5b6b', textAlign: 'left' }}>
-                          Notes: {event.observations.slice(0, 140)}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        filteredAndSortedEvents.map((event) => (
+          <div
+            key={event.id}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setEventRowMenu({ eventId: event.id, x: e.clientX, y: e.clientY });
+            }}
+          >
+            <EventCard
+              date={event.startDate || event.date || ''}
+              type={EVENT_TYPE_LABELS[inferEventType(event)]}
+              category={normalizeCategory(event)}
+              subtype={
+                inferEventType(event) === 'SYMPTOM'
+                  ? (event.symptomType || event.subtype || undefined)
+                  : (event.subtype || undefined)
+              }
+              status={event.status || 'discrete'}
+              intensity={typeof event.intensity === 'number' ? event.intensity : null}
+              onEdit={() => onEditEvent(event)}
+              onDelete={() => onDeleteEvent(event.id)}
+            />
+          </div>
+        ))
       )}
       {eventRowMenu && (
         <div
