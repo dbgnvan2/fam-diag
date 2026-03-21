@@ -29,6 +29,38 @@ cd src/frontend && npm run dev
 
 **Critical rule:** `noUnusedLocals: true` is enforced — all moved variables/imports must be removed from the origin file.
 
+**Build command for Vercel:** Use `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` (not `tsc --noEmit`) — Vercel runs incremental build. Always do this before pushing.
+
+---
+
+## Testing Policy
+
+**Write tests whenever you touch UI logic or data transformation.** Do not wait to be asked.
+
+### When tests are required:
+- Any new component with conditional rendering, filtering, or field visibility logic
+- Any data normalization or migration function (`dataNormalization.ts`, etc.)
+- Any modal/form: verify each field type renders correctly for every relevant input variant
+- Any bug fix — add a regression test that would have caught the bug before it reached production
+
+### What to test in forms/modals:
+- Every event type shows the correct category options
+- Every event type shows the correct subtype field (dropdown vs text input)
+- Auto-correction fires on mount when stale/invalid data is present
+- Field visibility toggles (e.g. person fields hidden for FAMILY, shown for NODAL)
+- Save/Cancel callbacks fire correctly
+
+### Test file conventions:
+- Co-locate with the component: `Foo.tsx` → `Foo.test.tsx`
+- Use `@testing-library/react` + `vitest`
+- Run before every commit: `cd src/frontend && npx vitest run`
+
+### Existing test files:
+- `EventModal.test.tsx` — all 7 event types, subtype dropdown, category auto-correct, lockEventType
+- `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
+- `DiagramEditor.test.tsx` — top-level orchestration, file load, demo tour
+- `PartnershipNode.test.tsx`, `PersonNode.test.tsx`, `TriangleNode.test.tsx` — canvas node rendering
+
 ---
 
 ## Architecture: DiagramEditor.tsx
