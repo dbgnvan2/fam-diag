@@ -4207,6 +4207,7 @@ useEffect(() => {
             eventCategories={eventCategories}
             symptomTypeOptions={[]}
             resolvedEventClass="emotional-pattern"
+            lockEventType
             onChange={(field, value) =>
               setFamilyPropertyModal((prev) =>
                 prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev

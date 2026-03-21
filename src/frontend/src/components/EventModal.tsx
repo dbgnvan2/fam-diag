@@ -45,6 +45,7 @@ export interface EventModalProps {
   eventCategories: string[];
   symptomTypeOptions: string[];
   resolvedEventClass: EventClass;
+  lockEventType?: boolean;
   onChange: (field: keyof EmotionalProcessEvent, value: string) => void;
   onSetDraft: (draft: EmotionalProcessEvent) => void;
   onSave: () => void;
@@ -60,7 +61,9 @@ const EventModal = ({
   primaryPersonOptions,
   otherPersonOptions,
   symptomTypeOptions,
+  lockEventType = false,
   onChange,
+  onSetDraft,
   onSave,
   onCancel,
 }: EventModalProps) => {
@@ -136,29 +139,39 @@ const EventModal = ({
       >
         <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
 
-        {/* Type — always shown, editable dropdown */}
+        {/* Type — read-only when locked (family events), editable dropdown otherwise */}
         <div style={rowStyle}>
           <label htmlFor="eventType" style={labelStyle}>Type:</label>
-          <select
-            id="eventType"
-            value={eventType}
-            onChange={(e) => onChange('eventType', e.target.value)}
-            style={{ ...controlStyle, width: '60%' }}
-          >
-            {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((et) => (
-              <option key={et} value={et}>{EVENT_TYPE_LABELS[et]}</option>
-            ))}
-          </select>
+          {lockEventType ? (
+            <span style={{ ...controlStyle, width: '60%', padding: '4px 0', fontWeight: 600 }}>
+              {EVENT_TYPE_LABELS[eventType] || eventType}
+            </span>
+          ) : (
+            <select
+              id="eventType"
+              value={eventType}
+              onChange={(e) => onChange('eventType', e.target.value)}
+              style={{ ...controlStyle, width: '60%' }}
+            >
+              {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((et) => (
+                <option key={et} value={et}>{EVENT_TYPE_LABELS[et]}</option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {/* Category — always shown */}
+        {/* Category — always shown; resets subtype when changed */}
         <div style={rowStyle}>
           <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
           {categoryOptions.length > 0 ? (
             <select
               id="eventCategory"
               value={eventDraft.category}
-              onChange={(e) => onChange('category', e.target.value)}
+              onChange={(e) => {
+                const newCat = e.target.value;
+                const firstSubtype = (EVENT_SUBTYPES[eventType]?.[newCat] ?? [])[0] ?? '';
+                onSetDraft({ ...eventDraft, category: newCat, subtype: firstSubtype });
+              }}
               style={{ ...controlStyle, width: '60%' }}
             >
               {categoryOptions.map((cat) => (

@@ -2028,8 +2028,12 @@ const PropertiesPanel = ({
       [partner1?.name, partner2?.name].filter(Boolean).join(' / ') ||
       'Family';
     const allFamilyEvents = familyPartnership.familyEvents || [];
-    const triangleEvents = allFamilyEvents.filter((e) => e.category === 'Triangles');
-    const stressorEvents = allFamilyEvents.filter((e) => e.category === 'Stress');
+    const triangleEvents = allFamilyEvents.filter(
+      (e) => (e.category || '').toLowerCase().startsWith('triangle')
+    );
+    const stressorEvents = allFamilyEvents.filter(
+      (e) => (e.category || '').toLowerCase() === 'stress'
+    );
     const familyTabs = [
       { id: 'family' as const, label: 'Family' },
       { id: 'triangles' as const, label: 'Triangles' },
