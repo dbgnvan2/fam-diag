@@ -3,7 +3,7 @@
  * including the family event locked-type and stale-category normalization cases.
  */
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EventModal from './EventModal';
 import type { EmotionalProcessEvent } from '../types';
@@ -189,5 +189,168 @@ describe('EventModal', () => {
     );
     const subtypeInput = screen.getByLabelText('Subtype:') as HTMLInputElement;
     expect(subtypeInput.tagName).toBe('INPUT');
+  });
+
+  // ── SYMPTOM ──────────────────────────────────────────────────────────────────
+
+  it('SYMPTOM: shows Notes label (not Observations)', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Physical', subtype: 'Headache' })}
+      />
+    );
+    expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Observations:')).not.toBeInTheDocument();
+  });
+
+  it('SYMPTOM: shows text input with datalist for subtype', () => {
+    const { container } = render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Physical', subtype: '' })}
+      />
+    );
+    const subtypeInput = screen.getByLabelText('Subtype:') as HTMLInputElement;
+    expect(subtypeInput.tagName).toBe('INPUT');
+    expect(subtypeInput.getAttribute('list')).toBe('eventSubtypeOptions');
+    // datalist options are not accessible via getByRole — query the datalist directly
+    const datalist = container.querySelector('#eventSubtypeOptions');
+    expect(datalist).not.toBeNull();
+    expect(datalist!.querySelector('option[value="Anxiety"]')).not.toBeNull();
+    expect(datalist!.querySelector('option[value="Headache"]')).not.toBeNull();
+  });
+
+  it('SYMPTOM: category dropdown shows Physical / Emotional / Social', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Emotional', subtype: '' })}
+      />
+    );
+    const catSelect = screen.getByLabelText('Category:') as HTMLSelectElement;
+    expect(catSelect.tagName).toBe('SELECT');
+    expect(screen.getByRole('option', { name: 'Physical' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Emotional' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Social' })).toBeInTheDocument();
+  });
+
+  it('SYMPTOM: auto-corrects invalid category on mount', () => {
+    const onSetDraft = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        onSetDraft={onSetDraft}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'InvalidCat', subtype: '' })}
+      />
+    );
+    expect(onSetDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'Physical' })
+    );
+  });
+
+  // ── EPE ──────────────────────────────────────────────────────────────────────
+
+  it('EPE: category dropdown shows EPE options', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'EPE', category: 'Fusion', subtype: '' })}
+      />
+    );
+    const catSelect = screen.getByLabelText('Category:') as HTMLSelectElement;
+    expect(catSelect.tagName).toBe('SELECT');
+    expect(screen.getByRole('option', { name: 'Fusion' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Cutoff' })).toBeInTheDocument();
+  });
+
+  it('EPE: subtype is text input (no dropdown)', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'EPE', category: 'Conflict', subtype: '' })}
+      />
+    );
+    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+  });
+
+  // ── EA ───────────────────────────────────────────────────────────────────────
+
+  it('EA: category shows Emotional Autonomy and subtype is text input', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'EA', category: 'Emotional Autonomy', subtype: '' })}
+      />
+    );
+    const catSelect = screen.getByLabelText('Category:') as HTMLSelectElement;
+    expect(catSelect.tagName).toBe('SELECT');
+    expect(catSelect.value).toBe('Emotional Autonomy');
+    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+  });
+
+  // ── FOO ──────────────────────────────────────────────────────────────────────
+
+  it('FOO: category dropdown shows FOO options and subtype is text input', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'FOO', category: 'Family Stability', subtype: '' })}
+      />
+    );
+    expect(screen.getByRole('option', { name: 'Family Stability' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Family Intactness' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Triangle Flexibility' })).toBeInTheDocument();
+    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+  });
+
+  // ── TRIANGLE ─────────────────────────────────────────────────────────────────
+
+  it('TRIANGLE: category shows Primary / Secondary and subtype is text input', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'TRIANGLE', category: 'Primary', subtype: '' })}
+      />
+    );
+    expect(screen.getByRole('option', { name: 'Primary' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Secondary' })).toBeInTheDocument();
+    expect((screen.getByLabelText('Subtype:') as HTMLInputElement).tagName).toBe('INPUT');
+  });
+
+  // ── Person fields visibility ──────────────────────────────────────────────────
+
+  it('FAMILY: does not show Primary Person or Other Person fields', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        lockEventType
+        eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Triangles', subtype: 'Functioning' })}
+      />
+    );
+    expect(screen.queryByLabelText('Primary Person:')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Other Person:')).not.toBeInTheDocument();
+  });
+
+  it('NODAL: shows Primary Person and Other Person fields', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
+      />
+    );
+    expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
+    expect(screen.getByLabelText('Other Person:')).toBeInTheDocument();
+  });
+
+  it('SYMPTOM: shows Primary Person and Other Person fields', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Physical', subtype: '' })}
+      />
+    );
+    expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
+    expect(screen.getByLabelText('Other Person:')).toBeInTheDocument();
   });
 });
