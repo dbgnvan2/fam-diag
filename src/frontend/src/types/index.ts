@@ -229,6 +229,7 @@ export type PredictionCondition = {
   description: string;
   linkedPaperoKey?: string;
   linkedSIRCategory?: string;
+  linkedEventId?: string;
   evidence: PredictionEvidence[];
 };
 

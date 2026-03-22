@@ -4195,6 +4195,7 @@ useEffect(() => {
           isOpen={predictionsOpen}
           predictions={predictions}
           people={people}
+          sirCategories={sirCategories}
           onClose={() => setPredictionsOpen(false)}
           onAddPrediction={predictionHandlers.addPrediction}
           onUpdatePrediction={predictionHandlers.updatePrediction}

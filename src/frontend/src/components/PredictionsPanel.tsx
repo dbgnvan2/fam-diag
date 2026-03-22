@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import type {
+  EmotionalProcessEvent,
   Person,
   Prediction,
   PredictionCondition,
@@ -13,7 +14,9 @@ import type {
   PredictionEvidenceDirection,
   PredictionOutcome,
   PredictionStatus,
+  SIRCategoryDefinition,
 } from '../types';
+import { PAPERO_SUBTYPE_TO_KEY } from '../constants/eventConstants';
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +75,7 @@ interface PredictionsPanelProps {
   isOpen: boolean;
   predictions: Prediction[];
   people: Person[];
+  sirCategories: SIRCategoryDefinition[];
   onClose: () => void;
   onAddPrediction: () => string;
   onUpdatePrediction: (id: string, updates: Partial<Prediction>) => void;
@@ -219,9 +223,193 @@ const AddEvidenceForm = ({
 
 // ─── Prediction Card ─────────────────────────────────────────────────────────
 
+// ─── SIR & Papero Condition Linkers ──────────────────────────────────────────
+
+const SIRConditionLinker = ({
+  cond,
+  predictionId,
+  person,
+  sirCategories,
+  onUpdateCondition,
+}: {
+  cond: PredictionCondition;
+  predictionId: string;
+  person: Person | undefined;
+  sirCategories: SIRCategoryDefinition[];
+  onUpdateCondition: PredictionsPanelProps['onUpdateCondition'];
+}) => {
+  const sirEvents = getSirEventsForPerson(person);
+  const linkedEvent = cond.linkedEventId
+    ? sirEvents.find((e) => e.id === cond.linkedEventId)
+    : undefined;
+
+  return (
+    <div style={{ marginBottom: 6 }}>
+      {/* SIR Category dropdown */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, color: '#5a6a85', fontWeight: 600, flexShrink: 0 }}>SIR Category:</span>
+        <select
+          value={cond.linkedSIRCategory || ''}
+          onChange={(e) => {
+            const cat = e.target.value;
+            onUpdateCondition(predictionId, cond.id, {
+              linkedSIRCategory: cat || undefined,
+              linkedEventId: undefined,
+            });
+          }}
+          style={{ ...inputStyle, flex: 1, fontSize: 11 }}
+        >
+          <option value="">— Select Category —</option>
+          {sirCategories.map((cat) => (
+            <option key={cat.id} value={cat.name}>{cat.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Existing SIR events for the selected category */}
+      {cond.linkedSIRCategory && sirEvents.filter((e) => e.category === cond.linkedSIRCategory).length > 0 && (
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 10, color: '#7a8aaa', fontWeight: 600 }}>Link existing SIR entry:</span>
+          <div style={{ marginTop: 2, maxHeight: 100, overflowY: 'auto' }}>
+            {sirEvents
+              .filter((e) => e.category === cond.linkedSIRCategory)
+              .map((ev) => {
+                const isLinked = cond.linkedEventId === ev.id;
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() =>
+                      onUpdateCondition(predictionId, cond.id, {
+                        linkedEventId: isLinked ? undefined : ev.id,
+                        description: isLinked
+                          ? cond.description
+                          : cond.description || `${cond.linkedSIRCategory}: ${ev.subtype || ev.otherPersonName || ''}`.trim(),
+                      })
+                    }
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '3px 6px',
+                      borderRadius: 5,
+                      border: `1px solid ${isLinked ? '#4b68a6' : '#e4e8ee'}`,
+                      background: isLinked ? '#eef3ff' : '#fff',
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      marginBottom: 2,
+                    }}
+                  >
+                    <span style={{ color: '#7a8aaa' }}>{formatDateShort(ev.startDate || ev.date)}</span>
+                    <span style={{ color: '#333', flex: 1 }}>{ev.subtype || '—'}</span>
+                    {ev.howWell > 0 && <span style={{ fontSize: 10, color: '#4b68a6' }}>HWDID:{ev.howWell}</span>}
+                    {ev.otherPersonName && <span style={{ fontSize: 10, color: '#888' }}>w/ {ev.otherPersonName}</span>}
+                    {isLinked && <span style={{ color: '#4b68a6', fontWeight: 700 }}>✓</span>}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Linked event summary */}
+      {linkedEvent && (
+        <div style={{ fontSize: 11, color: '#4b68a6', fontStyle: 'italic', marginBottom: 4 }}>
+          Linked to SIR: {linkedEvent.category} — {linkedEvent.subtype || 'no behavior'} ({formatDateShort(linkedEvent.startDate || linkedEvent.date)})
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PaperoConditionLinker = ({
+  cond,
+  predictionId,
+  person,
+  onUpdateCondition,
+}: {
+  cond: PredictionCondition;
+  predictionId: string;
+  person: Person | undefined;
+  onUpdateCondition: PredictionsPanelProps['onUpdateCondition'];
+}) => {
+  const currentScore = cond.linkedPaperoKey
+    ? getPaperoScoreForPerson(person, cond.linkedPaperoKey)
+    : 0;
+
+  // Find the display name for the linked key
+  const linkedTopicName = cond.linkedPaperoKey
+    ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === cond.linkedPaperoKey)?.[0] || ''
+    : '';
+
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, color: '#5a6a85', fontWeight: 600, flexShrink: 0 }}>Papero Topic:</span>
+        <select
+          value={cond.linkedPaperoKey || ''}
+          onChange={(e) => {
+            const key = e.target.value;
+            const topicName = key
+              ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === key)?.[0] || ''
+              : '';
+            onUpdateCondition(predictionId, cond.id, {
+              linkedPaperoKey: key || undefined,
+              description: cond.description || (topicName ? `Improve ${topicName}` : ''),
+            });
+          }}
+          style={{ ...inputStyle, flex: 1, fontSize: 11 }}
+        >
+          <option value="">— Select Topic —</option>
+          {PAPERO_TOPICS.map((topic) => (
+            <option key={PAPERO_SUBTYPE_TO_KEY[topic]} value={PAPERO_SUBTYPE_TO_KEY[topic]}>
+              {topic}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Show current score */}
+      {cond.linkedPaperoKey && (
+        <div style={{ fontSize: 11, color: '#4b68a6', fontStyle: 'italic', marginBottom: 4 }}>
+          {linkedTopicName}: current score = {currentScore > 0 ? `${currentScore}/5` : 'unset'}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const PAPERO_TOPICS = Object.keys(PAPERO_SUBTYPE_TO_KEY);
+
+const getSirEventsForPerson = (person: Person | undefined): EmotionalProcessEvent[] => {
+  if (!person) return [];
+  return (person.events || [])
+    .filter((e) => e.eventType === 'SIR')
+    .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''));
+};
+
+const formatDateShort = (d: string) => {
+  if (!d) return '';
+  const parts = d.split('-');
+  if (parts.length === 3) return `${parts[1]}/${parts[2]}`;
+  return d;
+};
+
+const getPaperoScoreForPerson = (person: Person | undefined, paperoKey: string): number => {
+  if (!person || !person.paperoScores) return 0;
+  return (person.paperoScores as Record<string, number | undefined>)[paperoKey] || 0;
+};
+
+// ─── Prediction Card ─────────────────────────────────────────────────────────
+
 const PredictionCard = ({
   prediction,
   people,
+  sirCategories,
   expanded,
   onToggle,
   onUpdate,
@@ -238,6 +426,7 @@ const PredictionCard = ({
 }: {
   prediction: Prediction;
   people: Person[];
+  sirCategories: SIRCategoryDefinition[];
   expanded: boolean;
   onToggle: () => void;
   onUpdate: PredictionsPanelProps['onUpdatePrediction'];
@@ -386,11 +575,30 @@ const PredictionCard = ({
                     ×
                   </button>
                 </div>
+                {/* SIR: category picker + existing SIR events */}
+                {cond.type === 'sir' && cond.personId && (
+                  <SIRConditionLinker
+                    cond={cond}
+                    predictionId={p.id}
+                    person={people.find((pp) => pp.id === cond.personId)}
+                    sirCategories={sirCategories}
+                    onUpdateCondition={onUpdateCondition}
+                  />
+                )}
+                {/* Papero: topic picker + current score */}
+                {cond.type === 'papero' && cond.personId && (
+                  <PaperoConditionLinker
+                    cond={cond}
+                    predictionId={p.id}
+                    person={people.find((pp) => pp.id === cond.personId)}
+                    onUpdateCondition={onUpdateCondition}
+                  />
+                )}
                 <input
                   type="text"
                   value={cond.description}
                   onChange={(e) => onUpdateCondition(p.id, cond.id, { description: e.target.value })}
-                  placeholder="Describe the condition..."
+                  placeholder={cond.type === 'sir' ? 'Goal or expected change...' : cond.type === 'papero' ? 'Expected improvement...' : 'Describe the condition...'}
                   style={inputStyle}
                 />
                 {/* Evidence list */}
@@ -549,6 +757,7 @@ const PredictionsPanel = ({
   isOpen,
   predictions,
   people,
+  sirCategories,
   onClose,
   onAddPrediction,
   onUpdatePrediction,
@@ -654,6 +863,7 @@ const PredictionsPanel = ({
                   key={pred.id}
                   prediction={pred}
                   people={people}
+                  sirCategories={sirCategories}
                   expanded={expandedIds.has(pred.id)}
                   onToggle={() => toggleExpanded(pred.id)}
                   onUpdate={onUpdatePrediction}
@@ -680,6 +890,7 @@ const PredictionsPanel = ({
                   key={pred.id}
                   prediction={pred}
                   people={people}
+                  sirCategories={sirCategories}
                   expanded={expandedIds.has(pred.id)}
                   onToggle={() => toggleExpanded(pred.id)}
                   onUpdate={onUpdatePrediction}
