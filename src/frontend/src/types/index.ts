@@ -206,6 +206,50 @@ export type Triangle = {
   events?: EmotionalProcessEvent[];
 };
 
+// ─── Prediction Types ──────────────────────────────────────────────────────
+export type PredictionStatus = 'active' | 'supported' | 'unsupported' | 'revised';
+export type PredictionEvidenceDirection = 'supports' | 'contradicts' | 'neutral';
+export type PredictionEvidenceType = 'event' | 'sir_entry' | 'papero_change' | 'observation';
+export type PredictionConditionType = 'goal' | 'sir' | 'papero' | 'custom';
+
+export type PredictionEvidence = {
+  id: string;
+  date: string;
+  type: PredictionEvidenceType;
+  sourceId?: string;
+  measurement?: string;
+  direction: PredictionEvidenceDirection;
+  notes: string;
+};
+
+export type PredictionCondition = {
+  id: string;
+  type: PredictionConditionType;
+  personId?: string;
+  description: string;
+  linkedPaperoKey?: string;
+  linkedSIRCategory?: string;
+  evidence: PredictionEvidence[];
+};
+
+export type PredictionOutcome = {
+  id: string;
+  description: string;
+  personIds: string[];
+  evidence: PredictionEvidence[];
+};
+
+export type Prediction = {
+  id: string;
+  title: string;
+  status: PredictionStatus;
+  createdDate: string;
+  resolvedDate?: string;
+  conditions: PredictionCondition[];
+  outcomes: PredictionOutcome[];
+  notes: string;
+};
+
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
 export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO' | 'SIR';
 export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';

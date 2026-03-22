@@ -54,6 +54,7 @@ export interface AppRibbonProps {
   setIndicatorSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSirSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIdeasOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setPredictionsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setDemoTourStepIndex: React.Dispatch<React.SetStateAction<number>>;
   setDemoTourOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -133,6 +134,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setIndicatorSettingsOpen,
   setSirSettingsOpen,
   setIdeasOpen,
+  setPredictionsOpen,
   setSessionNotesOpen,
   setDemoTourStepIndex,
   setDemoTourOpen,
@@ -214,6 +216,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Voice Input', action: () => setVoiceInputOpen(true) },
     { label: 'Timeline Event Creator', action: handleOpenEventCreator },
     { label: 'Ideas', action: () => setIdeasOpen(true) },
+    { label: 'Predictions', action: () => setPredictionsOpen(true) },
     { label: 'Session Notes', action: () => setSessionNotesOpen(true) },
   ];
   const settingsMenuItems = [

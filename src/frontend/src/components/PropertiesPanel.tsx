@@ -2418,7 +2418,7 @@ const PropertiesPanel = ({
                 : tab === 'papero'
                 ? 'Papero'
                 : tab === 'sir'
-                ? 'Self in Rel.'
+                ? 'SIR'
                 : 'Events';
             return (
               <button
@@ -2428,15 +2428,15 @@ const PropertiesPanel = ({
                 disabled={disabled}
                 onClick={() => setActiveTab(tab)}
                 style={{
-                  padding: '8px 12px',
+                  padding: '6px 8px',
                   border: 'none',
                   borderLeft: index === 0 ? 'none' : '1px solid #d0d6e2',
                   background: isActive ? '#dfe7f7' : '#fff',
                   color: isActive ? '#1f3f78' : '#23324a',
                   fontWeight: 600,
+                  fontSize: 13,
                   cursor: disabled ? 'not-allowed' : 'pointer',
                   opacity: disabled ? 0.45 : 1,
-                  minWidth: 88,
                 }}
               >
                 {tabLabel}

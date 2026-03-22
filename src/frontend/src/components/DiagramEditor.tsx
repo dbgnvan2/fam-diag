@@ -5,6 +5,7 @@ import type {
   EmotionalLine,
   Triangle,
   FunctionalIndicatorDefinition,
+  Prediction,
   SIRCategoryDefinition,
   EmotionalProcessEvent,
   EventType,
@@ -31,7 +32,9 @@ import { useFileOperations } from '../hooks/useFileOperations';
 import { useVoiceHandlers } from '../hooks/useVoiceHandlers';
 import { useEmotionalLineOperations } from '../hooks/useEmotionalLineOperations';
 import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
+import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
 import DiagramModals from './DiagramModals';
+import PredictionsPanel from './PredictionsPanel';
 import DiagramCanvas from './DiagramCanvas';
 import EventModal from './EventModal';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
@@ -241,6 +244,10 @@ const DiagramEditor = () => {
   const [relationshipStatusDraft, setRelationshipStatusDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [predictionsOpen, setPredictionsOpen] = useState(false);
+  const [predictions, setPredictions] = useState<Prediction[]>(() =>
+    DEFAULT_DIAGRAM_STATE.predictions,
+  );
   const [ideasText, setIdeasText] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.ideasText;
     const stored = getStoredValue('ideas');
@@ -1670,6 +1677,10 @@ useEffect(() => {
     setContextMenu,
   });
 
+  const predictionHandlers = usePredictionHandlers({
+    predictions,
+    setPredictions,
+  });
 
   const addPartnership = () => {
     if (selectedPeopleIds.length !== 2) return;
@@ -1835,6 +1846,7 @@ useEffect(() => {
     relationshipStatuses,
     autoSaveMinutes,
     ideasText,
+    predictions,
   });
 
   const setDiagramFileHandle = useCallback((handle: any | null) => {
@@ -2067,6 +2079,7 @@ useEffect(() => {
     } else {
       setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
     }
+    setPredictions(Array.isArray(data.predictions) ? data.predictions : []);
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
     setTimelineSelectionIds([]);
@@ -3804,6 +3817,7 @@ useEffect(() => {
             setIndicatorSettingsOpen={setIndicatorSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}
             setIdeasOpen={setIdeasOpen}
+            setPredictionsOpen={setPredictionsOpen}
             setSessionNotesOpen={setSessionNotesOpen}
             setDemoTourStepIndex={setDemoTourStepIndex}
             setDemoTourOpen={setDemoTourOpen}
@@ -4177,6 +4191,24 @@ useEffect(() => {
             setIdeasText={setIdeasText}
             setIdeasOpen={setIdeasOpen}
           />
+        <PredictionsPanel
+          isOpen={predictionsOpen}
+          predictions={predictions}
+          people={people}
+          onClose={() => setPredictionsOpen(false)}
+          onAddPrediction={predictionHandlers.addPrediction}
+          onUpdatePrediction={predictionHandlers.updatePrediction}
+          onDeletePrediction={predictionHandlers.deletePrediction}
+          onResolvePrediction={predictionHandlers.resolvePrediction}
+          onAddCondition={predictionHandlers.addCondition}
+          onUpdateCondition={predictionHandlers.updateCondition}
+          onRemoveCondition={predictionHandlers.removeCondition}
+          onAddOutcome={predictionHandlers.addOutcome}
+          onUpdateOutcome={predictionHandlers.updateOutcome}
+          onRemoveOutcome={predictionHandlers.removeOutcome}
+          onAddEvidence={predictionHandlers.addEvidence}
+          onRemoveEvidence={predictionHandlers.removeEvidence}
+        />
         {trianglePropertyModal && (
           <EventModal
             eventDraft={trianglePropertyModal.draft}

@@ -180,6 +180,7 @@ export type DiagramImportData = {
   relationshipStatuses?: string[];
   autoSaveMinutes?: number;
   ideasText?: string;
+  predictions?: import('./index').Prediction[];
 };
 
 export type FactsImportData = {
