@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type {
   EmotionalLine,
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   PageNote,
   Partnership,
   Person,
@@ -85,6 +86,7 @@ export type DefaultDiagramState = {
   pageNotes: PageNote[];
   triangles: Triangle[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
+  sirCategories: SIRCategoryDefinition[];
   eventCategories: string[];
   relationshipTypes: string[];
   relationshipStatuses: string[];
@@ -143,6 +145,7 @@ export const buildDefaultDiagramState = (
     pageNotes: [],
     triangles: FALLBACK_TRIANGLES,
     functionalIndicatorDefinitions: applicationSettings.functionalIndicatorDefinitions,
+    sirCategories: applicationSettings.sirCategories,
     eventCategories: applicationSettings.eventCategories,
     relationshipTypes: applicationSettings.relationshipTypes,
     relationshipStatuses: applicationSettings.relationshipStatuses,
@@ -175,6 +178,12 @@ export const buildDefaultDiagramState = (
       typed.functionalIndicatorDefinitions.length
         ? typed.functionalIndicatorDefinitions
         : base.functionalIndicatorDefinitions,
+    sirCategories:
+      includeEmbeddedSettings &&
+      Array.isArray((typed as Record<string, unknown>).sirCategories) &&
+      ((typed as Record<string, unknown>).sirCategories as SIRCategoryDefinition[]).length
+        ? (typed as Record<string, unknown>).sirCategories as SIRCategoryDefinition[]
+        : base.sirCategories,
     eventCategories:
       includeEmbeddedSettings
         ? sanitizeStringArray(typed.eventCategories) ?? base.eventCategories

@@ -5,6 +5,7 @@ import type {
   EmotionalLine,
   EmotionalProcessEvent,
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   EventClass,
   EventType,
   EventAnchorType,
@@ -24,6 +25,7 @@ import PersonDatesSection from './sections/PersonDatesSection';
 import PersonFormatSection from './sections/PersonFormatSection';
 import PersonFOOSection from './sections/PersonFOOSection';
 import PersonPaperoSection from './sections/PersonPaperoSection';
+import PersonSIRSection from './sections/PersonSIRSection';
 import PersonSiblingSection from './sections/PersonSiblingSection';
 import PartnershipPropertiesSection from './sections/PartnershipPropertiesSection';
 import EPLPropertiesSection from './sections/EPLPropertiesSection';
@@ -154,7 +156,7 @@ const emotionalLineStyleLevelFor = (
   const index = lineStyleValues[relationshipType].indexOf(lineStyle);
   return index >= 0 ? index + 1 : 0;
 };
-const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' | 'papero', { title: string; body: string }> = {
+const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir', { title: string; body: string }> = {
   properties: {
     title: 'Person Tab Help',
     body:
@@ -179,6 +181,11 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' 
     title: 'Papero Assessment Help',
     body:
       'The Papero Assessment tab captures the Family Unit Response to Challenge Framework (adapted from Dr Dan Papero). Rate each topic on a 1-5 continuum from low functioning to high functioning. Click the "?" button for detailed level descriptions.',
+  },
+  sir: {
+    title: 'Self in Relationship Help',
+    body:
+      'The Self in Relationship tab tracks how well you managed yourself in interactions with others. Each entry records a category, the other person, and scores for Intensity, Stress, and HWDID (How Well Did I Do). Configure categories via Settings → Self in Relationship Categories.',
   },
 };
 const toTitleCase = (value: string) =>
@@ -296,6 +303,7 @@ interface PropertiesPanelProps {
   relationshipTypes?: string[];
   relationshipStatuses?: string[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
+  sirCategories: SIRCategoryDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
@@ -337,6 +345,7 @@ const PropertiesPanel = ({
   relationshipTypes = ['married', 'engaged', 'common-law', 'living-together', 'dating', 'affair', 'friendship'],
   relationshipStatuses = ['married', 'separated', 'divorce', 'widowed', 'start', 'ended', 'ongoing'],
   functionalIndicatorDefinitions,
+  sirCategories,
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
@@ -381,7 +390,7 @@ const PropertiesPanel = ({
     null
   );
   const [eventModalTitle, setEventModalTitle] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir'>('properties');
   const [activeFamilyTab, setActiveFamilyTab] = useState<'family' | 'triangles' | 'stressors' | 'events'>('family');
   const [activePersonSection, setActivePersonSection] = useState<
     'name' | 'dates' | 'format' | 'sibling' | 'foo'
@@ -389,7 +398,7 @@ const PropertiesPanel = ({
   const [activeSiblingSubtab, setActiveSiblingSubtab] = useState<
     'override' | 'position' | 'compatibility'
   >('override');
-  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | null>(null);
+  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir' | null>(null);
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
   const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
@@ -2376,8 +2385,8 @@ const PropertiesPanel = ({
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
         {(() => {
-          const topTabs: Array<'properties' | 'functional' | 'events' | 'patterns' | 'papero'> = isPerson
-            ? ['properties', 'patterns', 'functional', 'papero', 'events']
+          const topTabs: Array<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir'> = isPerson
+            ? ['properties', 'patterns', 'functional', 'papero', 'sir', 'events']
             : ['properties', 'functional', 'events'];
           return (
         <div
@@ -2408,6 +2417,8 @@ const PropertiesPanel = ({
                 ? 'Patterns'
                 : tab === 'papero'
                 ? 'Papero'
+                : tab === 'sir'
+                ? 'Self in Rel.'
                 : 'Events';
             return (
               <button
@@ -2661,6 +2672,16 @@ const PropertiesPanel = ({
           onUpdatePerson={onUpdatePerson}
           updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
           onSetPersonPristine={setPersonPristine}
+        />
+      )}
+      {activeTab === 'sir' && isPerson && selectedPerson && personDraft && (
+        <PersonSIRSection
+          personDraft={personDraft}
+          selectedPerson={selectedPerson}
+          people={people}
+          sirCategories={sirCategories}
+          onUpdatePerson={onUpdatePerson}
+          updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
         />
       )}
       {activeTab === 'events' && (

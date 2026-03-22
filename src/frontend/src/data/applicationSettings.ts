@@ -1,4 +1,4 @@
-import type { FunctionalIndicatorDefinition } from '../types';
+import type { FunctionalIndicatorDefinition, SIRCategoryDefinition } from '../types';
 import applicationSettingsJson from './applicationSettings.json';
 import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
@@ -7,6 +7,7 @@ export type ApplicationSettings = {
   relationshipTypes: string[];
   relationshipStatuses: string[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
+  sirCategories: SIRCategoryDefinition[];
   autoSaveMinutes: number;
 };
 
@@ -75,7 +76,83 @@ const FALLBACK_SETTINGS: ApplicationSettings = {
       useLetter: true,
     },
   ],
+  sirCategories: [
+    {
+      id: 'sir-resource',
+      name: 'Resource to Other',
+      levels: [
+        'Reactive, Unhelpful',
+        'Little Help, Reactive',
+        'Medium Reactivity, Some Help',
+        'Some Reactivity, Helpful',
+        'Neutral, Helpful',
+      ],
+    },
+    {
+      id: 'sir-reactivity',
+      name: 'Managing Reactivity',
+      levels: [
+        'Fully Reactive, Escalated',
+        'Mostly Reactive',
+        'Mixed, Some Self-Regulation',
+        'Mostly Regulated',
+        'Calm, Self-Regulated',
+      ],
+    },
+    {
+      id: 'sir-defining-self',
+      name: 'Defining Self',
+      levels: [
+        "Lost in Other's Position",
+        'Mostly Accommodating',
+        'Partially Defined',
+        'Mostly Clear Position',
+        'Clear, Non-Reactive Self-Definition',
+      ],
+    },
+    {
+      id: 'sir-detriangulating',
+      name: 'Detriangulating',
+      levels: [
+        'Fully Triangulated',
+        'Mostly Pulled In',
+        'Aware but Struggling',
+        'Mostly Staying Out',
+        'Clean, Direct Relating',
+      ],
+    },
+    {
+      id: 'sir-emotional-contact',
+      name: 'Emotional Contact',
+      levels: [
+        'Cutoff, Avoidant',
+        'Minimal Contact',
+        'Surface Contact',
+        'Meaningful Contact',
+        'Deep, Non-Anxious Presence',
+      ],
+    },
+    {
+      id: 'sir-systems',
+      name: 'Systems Perspective',
+      levels: [
+        'Blame / Cause Thinking',
+        'Mostly Linear',
+        'Some Systems Awareness',
+        'Mostly Systems View',
+        'Full Process / Systems Lens',
+      ],
+    },
+  ],
   autoSaveMinutes: 1,
+};
+
+const sanitizeSIRCategories = (
+  value: unknown,
+  fallback: SIRCategoryDefinition[]
+): SIRCategoryDefinition[] => {
+  if (!Array.isArray(value) || value.length === 0) return fallback;
+  return value as SIRCategoryDefinition[];
 };
 
 export const normalizeApplicationSettings = (value: unknown): ApplicationSettings => {
@@ -94,6 +171,10 @@ export const normalizeApplicationSettings = (value: unknown): ApplicationSetting
       typed?.functionalIndicatorDefinitions,
       FALLBACK_SETTINGS.functionalIndicatorDefinitions
     ),
+    sirCategories: sanitizeSIRCategories(
+      typed?.sirCategories,
+      FALLBACK_SETTINGS.sirCategories
+    ),
     autoSaveMinutes: toPositiveNumber(
       typed?.autoSaveMinutes,
       FALLBACK_SETTINGS.autoSaveMinutes
@@ -109,6 +190,7 @@ const productDefaultSettingsSource = (() => {
     relationshipTypes: typed.relationshipTypes,
     relationshipStatuses: typed.relationshipStatuses,
     functionalIndicatorDefinitions: typed.functionalIndicatorDefinitions,
+    sirCategories: typed.sirCategories,
     autoSaveMinutes: typed.autoSaveMinutes,
   };
 })();

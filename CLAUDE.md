@@ -61,8 +61,8 @@ The app models family systems using 9 entity types. **Every entity type follows 
 
 | Entity | Panel | Event Group (eventType) | eventClass | category pattern |
 |--------|-------|------------------------|------------|-----------------|
-| **Person** | Individual Functional Facts | NODAL, SYMPTOM | `'individual'` | `'Individual'` |
-| **AI Agent** | Same as Person (hexagon shape) | NODAL, SYMPTOM, PAPERO | `'individual'` | `'Individual'` |
+| **Person** | Individual Functional Facts | NODAL, SYMPTOM, SIR | `'individual'` | `'Individual'` |
+| **AI Agent** | Same as Person (hexagon shape) | NODAL, SYMPTOM, PAPERO, SIR | `'individual'` | `'Individual'` |
 | **Partner Relationship** | Partner Relationship Line (PRL) | NODAL | `'relationship'` | `toTitleCase(relationshipType)` |
 | **Emotional Pattern** | Emotional Pattern Line (EPL) | EPE | `'emotional-pattern'` | `'Emotional Pattern'` |
 | **Family** | Family view | FAMILY | `'family'` | from event |
@@ -71,6 +71,7 @@ The app models family systems using 9 entity types. **Every entity type follows 
 | **Emotional Autonomy** | EA view | EA | `'ea'` | from event |
 | **Symptom** | Symptoms tab (Person) | SYMPTOM | `'symptom'` | physical/emotional/social |
 | **Papero Assessment** | Papero tab (Person) | PAPERO | `'individual'` | Resourceful/Connectedness/Tension/Systems/Goals |
+| **Self in Relationship** | Self in Rel. tab (Person) | SIR | `'individual'` | Configurable via SIR Settings |
 
 ### Where entities store events:
 
@@ -205,6 +206,48 @@ The **Papero Assessment** (adapted from Dr Dan Papero) is an assessment framewor
 - All scale definitions are in `constants/eventConstants.ts` — never hardcode level labels
 - The `PAPERO_SUBTYPE_TO_KEY` map connects subtype names to `PaperoScores` field keys
 - Scores save immediately on selection (no Save button needed) via `onUpdatePerson`
+
+---
+
+## Self in Relationship (SIR) — Configurable Assessment Framework
+
+The **Self in Relationship (SIR)** tab tracks how a person manages themselves in relationship interactions. It appears in a dedicated **"Self in Rel."** tab in the PropertiesPanel for Person entities.
+
+### Data model:
+- **Event type:** `'SIR'` (added to `EventType` union)
+- **Storage:** `Person.events[]` as `EmotionalProcessEvent` records with `eventType: 'SIR'`
+- **Field mapping:** `intensity` = Event Intensity (1-5), `frequency` = Stress Level (1-5), `howWell` = HWDID score (1-5), `subtype` = behavior description, `otherPersonName` = other person, `category` = SIR category name, `observations` = notes
+- **Component:** `PersonSIRSection.tsx` — renders entry cards and inline add/edit form
+
+### Configurable Categories:
+- Categories are stored in `ApplicationSettings.sirCategories` and `DefaultDiagramState.sirCategories`
+- Type: `SIRCategoryDefinition` with `id`, `name`, `levels: [string, string, string, string, string]`
+- Each category has a name and 5-level HWDID (How Well Did I Do) scale descriptions
+- Categories are configurable via **Settings > Self in Relationship Categories** (opens `SIRSettingsModal`)
+
+### Default 6 categories:
+| Category | Low (1) | High (5) |
+|----------|---------|----------|
+| Resource to Other | Reactive, Unhelpful | Neutral, Helpful |
+| Managing Reactivity | High Reactivity | Calm, Grounded |
+| Defining Self | Undefined, Fused | Clear, Differentiated |
+| Detriangulating | Fully Triangulated | Fully Detriangulated |
+| Emotional Contact | Cutoff, Avoidant | Open, Connected |
+| Systems Perspective | Blaming, Linear | Systems View |
+
+### UI pattern:
+- Inline form with Date, With (person select), Category (dropdown), Behavior (text), Intensity (1-5), Stress (1-5), HWDID (1-5 with ? help), Notes
+- HWDID ? button opens a dialog showing all 5 level descriptions; clicking a level sets the score
+- Entry cards show date, category, other person, and color-coded badges for Intensity/Stress/HWDID
+- Every card has Edit and Delete buttons
+- Settings modal (`SIRSettingsModal`) allows Create/Edit/Delete of categories with inline editing
+
+### When modifying SIR:
+- Category definitions come from `ApplicationSettings.sirCategories` — never hardcode category names
+- `SIRCategoryDefinition` type is in `types/index.ts`
+- Categories flow: `DiagramEditor` state → `DiagramCanvas` → `PropertiesPanel` → `PersonSIRSection`
+- Settings flow: `DiagramEditor` → `DiagramModals` → `SIRSettingsModal`
+- `AppRibbon` has the Settings menu item that opens SIR settings
 
 ---
 
@@ -358,7 +401,7 @@ EventType → EVENT_TYPE_HAS_SUBTYPE[type] → boolean (show subtype dropdown?)
 EventType → getIntensityScale(type, category?, subtype?) → correct scale
 ```
 
-**The 8 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE, PAPERO
+**The 9 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE, PAPERO, SIR
 
 **When touching any event-related code:**
 1. Read `eventConstants.ts` first
@@ -456,7 +499,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Existing test files:
 **Component tests:**
-- `EventModal.test.tsx` — all 8 event types (incl. PAPERO), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
+- `EventModal.test.tsx` — all 9 event types (incl. PAPERO, SIR), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
 - `EventCard.test.tsx` — event card rendering
 - `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
 - `MultiPersonPropertiesPanel.test.tsx` — multi-select panel
@@ -464,6 +507,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 - `DiagramEditor.test.tsx` — top-level orchestration, file load, demo tour, context menu (Add AI Agent)
 - `DiagramCanvas.tsx` related: `PartnershipNode.test.tsx`, `PersonNode.test.tsx` (incl. AI agent hexagon), `TriangleNode.test.tsx`, `EmotionalLineNode.test.tsx`, `EmotionalLineNode.regression.test.tsx`, `ChildConnection.test.tsx`, `NoteNode.test.tsx`, `SiblingConflictOverlay.test.tsx`
 - `sections/PersonPaperoSection.test.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns, help dialogs, score updates, category averages
+- `sections/PersonSIRSection.test.tsx` — Self in Relationship: entry cards, add/edit/delete, HWDID help dialog, form fields, event filtering
 
 **Utility tests (co-located in `utils/`):**
 - `dataCleanup.test.ts`, `noteVisibility.test.ts`, `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
@@ -613,6 +657,8 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `sections/PersonNameSection.tsx` — person name fields (with AI Agent name help)
 - `sections/PersonDatesSection.tsx` — birth/death/gender dates and birth sex dropdown (incl. AI Agent)
 - `sections/PersonPaperoSection.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns with ? help
+- `sections/PersonSIRSection.tsx` — Self in Relationship: entry cards, inline add/edit form, HWDID help dialog
+- `modals/SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete categories with 5-level HWDID scales
 - `sections/PersonFOOSection.tsx` — FOO scales: emotional cutoff, family stability, family intactness
 - `modals/SessionCaptureDialog.tsx`
 - `modals/ClientProfileModal.tsx`

@@ -22,6 +22,7 @@ export const EVENT_CATEGORIES: Record<EventType, string[]> = {
   FOO: ['Family Stability', 'Family Intactness', 'Triangle Flexibility', 'Triangle Stress Response'],
   TRIANGLE: ['Primary', 'Secondary'],
   PAPERO: ['Resourceful', 'Connectedness & Integration', 'Tension Management', 'Systems Thinking', 'Goal Structure'],
+  SIR: ['Resource to Other', 'Managing Reactivity', 'Defining Self', 'Detriangulating', 'Emotional Contact', 'Systems Perspective'],
 };
 
 // ─── Subtype options per EventType+Category (only where subtypes exist) ──────
@@ -438,6 +439,7 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   FOO: 'Family of Origin',
   TRIANGLE: 'Triangle Property',
   PAPERO: 'Papero Assessment',
+  SIR: 'Self in Relationship',
 };
 
 // ─── Infer EventType from legacy event data ───────────────────────────────────
@@ -481,6 +483,7 @@ export const EVENT_TYPE_HAS_PERSONS: Record<EventType, boolean> = {
   FOO: true,
   TRIANGLE: false,
   PAPERO: true,
+  SIR: true,
 };
 
 // ─── Which event types have a subtype field ───────────────────────────────────
@@ -493,4 +496,5 @@ export const EVENT_TYPE_HAS_SUBTYPE: Record<EventType, boolean> = {
   FOO: false,
   TRIANGLE: true,
   PAPERO: true,
+  SIR: false,
 };

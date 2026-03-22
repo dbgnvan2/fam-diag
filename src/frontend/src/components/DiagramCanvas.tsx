@@ -9,6 +9,7 @@ import type {
   EmotionalLine,
   Triangle,
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   PageNote,
   SymptomGroup,
 } from '../types';
@@ -167,6 +168,7 @@ interface DiagramCanvasProps {
   handlePersonContextMenu: (e: KonvaEventObject<PointerEvent>, person: Person) => void;
   setHoveredPersonId: Dispatch<SetStateAction<string | null>>;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
+  sirCategories: SIRCategoryDefinition[];
 
   // Group resize
   selectedGroupBounds: { x: number; y: number; width: number; height: number } | null;
@@ -312,6 +314,7 @@ export default function DiagramCanvas({
   handlePersonContextMenu,
   setHoveredPersonId,
   functionalIndicatorDefinitions,
+  sirCategories,
   selectedGroupBounds,
   beginGroupResize,
   applyGroupResize,
@@ -414,6 +417,7 @@ export default function DiagramCanvas({
               relationshipTypes={relationshipTypes}
               relationshipStatuses={relationshipStatuses}
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+              sirCategories={sirCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -464,6 +468,7 @@ export default function DiagramCanvas({
               relationshipTypes={relationshipTypes}
               relationshipStatuses={relationshipStatuses}
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+              sirCategories={sirCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -1178,6 +1183,7 @@ export default function DiagramCanvas({
                 relationshipTypes={relationshipTypes}
                 relationshipStatuses={relationshipStatuses}
                 functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+                sirCategories={sirCategories}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePartnership={handleUpdatePartnership}
                 onUpdateEmotionalLine={handleUpdateEmotionalLine}

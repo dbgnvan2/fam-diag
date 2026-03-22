@@ -4,6 +4,7 @@ import type {
   Partnership,
   EmotionalLine,
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   EmotionalProcessEvent,
   EventClass,
 } from '../types';
@@ -24,6 +25,7 @@ import CoachThinkingModal from './modals/CoachThinkingModal';
 import EmotionalPatternModal from './modals/EmotionalPatternModal';
 import SettingsListModal from './modals/SettingsListModal';
 import IndicatorSettingsModal from './modals/IndicatorSettingsModal';
+import SIRSettingsModal from './modals/SIRSettingsModal';
 import TimelineBoardModal from './modals/TimelineBoardModal';
 import SessionNotesPanel from './SessionNotesPanel';
 import RibbonHelpModal from './modals/RibbonHelpModal';
@@ -123,6 +125,12 @@ interface DiagramModalsProps {
   updateFunctionalIndicatorUseLetter: (id: string, useLetter: boolean) => void;
   clearFunctionalIndicatorIcon: (id: string) => void;
   removeFunctionalIndicatorDefinition: (id: string) => void;
+
+  // SIRSettingsModal
+  sirSettingsOpen: boolean;
+  setSirSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  sirCategories: SIRCategoryDefinition[];
+  onSaveSirCategories: (categories: SIRCategoryDefinition[]) => void;
 
   // TimelineBoardModal
   people: Person[];
@@ -283,6 +291,10 @@ export default function DiagramModals({
   updateFunctionalIndicatorUseLetter,
   clearFunctionalIndicatorIcon,
   removeFunctionalIndicatorDefinition,
+  sirSettingsOpen,
+  setSirSettingsOpen,
+  sirCategories,
+  onSaveSirCategories,
   people,
   partnerships,
   allEmotionalLines,
@@ -492,6 +504,12 @@ export default function DiagramModals({
         onUpdateUseLetter={updateFunctionalIndicatorUseLetter}
         onClearIcon={clearFunctionalIndicatorIcon}
         onRemove={removeFunctionalIndicatorDefinition}
+      />
+      <SIRSettingsModal
+        open={sirSettingsOpen}
+        onClose={() => setSirSettingsOpen(false)}
+        categories={sirCategories}
+        onSave={onSaveSirCategories}
       />
       <TimelineBoardModal
         people={people}

@@ -52,6 +52,7 @@ export interface AppRibbonProps {
   setRelationshipTypeSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setRelationshipStatusSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIndicatorSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setSirSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIdeasOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setDemoTourStepIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -130,6 +131,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setRelationshipTypeSettingsOpen,
   setRelationshipStatusSettingsOpen,
   setIndicatorSettingsOpen,
+  setSirSettingsOpen,
   setIdeasOpen,
   setSessionNotesOpen,
   setDemoTourStepIndex,
@@ -219,6 +221,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Relationship Categories', action: () => setRelationshipTypeSettingsOpen(true) },
     { label: 'Relationship Statuses', action: () => setRelationshipStatusSettingsOpen(true) },
     { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
+    { label: 'Self in Relationship Categories', action: () => setSirSettingsOpen(true) },
     {
       label: `Notes Layer: ${notesLayerEnabled ? 'On' : 'Off'}`,
       action: () => setNotesLayerEnabled((prev) => !prev),

@@ -5,6 +5,7 @@ import type {
   EmotionalLine,
   Triangle,
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   EmotionalProcessEvent,
   EventType,
   BirthSex,
@@ -108,6 +109,8 @@ const initialRelationshipTypes: string[] = DEFAULT_DIAGRAM_STATE.relationshipTyp
 const initialRelationshipStatuses: string[] = DEFAULT_DIAGRAM_STATE.relationshipStatuses;
 const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
   DEFAULT_DIAGRAM_STATE.functionalIndicatorDefinitions;
+const initialSirCategories: SIRCategoryDefinition[] =
+  DEFAULT_DIAGRAM_STATE.sirCategories;
 const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
 const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
 const DIAGRAM_FILE_PICKER_TYPES = [
@@ -258,6 +261,14 @@ const DiagramEditor = () => {
         ? stored.functionalIndicatorDefinitions
         : parseStoredIndicatorDefinitions() || initialIndicatorDefinitions;
     });
+  const [sirCategories, setSirCategories] = useState<SIRCategoryDefinition[]>(() => {
+    if (typeof window === 'undefined') return initialSirCategories;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.sirCategories) && stored.sirCategories.length
+      ? stored.sirCategories as SIRCategoryDefinition[]
+      : initialSirCategories;
+  });
+  const [sirSettingsOpen, setSirSettingsOpen] = useState(false);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
   const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
@@ -3791,6 +3802,7 @@ useEffect(() => {
             setRelationshipTypeSettingsOpen={setRelationshipTypeSettingsOpen}
             setRelationshipStatusSettingsOpen={setRelationshipStatusSettingsOpen}
             setIndicatorSettingsOpen={setIndicatorSettingsOpen}
+            setSirSettingsOpen={setSirSettingsOpen}
             setIdeasOpen={setIdeasOpen}
             setSessionNotesOpen={setSessionNotesOpen}
             setDemoTourStepIndex={setDemoTourStepIndex}
@@ -3938,6 +3950,7 @@ useEffect(() => {
             handlePersonContextMenu={handlePersonContextMenu}
             setHoveredPersonId={setHoveredPersonId}
             functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+            sirCategories={sirCategories}
             selectedGroupBounds={selectedGroupBounds}
             beginGroupResize={beginGroupResize}
             applyGroupResize={applyGroupResize}
@@ -4088,6 +4101,10 @@ useEffect(() => {
             updateFunctionalIndicatorUseLetter={updateFunctionalIndicatorUseLetter}
             clearFunctionalIndicatorIcon={clearFunctionalIndicatorIcon}
             removeFunctionalIndicatorDefinition={removeFunctionalIndicatorDefinition}
+            sirSettingsOpen={sirSettingsOpen}
+            setSirSettingsOpen={setSirSettingsOpen}
+            sirCategories={sirCategories}
+            onSaveSirCategories={setSirCategories}
             people={people}
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}

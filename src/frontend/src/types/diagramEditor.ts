@@ -6,6 +6,7 @@
 
 import type {
   FunctionalIndicatorDefinition,
+  SIRCategoryDefinition,
   EmotionalProcessEvent,
   EmotionalLine,
 } from './index';
@@ -19,6 +20,7 @@ export type StoredUserSettings = {
   relationshipTypes?: string[];
   relationshipStatuses?: string[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
+  sirCategories?: SIRCategoryDefinition[];
   autoSaveMinutes?: number;
 };
 

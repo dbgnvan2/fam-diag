@@ -103,6 +103,12 @@ export type Person = {
   events?: EmotionalProcessEvent[];
 };
 
+export type SIRCategoryDefinition = {
+  id: string;
+  name: string;
+  levels: [string, string, string, string, string]; // 5-level HWDID descriptions
+};
+
 export type PaperoScores = {
   resourceful_engagement?: number;
   resourceful_problemSolving?: number;
@@ -201,7 +207,7 @@ export type Triangle = {
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
-export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO';
+export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO' | 'SIR';
 export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';
 export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP' | 'FAMILY' | 'TRIANGLE';
 
