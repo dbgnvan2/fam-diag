@@ -13,6 +13,7 @@ import type {
   PageNote,
 } from '../types';
 import { nanoid } from 'nanoid';
+import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
 import AppRibbon from './AppRibbon';
 import VoiceInputModal from './modals/VoiceInputModal';
@@ -198,6 +199,7 @@ const DiagramEditor = () => {
     triangleId: string;
     draft: EmotionalProcessEvent;
     position: { x: number; y: number };
+    modalTitle?: string;
   } | null>(null);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [familyPropertyModal, setFamilyPropertyModal] = useState<{
@@ -3063,6 +3065,7 @@ useEffect(() => {
   const {
     addPerson,
     addCoach,
+    addAIAgent,
     addParentsForPerson,
     createChildrenForPartnership,
     createAdoptedChildForPartnership,
@@ -3182,6 +3185,7 @@ useEffect(() => {
     setTimelineSelectionIds,
     addPerson,
     addCoach,
+    addAIAgent,
     addParentsForPerson,
     createChildrenForPartnership,
     createAdoptedChildForPartnership,
@@ -3213,7 +3217,8 @@ useEffect(() => {
   const openTrianglePropertyModal = (
     triangleId: string,
     seed: Partial<EmotionalProcessEvent>,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    modalTitle?: string
   ) => {
     const triangle = triangles.find((t) => t.id === triangleId);
     if (!triangle) return;
@@ -3221,9 +3226,12 @@ useEffect(() => {
     const person2 = people.find((p) => p.id === triangle.person2_id);
     const person3 = people.find((p) => p.id === triangle.person3_id);
     const today = new Date().toISOString().slice(0, 10);
+    const sub = seed?.subtype || 'Functioning';
+    const resolvedTitle = modalTitle || ['Triangle', seed?.category || 'Triangle', sub].filter(Boolean).join(' ');
     setTrianglePropertyModal({
       triangleId,
       position,
+      modalTitle: resolvedTitle,
       draft: {
         date: today,
         startDate: today,
@@ -3301,10 +3309,16 @@ useEffect(() => {
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
+    const eType = event.eventType || 'FAMILY';
+    const typeLabel = EVENT_TYPE_LABELS[eType as EventType] || eType;
+    const cat = event.category || '';
+    const sub = event.subtype || '';
+    const editTitle = ['Edit', typeLabel, cat, sub].filter(Boolean).join(' ');
     setFamilyPropertyModal({
       partnershipId,
       position,
       editingEventId: eventId,
+      modalTitle: editTitle,
       draft: { ...event },
     });
   };
@@ -3396,7 +3410,7 @@ useEffect(() => {
   };
 
   const handleFamilyAddGenericEvent = (partnershipId: string, position: { x: number; y: number }) => {
-    openFamilyPropertyModal(partnershipId, { eventType: 'FAMILY' as EventType, eventClass: 'relationship' }, position);
+    openFamilyPropertyModal(partnershipId, { eventType: 'FAMILY' as EventType, eventClass: 'relationship' }, position, 'Family Add Event');
   };
 
   const {
@@ -3908,7 +3922,8 @@ useEffect(() => {
                   frequency: 1,
                   impact: 1,
                 },
-                position
+                position,
+                ['Family', category, subtype].filter(Boolean).join(' ')
               )
             }
             onAddFamilyEvent={handleFamilyAddGenericEvent}
@@ -3970,11 +3985,13 @@ useEffect(() => {
             ensureSymptomDefinition={ensureSymptomDefinition}
             onSymptomBadgeClick={(person, group, x, y) => {
               const found = people.find((p) => p.id === person.id);
+              const groupTitle = group.charAt(0).toUpperCase() + group.slice(1);
               if (found) openContextualEventCreator(
                 { type: 'person', id: found.id },
                 found,
                 { eventType: 'SYMPTOM', category: group },
-                { x, y }
+                { x, y },
+                `Person Symptom ${groupTitle}`
               );
             }}
             onSiblingSquareClick={(person, x, y) => openPersonSectionPopup(person, 'sibling', x, y)}
@@ -3989,7 +4006,9 @@ useEffect(() => {
                   category: 'Emotional Autonomy',
                   eventClass: 'emotional-pattern',
                   status: 'ongoing',
-                }
+                },
+                undefined,
+                'Person Emotional Autonomy'
               );
             }}
           />
@@ -4165,6 +4184,7 @@ useEffect(() => {
             eventCategories={eventCategories}
             symptomTypeOptions={[]}
             resolvedEventClass="emotional-pattern"
+            modalTitle={trianglePropertyModal.modalTitle}
             onChange={(field, value) =>
               setTrianglePropertyModal((prev) =>
                 prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev

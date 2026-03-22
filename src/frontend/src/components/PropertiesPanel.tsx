@@ -23,6 +23,7 @@ import PersonNameSection from './sections/PersonNameSection';
 import PersonDatesSection from './sections/PersonDatesSection';
 import PersonFormatSection from './sections/PersonFormatSection';
 import PersonFOOSection from './sections/PersonFOOSection';
+import PersonPaperoSection from './sections/PersonPaperoSection';
 import PersonSiblingSection from './sections/PersonSiblingSection';
 import PartnershipPropertiesSection from './sections/PartnershipPropertiesSection';
 import EPLPropertiesSection from './sections/EPLPropertiesSection';
@@ -148,11 +149,12 @@ const emotionalLineStyleLevelFor = (
       'conflict-double',
     ],
     projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
+    'open-connection': ['open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5'],
   };
   const index = lineStyleValues[relationshipType].indexOf(lineStyle);
   return index >= 0 ? index + 1 : 0;
 };
-const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns', { title: string; body: string }> = {
+const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' | 'papero', { title: string; body: string }> = {
   properties: {
     title: 'Person Tab Help',
     body:
@@ -173,13 +175,18 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns',
     body:
       'The Patterns tab lists all emotional patterns (fusion, distance, conflict, cutoff, projection) connected to this person. Click a pattern to open its full properties.',
   },
+  papero: {
+    title: 'Papero Assessment Help',
+    body:
+      'The Papero Assessment tab captures the Family Unit Response to Challenge Framework (adapted from Dr Dan Papero). Rate each topic on a 1-5 continuum from low functioning to high functioning. Click the "?" button for detailed level descriptions.',
+  },
 };
 const toTitleCase = (value: string) =>
   value.replace(/\b\w/g, (char) => char.toUpperCase());
 const normalizePersonEventDate = (value?: string) =>
   value && DATE_PATTERN.test(value) ? value : new Date().toISOString().slice(0, 10);
 const getBirthSexLabel = (value?: Person['birthSex']) =>
-  value === 'male' ? 'Male' : value === 'intersex' ? 'Intersex' : 'Female';
+  value === 'male' ? 'Male' : value === 'intersex' ? 'Intersex' : value === 'ai-agent' ? 'AI Agent' : 'Female';
 const getGenderIdentityLabel = (value?: Person['genderIdentity']) => {
   if (value === 'masculine') return 'Masculine';
   if (value === 'nonbinary') return 'Non-Binary';
@@ -187,7 +194,7 @@ const getGenderIdentityLabel = (value?: Person['genderIdentity']) => {
   return 'Feminine';
 };
 const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
-  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' ? 'nonbinary' : 'feminine';
+  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' || birthSex === 'ai-agent' ? 'nonbinary' : 'feminine';
 const cloneEventForPerson = (
   base: EmotionalProcessEvent,
   personName: string,
@@ -374,7 +381,7 @@ const PropertiesPanel = ({
     null
   );
   const [eventModalTitle, setEventModalTitle] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns'>('properties');
+  const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero'>('properties');
   const [activeFamilyTab, setActiveFamilyTab] = useState<'family' | 'triangles' | 'stressors' | 'events'>('family');
   const [activePersonSection, setActivePersonSection] = useState<
     'name' | 'dates' | 'format' | 'sibling' | 'foo'
@@ -382,7 +389,7 @@ const PropertiesPanel = ({
   const [activeSiblingSubtab, setActiveSiblingSubtab] = useState<
     'override' | 'position' | 'compatibility'
   >('override');
-  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | null>(null);
+  const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | null>(null);
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
   const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
@@ -444,6 +451,8 @@ const PropertiesPanel = ({
       ? 'Symptoms'
       : activeTab === 'patterns'
       ? 'Patterns'
+      : activeTab === 'papero'
+      ? 'Papero'
       : 'Events';
   const partnershipTypeOptions = useMemo(() => {
     const options = [...relationshipTypes, ...Object.keys(RELATIONSHIP_TYPE_STATUS_ROWS)];
@@ -872,6 +881,7 @@ const PropertiesPanel = ({
       'conflict-double',
     ],
     projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
+    'open-connection': ['open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5'],
   };
 
   const updateEmotionalDraftState = (updates: Partial<EmotionalLine>) => {
@@ -947,6 +957,8 @@ const PropertiesPanel = ({
       startDate: dateValue,
       category: 'Individual',
       eventType: 'NODAL' as const,
+      anchorType: 'PERSON' as const,
+      anchorId: person.id,
       status: 'discrete' as const,
       subtype: PERSON_DATE_LABELS[field],
       intensity: 0,
@@ -979,6 +991,8 @@ const PropertiesPanel = ({
       startDate: normalizedDate,
       category: 'Individual',
       eventType: 'NODAL' as const,
+      anchorType: 'PERSON' as const,
+      anchorId: person.id,
       status: 'discrete' as const,
       subtype,
       intensity: 0,
@@ -1007,8 +1021,11 @@ const PropertiesPanel = ({
     return {
       id: createEventId(),
       date: dateValue,
+      startDate: dateValue,
       category: toTitleCase(partnership.relationshipType),
       eventType: 'NODAL' as const,
+      anchorType: 'RELATIONSHIP_PRL' as const,
+      anchorId: partnership.id,
       status: 'discrete' as const,
       subtype: label,
       intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(status)] ?? 0,
@@ -1141,6 +1158,8 @@ const PropertiesPanel = ({
           startDate: personDraft.adoptionDate,
           category: 'Individual',
           eventType: 'NODAL' as const,
+          anchorType: 'PERSON' as const,
+          anchorId: selectedPerson.id,
           status: 'discrete' as const,
           subtype: 'Adoption Date',
           intensity: 0,
@@ -1232,6 +1251,8 @@ const PropertiesPanel = ({
         startDate: today,
         category: toTitleCase(partnershipDraft.relationshipType),
         eventType: 'NODAL' as const,
+        anchorType: 'RELATIONSHIP_PRL' as const,
+        anchorId: selectedPartnership.id,
         status: 'discrete' as const,
         subtype: statusLabel,
         intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(partnershipDraft.relationshipStatus)] ?? 0,
@@ -1303,7 +1324,7 @@ const PropertiesPanel = ({
     if (!selectedEmotionalLine || !emotionalDraft) return false;
     return EMOTIONAL_STRING_FIELDS.some((field) =>
       stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
-    );
+    ) || emotionalDraft.person1_id !== selectedEmotionalLine.person1_id;
   }, [selectedEmotionalLine, emotionalDraft]);
   const emotionalMetricDirty = useMemo(() => {
     if (!selectedEmotionalLine) return false;
@@ -1343,6 +1364,10 @@ const PropertiesPanel = ({
         (updates as any)[field] = value && value !== '' ? value : undefined;
       }
     });
+    if (emotionalDraft.person1_id !== selectedEmotionalLine.person1_id) {
+      updates.person1_id = emotionalDraft.person1_id;
+      updates.person2_id = emotionalDraft.person2_id;
+    }
     const newEvents: EmotionalProcessEvent[] = [];
     (['startDate', 'endDate'] as EmotionalDateField[]).forEach((field) => {
       const prev = selectedEmotionalLine[field] ?? '';
@@ -1680,16 +1705,20 @@ const PropertiesPanel = ({
     selectedItem,
   ]);
 
-  const openNewEvent = (seed?: Partial<EmotionalProcessEvent> | null) => {
+  const openNewEvent = (seed?: Partial<EmotionalProcessEvent> | null, modalTitle?: string) => {
     const eventType = (seed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, seed));
     setEventModalPosition(openNewEventPosition || null);
-    setEventModalTitle(undefined);
+    setEventModalTitle(modalTitle || undefined);
     setEventModalOpen(true);
   };
 
   const openEditEvent = (event: EmotionalProcessEvent) => {
     const eType = inferEventType(event);
+    const typeLabel = EVENT_TYPE_LABELS[eType] || eType;
+    const cat = event.category || '';
+    const sub = event.symptomType || event.subtype || '';
+    const editTitle = ['Edit', typeLabel, cat, sub].filter(Boolean).join(' ');
     setEventDraft({
       ...event,
       category: event.category || eventCategories[0] || '',
@@ -1712,7 +1741,7 @@ const PropertiesPanel = ({
       eventClass: event.eventClass || resolveEventClass(),
     });
     setEventModalPosition(null);
-    setEventModalTitle(undefined);
+    setEventModalTitle(editTitle);
     setEventModalOpen(true);
   };
 
@@ -2048,15 +2077,23 @@ const PropertiesPanel = ({
             onClick={onClose}
             aria-label="Close person section popup"
             style={{
-              border: '1px solid #c3cad8',
-              background: '#fff',
-              borderRadius: 6,
-              cursor: 'pointer',
               width: 28,
               height: 28,
+              borderRadius: 6,
+              border: 'none',
+              background: '#c0392b',
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 700,
+              lineHeight: 1,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
             }}
           >
-            ×
+            ✕
           </button>
         </div>
         {renderActivePersonSection()}
@@ -2100,15 +2137,24 @@ const PropertiesPanel = ({
             onClick={onClose}
             aria-label="Close relationship section popup"
             style={{
-              border: '1px solid #c3cad8',
-              background: '#fff',
-              borderRadius: 6,
-              cursor: 'pointer',
               width: 28,
               height: 28,
+              borderRadius: 6,
+              border: 'none',
+              background: '#c0392b',
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 700,
+              lineHeight: 1,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              flexShrink: 0,
             }}
           >
-            ×
+            ✕
           </button>
         </div>
         <div style={{ marginTop: 10 }}>
@@ -2188,7 +2234,7 @@ const PropertiesPanel = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
+          <button onClick={onClose} aria-label="Close" style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: '#c0392b', color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Family Function Facts</div>
             <div style={{ fontSize: 11, color: '#555' }}>Family</div>
@@ -2322,7 +2368,7 @@ const PropertiesPanel = ({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16 }}>X</button>
+        <button onClick={onClose} aria-label="Close" style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: '#c0392b', color: '#fff', fontSize: 18, fontWeight: 700, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{panelTitle}</div>
           <div style={{ fontSize: 11, color: '#555' }}>{termLabel()}</div>
@@ -2330,8 +2376,8 @@ const PropertiesPanel = ({
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'nowrap' }}>
         {(() => {
-          const topTabs: Array<'properties' | 'functional' | 'events' | 'patterns'> = isPerson
-            ? ['properties', 'patterns', 'functional', 'events']
+          const topTabs: Array<'properties' | 'functional' | 'events' | 'patterns' | 'papero'> = isPerson
+            ? ['properties', 'patterns', 'functional', 'papero', 'events']
             : ['properties', 'functional', 'events'];
           return (
         <div
@@ -2360,6 +2406,8 @@ const PropertiesPanel = ({
                 ? 'Symptoms'
                 : tab === 'patterns'
                 ? 'Patterns'
+                : tab === 'papero'
+                ? 'Papero'
                 : 'Events';
             return (
               <button
@@ -2461,12 +2509,15 @@ const PropertiesPanel = ({
             emotionalIntensityDraft={emotionalIntensityDraft}
             emotionalImpactDraft={emotionalImpactDraft}
             emotionalFrequencyDraft={emotionalFrequencyDraft}
+            person1Name={people.find((p) => p.id === emotionalDraft.person1_id)?.name || 'Unknown'}
+            person2Name={people.find((p) => p.id === emotionalDraft.person2_id)?.name || 'Unknown'}
             onSelectChange={handleEmotionalLineChange}
             onInputChange={handleEmotionalLineInputChange}
             onIntensityLevelChange={applyEmotionalIntensityLevel}
             onImpactChange={(val) => { setEmotionalImpactDraft(val); setEmotionalPristine(false); }}
             onFrequencyChange={(val) => { setEmotionalFrequencyDraft(val); setEmotionalPristine(false); }}
             onColorPresetSelect={(hex) => { updateEmotionalDraftState({ color: hex }); setEmotionalPristine(false); }}
+            onSwapPersons={() => { updateEmotionalDraftState({ person1_id: emotionalDraft.person2_id, person2_id: emotionalDraft.person1_id }); setEmotionalPristine(false); }}
             triangleId={triangleId}
             triangleColorDraft={triangleColorDraft}
             triangleIntensityDraft={triangleIntensityDraft}
@@ -2498,7 +2549,7 @@ const PropertiesPanel = ({
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <strong>Symptoms</strong>
-              <button type="button" onClick={() => openNewEvent({ eventType: 'SYMPTOM' })} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Symptom</button>
+              <button type="button" onClick={() => openNewEvent({ eventType: 'SYMPTOM' }, 'Person Add Symptom')} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 4, border: '1px solid #4b68a6', background: '#f0f4ff', color: '#23324a', cursor: 'pointer' }}>+ Add Symptom</button>
             </div>
             {symptomRows.length === 0 ? (
               <div style={{ color: '#7a8aaa', fontSize: 13, padding: '8px 0' }}>No symptoms recorded yet.</div>
@@ -2520,7 +2571,7 @@ const PropertiesPanel = ({
                     leftBorderColor={categoryBorderColors[symptom.category] || '#4b68a6'}
                     onEdit={() => {
                       if (sourceEvent) { openEditEvent(sourceEvent); return; }
-                      openNewEvent({ eventType: 'SYMPTOM', category: symptom.category, symptomType: symptom.type });
+                      openNewEvent({ eventType: 'SYMPTOM', category: symptom.category, symptomType: symptom.type }, `Person Add Symptom ${toTitleCase(symptom.category)}`);
                     }}
                     onDelete={
                       symptom.sourceEventId
@@ -2554,6 +2605,7 @@ const PropertiesPanel = ({
               cutoff: 'Cutoff',
               conflict: 'Conflict',
               projection: 'Projection',
+              'open-connection': 'Open Connection',
             };
             if (connected.length === 0) {
               return (
@@ -2602,13 +2654,25 @@ const PropertiesPanel = ({
           })()}
         </div>
       )}
+      {activeTab === 'papero' && isPerson && selectedPerson && personDraft && (
+        <PersonPaperoSection
+          personDraft={personDraft}
+          selectedPerson={selectedPerson}
+          onUpdatePerson={onUpdatePerson}
+          updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
+          onSetPersonPristine={setPersonPristine}
+        />
+      )}
       {activeTab === 'events' && (
         <EventsSection
           allEvents={getEvents()}
           currentAnchorType={resolveAnchorType()}
           currentAnchorId={selectedItem.id}
           addEventButtonLabel="+ Add Event"
-          onAddEvent={() => openNewEvent()}
+          onAddEvent={() => {
+            const entityLabel = isPerson ? 'Person' : isPartnership ? 'Partnership' : isEmotionalLine ? 'Emotional Pattern' : '';
+            openNewEvent(null, `${entityLabel} Add Event`);
+          }}
           onEditEvent={openEditEvent}
           onDeleteEvent={deleteEvent}
           onLinkEvent={() => {}}
@@ -2637,6 +2701,7 @@ const PropertiesPanel = ({
       <EmotionalPatternModal
         open={!!editingPatternDraft}
         draft={editingPatternDraft}
+        people={people}
         onUpdate={(updates) => setEditingPatternDraft((prev) => prev ? { ...prev, ...updates } : prev)}
         onCancel={() => { setEditingPatternDraft(null); setEditingPatternLineId(null); }}
         onSave={() => {
@@ -2646,6 +2711,8 @@ const PropertiesPanel = ({
               ? editingPatternDraft.lineStyle
               : (validStyles[0] as EmotionalLine['lineStyle']);
             onUpdateEmotionalLine(editingPatternLineId, {
+              person1_id: editingPatternDraft.person1Id,
+              person2_id: editingPatternDraft.person2Id,
               relationshipType: editingPatternDraft.relationshipType,
               status: editingPatternDraft.status,
               lineStyle,

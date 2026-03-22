@@ -44,6 +44,15 @@ const PROJECTION_INTENSITY_HELP = [
   'Severe – The intensity of the attachment between child and parents is so severe the child fails to lift off from parents or substitute institution. A chronic fixed triangle with the parents contributes to a schizophrenic level of impairment.',
 ];
 const PROJECTION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
+const OPEN_CONNECTION_INTENSITY_HELP = [
+  'Light – A basic openness exists between the two people. Communication is functional but limited in depth.',
+  'Moderate – Regular meaningful exchange. Both people are willing to share personal information and listen without judgment.',
+  'Strong – Deep trust and transparency. Both parties can share vulnerabilities and provide mutual support consistently.',
+  'Heavy – A highly connected relationship with significant emotional investment. Each person is deeply attuned to the other.',
+  'Heavy Max – The fullest expression of open connection. Complete transparency, mutual respect, and deep emotional attunement.',
+];
+const OPEN_CONNECTION_INTENSITY_LEVEL_LABELS = ['Light', 'Moderate', 'Strong', 'Heavy', 'Heavy Max'];
+
 const CUTOFF_INTENSITY_HELP = [
   '0–20: Extreme to Vulnerable — Total or near-total isolation. Contact is rare, strictly superficial, and highly reactive. Any stress may trigger a complete cut-off.',
   '20–40: Distanced Connectivity — Personal topics are avoided; triangling is the primary coping mechanism. Families drift apart and only rally briefly during crises.',
@@ -111,6 +120,14 @@ const getIntensityChooserConfig = (relationshipType: EmotionalLine['relationship
       buttonLabel: 'Family projection intensity level help',
     };
   }
+  if (relationshipType === 'open-connection') {
+    return {
+      title: 'Open Connection Intensity Scale',
+      helpLines: OPEN_CONNECTION_INTENSITY_HELP,
+      labels: OPEN_CONNECTION_INTENSITY_LEVEL_LABELS,
+      buttonLabel: 'Open connection intensity level help',
+    };
+  }
   return null;
 };
 
@@ -119,12 +136,15 @@ interface EPLPropertiesSectionProps {
   emotionalIntensityDraft: number;
   emotionalImpactDraft: number;
   emotionalFrequencyDraft: number;
+  person1Name?: string;
+  person2Name?: string;
   onSelectChange: React.ChangeEventHandler<HTMLSelectElement>;
   onInputChange: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onIntensityLevelChange: (level: number) => void;
   onImpactChange: (impact: number) => void;
   onFrequencyChange: (frequency: number) => void;
   onColorPresetSelect: (color: string) => void;
+  onSwapPersons?: () => void;
   triangleId?: string;
   triangleColorDraft?: string;
   triangleIntensityDraft?: 'low' | 'medium' | 'high';
@@ -137,12 +157,15 @@ const EPLPropertiesSection = ({
   emotionalIntensityDraft,
   emotionalImpactDraft,
   emotionalFrequencyDraft,
+  person1Name,
+  person2Name,
   onSelectChange,
   onInputChange,
   onIntensityLevelChange,
   onImpactChange,
   onFrequencyChange,
   onColorPresetSelect,
+  onSwapPersons,
   triangleId,
   triangleColorDraft,
   triangleIntensityDraft,
@@ -159,6 +182,38 @@ const EPLPropertiesSection = ({
 
   return (
     <div>
+      {person1Name && person2Name && (
+        <>
+          <div style={rowStyle}>
+            <span style={labelStyle}>From:</span>
+            <span style={{ fontWeight: 600, color: '#1f3248' }}>{person1Name}</span>
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Towards:</span>
+            <span style={{ fontWeight: 600, color: '#1f3248' }}>{person2Name}</span>
+            {onSwapPersons && (emotionalDraft.relationshipType === 'projection' || emotionalDraft.relationshipType === 'open-connection') && (
+              <button
+                type="button"
+                onClick={onSwapPersons}
+                aria-label="Swap From and Towards"
+                style={{
+                  border: '1px solid #c3cad8',
+                  background: '#f5f7fa',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#38557a',
+                  marginLeft: 4,
+                }}
+              >
+                ⇄ Swap
+              </button>
+            )}
+          </div>
+        </>
+      )}
       <div style={rowStyle}>
         <label htmlFor="relationshipType" style={labelStyle}>Type:</label>
         <select
@@ -173,6 +228,7 @@ const EPLPropertiesSection = ({
           <option value="cutoff">Cutoff</option>
           <option value="conflict">Conflict</option>
           <option value="projection">Projection</option>
+          <option value="open-connection">Open Connection</option>
         </select>
       </div>
       <div style={rowStyle}>
@@ -203,15 +259,26 @@ const EPLPropertiesSection = ({
         </select>
       </div>
       <div style={rowStyle}>
-        <label htmlFor="startDate" style={labelStyle}>Start:</label>
-        <DatePickerField
-          id="startDate"
-          name="startDate"
-          value={emotionalDraft.startDate}
-          placeholder="YYYY-MM-DD"
-          onChange={onInputChange}
-          pickerLabel="Select emotional line start date"
-        />
+        <label htmlFor="startDate" style={labelStyle}>Dates:</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <DatePickerField
+            id="startDate"
+            name="startDate"
+            value={emotionalDraft.startDate}
+            placeholder="Start"
+            onChange={onInputChange}
+            pickerLabel="Select emotional line start date"
+          />
+          <span style={{ color: '#7a8aaa', fontSize: 13 }}>to</span>
+          <DatePickerField
+            id="endDate"
+            name="endDate"
+            value={emotionalDraft.endDate}
+            placeholder="End"
+            onChange={onInputChange}
+            pickerLabel="Select emotional line end date"
+          />
+        </div>
       </div>
       <div style={rowStyle}>
         <label htmlFor="emotionalIntensityLevel" style={labelStyle}>Intensity Level:</label>
@@ -315,17 +382,6 @@ const EPLPropertiesSection = ({
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
-      </div>
-      <div style={rowStyle}>
-        <label htmlFor="endDate" style={labelStyle}>End Date:</label>
-        <DatePickerField
-          id="endDate"
-          name="endDate"
-          value={emotionalDraft.endDate}
-          placeholder="YYYY-MM-DD"
-          onChange={onInputChange}
-          pickerLabel="Select emotional line end date"
-        />
       </div>
       <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
         <label htmlFor="emotionalNotes" style={{ ...labelStyle, marginTop: 6 }}>Notes:</label>

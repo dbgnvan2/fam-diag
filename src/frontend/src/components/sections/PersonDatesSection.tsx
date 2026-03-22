@@ -17,7 +17,7 @@ const sectionCardStyle: React.CSSProperties = {
 };
 
 const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
-  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' ? 'nonbinary' : 'feminine';
+  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' || birthSex === 'ai-agent' ? 'nonbinary' : 'feminine';
 
 interface PersonDatesSectionProps {
   personDraft: Person;
@@ -73,6 +73,7 @@ const PersonDatesSection = ({ personDraft, onChange }: PersonDatesSectionProps) 
           <option value="female">Female</option>
           <option value="male">Male</option>
           <option value="intersex">Intersex</option>
+          <option value="ai-agent">AI Agent</option>
         </select>
       </div>
       <div style={rowStyle}>

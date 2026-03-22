@@ -33,6 +33,7 @@ const DEFAULT_FOREGROUND_COLOR = '#000000';
 const DEFAULT_MALE_FILL_COLOR = '#ADD8E6';
 const DEFAULT_FEMALE_FILL_COLOR = '#FFC0CB';
 const DEFAULT_INTERSEX_FILL_COLOR = '#D9D9D9';
+const DEFAULT_AI_AGENT_FILL_COLOR = '#C5B3E6'; // light purple/lavender
 const BASE_STROKE_WIDTH = 2;
 type IndicatorEntry = PersonFunctionalIndicator & { definition: FunctionalIndicatorDefinition };
 
@@ -165,6 +166,7 @@ const deriveGenderSymbol = (person: Person): GenderSymbol => {
     if (person.genderIdentity === 'agender') return 'agender';
     return person.genderIdentity === 'feminine' ? 'female_trans' : 'male_trans';
   }
+  if (person.birthSex === 'ai-agent' || person.gender === 'ai-agent') return 'ai_agent';
   if (person.gender === 'male') return 'male_cis';
   if (person.gender === 'intersex') return 'intersex';
   return 'female_cis';
@@ -172,6 +174,7 @@ const deriveGenderSymbol = (person: Person): GenderSymbol => {
 
 const deriveBirthSex = (person: Person, symbol: GenderSymbol): BirthSex => {
   if (person.birthSex) return person.birthSex;
+  if (symbol === 'ai_agent') return 'ai-agent';
   if (symbol.startsWith('intersex_') || symbol === 'intersex') return 'intersex';
   if (person.gender === 'male') return 'male';
   return 'female';
@@ -224,6 +227,8 @@ const PersonNode = ({
       ? DEFAULT_MALE_FILL_COLOR
       : birthSex === 'female'
       ? DEFAULT_FEMALE_FILL_COLOR
+      : birthSex === 'ai-agent'
+      ? DEFAULT_AI_AGENT_FILL_COLOR
       : DEFAULT_INTERSEX_FILL_COLOR;
   const shapeFillColor = foregroundCustomEnabled
     ? person.foregroundColor ?? defaultShapeFillColor
@@ -306,7 +311,7 @@ const PersonNode = ({
 
   const renderAliveBody = () => {
     const hybridStroke = strokeColor;
-    const renderShape = (kind: 'circle' | 'square' | 'triangle-up' | 'triangle-down' | 'star') => {
+    const renderShape = (kind: 'circle' | 'square' | 'triangle-up' | 'triangle-down' | 'star' | 'hexagon') => {
       if (kind === 'circle') {
         return <Circle radius={shapeSize / 2} fill={shapeFillColor} stroke={hybridStroke} strokeWidth={strokeWidth} />;
       }
@@ -317,6 +322,24 @@ const PersonNode = ({
             height={shapeSize}
             offsetX={shapeSize / 2}
             offsetY={shapeSize / 2}
+            fill={shapeFillColor}
+            stroke={hybridStroke}
+            strokeWidth={strokeWidth}
+          />
+        );
+      }
+      if (kind === 'hexagon') {
+        const r = shapeSize / 2;
+        const hexPoints: number[] = [];
+        for (let i = 0; i < 6; i++) {
+          const angleDeg = 60 * i - 30; // flat-top hexagon
+          const angleRad = (Math.PI / 180) * angleDeg;
+          hexPoints.push(r * Math.cos(angleRad), r * Math.sin(angleRad));
+        }
+        return (
+          <Line
+            points={hexPoints}
+            closed
             fill={shapeFillColor}
             stroke={hybridStroke}
             strokeWidth={strokeWidth}
@@ -372,8 +395,8 @@ const PersonNode = ({
         />
       );
     };
-    const birthShape: 'circle' | 'square' | 'triangle-up' =
-      birthSex === 'female' ? 'circle' : birthSex === 'male' ? 'square' : 'triangle-up';
+    const birthShape: 'circle' | 'square' | 'triangle-up' | 'hexagon' =
+      birthSex === 'female' ? 'circle' : birthSex === 'male' ? 'square' : birthSex === 'ai-agent' ? 'hexagon' : 'triangle-up';
     const identityShape: 'circle' | 'square' | 'triangle-down' | 'star' =
       genderIdentity === 'feminine'
         ? 'circle'
@@ -386,7 +409,8 @@ const PersonNode = ({
     const isCis =
       (birthSex === 'female' && genderIdentity === 'feminine') ||
       (birthSex === 'male' && genderIdentity === 'masculine');
-    if (isCis) {
+    // AI agents always render as a single hexagon (no split shape)
+    if (isCis || birthSex === 'ai-agent') {
       return renderShape(birthShape);
     }
 

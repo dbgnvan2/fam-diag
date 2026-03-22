@@ -9,7 +9,7 @@ export type PersonFunctionalIndicator = {
   lastUpdatedAt?: number;
 };
 
-export type BirthSex = 'female' | 'male' | 'intersex';
+export type BirthSex = 'female' | 'male' | 'intersex' | 'ai-agent';
 export type GenderIdentity = 'feminine' | 'masculine' | 'nonbinary' | 'agender';
 export type SymptomGroup = 'physical' | 'emotional' | 'social';
 
@@ -24,7 +24,8 @@ export type GenderSymbol =
   | 'intersex_feminine'
   | 'intersex_masculine'
   | 'intersex_nonbinary'
-  | 'intersex_agender';
+  | 'intersex_agender'
+  | 'ai_agent';
 
 export type FunctionalIndicatorDefinition = {
   id: string;
@@ -98,7 +99,27 @@ export type Person = {
     desiredOutcome3?: string;
     conceptualization?: string;
   };
+  paperoScores?: PaperoScores;
   events?: EmotionalProcessEvent[];
+};
+
+export type PaperoScores = {
+  resourceful_engagement?: number;
+  resourceful_problemSolving?: number;
+  resourceful_familyAwareness?: number;
+  resourceful_locusOfControl?: number;
+  resourceful_leadership?: number;
+  connectedness_extendedFamily?: number;
+  connectedness_knowledge?: number;
+  connectedness_relationshipQuality?: number;
+  connectedness_openness?: number;
+  tension_anxietyContainment?: number;
+  tension_perceptualFramework?: number;
+  systems_fundamentalQuestions?: number;
+  systems_familyFocus?: number;
+  systems_locusOfChange?: number;
+  goals_achievementGoals?: number;
+  goals_processGoals?: number;
 };
 
 export type Partnership = {
@@ -131,13 +152,13 @@ export type EmotionalLine = {
   startDate?: string;
   endDate?: string;
   status?: 'ongoing' | 'ended';
-  relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict' | 'projection';
-  lineStyle: 
+  relationshipType: 'fusion' | 'distance' | 'cutoff' | 'conflict' | 'projection' | 'open-connection';
+  lineStyle:
     // Fusion
     'fusion-dotted-wide' | 'fusion-dotted-tight' | 'fusion-solid-wide' | 'fusion-solid-tight' | 'fusion-triple' |
     // Projection
     'projection-1' | 'projection-2' | 'projection-3' | 'projection-4' | 'projection-5' |
-    'low' | 'medium' | 'high' | 
+    'low' | 'medium' | 'high' |
     // Distance
     'distance-dotted-wide' | 'distance-dotted-tight' | 'distance-dashed-wide' | 'distance-dashed-tight' | 'distance-long' |
     'dotted' | 'dashed' | 'long-dash' |
@@ -145,7 +166,9 @@ export type EmotionalLine = {
     'cutoff' |
     // Conflict
     'conflict-dotted-wide' | 'conflict-dotted-tight' | 'conflict-solid-wide' | 'conflict-solid-tight' | 'conflict-double' |
-    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth';
+    'solid-saw-tooth' | 'dotted-saw-tooth' | 'double-saw-tooth' |
+    // Open Connection
+    'open-connection-1' | 'open-connection-2' | 'open-connection-3' | 'open-connection-4' | 'open-connection-5';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
   color?: string;
   notes?: string;
@@ -178,7 +201,7 @@ export type Triangle = {
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
-export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE';
+export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO';
 export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';
 export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP' | 'FAMILY' | 'TRIANGLE';
 

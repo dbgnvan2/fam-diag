@@ -68,6 +68,18 @@ export function usePersonOperations({
     return addPerson(x, y, { name: coachName, isCoach: true });
   };
 
+  const addAIAgent = (x: number, y: number) => {
+    const agentCount = people.filter((person) => /^AI Agent(?:\s+\d+)?$/i.test(person.name || '')).length;
+    const agentName = agentCount === 0 ? 'AI Agent' : `AI Agent ${agentCount + 1}`;
+    return addPerson(x, y, {
+      name: agentName,
+      gender: 'ai-agent',
+      birthSex: 'ai-agent',
+      genderIdentity: 'nonbinary',
+      genderSymbol: 'ai_agent',
+    });
+  };
+
   const addParentsForPerson = (
     person: Person,
     options?: { forceBirthParents?: boolean; parentLabelPrefix?: string; parentSize?: number }
@@ -359,6 +371,7 @@ export function usePersonOperations({
   return {
     addPerson,
     addCoach,
+    addAIAgent,
     addParentsForPerson,
     createChildrenForPartnership,
     createAdoptedChildForPartnership,

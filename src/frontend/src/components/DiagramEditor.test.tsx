@@ -21,7 +21,7 @@ describe('DiagramEditor', () => {
         fireEvent.contextMenu(stage);
         expect(screen.getByText('Add Person')).toBeInTheDocument();
         expect(screen.getByText('Add General Note')).toBeInTheDocument();
-        expect(screen.getByText('Add Event...')).toBeInTheDocument();
+        expect(screen.getByText('Add AI Agent')).toBeInTheDocument();
     });
 
     // Note on testing Konva with React Testing Library:

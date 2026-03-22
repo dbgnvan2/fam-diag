@@ -30,6 +30,7 @@ interface UseContextMenuHandlersDeps {
   // From usePersonOperations
   addPerson: (x: number, y: number, overrides?: Partial<Person>) => Person;
   addCoach: (x: number, y: number) => Person;
+  addAIAgent: (x: number, y: number) => Person;
   addParentsForPerson: (person: Person, options?: { forceBirthParents?: boolean; parentLabelPrefix?: string; parentSize?: number }) => void;
   createChildrenForPartnership: (partnershipId: string, variant: 'male' | 'female' | 'twins' | 'triplets' | 'miscarriage' | 'stillbirth') => void;
   createAdoptedChildForPartnership: (partnershipId: string) => void;
@@ -84,6 +85,7 @@ export function useContextMenuHandlers({
   setTimelineSelectionIds,
   addPerson,
   addCoach,
+  addAIAgent,
   addParentsForPerson,
   createChildrenForPartnership,
   createAdoptedChildForPartnership,
@@ -714,41 +716,9 @@ export function useContextMenuHandlers({
             }
         },
         {
-            label: 'Add Event...',
+            label: 'Add AI Agent',
             onClick: () => {
-                const selectedId =
-                  selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null;
-                let targetPerson = selectedId
-                  ? people.find((person) => person.id === selectedId)
-                  : undefined;
-
-                if (!targetPerson) {
-                  const defaultName = people[0]?.name || '';
-                  const userName = prompt(
-                    'Add event for which person? Enter name exactly.',
-                    defaultName
-                  );
-                  if (!userName) {
-                    setContextMenu(null);
-                    return;
-                  }
-                  const lookup = userName.trim().toLowerCase();
-                  targetPerson = people.find(
-                    (person) => (person.name || '').trim().toLowerCase() === lookup
-                  );
-                }
-                if (!targetPerson) {
-                  alert('Person not found. Select one person first or enter an exact name.');
-                  setContextMenu(null);
-                  return;
-                }
-                openContextualEventCreator(
-                  { type: 'person', id: targetPerson.id },
-                  targetPerson,
-                  undefined,
-                  { x: e.evt.clientX, y: e.evt.clientY },
-                  'Add Event'
-                );
+                addAIAgent(canvasPoint.x, canvasPoint.y);
                 setContextMenu(null);
             }
         },

@@ -184,7 +184,7 @@ export const parseTranscriptToDraftDiagram = (
   ) => {
     const a = getPerson(personA);
     const b = getPerson(personB);
-    const directional = relationshipType === 'projection';
+    const directional = relationshipType === 'projection' || relationshipType === 'open-connection';
     const key = directional
       ? `${a.name}->${b.name}::${relationshipType}`
       : [[a.name, b.name].sort().join('::'), relationshipType].join('::');
@@ -195,6 +195,7 @@ export const parseTranscriptToDraftDiagram = (
       cutoff: 'cutoff',
       conflict: 'conflict-dotted-wide',
       projection: 'projection-3',
+      'open-connection': 'open-connection-3',
     };
     emotionalLineDrafts.set(key, {
       person1: a.name,

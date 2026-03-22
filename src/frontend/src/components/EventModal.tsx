@@ -58,7 +58,7 @@ const EventModal = ({
   position,
   popupLeft,
   popupTop,
-  popupMaxHeight,
+  popupMaxHeight: _popupMaxHeight,
   primaryPersonOptions,
   otherPersonOptions,
   symptomTypeOptions,
@@ -157,7 +157,33 @@ const EventModal = ({
           pointerEvents: 'auto',
         }}
       >
-        <h4 style={{ marginTop: 0 }}>{resolvedModalTitle}</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 0, marginBottom: 8 }}>
+          <h4 style={{ margin: 0 }}>{resolvedModalTitle}</h4>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              border: 'none',
+              background: '#c0392b',
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 700,
+              lineHeight: 1,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
 
         {/* Group — read-only when locked (family events), editable dropdown otherwise */}
         <div style={rowStyle}>

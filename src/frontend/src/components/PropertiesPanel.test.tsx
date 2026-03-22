@@ -31,9 +31,9 @@ describe('PropertiesPanel', () => {
             />
         );
 
-        expect(screen.getByLabelText('Start:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Dates:')).toBeInTheDocument();
         expect(screen.getByLabelText('Notes:')).toBeInTheDocument();
-        expect((screen.getByLabelText('Start:') as HTMLInputElement).value).toBe('2024-01-01');
+        expect(screen.getAllByDisplayValue('2024-01-01').length).toBeGreaterThan(0);
         expect(screen.getByDisplayValue('Test notes')).toBeInTheDocument();
     });
 
@@ -843,7 +843,7 @@ describe('PropertiesPanel', () => {
 
         // Clicking the pencil Edit button opens the Event modal
         fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-        expect(screen.getByText('Event')).toBeInTheDocument();
+        expect(screen.getByText('Edit Symptom emotional Alcohol')).toBeInTheDocument();
 
         // Change impact to 4 and save
         const impactSelect = screen.getByLabelText('Impact:');
@@ -889,7 +889,7 @@ describe('PropertiesPanel', () => {
 
         // Clicking the pencil Edit button opens the Event modal
         fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-        expect(screen.getByText('Event')).toBeInTheDocument();
+        expect(screen.getByText('Person Add Symptom Emotional')).toBeInTheDocument();
 
         // Intensity select uses symptom-specific labels
         const intensitySelect = screen.getByLabelText('Intensity:') as HTMLSelectElement;

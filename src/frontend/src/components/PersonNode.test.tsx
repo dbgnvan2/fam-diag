@@ -26,6 +26,35 @@ describe('PersonNode', () => {
         );
     });
 
+    it('renders AI agent as hexagon (6-point closed polygon)', () => {
+        const stageRef = React.createRef<Stage>();
+        const aiAgent: Person = {
+            id: 'ai1',
+            name: 'Claude',
+            x: 0,
+            y: 0,
+            gender: 'ai-agent',
+            birthSex: 'ai-agent',
+            genderIdentity: 'nonbinary',
+            genderSymbol: 'ai_agent',
+            partnerships: [],
+        };
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={aiAgent} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        const stage = stageRef.current;
+        const group = stage.getLayers()[0].getChildren()[0];
+        // Hexagon is a closed Line with 12 numeric values (6 points × 2 coords)
+        const hexagons = group.getChildren().filter(
+            (node: any) => node.getClassName() === 'Line' && node.attrs.closed && node.attrs.points?.length === 12
+        );
+        expect(hexagons.length).toBe(1);
+    });
+
     it('renders miscarriage triangle with cross', () => {
         const stageRef = React.createRef<Stage>();
         const miscarriage: Person = { id: 'p2', name: 'Loss', x: 0, y: 0, partnerships: [], lifeStatus: 'miscarriage' };

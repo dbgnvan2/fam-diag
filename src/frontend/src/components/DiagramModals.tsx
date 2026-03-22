@@ -410,6 +410,7 @@ export default function DiagramModals({
       <EmotionalPatternModal
         open={emotionalPatternModalOpen}
         draft={emotionalPatternDraft}
+        people={people}
         onUpdate={updateEmotionalPatternDraft}
         onCancel={() => { setEmotionalPatternModalOpen(false); setEmotionalPatternDraft(null); }}
         onSave={saveAddEmotionalPattern}

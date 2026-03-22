@@ -40,12 +40,14 @@ interface UseSelectionHandlersDeps {
     target: { type: 'person' | 'partnership' | 'emotional'; id: string },
     targetItem: Person | Partnership | EmotionalLine,
     seed?: Partial<EmotionalProcessEvent>,
-    popupPosition?: { x: number; y: number }
+    popupPosition?: { x: number; y: number },
+    modalTitle?: string
   ) => void;
   openTrianglePropertyModal: (
     triangleId: string,
     seed: Partial<EmotionalProcessEvent>,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    modalTitle?: string
   ) => void;
   removeTriangle: (triangleId: string) => void;
   removeEmotionalLine: (emotionalLineId: string) => void;
@@ -282,7 +284,8 @@ export function useSelectionHandlers({
             frequency: 1,
             impact: 1,
           },
-          pos
+          pos,
+          `Triangle ${label}`
         );
         setContextMenu(null);
       },

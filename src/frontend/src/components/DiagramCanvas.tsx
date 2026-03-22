@@ -657,37 +657,6 @@ export default function DiagramCanvas({
               );
             })}
 
-            {/* Render Emotional Lines */}
-            {(() => {
-              const familyCutoffLineIds = new Set(people.map((p) => p.familyCutoffLineId).filter(Boolean) as string[]);
-              return allEmotionalLines.map((el) => {
-                if (familyCutoffLineIds.has(el.id)) return null; // rendered as arc on child connection
-                if (!emotionalVisibility.get(el.id)) return null;
-                if (isDemoFocusedEmotionalLine(el.id) && !demoBlinkVisible) {
-                  return null;
-                }
-                const person1 = people.find(person => person.id === el.person1_id);
-                const person2 = people.find(person => person.id === el.person2_id);
-                if (!person1 || !person2) return null;
-                if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
-                const sibling = emotionalSiblingMeta.get(el.id);
-
-                return (
-                    <EmotionalLineNode
-                        key={el.id}
-                        emotionalLine={el}
-                        person1={person1}
-                        person2={person2}
-                        isSelected={selectedEmotionalLineId === el.id}
-                        onSelect={handleEmotionalLineSelect}
-                        onContextMenu={handleEmotionalLineContextMenu}
-                        siblingIndex={sibling?.index}
-                        siblingCount={sibling?.count}
-                    />
-                )
-              });
-            })()}
-
             {/* Render Connections */}
             {partnerships.map((p) => {
                 if (!partnershipVisibility.get(p.id)) return null;
@@ -736,7 +705,38 @@ export default function DiagramCanvas({
                 )
             })}
 
-            {/* Render People */}
+            {/* Render Emotional Lines — above partnerships, below people */}
+            {(() => {
+              const familyCutoffLineIds = new Set(people.map((p) => p.familyCutoffLineId).filter(Boolean) as string[]);
+              return allEmotionalLines.map((el) => {
+                if (familyCutoffLineIds.has(el.id)) return null; // rendered as arc on child connection
+                if (!emotionalVisibility.get(el.id)) return null;
+                if (isDemoFocusedEmotionalLine(el.id) && !demoBlinkVisible) {
+                  return null;
+                }
+                const person1 = people.find(person => person.id === el.person1_id);
+                const person2 = people.find(person => person.id === el.person2_id);
+                if (!person1 || !person2) return null;
+                if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
+                const sibling = emotionalSiblingMeta.get(el.id);
+
+                return (
+                    <EmotionalLineNode
+                        key={el.id}
+                        emotionalLine={el}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={selectedEmotionalLineId === el.id}
+                        onSelect={handleEmotionalLineSelect}
+                        onContextMenu={handleEmotionalLineContextMenu}
+                        siblingIndex={sibling?.index}
+                        siblingCount={sibling?.count}
+                    />
+                )
+              });
+            })()}
+
+            {/* Render People — top layer */}
             {people.map((person) => {
               if (!personVisibility.get(person.id)) return null;
               if (isDemoFocusedPerson(person.id) && !demoBlinkVisible) {

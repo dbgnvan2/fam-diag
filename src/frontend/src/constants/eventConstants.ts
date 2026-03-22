@@ -21,6 +21,7 @@ export const EVENT_CATEGORIES: Record<EventType, string[]> = {
   FAMILY: ['Triangles', 'Stress'],
   FOO: ['Family Stability', 'Family Intactness', 'Triangle Flexibility', 'Triangle Stress Response'],
   TRIANGLE: ['Primary', 'Secondary'],
+  PAPERO: ['Resourceful', 'Connectedness & Integration', 'Tension Management', 'Systems Thinking', 'Goal Structure'],
 };
 
 // ─── Subtype options per EventType+Category (only where subtypes exist) ──────
@@ -28,6 +29,13 @@ export const EVENT_SUBTYPES: Partial<Record<EventType, Record<string, string[]>>
   FAMILY: {
     Triangles: ['Functioning', 'Flexibility', 'Stress Response'],
     Stress: ['Emotional Reactivity', 'Adaptability', 'Family Stressor', 'Chronic Stress'],
+  },
+  PAPERO: {
+    Resourceful: ['Engagement with Issue', 'Problem Solving Activity', 'Family Awareness of Role', 'Locus of Control', 'Leadership'],
+    'Connectedness & Integration': ['Extended Family Contact', 'Knowledge of Situations', 'Relationship Quality', 'Openness & Tolerance'],
+    'Tension Management': ['Anxiety Containment', 'Perceptual Framework'],
+    'Systems Thinking': ['Fundamental Questions', "Family's Focus", 'Locus of Change'],
+    'Goal Structure': ['Achievement Goals', 'Process Goals'],
   },
 };
 
@@ -171,6 +179,218 @@ const FAMILY_INTACTNESS_SCALE: IntensityScale = {
   ],
 };
 
+// ─── Papero Assessment scales ─────────────────────────────────────────────────
+
+// Category: Resourceful
+const PAPERO_ENGAGEMENT_SCALE: IntensityScale = {
+  labels: ['Avoidant', 'Mostly Avoidant', 'Selective Engagement', 'Generally Engaged', 'Fully Engaged'],
+  help: [
+    'Avoidant – avoids addressing issues; passes endurance to others.',
+    'Mostly Avoidant – tends to avoid most issues; limited willingness to engage.',
+    'Selective Engagement – engages with some issues but avoids others.',
+    'Generally Engaged – engages with most issues; active involvement.',
+    'Fully Engaged – consistently engaged; takes ownership of issues.',
+  ],
+};
+const PAPERO_PROBLEM_SOLVING_SCALE: IntensityScale = {
+  labels: ['Passive Endurance', 'Minimal Effort', 'Some Problem Solving', 'Active Problem Solving', 'Consistent Problem Solving'],
+  help: [
+    'Passive Endurance – no active problem solving; endures rather than addresses.',
+    'Minimal Effort – very limited problem solving activity.',
+    'Some Problem Solving – engages in problem solving activity sometimes.',
+    'Active Problem Solving – regularly applies problem solving activity.',
+    'Consistent Problem Solving – persistent, effective problem solving activity.',
+  ],
+};
+const PAPERO_FAMILY_AWARENESS_SCALE: IntensityScale = {
+  labels: ["Individual's Problem", 'Limited Awareness', 'Partial Family Awareness', 'Broad Family Awareness', 'All Involved'],
+  help: [
+    "Individual's Problem – seen as one person's problem; no family role awareness.",
+    'Limited Awareness – minimal recognition of family roles in the issue.',
+    'Partial Family Awareness – some family members aware of their roles.',
+    'Broad Family Awareness – most family members aware and acknowledging roles.',
+    'All Involved – full family awareness of roles; collective engagement.',
+  ],
+};
+const PAPERO_LOCUS_OF_CONTROL_SCALE: IntensityScale = {
+  labels: ['Outsiders Should Handle', 'Mostly External', 'Mixed Internal/External', 'Mostly Internal', '"What Can I Do?"'],
+  help: [
+    'Outsiders Should Handle – belief that others or outsiders should fix the problem.',
+    'Mostly External – primarily looks outside for solutions.',
+    'Mixed Internal/External – some personal responsibility alongside external reliance.',
+    'Mostly Internal – primarily takes personal responsibility.',
+    '"What Can I Do?" – fully internalized locus of control; self-directed action.',
+  ],
+};
+const PAPERO_LEADERSHIP_SCALE: IntensityScale = {
+  labels: ['Absent/Inactive', 'Rarely Present', 'Intermittent', 'Generally Present', 'Present and Active'],
+  help: [
+    'Absent/Inactive – no leadership presence or activity.',
+    'Rarely Present – leadership emerges only in crisis situations.',
+    'Intermittent – leadership present sometimes but inconsistent.',
+    'Generally Present – leadership present in most situations.',
+    'Present and Active – consistent, active leadership in the family unit.',
+  ],
+};
+
+// Category: Connectedness & Integration
+const PAPERO_EXTENDED_FAMILY_SCALE: IntensityScale = {
+  labels: ['No Contact', 'Rare Contact', 'Occasional Contact', 'Regular Contact', 'Active Contact'],
+  help: [
+    'No Contact – complete cutoff from extended family.',
+    'Rare Contact – very infrequent contact with extended family.',
+    'Occasional Contact – some contact with extended family members.',
+    'Regular Contact – consistent contact with extended family.',
+    'Active Contact – fully engaged, active relationships with extended family.',
+  ],
+};
+const PAPERO_KNOWLEDGE_SCALE: IntensityScale = {
+  labels: ['Limited Knowledge', 'Selective Knowledge', 'Moderate Knowledge', 'Broad Knowledge', 'Full Knowledge'],
+  help: [
+    'Limited Knowledge – very little knowledge of family situations and secrets.',
+    'Selective Knowledge – knowledge limited to certain topics or members.',
+    'Moderate Knowledge – reasonable awareness of family situations.',
+    'Broad Knowledge – extensive awareness of family situations and dynamics.',
+    'Full Knowledge – comprehensive knowledge of situations and secrets.',
+  ],
+};
+const PAPERO_RELATIONSHIP_QUALITY_SCALE: IntensityScale = {
+  labels: ['Superficial', 'Mostly Surface', 'Mixed Depth', 'Mostly Direct', 'Person to Person, Open'],
+  help: [
+    'Superficial – relationships are superficial; talk about, not to, others.',
+    'Mostly Surface – relationships lack depth; limited direct communication.',
+    'Mixed Depth – some relationships have depth while others remain surface-level.',
+    'Mostly Direct – most relationships involve direct, honest communication.',
+    'Person to Person, Open – genuine person-to-person, open communication.',
+  ],
+};
+const PAPERO_OPENNESS_SCALE: IntensityScale = {
+  labels: ['Intolerant to Differences', 'Low Tolerance', 'Moderate Tolerance', 'Generally Tolerant', 'Differences Developed & Tolerated'],
+  help: [
+    'Intolerant to Differences – no tolerance for differences among members.',
+    'Low Tolerance – limited ability to accept differences.',
+    'Moderate Tolerance – some acceptance of differences in the family.',
+    'Generally Tolerant – most differences are accepted and managed well.',
+    'Differences Developed & Tolerated – differentiation of self is developed and fully tolerated.',
+  ],
+};
+
+// Category: Tension Management
+const PAPERO_ANXIETY_CONTAINMENT_SCALE: IntensityScale = {
+  labels: ['Unmanaged', 'Poorly Contained', 'Partially Contained', 'Mostly Contained', 'Effectively Managed'],
+  help: [
+    'Unmanaged – anxiety is completely unmanaged; reactive responses dominate.',
+    'Poorly Contained – minimal ability to contain anxiety.',
+    'Partially Contained – some ability to contain anxiety in low-stress situations.',
+    'Mostly Contained – anxiety generally well contained; occasional breakthroughs.',
+    'Effectively Managed – anxiety consistently well managed across situations.',
+  ],
+};
+const PAPERO_PERCEPTUAL_FRAMEWORK_SCALE: IntensityScale = {
+  labels: ['Catastrophic Thinking', 'Mostly Reactive', 'Mixed Perspective', 'Generally Balanced', 'Careful Thought & Analysis'],
+  help: [
+    'Catastrophic Thinking – dominated by worst-case thinking and emotional reactivity.',
+    'Mostly Reactive – thinking is primarily reactive with limited perspective.',
+    'Mixed Perspective – some balanced thinking mixed with reactive responses.',
+    'Generally Balanced – mostly thoughtful and balanced perspective on situations.',
+    'Careful Thought & Analysis – consistently employs careful thought and analysis.',
+  ],
+};
+
+// Category: Systems Thinking
+const PAPERO_FUNDAMENTAL_QUESTIONS_SCALE: IntensityScale = {
+  labels: ['"Why? Who\'s Fault?"', 'Mostly Blame-Focused', 'Mixed Cause/Process', 'Mostly Process-Focused', '"How, When, Where, Who, How Much"'],
+  help: [
+    '"Why? Who\'s Fault?" – focus entirely on blame and fault-finding.',
+    'Mostly Blame-Focused – primarily concerned with assigning responsibility.',
+    'Mixed Cause/Process – some process thinking alongside cause-seeking.',
+    'Mostly Process-Focused – primarily asks process-oriented questions.',
+    '"How, When, Where, Who, How Much" – fully process-focused; systems-oriented inquiry.',
+  ],
+};
+const PAPERO_FAMILY_FOCUS_SCALE: IntensityScale = {
+  labels: ['Issue-Focused', 'Mostly Issue-Focused', 'Mixed Issue/Process', 'Mostly Process-Focused', 'Process-Focused'],
+  help: [
+    'Issue-Focused – family focus is entirely on specific issues and content.',
+    'Mostly Issue-Focused – primarily focused on issues with occasional process awareness.',
+    'Mixed Issue/Process – balance between issue-level and process-level focus.',
+    'Mostly Process-Focused – primarily attends to process and patterns.',
+    'Process-Focused – family consistently focuses on process over content.',
+  ],
+};
+const PAPERO_LOCUS_OF_CHANGE_SCALE: IntensityScale = {
+  labels: ['"Other Must Change"', 'Mostly External', 'Shared Responsibility', 'Mostly Self-Directed', '"I Must Change"'],
+  help: [
+    '"Other Must Change" – change is entirely expected from others.',
+    'Mostly External – change is primarily expected from others with some self-awareness.',
+    'Shared Responsibility – change seen as shared between self and others.',
+    'Mostly Self-Directed – primarily focuses on self-change while acknowledging others.',
+    '"I Must Change" – fully self-directed; takes personal responsibility for change.',
+  ],
+};
+
+// Category: Goal Structure
+const PAPERO_ACHIEVEMENT_GOALS_SCALE: IntensityScale = {
+  labels: ['None', 'Vague Goals', 'Some Defined Goals', 'Mostly Clear Goals', 'Well-Developed SMART Goals'],
+  help: [
+    'None – no achievement goals identified.',
+    'Vague Goals – goals exist but are unclear or poorly articulated.',
+    'Some Defined Goals – some goals are defined but incomplete.',
+    'Mostly Clear Goals – most goals are clear and actionable.',
+    'Well-Developed SMART Goals – all goals are specific, measurable, achievable, relevant, and time-bound.',
+  ],
+};
+const PAPERO_PROCESS_GOALS_SCALE: IntensityScale = {
+  labels: ['Not Employed', 'Rarely Employed', 'Sometimes Employed', 'Regularly Employed', 'Employed Effectively'],
+  help: [
+    'Not Employed – no process goals in use.',
+    'Rarely Employed – process goals are rarely used or referenced.',
+    'Sometimes Employed – process goals are used inconsistently.',
+    'Regularly Employed – process goals are regularly used and tracked.',
+    'Employed Effectively – process goals are fully integrated and employed effectively.',
+  ],
+};
+
+/** Maps a Papero subtype key to its IntensityScale. */
+export const PAPERO_SCALES: Record<string, IntensityScale> = {
+  'Engagement with Issue': PAPERO_ENGAGEMENT_SCALE,
+  'Problem Solving Activity': PAPERO_PROBLEM_SOLVING_SCALE,
+  'Family Awareness of Role': PAPERO_FAMILY_AWARENESS_SCALE,
+  'Locus of Control': PAPERO_LOCUS_OF_CONTROL_SCALE,
+  'Leadership': PAPERO_LEADERSHIP_SCALE,
+  'Extended Family Contact': PAPERO_EXTENDED_FAMILY_SCALE,
+  'Knowledge of Situations': PAPERO_KNOWLEDGE_SCALE,
+  'Relationship Quality': PAPERO_RELATIONSHIP_QUALITY_SCALE,
+  'Openness & Tolerance': PAPERO_OPENNESS_SCALE,
+  'Anxiety Containment': PAPERO_ANXIETY_CONTAINMENT_SCALE,
+  'Perceptual Framework': PAPERO_PERCEPTUAL_FRAMEWORK_SCALE,
+  'Fundamental Questions': PAPERO_FUNDAMENTAL_QUESTIONS_SCALE,
+  "Family's Focus": PAPERO_FAMILY_FOCUS_SCALE,
+  'Locus of Change': PAPERO_LOCUS_OF_CHANGE_SCALE,
+  'Achievement Goals': PAPERO_ACHIEVEMENT_GOALS_SCALE,
+  'Process Goals': PAPERO_PROCESS_GOALS_SCALE,
+};
+
+/** Maps a Papero subtype to its PaperoScores key. */
+export const PAPERO_SUBTYPE_TO_KEY: Record<string, string> = {
+  'Engagement with Issue': 'resourceful_engagement',
+  'Problem Solving Activity': 'resourceful_problemSolving',
+  'Family Awareness of Role': 'resourceful_familyAwareness',
+  'Locus of Control': 'resourceful_locusOfControl',
+  'Leadership': 'resourceful_leadership',
+  'Extended Family Contact': 'connectedness_extendedFamily',
+  'Knowledge of Situations': 'connectedness_knowledge',
+  'Relationship Quality': 'connectedness_relationshipQuality',
+  'Openness & Tolerance': 'connectedness_openness',
+  'Anxiety Containment': 'tension_anxietyContainment',
+  'Perceptual Framework': 'tension_perceptualFramework',
+  'Fundamental Questions': 'systems_fundamentalQuestions',
+  "Family's Focus": 'systems_familyFocus',
+  'Locus of Change': 'systems_locusOfChange',
+  'Achievement Goals': 'goals_achievementGoals',
+  'Process Goals': 'goals_processGoals',
+};
+
 // Maps EventType + optional category + optional subtype → IntensityScale
 export function getIntensityScale(eventType: EventType, category?: string, subtype?: string): IntensityScale {
   if (eventType === 'SYMPTOM') return SYMPTOM_SCALE;
@@ -194,6 +414,9 @@ export function getIntensityScale(eventType: EventType, category?: string, subty
     if (category === 'Triangle Flexibility') return TRIANGLE_FLEXIBILITY_SCALE;
     if (category === 'Triangle Stress Response') return TRIANGLE_STRESS_RESPONSE_SCALE;
   }
+  if (eventType === 'PAPERO') {
+    if (subtype && PAPERO_SCALES[subtype]) return PAPERO_SCALES[subtype];
+  }
   return GENERIC_SCALE;
 }
 
@@ -214,6 +437,7 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   FAMILY: 'Family',
   FOO: 'Family of Origin',
   TRIANGLE: 'Triangle Property',
+  PAPERO: 'Papero Assessment',
 };
 
 // ─── Infer EventType from legacy event data ───────────────────────────────────
@@ -256,6 +480,7 @@ export const EVENT_TYPE_HAS_PERSONS: Record<EventType, boolean> = {
   FAMILY: false,
   FOO: true,
   TRIANGLE: false,
+  PAPERO: true,
 };
 
 // ─── Which event types have a subtype field ───────────────────────────────────
@@ -267,4 +492,5 @@ export const EVENT_TYPE_HAS_SUBTYPE: Record<EventType, boolean> = {
   FAMILY: true,
   FOO: false,
   TRIANGLE: true,
+  PAPERO: true,
 };

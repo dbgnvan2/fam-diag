@@ -318,6 +318,32 @@ describe('EventModal', () => {
     expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
   });
 
+  // ── PAPERO ─────────────────────────────────────────────────────────────────────
+
+  it('PAPERO: category dropdown shows all 5 Papero categories', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'PAPERO', category: 'Resourceful', subtype: '' })}
+      />
+    );
+    expect(screen.getByRole('option', { name: 'Resourceful' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Connectedness & Integration' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Tension Management' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Systems Thinking' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Goal Structure' })).toBeInTheDocument();
+  });
+
+  it('PAPERO: shows person fields', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'PAPERO', category: 'Resourceful', subtype: 'Engagement with Issue' })}
+      />
+    );
+    expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
+  });
+
   // ── Person fields visibility ──────────────────────────────────────────────────
 
   it('FAMILY: does not show Primary Person or Other Person fields', () => {

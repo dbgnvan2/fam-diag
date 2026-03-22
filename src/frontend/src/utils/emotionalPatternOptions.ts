@@ -31,6 +31,7 @@ export const LINE_STYLE_VALUES: Record<EmotionalLine['relationshipType'], Emotio
     'conflict-double',
   ],
   projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
+  'open-connection': ['open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5'],
 };
 
 export const emotionalPatternIntensityOptions = (relationshipType: EmotionalLine['relationshipType']) => {
@@ -67,6 +68,14 @@ export const emotionalPatternIntensityOptions = (relationshipType: EmotionalLine
         { value: 'projection-4', label: 'Major' },
         { value: 'projection-5', label: 'Severe' },
       ] as const;
+    case 'open-connection':
+      return [
+        { value: 'open-connection-1', label: 'Light' },
+        { value: 'open-connection-2', label: 'Moderate' },
+        { value: 'open-connection-3', label: 'Strong' },
+        { value: 'open-connection-4', label: 'Heavy' },
+        { value: 'open-connection-5', label: 'Heavy Max' },
+      ] as const;
     default:
       return [{ value: 'cutoff', label: 'Cutoff' }] as const;
   }
@@ -78,6 +87,7 @@ export const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']
     lineStyle === 'distance-dashed-tight' ||
     lineStyle === 'conflict-dotted-wide' ||
     lineStyle === 'projection-1' ||
+    lineStyle === 'open-connection-1' ||
     lineStyle === 'dotted' ||
     lineStyle === 'dotted-saw-tooth'
   ) return 1;
@@ -85,13 +95,15 @@ export const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']
   if (
     lineStyle === 'distance-dashed-wide' ||
     lineStyle === 'conflict-dotted-tight' ||
-    lineStyle === 'projection-2'
+    lineStyle === 'projection-2' ||
+    lineStyle === 'open-connection-2'
   ) return 2;
   if (
     lineStyle === 'fusion-solid-wide' ||
     lineStyle === 'distance-long' ||
     lineStyle === 'conflict-solid-wide' ||
     lineStyle === 'projection-3' ||
+    lineStyle === 'open-connection-3' ||
     lineStyle === 'dashed' ||
     lineStyle === 'solid-saw-tooth'
   ) return 3;
@@ -99,13 +111,15 @@ export const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']
     lineStyle === 'fusion-solid-tight' ||
     lineStyle === 'distance-dotted-tight' ||
     lineStyle === 'conflict-solid-tight' ||
-    lineStyle === 'projection-4'
+    lineStyle === 'projection-4' ||
+    lineStyle === 'open-connection-4'
   ) return 4;
   if (
     lineStyle === 'fusion-triple' ||
     lineStyle === 'distance-dotted-wide' ||
     lineStyle === 'conflict-double' ||
     lineStyle === 'projection-5' ||
+    lineStyle === 'open-connection-5' ||
     lineStyle === 'long-dash' ||
     lineStyle === 'double-saw-tooth'
   ) return 5;

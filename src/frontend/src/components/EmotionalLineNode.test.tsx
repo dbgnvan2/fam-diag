@@ -324,7 +324,7 @@ describe('EmotionalLineNode', () => {
         const group = layer.getChildren()[0];
         const texts = group.find('Text');
         expect(texts.length).toBeGreaterThan(0);
-        expect(texts[0].attrs.text).toBe('>>>>>');
+        expect(texts[0].attrs.text).toBe('>>>>');
     });
 
     it('renders two EPLs beside each other for the same pair', () => {

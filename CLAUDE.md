@@ -53,15 +53,16 @@ cd src/frontend && npm run dev                         # Start dev server (http:
 
 ---
 
-## Domain Model — The 8 Entity Types
+## Domain Model — The 9 Entity Types
 
-The app models family systems using 8 entity types. **Every entity type follows the same patterns for properties, events, and display.** When you implement something for one entity type, you MUST implement it the same way for ALL entity types that share that pattern.
+The app models family systems using 9 entity types. **Every entity type follows the same patterns for properties, events, and display.** When you implement something for one entity type, you MUST implement it the same way for ALL entity types that share that pattern.
 
-### The 8 entities and their event groups:
+### The 9 entities and their event groups:
 
 | Entity | Panel | Event Group (eventType) | eventClass | category pattern |
 |--------|-------|------------------------|------------|-----------------|
 | **Person** | Individual Functional Facts | NODAL, SYMPTOM | `'individual'` | `'Individual'` |
+| **AI Agent** | Same as Person (hexagon shape) | NODAL, SYMPTOM, PAPERO | `'individual'` | `'Individual'` |
 | **Partner Relationship** | Partner Relationship Line (PRL) | NODAL | `'relationship'` | `toTitleCase(relationshipType)` |
 | **Emotional Pattern** | Emotional Pattern Line (EPL) | EPE | `'emotional-pattern'` | `'Emotional Pattern'` |
 | **Family** | Family view | FAMILY | `'family'` | from event |
@@ -69,6 +70,7 @@ The app models family systems using 8 entity types. **Every entity type follows 
 | **Family of Origin** | FoO view | FOO | `'foo'` | from event |
 | **Emotional Autonomy** | EA view | EA | `'ea'` | from event |
 | **Symptom** | Symptoms tab (Person) | SYMPTOM | `'symptom'` | physical/emotional/social |
+| **Papero Assessment** | Papero tab (Person) | PAPERO | `'individual'` | Resourceful/Connectedness/Tension/Systems/Goals |
 
 ### Where entities store events:
 
@@ -149,6 +151,60 @@ There are TWO unrelated "intensity" concepts:
 2. **`intensityLevel`** (on emotional line drafts in `diagramEditor.ts`) — controls the **graphic rendering** of the emotional line on the canvas (line thickness/style). This is NOT the same as event intensity.
 
 **NEVER confuse these.** When displaying event intensity on EventCard, use `event.intensity`. When configuring line appearance, use `intensityLevel` / `intensityValueForLineStyle()`.
+
+---
+
+## AI Agent — Person Entity with Hexagon Shape
+
+An **AI Agent** is a Person entity with `birthSex: 'ai-agent'` that renders as a **lavender hexagon** (`#C5B3E6`) on the canvas. It has all the same properties, events, relationships, and emotional patterns as a regular Person.
+
+### Key implementation details:
+- **BirthSex type:** `'female' | 'male' | 'intersex' | 'ai-agent'`
+- **GenderSymbol:** `'ai_agent'`
+- **Shape:** Flat-top hexagon rendered via Konva `Line` with 6 computed points (in `PersonNode.tsx`)
+- **No split shape:** AI agents always render as a single hexagon (no gender-split rendering)
+- **Context menu:** "Add AI Agent" in the stage right-click menu (via `useContextMenuHandlers.ts`)
+- **Auto-naming:** "AI Agent", "AI Agent 2", etc. (via `addAIAgent()` in `usePersonOperations.ts`)
+- **PersonNameSection:** Shows "Agent Name" label with "?" help text instead of "First Name"; hides "Maiden Name"
+- **PersonDatesSection:** "AI Agent" option in Birth Sex dropdown
+
+### When adding new Person-related features:
+- Always check if the feature needs special handling for AI agents (e.g., hiding irrelevant fields like maiden name, adoption)
+- The `birthSex === 'ai-agent'` check is the canonical way to detect AI agents
+- `defaultGenderIdentityForBirthSex('ai-agent')` returns `'nonbinary'`
+
+---
+
+## Papero Assessment — Family Unit Response to Challenge Framework
+
+The **Papero Assessment** (adapted from Dr Dan Papero) is an assessment framework stored on Person entities. It appears in a dedicated **"Papero" tab** in the PropertiesPanel.
+
+### Data model:
+- **Event type:** `'PAPERO'` (added to `EventType` union)
+- **Storage:** `Person.paperoScores` object (`PaperoScores` type in `types/index.ts`) with 16 numeric fields (0 = unset, 1-5 = level)
+- **Component:** `PersonPaperoSection.tsx` — renders all categories and topics with Level dropdowns
+
+### 5 Categories with 16 Topics:
+
+| Category | Topics | Score keys |
+|----------|--------|------------|
+| **Resourceful** (Avoidance ↔ Engagement) | Engagement with Issue, Problem Solving Activity, Family Awareness of Role, Locus of Control, Leadership | `resourceful_*` |
+| **Connectedness & Integration** (Cutoff ↔ Many Open Relationships) | Extended Family Contact, Knowledge of Situations, Relationship Quality, Openness & Tolerance | `connectedness_*` |
+| **Tension Management** (Unmanaged ↔ Well Regulated) | Anxiety Containment, Perceptual Framework | `tension_*` |
+| **Systems Thinking** (Conventional ↔ Systems) | Fundamental Questions, Family's Focus, Locus of Change | `systems_*` |
+| **Goal Structure** (No Clear Goals ↔ SMART Goals) | Achievement Goals, Process Goals | `goals_*` |
+
+### UI pattern:
+- Each topic has a **"Level" dropdown** (1-5) and a **"?" help button**
+- Clicking "?" opens a dialog showing all 5 levels with detailed descriptions (same pattern as FOO/Symptom scales)
+- Clicking a level in the help dialog sets the score and closes the dialog
+- Category averages are displayed in the category header
+- Scales are defined in `eventConstants.ts` as `PAPERO_SCALES` with `PAPERO_SUBTYPE_TO_KEY` mapping to `PaperoScores` fields
+
+### When modifying Papero:
+- All scale definitions are in `constants/eventConstants.ts` — never hardcode level labels
+- The `PAPERO_SUBTYPE_TO_KEY` map connects subtype names to `PaperoScores` field keys
+- Scores save immediately on selection (no Save button needed) via `onUpdatePerson`
 
 ---
 
@@ -302,7 +358,7 @@ EventType → EVENT_TYPE_HAS_SUBTYPE[type] → boolean (show subtype dropdown?)
 EventType → getIntensityScale(type, category?, subtype?) → correct scale
 ```
 
-**The 7 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE
+**The 8 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE, PAPERO
 
 **When touching any event-related code:**
 1. Read `eventConstants.ts` first
@@ -319,9 +375,9 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Type Locations
 
-- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType
+- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType, PaperoScores, BirthSex (incl. `'ai-agent'`), GenderSymbol (incl. `'ai_agent'`)
 - **UI/editor types:** `src/frontend/src/types/diagramEditor.ts` — PropertiesPanelIntent, SessionNoteFileRecord, drafts, import/export
-- **Event constants:** `src/frontend/src/constants/eventConstants.ts` — all event hierarchy lookups
+- **Event constants:** `src/frontend/src/constants/eventConstants.ts` — all event hierarchy lookups, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY
 - **Indicator scales:** `src/frontend/src/constants/functionalIndicatorScales.ts` — frequency/intensity/impact ratings
 
 ---
@@ -400,13 +456,14 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Existing test files:
 **Component tests:**
-- `EventModal.test.tsx` — all 7 event types, subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
+- `EventModal.test.tsx` — all 8 event types (incl. PAPERO), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
 - `EventCard.test.tsx` — event card rendering
 - `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
 - `MultiPersonPropertiesPanel.test.tsx` — multi-select panel
 - `SessionNotesPanel.test.tsx` — session notes workspace
-- `DiagramEditor.test.tsx` — top-level orchestration, file load, demo tour
-- `DiagramCanvas.tsx` related: `PartnershipNode.test.tsx`, `PersonNode.test.tsx`, `TriangleNode.test.tsx`, `EmotionalLineNode.test.tsx`, `EmotionalLineNode.regression.test.tsx`, `ChildConnection.test.tsx`, `NoteNode.test.tsx`, `SiblingConflictOverlay.test.tsx`
+- `DiagramEditor.test.tsx` — top-level orchestration, file load, demo tour, context menu (Add AI Agent)
+- `DiagramCanvas.tsx` related: `PartnershipNode.test.tsx`, `PersonNode.test.tsx` (incl. AI agent hexagon), `TriangleNode.test.tsx`, `EmotionalLineNode.test.tsx`, `EmotionalLineNode.regression.test.tsx`, `ChildConnection.test.tsx`, `NoteNode.test.tsx`, `SiblingConflictOverlay.test.tsx`
+- `sections/PersonPaperoSection.test.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns, help dialogs, score updates, category averages
 
 **Utility tests (co-located in `utils/`):**
 - `dataCleanup.test.ts`, `noteVisibility.test.ts`, `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
@@ -550,9 +607,13 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `DiagramModals.tsx` — all 19 modal/panel components
 - `EventCard.tsx` — event display card
 - `EventsSection.tsx` — events list/filter UI
-- `PropertiesPanel.tsx` — per-entity properties editor (person/partnership/EPL/family tabs)
-- Canvas nodes: `PersonNode.tsx`, `PartnershipNode.tsx`, `EmotionalLineNode.tsx`, `TriangleNode.tsx`, `ChildConnection.tsx`, `NoteNode.tsx`, `SiblingConflictOverlay.tsx`
+- `PropertiesPanel.tsx` — per-entity properties editor (person/partnership/EPL/family/papero tabs)
+- Canvas nodes: `PersonNode.tsx` (circle/square/triangle/hexagon shapes), `PartnershipNode.tsx`, `EmotionalLineNode.tsx`, `TriangleNode.tsx`, `ChildConnection.tsx`, `NoteNode.tsx`, `SiblingConflictOverlay.tsx`
 - `EventModal.tsx` — standalone event create/edit dialog
+- `sections/PersonNameSection.tsx` — person name fields (with AI Agent name help)
+- `sections/PersonDatesSection.tsx` — birth/death/gender dates and birth sex dropdown (incl. AI Agent)
+- `sections/PersonPaperoSection.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns with ? help
+- `sections/PersonFOOSection.tsx` — FOO scales: emotional cutoff, family stability, family intactness
 - `modals/SessionCaptureDialog.tsx`
 - `modals/ClientProfileModal.tsx`
 - `modals/CoachThinkingModal.tsx`

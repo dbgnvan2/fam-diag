@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-21T03:03:45.153Z"
+    "exportedAt": "2026-03-22T16:47:24.570Z"
   },
   "people": [
     {
@@ -11,8 +11,8 @@
       "firstName": "Alex",
       "lastName": "Carter",
       "gender": "male",
-      "x": 423.0000000000001,
-      "y": 150.8705842391305,
+      "x": 138.45869565217367,
+      "y": 142.68529211956525,
       "birthDate": "1978-04-16",
       "partnerships": [
         "demo-prl-parents"
@@ -368,8 +368,8 @@
         "height": 122
       },
       "notesPosition": {
-        "x": 561.0000000000001,
-        "y": 170.8705842391305
+        "x": 276.4586956521737,
+        "y": 162.68529211956525
       },
       "functionalIndicators": [
         {
@@ -411,8 +411,8 @@
       "firstName": "Renee",
       "lastName": "Carter",
       "gender": "female",
-      "x": 1028,
-      "y": 150.8705842391305,
+      "x": 795.4586956521736,
+      "y": 217.68529211956525,
       "birthDate": "1970-09-06",
       "partnerships": [
         "demo-prl-parents"
@@ -512,8 +512,8 @@
       ],
       "size": 60,
       "notesPosition": {
-        "x": 1096,
-        "y": 136.8705842391305
+        "x": 878.9586956521734,
+        "y": 78.68529211956525
       },
       "siblingPositionOverride": "os/s",
       "siblingMaturityLevel": 3,
@@ -537,8 +537,8 @@
       "firstName": "Liam",
       "lastName": "Carter",
       "gender": "male",
-      "x": 460.8000000000003,
-      "y": 462.47058423913063,
+      "x": 176.25869565217386,
+      "y": 454.2852921195654,
       "birthDate": "2000-08-13",
       "partnerships": [],
       "parentPartnership": "demo-prl-parents",
@@ -610,8 +610,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 441.8000000000001,
-        "y": 565.4705842391307
+        "x": 157.25869565217369,
+        "y": 557.2852921195654
       },
       "notesSize": {
         "width": 154,
@@ -625,8 +625,8 @@
       "firstName": "Emma",
       "lastName": "Carter",
       "gender": "female",
-      "x": 931.8000000000003,
-      "y": 470.07058423913054,
+      "x": 652.2586956521739,
+      "y": 456.8852921195653,
       "birthDate": "2005-01-05",
       "partnerships": [
         "demo-prl-emma"
@@ -673,8 +673,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 1005.0000000000001,
-        "y": 477.8705842391305
+        "x": 720.4586956521737,
+        "y": 469.68529211956525
       },
       "isClient": true,
       "backgroundEnabled": true,
@@ -697,8 +697,8 @@
       "firstName": "Noah",
       "lastName": "Reed",
       "gender": "male",
-      "x": 731.6000000000004,
-      "y": 459.07058423913077,
+      "x": 447.0586956521739,
+      "y": 450.8852921195655,
       "birthDate": "2004-03-18",
       "partnerships": [
         "demo-prl-emma"
@@ -743,8 +743,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 620.3999346596462,
-        "y": 587.6706502181737
+        "x": 335.85863031181975,
+        "y": 579.4853580986085
       },
       "notesSize": {
         "width": 145,
@@ -758,18 +758,99 @@
     {
       "id": "gpG0pHe4SmANLqMwi8A1y",
       "name": "Coach",
-      "x": 1283.1000000000006,
-      "y": 437.0999999999999,
+      "x": 1056.5586956521743,
+      "y": 220.91470788043466,
       "gender": "female",
       "partnerships": [],
       "lifeStatus": "alive",
       "isCoach": true,
       "events": [],
       "coachThinking": {
-        "thinking": "a dfa sdf as dfsa df",
+        "thinking": "a dfa sdf as dfsa df.   asdff",
         "notes": "asdf.  fasdfasfasdf",
-        "updatedAt": 1773956304295
+        "updatedAt": 1774196291907
       }
+    },
+    {
+      "id": "oUv3ZjIYgh5dOAn2i7yUF",
+      "name": "New Person",
+      "x": 639.5411377199097,
+      "y": 735.1729966504881,
+      "gender": "female",
+      "partnerships": [
+        "hEiIM-iZ6GHBqXNh5vFig"
+      ],
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": []
+    },
+    {
+      "id": "lkTcWzWpuw9JvuIzjjf-f",
+      "name": "Dave Partner",
+      "x": 494.14879322230263,
+      "y": 738.106573909143,
+      "gender": "male",
+      "partnerships": [
+        "hEiIM-iZ6GHBqXNh5vFig"
+      ],
+      "events": [
+        {
+          "id": "1774139637888-fa1df21078c428",
+          "date": "2020-01-01",
+          "startDate": "2020-01-01",
+          "category": "Individual",
+          "eventType": "NODAL",
+          "status": "discrete",
+          "subtype": "Birth Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "individual",
+          "createdAt": 1774139637888
+        },
+        {
+          "id": "1774142885214-a4c6c9085e4d5",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "endDate": "",
+          "category": "Birth",
+          "eventType": "NODAL",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "lkTcWzWpuw9JvuIzjjf-f",
+          "status": "discrete",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "None",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774142885214,
+          "eventClass": "individual"
+        }
+      ],
+      "birthDate": "2020-01-01",
+      "firstName": "Dave"
+    },
+    {
+      "id": "Tj40eD2M13e6ZKCnm1Nt5",
+      "name": "New Person",
+      "x": 942.4586956521736,
+      "y": 515.3147078804348,
+      "gender": "female",
+      "partnerships": [],
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": []
     }
   ],
   "partnerships": [
@@ -777,7 +858,7 @@
       "id": "demo-prl-parents",
       "partner1_id": "demo-dad",
       "partner2_id": "demo-mom",
-      "horizontalConnectorY": 331.3057826086956,
+      "horizontalConnectorY": 329.7873745471013,
       "relationshipType": "married",
       "relationshipStatus": "married",
       "relationshipStartDate": "2003-05-20",
@@ -789,8 +870,8 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 727.0000000000001,
-        "y": 183.8705842391305
+        "x": 442.4586956521737,
+        "y": 175.68529211956525
       },
       "notesSize": {
         "width": 206,
@@ -980,7 +1061,7 @@
       "id": "demo-prl-emma",
       "partner1_id": "demo-emma-partner",
       "partner2_id": "demo-daughter",
-      "horizontalConnectorY": 560.671,
+      "horizontalConnectorY": 545.3747078804347,
       "relationshipType": "dating",
       "relationshipStatus": "ongoing",
       "relationshipStartDate": "2024-03-01",
@@ -989,8 +1070,8 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 996.0000180249253,
-        "y": 613.8703901831215
+        "x": 705.4587136770989,
+        "y": 599.6850980635563
       },
       "notesSize": {
         "width": 187,
@@ -1056,6 +1137,39 @@
         }
       ],
       "familyNameOffsetX": 3
+    },
+    {
+      "id": "hEiIM-iZ6GHBqXNh5vFig",
+      "partner1_id": "oUv3ZjIYgh5dOAn2i7yUF",
+      "partner2_id": "lkTcWzWpuw9JvuIzjjf-f",
+      "horizontalConnectorY": 799.471,
+      "relationshipType": "dating",
+      "relationshipStatus": "married",
+      "children": [],
+      "events": [],
+      "familyNameOffsetX": 0.84,
+      "familyEvents": [
+        {
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Triangles",
+          "subtype": "Functioning",
+          "status": "ongoing",
+          "intensity": 1,
+          "frequency": 1,
+          "impact": 1,
+          "howWell": 0,
+          "wwwwh": "",
+          "observations": "",
+          "primaryPersonName": "New Person",
+          "otherPersonName": "Dave Partner",
+          "eventType": "FAMILY",
+          "eventClass": "emotional-pattern",
+          "id": "d8i9JV23na03TS5412wz4",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "hEiIM-iZ6GHBqXNh5vFig"
+        }
+      ]
     }
   ],
   "emotionalLines": [
@@ -1094,8 +1208,8 @@
       ],
       "color": "#444444",
       "notesPosition": {
-        "x": 221.0000000000001,
-        "y": 364.8705842391305
+        "x": -63.541304347826326,
+        "y": 356.68529211956525
       }
     },
     {
@@ -1103,7 +1217,7 @@
       "person1_id": "demo-mom",
       "person2_id": "demo-daughter",
       "relationshipType": "conflict",
-      "lineStyle": "conflict-dotted-tight",
+      "lineStyle": "conflict-solid-wide",
       "lineEnding": "none",
       "startDate": "2023-04-10",
       "status": "ongoing",
@@ -1131,6 +1245,48 @@
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
           "createdAt": 1773871475435
+        },
+        {
+          "id": "1774155925624-099e1c07d55b48",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-epl-conflict",
+          "status": "discrete",
+          "subtype": "Style: Conflict Solid Wide",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Emma Carter",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774155925624
+        },
+        {
+          "id": "1774155925624-34c16664858c3",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "demo-epl-conflict",
+          "status": "ongoing",
+          "subtype": "Conflict – Measurement",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Emma Carter",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "[9] Example Emotional Pattern Line EPL: Conflict with Low Intensity",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774155925624
         }
       ],
       "color": "#444444",
@@ -1139,8 +1295,8 @@
         "height": 88
       },
       "notesPosition": {
-        "x": 1002.0000000000001,
-        "y": 375.3705842391305
+        "x": 844.4586956521737,
+        "y": 350.18529211956525
       }
     },
     {
@@ -1152,7 +1308,7 @@
       "lineStyle": "fusion-dotted-wide",
       "lineEnding": "none",
       "startDate": "2025-01-16",
-      "color": "#FF9100",
+      "color": "#FF1744",
       "events": [
         {
           "id": "G3Z5o6VS2WdFY11yumsBc",
@@ -1292,6 +1448,27 @@
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
           "createdAt": 1773955742626
+        },
+        {
+          "id": "1774196196466-90d84ee2732ea8",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "bxwrotpEvuizkIWo_krB6",
+          "status": "ongoing",
+          "subtype": "Fusion – Measurement",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Alex Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774196196466
         }
       ]
     },
@@ -1532,7 +1709,7 @@
       "person2_id": "demo-daughter",
       "status": "ongoing",
       "relationshipType": "projection",
-      "lineStyle": "projection-4",
+      "lineStyle": "projection-3",
       "lineEnding": "none",
       "startDate": "2026-03-18",
       "color": "#444444",
@@ -1695,13 +1872,175 @@
           "createdAt": 1773955862763
         }
       ]
+    },
+    {
+      "id": "EqqKVeHStBadwdqKy3YVM",
+      "person1_id": "demo-mom",
+      "person2_id": "gpG0pHe4SmANLqMwi8A1y",
+      "status": "ongoing",
+      "relationshipType": "projection",
+      "lineStyle": "projection-5",
+      "lineEnding": "none",
+      "startDate": "2026-03-22",
+      "color": "#FF9100",
+      "events": [
+        {
+          "id": "9dvNTWo8Hh_f-wO2vWArY",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "EqqKVeHStBadwdqKy3YVM",
+          "status": "ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Coach",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774149911209
+        },
+        {
+          "id": "1774149938830-4cfc18545e6e88",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "EqqKVeHStBadwdqKy3YVM",
+          "status": "discrete",
+          "subtype": "Style: Projection 2",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Coach",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774149938830
+        },
+        {
+          "id": "1774149938830-cad6175c4ea6b",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "EqqKVeHStBadwdqKy3YVM",
+          "status": "ongoing",
+          "subtype": "Projection – Measurement",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Coach",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774149938830
+        },
+        {
+          "id": "1774196016773-185bb92ee0d15",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "EqqKVeHStBadwdqKy3YVM",
+          "status": "ongoing",
+          "subtype": "Projection – Measurement",
+          "intensity": 5,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Coach",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774196016773
+        }
+      ]
+    },
+    {
+      "id": "tsh1UXVVpV_UQw8Tuyl_U",
+      "person1_id": "demo-mom",
+      "person2_id": "gpG0pHe4SmANLqMwi8A1y",
+      "status": "ongoing",
+      "relationshipType": "open-connection",
+      "lineStyle": "open-connection-2",
+      "lineEnding": "none",
+      "startDate": "2026-03-22",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "S3_7cLIZUkkyl20b6A0aK",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "tsh1UXVVpV_UQw8Tuyl_U",
+          "status": "ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Coach",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774155863309
+        }
+      ]
+    },
+    {
+      "id": "u5o_J4UWVGKlBZZhwSOnX",
+      "person1_id": "gpG0pHe4SmANLqMwi8A1y",
+      "person2_id": "demo-mom",
+      "status": "ongoing",
+      "relationshipType": "conflict",
+      "lineStyle": "conflict-solid-wide",
+      "lineEnding": "none",
+      "startDate": "2026-03-22",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "r7PQE1BB35D_OACnfhG6Z",
+          "date": "2026-03-22",
+          "startDate": "2026-03-22",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "u5o_J4UWVGKlBZZhwSOnX",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Renee Carter",
+          "primaryPersonName": "Coach",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774155891679
+        }
+      ]
     }
   ],
   "pageNotes": [
     {
       "id": "9UThrI14h5C-rr7iadBR4",
-      "x": 198.98260869565226,
-      "y": 527.4424592391306,
+      "x": -85.55869565217415,
+      "y": 519.2571671195653,
       "title": "General Note",
       "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
       "width": 220,
@@ -1921,6 +2260,7 @@
     "ongoing",
     "separated",
     "started",
+    "Time Out",
     "Widowed"
   ],
   "autoSaveMinutes": 1,

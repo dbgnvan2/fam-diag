@@ -1,4 +1,4 @@
-import { Group, Line, Text } from 'react-konva';
+import { Group, Line, Rect, Text } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 
@@ -82,12 +82,20 @@ const EmotionalLineNode = ({
     const baseP2Y = person2.y;
     const baseAngle = Math.atan2(baseP2Y - baseP1Y, baseP2X - baseP1X);
     const basePerpendicularAngle = baseAngle + Math.PI / 2;
-    const laneOffset =
-        siblingCount === 2
-            ? (siblingIndex === 0 ? -12 : 12)
-            : siblingCount > 1
-                ? (siblingIndex - (siblingCount - 1) / 2) * 14
-                : 0;
+    // Scale offset so visual separation stays constant at any angle.
+    // For steep (near-vertical) lines the perpendicular is nearly horizontal,
+    // so we boost the offset to keep the gap readable.
+    const absSin = Math.abs(Math.sin(baseAngle));
+    const angleScale = 1 + absSin * 0.5;            // up to 1.5× boost for vertical lines
+    const baseLaneOffset =
+        siblingCount === 1
+            ? 0
+            : siblingCount === 2
+                ? (siblingIndex === 0 ? -8 : 8)
+                : siblingCount === 3
+                    ? (siblingIndex === 0 ? -12 : siblingIndex === 1 ? 0 : 12)
+                    : (siblingIndex - (siblingCount - 1) / 2) * 12;
+    const laneOffset = baseLaneOffset * angleScale;
     const canonicalPair = [person1.id, person2.id].sort();
     const followsCanonicalDirection = person1.id === canonicalPair[0] && person2.id === canonicalPair[1];
     const normalizedLaneOffset = followsCanonicalDirection ? laneOffset : -laneOffset;
@@ -129,7 +137,9 @@ const EmotionalLineNode = ({
         lineStyle === 'high' ||
         lineStyle === 'long-dash' ||
         lineStyle === 'conflict-double' ||
-        lineStyle === 'projection-5'
+        lineStyle === 'projection-5' ||
+        lineStyle === 'open-connection-4' ||
+        lineStyle === 'open-connection-5'
     )
         ? baseStrokeWidth + 1
         : baseStrokeWidth;
@@ -153,31 +163,114 @@ const EmotionalLineNode = ({
     };
 
     const renderLines = () => {
-        if (relationshipType === 'projection') {
-            const markerCount = 4;
-            const markerMap: Record<string, string> = {
-                'projection-1': '>....>',
-                'projection-2': '>...>',
-                'projection-3': '>.>',
-                'projection-4': '>>>>',
-                'projection-5': '>>>>>',
-                low: '>....>',
-                medium: '>.>',
-                high: '>>>>>',
+        if (relationshipType === 'open-connection') {
+            const markerMapFwd: Record<string, string> = {
+                'open-connection-1': '+>',
+                'open-connection-2': '++>',
+                'open-connection-3': '+++>',
+                'open-connection-4': '++++>',
+                'open-connection-5': '+++++>',
             };
-            const markerText = markerMap[lineStyle] || '>....>';
-            const markerAngle = (angle * 180) / Math.PI;
+            const markerMapRev: Record<string, string> = {
+                'open-connection-1': '<+',
+                'open-connection-2': '<++',
+                'open-connection-3': '<+++',
+                'open-connection-4': '<++++',
+                'open-connection-5': '<+++++',
+            };
+            const angleDeg = (angle * 180) / Math.PI;
+            const flipped = angleDeg > 90 || angleDeg < -90;
+            const markerText = flipped
+                ? (markerMapRev[lineStyle] || '<+')
+                : (markerMapFwd[lineStyle] || '+>');
+            const markerAngle = flipped ? angleDeg + 180 : angleDeg;
+            const isHeavy = lineStyle === 'open-connection-4' || lineStyle === 'open-connection-5';
+            const markerCount = 4;
+            // Use the same coordinates as the visible line (linePoints)
+            const ocx1 = linePoints[0], ocy1 = linePoints[1];
+            const ocx2 = linePoints[2], ocy2 = linePoints[3];
             const markers = Array.from({ length: markerCount }, (_, idx) => {
                 const fraction = (idx + 1) / (markerCount + 1);
-                const x = p1_edge_x + (p2_edge_x - p1_edge_x) * fraction;
-                const y = p1_edge_y + (p2_edge_y - p1_edge_y) * fraction;
+                const x = ocx1 + (ocx2 - ocx1) * fraction;
+                const y = ocy1 + (ocy2 - ocy1) * fraction;
+                const mFontSize = isHeavy ? 15 : 13;
+                return (
+                    <Text
+                        key={`open-conn-marker-${idx}`}
+                        text={markerText}
+                        x={x}
+                        y={y}
+                        offsetX={6}
+                        offsetY={mFontSize / 2}
+                        fontSize={mFontSize}
+                        fontStyle="bold"
+                        fill={lineProps.stroke}
+                        rotation={markerAngle}
+                        listening={false}
+                    />
+                );
+            });
+            return (
+                <Group>
+                    <Line
+                        points={linePoints}
+                        stroke="transparent"
+                        strokeWidth={28}
+                        onClick={handleSelect}
+                        onTap={handleSelect}
+                        onContextMenu={handleContextMenu}
+                    />
+                    {markers}
+                </Group>
+            );
+        }
+
+        if (relationshipType === 'projection') {
+            const markerCount = 4;
+            const markerMapFwd: Record<string, string> = {
+                'projection-1': '>··>',
+                'projection-2': '>·>',
+                'projection-3': '>>',
+                'projection-4': '>>>',
+                'projection-5': '>>>>',
+                low: '>··>',
+                medium: '>>',
+                high: '>>>>',
+            };
+            const markerMapRev: Record<string, string> = {
+                'projection-1': '<··<',
+                'projection-2': '<·<',
+                'projection-3': '<<',
+                'projection-4': '<<<',
+                'projection-5': '<<<<',
+                low: '<··<',
+                medium: '<<',
+                high: '<<<<',
+            };
+            const angleDeg = (angle * 180) / Math.PI;
+            const flipped = angleDeg > 90 || angleDeg < -90;
+            const markerText = flipped
+                ? (markerMapRev[lineStyle] || '<··<')
+                : (markerMapFwd[lineStyle] || '>··>');
+            const markerAngle = flipped ? angleDeg + 180 : angleDeg;
+            const isHeavy = lineStyle === 'projection-4' || lineStyle === 'projection-5' || lineStyle === 'high';
+            // Use the same coordinates as the visible line (linePoints)
+            const lx1 = linePoints[0], ly1 = linePoints[1];
+            const lx2 = linePoints[2], ly2 = linePoints[3];
+            const markers = Array.from({ length: markerCount }, (_, idx) => {
+                const fraction = (idx + 1) / (markerCount + 1);
+                const x = lx1 + (lx2 - lx1) * fraction;
+                const y = ly1 + (ly2 - ly1) * fraction;
+                const mFontSize = isHeavy ? 15 : 13;
                 return (
                     <Text
                         key={`projection-marker-${idx}`}
                         text={markerText}
-                        x={x - 18}
-                        y={y - 10}
-                        fontSize={18}
+                        x={x}
+                        y={y}
+                        offsetX={6}
+                        offsetY={mFontSize / 2}
+                        fontSize={mFontSize}
                         fontStyle="bold"
                         fill={lineProps.stroke}
                         rotation={markerAngle}
@@ -279,36 +372,36 @@ const EmotionalLineNode = ({
             };
 
             if (lineStyle === 'dotted-saw-tooth' || lineStyle === 'conflict-dotted-wide') {
-                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 10, [2, 5]);
+                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 5, [2, 5]);
             }
 
             if (lineStyle === 'conflict-dotted-tight') {
                 return (
                     <>
-                        {renderSawtoothBand('conflict-dotted-tight-1', -4, 9, [2, 5])}
-                        {renderSawtoothBand('conflict-dotted-tight-2', 4, 9, [2, 5])}
+                        {renderSawtoothBand('conflict-dotted-tight-1', -3, 5, [2, 5])}
+                        {renderSawtoothBand('conflict-dotted-tight-2', 3, 5, [2, 5])}
                     </>
                 );
             }
 
             if (lineStyle === 'solid-saw-tooth' || lineStyle === 'conflict-solid-wide') {
-                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 9, [6, 4]);
+                return renderSawtoothBand(`conflict-${lineStyle}`, 0, 5, [6, 4]);
             }
 
             if (lineStyle === 'conflict-solid-tight' || lineStyle === 'double-saw-tooth') {
                 return (
                     <>
-                        {renderSawtoothBand(`conflict-${lineStyle}-1`, -4, 9)}
-                        {renderSawtoothBand(`conflict-${lineStyle}-2`, 4, 9)}
+                        {renderSawtoothBand(`conflict-${lineStyle}-1`, -3, 5)}
+                        {renderSawtoothBand(`conflict-${lineStyle}-2`, 3, 5)}
                     </>
                 );
             }
 
             return (
                 <>
-                    {renderSawtoothBand('conflict-double-1', -6, 9)}
-                    {renderSawtoothBand('conflict-double-2', 0, 9)}
-                    {renderSawtoothBand('conflict-double-3', 6, 9)}
+                    {renderSawtoothBand('conflict-double-1', -4, 5)}
+                    {renderSawtoothBand('conflict-double-2', 0, 5)}
+                    {renderSawtoothBand('conflict-double-3', 4, 5)}
                 </>
             );
         }
@@ -318,7 +411,7 @@ const EmotionalLineNode = ({
     };
 
     const renderEndings = () => {
-        if (relationshipType === 'projection') return null;
+        if (relationshipType === 'projection' || relationshipType === 'open-connection') return null;
         if (lineEnding === 'none') return null;
 
         const p1 = [p1_edge_x, p1_edge_y];
@@ -405,39 +498,61 @@ const EmotionalLineNode = ({
 
     const renderDateLabels = () => {
         const labels: JSX.Element[] = [];
-        const perpendicularShift = 18;
-        const alongLineShift = 0.08;
+        // Place dates exactly on the line with a white background pill.
+        const fontSize = 9;
+        const padX = 2;
+        const padY = 2;
+
+        // Determine text rotation so it reads left-to-right
+        const angleDeg = (angle * 180) / Math.PI;
+        const textFlipped = angleDeg > 90 || angleDeg < -90;
+        const textRotation = textFlipped ? angleDeg + 180 : angleDeg;
 
         const addLabel = (text: string, fraction: number, key: string) => {
-            const baseX = p1_x_center + (p2_x_center - p1_x_center) * fraction;
-            const baseY = p1_y_center + (p2_y_center - p1_y_center) * fraction;
-            const perpX = Math.cos(perpendicularAngle);
-            const perpY = Math.sin(perpendicularAngle);
-            const direction = perpY < 0 ? 1 : -1;
-            const offsetX = perpX * perpendicularShift * direction;
-            const offsetY = perpY * perpendicularShift * direction;
+            // Point on the line at the given fraction
+            const x = p1_x_center + (p2_x_center - p1_x_center) * fraction;
+            const y = p1_y_center + (p2_y_center - p1_y_center) * fraction;
+            // Approximate text width: ~5.4px per char at fontSize 9
+            const textWidth = text.length * 5.4;
+            const bgWidth = textWidth + padX * 2;
+            const bgHeight = fontSize + padY * 2;
+            // Use a Group at the line point for reliable rotation + centering
             labels.push(
-                <Text
-                    key={key}
-                    x={baseX + offsetX - 22}
-                    y={baseY + offsetY - 10}
-                    width={44}
-                    align="center"
-                    text={text}
-                    fontSize={10}
-                    fill={baseColor}
-                    listening={false}
-                />
+                <Group key={key} x={x} y={y} rotation={textRotation} listening={false}>
+                    <Rect
+                        x={-bgWidth / 2}
+                        y={-bgHeight / 2}
+                        width={bgWidth}
+                        height={bgHeight}
+                        fill="white"
+                        cornerRadius={2}
+                    />
+                    <Text
+                        x={-bgWidth / 2}
+                        y={-bgHeight / 2 + padY}
+                        width={bgWidth}
+                        height={fontSize}
+                        text={text}
+                        fontSize={fontSize}
+                        fill={baseColor}
+                        align="center"
+                    />
+                </Group>
             );
         };
 
         const startLabel = formatShortDate(emotionalLine.startDate);
-        if (startLabel) {
-            addLabel(`S:${startLabel}`, 0.5 - alongLineShift, `${emotionalLine.id}-start`);
-        }
         const endLabel = formatShortDate(emotionalLine.endDate);
-        if (endLabel) {
-            addLabel(`E:${endLabel}`, 0.5 + alongLineShift, `${emotionalLine.id}-end`);
+        if (startLabel && endLabel) {
+            // Both dates: start near p1 end, end near p2 end
+            const sFrac = textFlipped ? 0.75 : 0.25;
+            const eFrac = textFlipped ? 0.25 : 0.75;
+            addLabel(`S:${startLabel}`, sFrac, `${emotionalLine.id}-start`);
+            addLabel(`E:${endLabel}`, eFrac, `${emotionalLine.id}-end`);
+        } else if (startLabel) {
+            addLabel(`S:${startLabel}`, 0.5, `${emotionalLine.id}-start`);
+        } else if (endLabel) {
+            addLabel(`E:${endLabel}`, 0.5, `${emotionalLine.id}-end`);
         }
         return labels;
     };

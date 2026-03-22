@@ -60,6 +60,16 @@ export const normalizeEmotionalLine = (line: EmotionalLineInput): EmotionalLine 
       normalized = { ...normalized, lineStyle: mapped };
     }
   }
+  if (normalized.relationshipType === 'open-connection') {
+    const openConnStyles: EmotionalLine['lineStyle'][] = [
+      'open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5',
+    ];
+    const currentStyle = normalized.lineStyle as EmotionalLine['lineStyle'];
+    if (!openConnStyles.includes(currentStyle)) {
+      normalized = { ...normalized, lineStyle: 'open-connection-1' };
+    }
+    normalized = { ...normalized, lineEnding: 'none' };
+  }
   if (normalized.relationshipType === 'fusion') {
     const legacyMap: Record<string, EmotionalLine['lineStyle']> = {
       single: 'fusion-dotted-tight',

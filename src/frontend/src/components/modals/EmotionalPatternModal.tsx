@@ -1,4 +1,4 @@
-import type { EmotionalLine } from '../../types';
+import type { EmotionalLine, Person } from '../../types';
 import type { EmotionalPatternDraft } from '../../types/diagramEditor';
 import { LINE_STYLE_VALUES, intensityValueForLineStyle } from '../../utils/emotionalPatternOptions';
 import EPLPropertiesSection from '../sections/EPLPropertiesSection';
@@ -6,12 +6,13 @@ import EPLPropertiesSection from '../sections/EPLPropertiesSection';
 interface EmotionalPatternModalProps {
   open: boolean;
   draft: EmotionalPatternDraft | null;
+  people: Person[];
   onUpdate: (updates: Partial<EmotionalPatternDraft>) => void;
   onCancel: () => void;
   onSave: () => void;
 }
 
-const EmotionalPatternModal = ({ open, draft, onUpdate, onCancel, onSave }: EmotionalPatternModalProps) => {
+const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave }: EmotionalPatternModalProps) => {
   if (!open || !draft) return null;
 
   // Bridge draft → EmotionalLine shape for EPLPropertiesSection
@@ -84,12 +85,15 @@ const EmotionalPatternModal = ({ open, draft, onUpdate, onCancel, onSave }: Emot
           emotionalIntensityDraft={draft.intensityLevel}
           emotionalImpactDraft={draft.impact}
           emotionalFrequencyDraft={draft.frequency}
+          person1Name={people.find((p) => p.id === draft.person1Id)?.name || 'Unknown'}
+          person2Name={people.find((p) => p.id === draft.person2Id)?.name || 'Unknown'}
           onSelectChange={handleSelectChange}
           onInputChange={handleInputChange}
           onIntensityLevelChange={(level) => onUpdate({ intensityLevel: level })}
           onImpactChange={(impact) => onUpdate({ impact })}
           onFrequencyChange={(frequency) => onUpdate({ frequency })}
           onColorPresetSelect={(color) => onUpdate({ color })}
+          onSwapPersons={() => onUpdate({ person1Id: draft.person2Id, person2Id: draft.person1Id })}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
           <button onClick={onCancel}>Cancel</button>
