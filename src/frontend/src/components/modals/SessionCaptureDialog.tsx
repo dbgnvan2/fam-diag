@@ -34,9 +34,10 @@ const SessionCaptureDialog = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2105,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ background: 'white', padding: 16, borderRadius: 10, width: 760, maxHeight: '84vh', overflow: 'auto' }}>
+      <div style={{ background: 'white', padding: 16, borderRadius: 10, width: 760, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', overflow: 'auto', pointerEvents: 'auto' }}>
         <h4 style={{ marginTop: 0 }}>Session Capture Import Review</h4>
         <p style={{ marginTop: 6, color: '#333', fontSize: 13 }}>
           Source: <strong>{fileName || 'Session capture JSON'}</strong>

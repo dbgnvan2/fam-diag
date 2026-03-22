@@ -58,8 +58,8 @@ const ReadmeViewerModal = ({ open, onClose, content }: ReadmeViewerModalProps) =
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2450,
+        pointerEvents: 'none',
       }}
-      onClick={onClose}
     >
       <div
         style={{
@@ -67,12 +67,13 @@ const ReadmeViewerModal = ({ open, onClose, content }: ReadmeViewerModalProps) =
           borderRadius: 14,
           padding: '20px 24px',
           width: 'min(70vw, 900px)',
-          maxHeight: '80vh',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 24px)',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+          pointerEvents: 'auto',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>README Documentation</h2>

@@ -15,6 +15,15 @@ interface DatePickerFieldProps {
 }
 
 const VALID_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_ONLY = /^\d{4}$/;
+const YEAR_MONTH = /^\d{4}-\d{2}$/;
+
+/** Expand "2000" → "2000-01-01" and "1990-03" → "1990-03-01". Full dates pass through unchanged. */
+export const expandPartialDate = (text: string): string => {
+  if (YEAR_ONLY.test(text)) return `${text}-01-01`;
+  if (YEAR_MONTH.test(text)) return `${text}-01`;
+  return text;
+};
 
 const DatePickerField = ({
   id,
@@ -64,12 +73,13 @@ const DatePickerField = ({
 
   const handleBlur = () => {
     isFocusedRef.current = false;
-    // On blur, commit whatever is in the field (including clearing it)
     const text = localText.trim();
-    if (text === '' || VALID_DATE.test(text)) {
-      // Fire a synthetic change event so the parent stores the final value
+    const expanded = expandPartialDate(text);
+    if (text === '' || VALID_DATE.test(expanded)) {
+      // Show the expanded form (e.g. "2000" → "2000-01-01") in the field
+      if (expanded !== text) setLocalText(expanded);
       const syntheticEvent = {
-        target: { name, value: text },
+        target: { name, value: expanded },
       } as React.ChangeEvent<HTMLInputElement>;
       onChange(syntheticEvent);
     } else {
@@ -91,12 +101,12 @@ const DatePickerField = ({
         type="text"
         id={id}
         name={name}
-        placeholder={placeholder || 'YYYY-MM-DD'}
+        placeholder={placeholder || 'YYYY-MM-DD or YYYY'}
         value={localText}
         onChange={handleTextChange}
         onFocus={() => { isFocusedRef.current = true; }}
         onBlur={handleBlur}
-        style={{ width: '11ch', textAlign: 'left', ...(inputStyle || {}) }}
+        style={{ width: '11ch', minWidth: '11ch', textAlign: 'left', ...(inputStyle || {}) }}
         disabled={disabled}
         autoFocus={autoFocus}
       />

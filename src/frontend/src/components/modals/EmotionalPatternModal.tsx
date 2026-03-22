@@ -63,6 +63,7 @@ const EmotionalPatternModal = ({ open, draft, onUpdate, onCancel, onSave }: Emot
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2075,
+        pointerEvents: 'none',
       }}
     >
       <div
@@ -74,6 +75,7 @@ const EmotionalPatternModal = ({ open, draft, onUpdate, onCancel, onSave }: Emot
           maxWidth: 'calc(100vw - 24px)',
           maxHeight: 'calc(100vh - 24px)',
           overflowY: 'auto',
+          pointerEvents: 'auto',
         }}
       >
         <h4 style={{ marginTop: 0, marginBottom: 8 }}>Add Emotional Pattern</h4>

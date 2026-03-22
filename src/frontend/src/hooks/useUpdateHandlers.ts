@@ -226,6 +226,7 @@ export function useUpdateHandlers({
       openNewEventRequestId?: string;
       newEventSeed?: Partial<EmotionalProcessEvent>;
       openNewEventPosition?: { x: number; y: number };
+      newEventModalTitle?: string;
     }
   ) => {
     setPropertiesPanelItem(item);
@@ -238,6 +239,7 @@ export function useUpdateHandlers({
         openNewEventRequestId: intent.openNewEventRequestId,
         newEventSeed: intent.newEventSeed,
         openNewEventPosition: intent.openNewEventPosition,
+        newEventModalTitle: intent.newEventModalTitle,
       });
     } else {
       setPropertiesPanelIntent(null);
@@ -271,7 +273,8 @@ export function useUpdateHandlers({
     target: { type: 'person' | 'partnership' | 'emotional'; id: string },
     targetItem: Person | Partnership | EmotionalLine,
     seed?: Partial<EmotionalProcessEvent>,
-    popupPosition?: { x: number; y: number }
+    popupPosition?: { x: number; y: number },
+    modalTitle?: string
   ) => {
     const anchorType =
       target.type === 'person'
@@ -299,6 +302,7 @@ export function useUpdateHandlers({
         tab: 'events',
         openNewEventRequestId: nanoid(),
         openNewEventPosition: popupPosition,
+        newEventModalTitle: modalTitle,
         newEventSeed: {
           ...baseSeed,
           primaryPersonName: person.name || '',
@@ -318,6 +322,7 @@ export function useUpdateHandlers({
         tab: 'events',
         openNewEventRequestId: nanoid(),
         openNewEventPosition: popupPosition,
+        newEventModalTitle: modalTitle,
         newEventSeed: {
           ...baseSeed,
           category: seed?.category || 'Relationship',
@@ -338,6 +343,7 @@ export function useUpdateHandlers({
       tab: 'events',
       openNewEventRequestId: nanoid(),
       openNewEventPosition: popupPosition,
+      newEventModalTitle: modalTitle,
       newEventSeed: {
         ...baseSeed,
         eventType: 'EPE',

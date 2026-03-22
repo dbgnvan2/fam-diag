@@ -71,6 +71,7 @@ export type PropertiesPanelIntent = {
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent>;
   openNewEventPosition?: { x: number; y: number };
+  newEventModalTitle?: string;
 } | null;
 
 export type PersonSectionPopupState = {

@@ -205,6 +205,7 @@ const DiagramEditor = () => {
     draft: EmotionalProcessEvent;
     position: { x: number; y: number };
     editingEventId?: string;
+    modalTitle?: string;
   } | null>(null);
   const [eventCategories, setEventCategories] = useState<string[]>(() => {
     if (typeof window === 'undefined') return initialEventCategories;
@@ -3250,7 +3251,8 @@ useEffect(() => {
   const openFamilyPropertyModal = (
     partnershipId: string,
     seed: Partial<EmotionalProcessEvent>,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    modalTitle?: string
   ) => {
     const partnership = partnerships.find((p) => p.id === partnershipId);
     if (!partnership) return;
@@ -3260,6 +3262,7 @@ useEffect(() => {
     setFamilyPropertyModal({
       partnershipId,
       position,
+      modalTitle,
       draft: {
         date: today,
         startDate: today,
@@ -3346,7 +3349,7 @@ useEffect(() => {
     setPageNoteDraft(null);
     setPropertiesPanelItem(null);
     const pos = { x: e.evt.clientX, y: e.evt.clientY };
-    const makeFamilyItem = (label: string, processType: string, category: string) => ({
+    const makeFamilyItem = (label: string, processType: string, category: string, menuGroup: string) => ({
       label,
       onClick: () => {
         openFamilyPropertyModal(
@@ -3361,7 +3364,8 @@ useEffect(() => {
             frequency: 1,
             impact: 1,
           },
-          pos
+          pos,
+          `Family ${menuGroup} ${label}`
         );
         setContextMenu(null);
       },
@@ -3373,18 +3377,18 @@ useEffect(() => {
         {
           label: 'Triangles',
           children: [
-            makeFamilyItem('Functioning', 'Functioning', 'Triangles'),
-            makeFamilyItem('Flexibility', 'Flexibility', 'Triangles'),
-            makeFamilyItem('Stress Response', 'Stress Response', 'Triangles'),
+            makeFamilyItem('Functioning', 'Functioning', 'Triangles', 'Triangles'),
+            makeFamilyItem('Flexibility', 'Flexibility', 'Triangles', 'Triangles'),
+            makeFamilyItem('Stress Response', 'Stress Response', 'Triangles', 'Triangles'),
           ],
         },
         {
           label: 'Stressors',
           children: [
-            makeFamilyItem('Emotional Reactivity', 'Emotional Reactivity', 'Stress'),
-            makeFamilyItem('Adaptability', 'Adaptability', 'Stress'),
-            makeFamilyItem('Family Stressor', 'Family Stressor', 'Stress'),
-            makeFamilyItem('Chronic Stress', 'Chronic Stress', 'Stress'),
+            makeFamilyItem('Emotional Reactivity', 'Emotional Reactivity', 'Stress', 'Stressors'),
+            makeFamilyItem('Adaptability', 'Adaptability', 'Stress', 'Stressors'),
+            makeFamilyItem('Family Stressor', 'Family Stressor', 'Stress', 'Stressors'),
+            makeFamilyItem('Chronic Stress', 'Chronic Stress', 'Stress', 'Stressors'),
           ],
         },
       ],
@@ -4208,6 +4212,7 @@ useEffect(() => {
             eventCategories={eventCategories}
             symptomTypeOptions={[]}
             resolvedEventClass="emotional-pattern"
+            modalTitle={familyPropertyModal.modalTitle}
             lockEventType
             onChange={(field, value) =>
               setFamilyPropertyModal((prev) =>

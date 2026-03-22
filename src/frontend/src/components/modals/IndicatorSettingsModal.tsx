@@ -49,9 +49,10 @@ const IndicatorSettingsModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2050,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 560, maxHeight: '85vh', overflow: 'auto' }}>
+      <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 560, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', overflow: 'auto', pointerEvents: 'auto' }}>
         <h4 style={{ margin: '0 0 4px' }}>Symptom Categories &amp; Types</h4>
         <p style={{ marginTop: 4, marginBottom: 12, color: '#555', fontSize: 13 }}>
           Physical, Emotional, and Social are the fixed categories. Add named types within each category — types appear in the person properties panel.

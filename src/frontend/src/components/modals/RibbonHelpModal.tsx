@@ -20,8 +20,8 @@ const RibbonHelpModal = ({ open, title, body, onClose }: RibbonHelpModalProps) =
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2420,
+        pointerEvents: 'none',
       }}
-      onClick={onClose}
     >
       <div
         style={{
@@ -29,9 +29,11 @@ const RibbonHelpModal = ({ open, title, body, onClose }: RibbonHelpModalProps) =
           borderRadius: 12,
           padding: '18px 20px',
           width: 'min(460px, 92vw)',
+          maxHeight: 'calc(100vh - 24px)',
+          overflowY: 'auto',
           boxShadow: '0 20px 50px rgba(0,0,0,0.28)',
+          pointerEvents: 'auto',
         }}
-        onClick={(event) => event.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0 }}>{title}</h3>

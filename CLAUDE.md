@@ -400,7 +400,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Existing test files:
 **Component tests:**
-- `EventModal.test.tsx` — all 7 event types, subtype dropdown, category auto-correct, lockEventType
+- `EventModal.test.tsx` — all 7 event types, subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
 - `EventCard.test.tsx` — event card rendering
 - `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
 - `MultiPersonPropertiesPanel.test.tsx` — multi-select panel
@@ -413,6 +413,95 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 **Data tests:**
 - `defaultDiagramState.test.ts`
+
+---
+
+## Modal Viewport Safety Rules
+
+**Every modal/dialog MUST stay within the browser viewport.** These rules apply to all existing modals and any new ones.
+
+### Fixed positioning pattern (DO NOT deviate from this)
+
+All modals use `position: fixed` directly on the dialog element — never `position: absolute` inside a flex backdrop. The two valid centering strategies:
+
+**Centered modal** (no `position` prop):
+```typescript
+style={{
+  position: 'fixed',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  maxHeight: `calc(100vh - ${MODAL_MARGIN * 2}px)`,
+  overflowY: 'auto',
+}}
+```
+
+**Positioned modal** (opened near a canvas object, has `position` prop):
+```typescript
+// Clamp top/left so dialog never escapes the viewport
+const dialogTop = Math.max(MARGIN, Math.min(rawTop, vh - MIN_HEIGHT - MARGIN));
+const dialogLeft = Math.max(MARGIN, Math.min(rawLeft, vw - MODAL_WIDTH - MARGIN));
+const dialogMaxHeight = Math.max(MIN_HEIGHT, vh - dialogTop - MARGIN);
+style={{
+  position: 'fixed',
+  top: dialogTop,
+  left: dialogLeft,
+  maxHeight: dialogMaxHeight,
+  overflowY: 'auto',
+}}
+```
+
+**Backdrop** is a separate sibling div (`position: fixed; inset: 0; pointerEvents: none`) — never the parent.
+
+### Why not `position: absolute` inside a flex backdrop
+
+Browsers render `position: absolute` inside `position: fixed` with `alignItems: stretch/center` inconsistently — the dialog can extend below the viewport. Always use `position: fixed` on the dialog itself.
+
+### ContextMenu viewport safety
+
+`ContextMenu.tsx` clamps root position with `useLayoutEffect` (not `useEffect` — no flash). `SubMenuContainer` also uses `useLayoutEffect` to shift up when bottom overflow is detected.
+
+**NEVER add `overflowY: auto` or `maxHeight` to `SubMenuContainer`** — it clips absolutely-positioned grandchildren (third-level submenus).
+
+The root menu uses `visibility: hidden` until position is computed to prevent flash at unclamped coordinates.
+
+---
+
+## Context Menu Click-Path Titles (modalTitle)
+
+Every "Add Event..." context menu item passes a breadcrumb string as `modalTitle` to the EventModal so users see the full action path in the dialog header.
+
+### The pipeline
+
+```
+useContextMenuHandlers / useSelectionHandlers
+  → openContextualEventCreator(target, item, seed, position, modalTitle)
+    → focusItemInPropertiesPanel(item, { ..., newEventModalTitle: modalTitle })
+      → setPropertiesPanelIntent({ ..., newEventModalTitle })
+        → DiagramCanvas → PropertiesPanel
+          → <EventModal modalTitle={newEventModalTitle} />
+```
+
+For **Family events** the path is different — `openFamilyPropertyModal` carries `modalTitle` directly to `familyPropertyModal` state, then passed as `modalTitle` to the EventModal.
+
+### Title format convention
+
+```
+"<ObjectType> Add <Category> <Subtype>"   e.g. "Person Add Symptom Emotional"
+"<ObjectType> Add <Category>"             e.g. "Person Add Emotional Autonomy"
+"<ObjectType> Add <MenuGroup> <Label>"    e.g. "Family Triangles Functioning"
+```
+
+When no title is supplied, EventModal defaults to `"Event"`.
+
+### Where titles are set
+
+- **Person context menu** — `useContextMenuHandlers.ts`: "Person Add Event", "Person Add Symptom {group}", "Person Add Emotional Autonomy", "Person Add FoO Extended FoO", "Person Add FoO FoO Triangle", "Person Add Coach Event"
+- **Partnership context menu** — `useContextMenuHandlers.ts`: "Partnership Add Relationship Event"
+- **Emotional Pattern context menu** — `useSelectionHandlers.ts`: "Emotional Pattern Add Event"
+- **Family context menu** — `DiagramEditor.tsx` `makeFamilyItem`: "Family {menuGroup} {label}"
+
+**When adding new context menu items that open EventModal, ALWAYS pass a descriptive `modalTitle`.**
 
 ---
 

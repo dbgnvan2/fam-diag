@@ -46,6 +46,7 @@ export interface EventModalProps {
   symptomTypeOptions: string[];
   resolvedEventClass: EventClass;
   lockEventType?: boolean;
+  modalTitle?: string;
   onChange: (field: keyof EmotionalProcessEvent, value: string) => void;
   onSetDraft: (draft: EmotionalProcessEvent) => void;
   onSave: () => void;
@@ -62,6 +63,7 @@ const EventModal = ({
   otherPersonOptions,
   symptomTypeOptions,
   lockEventType = false,
+  modalTitle,
   onChange,
   onSetDraft,
   onSave,
@@ -76,17 +78,16 @@ const EventModal = ({
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
   const rawTop = typeof popupTop === 'number' ? popupTop : parseFloat(String(popupTop)) || 0;
   const rawLeft = typeof popupLeft === 'number' ? popupLeft : parseFloat(String(popupLeft)) || 0;
-  const clampedTop = position
+  // For positioned case: clamp to viewport. For centered case: use 50%/transform centering.
+  const dialogTop = position
     ? Math.max(MODAL_MARGIN, Math.min(rawTop, vh - MODAL_MIN_HEIGHT - MODAL_MARGIN))
-    : rawTop;
-  const clampedLeft = position
+    : undefined;
+  const dialogLeft = position
     ? Math.max(MODAL_MARGIN, Math.min(rawLeft, vw - MODAL_WIDTH - MODAL_MARGIN))
-    : rawLeft;
-  const computedMaxHeight = position
-    ? popupMaxHeight
-      ? popupMaxHeight
-      : Math.max(MODAL_MIN_HEIGHT, vh - clampedTop - MODAL_MARGIN)
-    : null;
+    : undefined;
+  const dialogMaxHeight = position
+    ? Math.max(MODAL_MIN_HEIGHT, vh - (dialogTop as number) - MODAL_MARGIN)
+    : vh - MODAL_MARGIN * 2;
 
   const rowStyle: React.CSSProperties = {
     display: 'flex',
@@ -124,36 +125,39 @@ const EventModal = ({
 
   const intensityScale = getIntensityScale(eventType, eventDraft.category, eventDraft.subtype);
 
-  const modalTitle = 'Event';
+  const resolvedModalTitle = modalTitle || 'Event';
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.35)',
-        display: 'flex',
-        alignItems: position ? 'stretch' : 'center',
-        justifyContent: position ? 'stretch' : 'center',
-        zIndex: 2000,
-      }}
-    >
+    <>
+      {/* Backdrop — non-blocking so canvas stays interactive */}
       <div
         style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.35)',
+          zIndex: 2000,
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Dialog — position:fixed so top/left are always viewport-relative */}
+      <div
+        style={{
+          position: 'fixed',
+          top: position ? dialogTop : '50%',
+          left: position ? dialogLeft : '50%',
+          transform: position ? undefined : 'translate(-50%, -50%)',
+          width: Math.min(MODAL_WIDTH, vw - MODAL_MARGIN * 2),
+          maxHeight: dialogMaxHeight,
+          overflowY: 'auto',
           background: 'white',
           padding: 20,
           borderRadius: 10,
-          width: 520,
-          maxWidth: 'calc(100vw - 24px)',
-          maxHeight: computedMaxHeight ? `${computedMaxHeight}px` : 'calc(100vh - 24px)',
-          overflowY: 'auto',
           boxSizing: 'border-box',
-          position: position ? 'absolute' : 'relative',
-          left: clampedLeft,
-          top: position ? clampedTop : popupTop,
+          zIndex: 2001,
+          pointerEvents: 'auto',
         }}
       >
-        <h4 style={{ marginTop: 0 }}>{modalTitle}</h4>
+        <h4 style={{ marginTop: 0 }}>{resolvedModalTitle}</h4>
 
         {/* Group — read-only when locked (family events), editable dropdown otherwise */}
         <div style={rowStyle}>
@@ -522,7 +526,7 @@ const EventModal = ({
           <button onClick={onSave}>Save</button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

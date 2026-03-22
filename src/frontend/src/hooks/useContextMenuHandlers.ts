@@ -46,7 +46,8 @@ interface UseContextMenuHandlersDeps {
     target: { type: 'person' | 'partnership' | 'emotional'; id: string },
     targetItem: Person | Partnership | EmotionalLine,
     seed?: Partial<EmotionalProcessEvent>,
-    popupPosition?: { x: number; y: number }
+    popupPosition?: { x: number; y: number },
+    modalTitle?: string
   ) => void;
   openClientProfileModal: (person: Person) => void;
   openCoachThinkingModal: (person: Person) => void;
@@ -240,7 +241,8 @@ export function useContextMenuHandlers({
                     { type: 'person', id: person.id },
                     person,
                     undefined,
-                    { x: e.evt.clientX, y: e.evt.clientY }
+                    { x: e.evt.clientX, y: e.evt.clientY },
+                    'Person Add Event'
                   );
                   setContextMenu(null);
                 },
@@ -257,7 +259,8 @@ export function useContextMenuHandlers({
                         eventType: 'SYMPTOM',
                         category: group,
                       },
-                      { x: e.evt.clientX, y: e.evt.clientY }
+                      { x: e.evt.clientX, y: e.evt.clientY },
+                      `Person Add Symptom ${group.charAt(0).toUpperCase() + group.slice(1)}`
                     );
                     setContextMenu(null);
                   },
@@ -280,7 +283,8 @@ export function useContextMenuHandlers({
                       primaryPersonName: person.name || '',
                       otherPersonName: 'None',
                     },
-                    { x: e.evt.clientX, y: e.evt.clientY }
+                    { x: e.evt.clientX, y: e.evt.clientY },
+                    'Person Add Emotional Autonomy'
                   );
                   setContextMenu(null);
                 },
@@ -305,7 +309,8 @@ export function useContextMenuHandlers({
                           primaryPersonName: person.name || '',
                           otherPersonName: 'None',
                         },
-                        { x: e.evt.clientX, y: e.evt.clientY }
+                        { x: e.evt.clientX, y: e.evt.clientY },
+                        'Person Add FoO Extended FoO'
                       );
                       setContextMenu(null);
                     },
@@ -327,7 +332,8 @@ export function useContextMenuHandlers({
                           primaryPersonName: person.name || '',
                           otherPersonName: 'None',
                         },
-                        { x: e.evt.clientX, y: e.evt.clientY }
+                        { x: e.evt.clientX, y: e.evt.clientY },
+                        'Person Add FoO FoO Triangle'
                       );
                       setContextMenu(null);
                     },
@@ -353,7 +359,8 @@ export function useContextMenuHandlers({
                             primaryPersonName: person.name || 'Coach',
                             otherPersonName: 'None',
                           },
-                          { x: e.evt.clientX, y: e.evt.clientY }
+                          { x: e.evt.clientX, y: e.evt.clientY },
+                          'Person Add Coach Event'
                         );
                         setContextMenu(null);
                       },
@@ -662,7 +669,8 @@ export function useContextMenuHandlers({
                   { type: 'partnership', id: partnershipId },
                   partnership,
                   undefined,
-                  { x: e.evt.clientX, y: e.evt.clientY }
+                  { x: e.evt.clientX, y: e.evt.clientY },
+                  'Partnership Add Relationship Event'
                 );
                 setContextMenu(null);
               }
@@ -738,7 +746,8 @@ export function useContextMenuHandlers({
                   { type: 'person', id: targetPerson.id },
                   targetPerson,
                   undefined,
-                  { x: e.evt.clientX, y: e.evt.clientY }
+                  { x: e.evt.clientX, y: e.evt.clientY },
+                  'Add Event'
                 );
                 setContextMenu(null);
             }

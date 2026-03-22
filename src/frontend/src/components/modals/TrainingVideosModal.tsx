@@ -38,8 +38,8 @@ const TrainingVideosModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2460,
+        pointerEvents: 'none',
       }}
-      onClick={onClose}
     >
       <div
         style={{
@@ -47,12 +47,13 @@ const TrainingVideosModal = ({
           borderRadius: 14,
           padding: '20px 24px',
           width: 'min(78vw, 1080px)',
-          maxHeight: '82vh',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 24px)',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+          pointerEvents: 'auto',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>

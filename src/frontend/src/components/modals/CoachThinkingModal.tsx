@@ -35,8 +35,8 @@ const CoachThinkingModal = ({ draft, onFieldChange, onCancel, onSave }: CoachThi
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2072,
+        pointerEvents: 'none',
       }}
-      onClick={onCancel}
     >
       <div
         style={{
@@ -47,8 +47,8 @@ const CoachThinkingModal = ({ draft, onFieldChange, onCancel, onSave }: CoachThi
           maxWidth: 'calc(100vw - 24px)',
           maxHeight: 'calc(100vh - 24px)',
           overflowY: 'auto',
+          pointerEvents: 'auto',
         }}
-        onClick={(event) => event.stopPropagation()}
       >
         <h4 style={{ marginTop: 0, marginBottom: 10 }}>
           Coach Thinking · {draft.personName || 'Coach'}

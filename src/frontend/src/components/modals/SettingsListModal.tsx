@@ -38,9 +38,10 @@ const SettingsListModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360 }}>
+      <div style={{ background: 'white', padding: 16, borderRadius: 8, width: 360, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto', pointerEvents: 'auto' }}>
         <h4>{title}</h4>
         <p style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{description}</p>
         <div style={{ marginBottom: 8 }}>

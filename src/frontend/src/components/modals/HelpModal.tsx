@@ -31,8 +31,8 @@ const HelpModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2400,
+        pointerEvents: 'none',
       }}
-      onClick={onClose}
     >
       <div
         style={{
@@ -40,11 +40,12 @@ const HelpModal = ({
           borderRadius: 16,
           padding: '24px 28px',
           width: 'min(50vw, 520px)',
-          maxHeight: '70vh',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 24px)',
           overflowY: 'auto',
           boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+          pointerEvents: 'auto',
         }}
-        onClick={(event) => event.stopPropagation()}
       >
         <div
           style={{

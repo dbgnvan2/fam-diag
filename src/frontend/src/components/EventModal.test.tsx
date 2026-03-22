@@ -353,4 +353,27 @@ describe('EventModal', () => {
     expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
     expect(screen.getByLabelText('Other Person:')).toBeInTheDocument();
   });
+
+  // ── modalTitle (click-path breadcrumb) ───────────────────────────────────────
+
+  it('shows custom modalTitle when provided', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        modalTitle="Person Add Symptom Emotional"
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth' })}
+      />
+    );
+    expect(screen.getByText('Person Add Symptom Emotional')).toBeInTheDocument();
+  });
+
+  it('falls back to "Event" title when modalTitle is not provided', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth' })}
+      />
+    );
+    expect(screen.getByText('Event')).toBeInTheDocument();
+  });
 });

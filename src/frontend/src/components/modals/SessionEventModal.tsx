@@ -48,9 +48,10 @@ const SessionEventModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2300,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ background: '#fff', borderRadius: 10, padding: 20, width: 420 }}>
+      <div style={{ background: '#fff', borderRadius: 10, padding: 20, width: 420, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto', pointerEvents: 'auto' }}>
         <h4 style={{ marginTop: 0 }}>Session Note Event</h4>
         <div style={rowStyle}>
           <label style={labelStyle}>Event Group:</label>

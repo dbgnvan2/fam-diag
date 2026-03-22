@@ -217,7 +217,8 @@ export function useSelectionHandlers({
               eventType: 'EPE',
               category: 'Emotional Pattern',
             },
-            { x: e.evt.clientX, y: e.evt.clientY }
+            { x: e.evt.clientX, y: e.evt.clientY },
+            'Emotional Pattern Add Event'
           );
           setContextMenu(null);
         }

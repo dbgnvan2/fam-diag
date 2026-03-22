@@ -398,6 +398,12 @@ export default function DiagramCanvas({
                 typeof window !== 'undefined'
                   ? Math.max(12, Math.min(personSectionPopup.y + 10, window.innerHeight - 420))
                   : personSectionPopup.y,
+              maxWidth: typeof window !== 'undefined' ? window.innerWidth - 24 : undefined,
+              maxHeight:
+                typeof window !== 'undefined'
+                  ? Math.max(200, window.innerHeight - Math.max(12, Math.min(personSectionPopup.y + 10, window.innerHeight - 420)) - 12)
+                  : undefined,
+              overflowY: 'auto',
             }}
           >
             <PropertiesPanel
@@ -442,6 +448,12 @@ export default function DiagramCanvas({
                 typeof window !== 'undefined'
                   ? Math.max(12, Math.min(partnershipSectionPopup.y + 10, window.innerHeight - 420))
                   : partnershipSectionPopup.y,
+              maxWidth: typeof window !== 'undefined' ? window.innerWidth - 24 : undefined,
+              maxHeight:
+                typeof window !== 'undefined'
+                  ? Math.max(200, window.innerHeight - Math.max(12, Math.min(partnershipSectionPopup.y + 10, window.innerHeight - 420)) - 12)
+                  : undefined,
+              overflowY: 'auto',
             }}
           >
             <PropertiesPanel
@@ -1213,6 +1225,11 @@ export default function DiagramCanvas({
                 openNewEventPosition={
                   propertiesPanelIntent?.targetId === propertiesPanelItem.id
                     ? propertiesPanelIntent.openNewEventPosition
+                    : undefined
+                }
+                newEventModalTitle={
+                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
+                    ? propertiesPanelIntent.newEventModalTitle
                     : undefined
                 }
                 allEmotionalLines={allEmotionalLines}

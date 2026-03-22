@@ -64,17 +64,19 @@ const VoiceInputModal = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1200,
+        pointerEvents: 'none',
       }}
     >
       <div
         style={{
           width: 'min(760px, calc(100vw - 32px))',
-          maxHeight: 'min(80vh, 760px)',
+          maxHeight: 'calc(100vh - 24px)',
           overflow: 'auto',
           background: '#fff',
           borderRadius: 12,
           boxShadow: '0 20px 48px rgba(0,0,0,0.2)',
           padding: 20,
+          pointerEvents: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>

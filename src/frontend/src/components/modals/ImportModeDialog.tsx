@@ -19,9 +19,10 @@ const ImportModeDialog = ({ open, source, fileName, onReplace, onMerge, onCancel
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 2100,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ background: 'white', padding: 18, borderRadius: 10, width: 460 }}>
+      <div style={{ background: 'white', padding: 18, borderRadius: 10, width: 460, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto', pointerEvents: 'auto' }}>
         <h4 style={{ marginTop: 0 }}>
           {source === 'transcript' ? 'Transcript Processed' : 'Import Data'}
         </h4>

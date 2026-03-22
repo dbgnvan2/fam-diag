@@ -118,9 +118,17 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
             dash={dashStyle}
         />
         {/* Horizontal connector - draggable */}
+        {/*
+          x={0} is explicit so React-Konva resets canvas-x to 0 on every re-render.
+          Without it, a prior drag at zoom≠1 would leave canvas-x at
+          (0 - stageOffset.x)/zoom (non-zero), misaligning the line from the PDLs.
+          dragDirection="vertical" constrains drag to the Y axis without the
+          absolute-coordinate confusion of a manual dragBoundFunc.
+        */}
         <Group
           draggable
           dragDirection="vertical"
+          x={0}
           y={connectorY}
           onDragEnd={handleDragEnd}
           onMouseEnter={handleMouseEnter}
@@ -128,12 +136,6 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           onClick={handleSelect}
           onTap={handleSelect}
           onContextMenu={(e) => onContextMenu(e, partnership.id)}
-          dragBoundFunc={(pos) => {
-            return {
-              x: 0,
-              y: pos.y,
-            };
-          }}
         >
           <Line
               points={[pLeft_x_center, 0, pRight_x_center, 0]}
@@ -197,8 +199,8 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           const label = familyName !== undefined ? familyName : computeDefaultFamilyName(partner1, partner2);
           if (!label) return null;
           const fontSize = 22;
-          const padX = 10;
-          const padY = 6;
+          const padX = 4;
+          const padY = 4;
           const charWidth = fontSize * 0.58;
           const boxW = Math.max(100, label.length * charWidth + padX * 2);
           const boxH = fontSize + padY * 2;

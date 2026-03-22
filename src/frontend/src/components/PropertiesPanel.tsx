@@ -310,6 +310,7 @@ interface PropertiesPanelProps {
   openNewEventRequestId?: string;
   newEventSeed?: Partial<EmotionalProcessEvent> | null;
   openNewEventPosition?: { x: number; y: number };
+  newEventModalTitle?: string;
   onEnsureSymptomCategoryDefinition?: (label: string, group: SymptomGroup) => string | null;
   compactPersonSectionMode?: boolean;
   compactPartnershipSectionMode?: boolean;
@@ -344,6 +345,7 @@ const PropertiesPanel = ({
   openNewEventRequestId,
   newEventSeed,
   openNewEventPosition,
+  newEventModalTitle,
   allEmotionalLines = [],
   onSelectEmotionalLine: _onSelectEmotionalLine,
   onRemoveEmotionalLine,
@@ -371,6 +373,7 @@ const PropertiesPanel = ({
   const [eventModalPosition, setEventModalPosition] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [eventModalTitle, setEventModalTitle] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns'>('properties');
   const [activeFamilyTab, setActiveFamilyTab] = useState<'family' | 'triangles' | 'stressors' | 'events'>('family');
   const [activePersonSection, setActivePersonSection] = useState<
@@ -1681,6 +1684,7 @@ const PropertiesPanel = ({
     const eventType = (seed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, seed));
     setEventModalPosition(openNewEventPosition || null);
+    setEventModalTitle(undefined);
     setEventModalOpen(true);
   };
 
@@ -1708,6 +1712,7 @@ const PropertiesPanel = ({
       eventClass: event.eventClass || resolveEventClass(),
     });
     setEventModalPosition(null);
+    setEventModalTitle(undefined);
     setEventModalOpen(true);
   };
 
@@ -1718,8 +1723,9 @@ const PropertiesPanel = ({
     const eventType = (newEventSeed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, newEventSeed || null));
     setEventModalPosition(openNewEventPosition || null);
+    setEventModalTitle(newEventModalTitle || undefined);
     setEventModalOpen(true);
-  }, [openNewEventRequestId, newEventSeed, openNewEventPosition, resolveDefaultEventType, buildEventDraft]);
+  }, [openNewEventRequestId, newEventSeed, openNewEventPosition, newEventModalTitle, resolveDefaultEventType, buildEventDraft]);
 
   const handleEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     if (!eventDraft) return;
@@ -2621,6 +2627,7 @@ const PropertiesPanel = ({
           eventCategories={eventCategories}
           symptomTypeOptions={symptomTypeOptions}
           resolvedEventClass={resolveEventClass()}
+          modalTitle={eventModalTitle}
           onChange={handleEventDraftChange}
           onSetDraft={setEventDraft}
           onSave={saveEvent}
