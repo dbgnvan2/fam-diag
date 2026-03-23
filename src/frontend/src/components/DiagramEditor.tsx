@@ -249,7 +249,16 @@ const DiagramEditor = () => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictionSets;
     const stored = getStoredValue('predictions');
     if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Migrate old flat Prediction[] → PredictionSet[] (pre-refactor data)
+          if (parsed.length > 0 && !('predictions' in parsed[0]) && 'conditions' in parsed[0]) {
+            return [{ id: nanoid(), name: 'Migrated Predictions', createdDate: new Date().toISOString().slice(0, 10), predictions: parsed }];
+          }
+          return parsed;
+        }
+      } catch { /* ignore */ }
     }
     return DEFAULT_DIAGRAM_STATE.predictionSets;
   });
