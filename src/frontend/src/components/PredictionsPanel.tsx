@@ -612,6 +612,11 @@ const PredictionsPanel = ({
               </div>
             ))}
           </div>
+
+          {/* Footer */}
+          <div style={{ padding: '10px 18px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Save & Close</button>
+          </div>
         </div>
       </div>
     );
@@ -702,6 +707,11 @@ const PredictionsPanel = ({
               ))}
             </>
           )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '10px 18px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Save & Close</button>
         </div>
       </div>
     </div>
