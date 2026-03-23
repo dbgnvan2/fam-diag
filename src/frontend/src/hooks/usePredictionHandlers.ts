@@ -1,6 +1,6 @@
 /**
- * usePredictionHandlers — CRUD operations for diagram-level Predictions.
- * All mutations are immutable (spread/map/filter).
+ * usePredictionHandlers — CRUD operations for diagram-level Prediction Sets.
+ * Each set contains one or more predictions. All mutations are immutable.
  */
 import type { Dispatch, SetStateAction } from 'react';
 import { nanoid } from 'nanoid';
@@ -10,23 +10,61 @@ import type {
   PredictionConditionType,
   PredictionEvidence,
   PredictionOutcome,
+  PredictionSet,
   PredictionStatus,
 } from '../types';
 
 interface UsePredictionHandlersDeps {
-  predictions: Prediction[];
-  setPredictions: Dispatch<SetStateAction<Prediction[]>>;
+  predictionSets: PredictionSet[];
+  setPredictionSets: Dispatch<SetStateAction<PredictionSet[]>>;
 }
 
+// ── internal helper: update a single prediction inside a set ────────────────
+
+const updatePredInSet = (
+  sets: PredictionSet[],
+  setId: string,
+  predId: string,
+  fn: (p: Prediction) => Prediction,
+): PredictionSet[] =>
+  sets.map((s) =>
+    s.id === setId
+      ? { ...s, predictions: s.predictions.map((p) => (p.id === predId ? fn(p) : p)) }
+      : s,
+  );
+
 export function usePredictionHandlers({
-  predictions,
-  setPredictions,
+  predictionSets,
+  setPredictionSets,
 }: UsePredictionHandlersDeps) {
   const today = () => new Date().toISOString().slice(0, 10);
 
-  // ── Prediction CRUD ──────────────────────────────────────────────────────
+  // ── Set CRUD ─────────────────────────────────────────────────────────────
 
-  const addPrediction = () => {
+  const addSet = (name: string) => {
+    const newSet: PredictionSet = {
+      id: nanoid(),
+      name: name || 'Untitled Set',
+      createdDate: today(),
+      predictions: [],
+    };
+    setPredictionSets((prev) => [...prev, newSet]);
+    return newSet.id;
+  };
+
+  const renameSet = (setId: string, name: string) => {
+    setPredictionSets((prev) =>
+      prev.map((s) => (s.id === setId ? { ...s, name } : s)),
+    );
+  };
+
+  const deleteSet = (setId: string) => {
+    setPredictionSets((prev) => prev.filter((s) => s.id !== setId));
+  };
+
+  // ── Prediction CRUD (within a set) ───────────────────────────────────────
+
+  const addPrediction = (setId: string) => {
     const newPrediction: Prediction = {
       id: nanoid(),
       title: '',
@@ -36,152 +74,146 @@ export function usePredictionHandlers({
       outcomes: [],
       notes: '',
     };
-    setPredictions((prev) => [...prev, newPrediction]);
+    setPredictionSets((prev) =>
+      prev.map((s) =>
+        s.id === setId
+          ? { ...s, predictions: [...s.predictions, newPrediction] }
+          : s,
+      ),
+    );
     return newPrediction.id;
   };
 
-  const updatePrediction = (id: string, updates: Partial<Prediction>) => {
-    setPredictions((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+  const updatePrediction = (setId: string, predId: string, updates: Partial<Prediction>) => {
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({ ...p, ...updates })),
     );
   };
 
-  const deletePrediction = (id: string) => {
-    setPredictions((prev) => prev.filter((p) => p.id !== id));
+  const deletePrediction = (setId: string, predId: string) => {
+    setPredictionSets((prev) =>
+      prev.map((s) =>
+        s.id === setId
+          ? { ...s, predictions: s.predictions.filter((p) => p.id !== predId) }
+          : s,
+      ),
+    );
   };
 
-  const resolvePrediction = (id: string, status: PredictionStatus) => {
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, status, resolvedDate: status === 'active' ? undefined : today() }
-          : p,
-      ),
+  const resolvePrediction = (setId: string, predId: string, status: PredictionStatus) => {
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        status,
+        resolvedDate: status === 'active' ? undefined : today(),
+      })),
     );
   };
 
   // ── Condition CRUD ───────────────────────────────────────────────────────
 
-  const addCondition = (predictionId: string, type: PredictionConditionType = 'custom') => {
+  const addCondition = (setId: string, predId: string, type: PredictionConditionType = 'custom') => {
     const newCondition: PredictionCondition = {
       id: nanoid(),
       type,
       description: '',
       evidence: [],
     };
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? { ...p, conditions: [...p.conditions, newCondition] }
-          : p,
-      ),
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        conditions: [...p.conditions, newCondition],
+      })),
     );
   };
 
   const updateCondition = (
-    predictionId: string,
-    conditionId: string,
+    setId: string,
+    predId: string,
+    condId: string,
     updates: Partial<PredictionCondition>,
   ) => {
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? {
-              ...p,
-              conditions: p.conditions.map((c) =>
-                c.id === conditionId ? { ...c, ...updates } : c,
-              ),
-            }
-          : p,
-      ),
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        conditions: p.conditions.map((c) => (c.id === condId ? { ...c, ...updates } : c)),
+      })),
     );
   };
 
-  const removeCondition = (predictionId: string, conditionId: string) => {
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? { ...p, conditions: p.conditions.filter((c) => c.id !== conditionId) }
-          : p,
-      ),
+  const removeCondition = (setId: string, predId: string, condId: string) => {
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        conditions: p.conditions.filter((c) => c.id !== condId),
+      })),
     );
   };
 
   // ── Outcome CRUD ─────────────────────────────────────────────────────────
 
-  const addOutcome = (predictionId: string) => {
+  const addOutcome = (setId: string, predId: string) => {
     const newOutcome: PredictionOutcome = {
       id: nanoid(),
       description: '',
       personIds: [],
       evidence: [],
     };
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? { ...p, outcomes: [...p.outcomes, newOutcome] }
-          : p,
-      ),
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        outcomes: [...p.outcomes, newOutcome],
+      })),
     );
   };
 
   const updateOutcome = (
-    predictionId: string,
+    setId: string,
+    predId: string,
     outcomeId: string,
     updates: Partial<PredictionOutcome>,
   ) => {
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? {
-              ...p,
-              outcomes: p.outcomes.map((o) =>
-                o.id === outcomeId ? { ...o, ...updates } : o,
-              ),
-            }
-          : p,
-      ),
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        outcomes: p.outcomes.map((o) => (o.id === outcomeId ? { ...o, ...updates } : o)),
+      })),
     );
   };
 
-  const removeOutcome = (predictionId: string, outcomeId: string) => {
-    setPredictions((prev) =>
-      prev.map((p) =>
-        p.id === predictionId
-          ? { ...p, outcomes: p.outcomes.filter((o) => o.id !== outcomeId) }
-          : p,
-      ),
+  const removeOutcome = (setId: string, predId: string, outcomeId: string) => {
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => ({
+        ...p,
+        outcomes: p.outcomes.filter((o) => o.id !== outcomeId),
+      })),
     );
   };
 
   // ── Evidence CRUD ────────────────────────────────────────────────────────
 
   const addEvidence = (
-    predictionId: string,
+    setId: string,
+    predId: string,
     target: 'condition' | 'outcome',
     targetId: string,
     evidence: Omit<PredictionEvidence, 'id'>,
   ) => {
     const newEvidence: PredictionEvidence = { ...evidence, id: nanoid() };
-    setPredictions((prev) =>
-      prev.map((p) => {
-        if (p.id !== predictionId) return p;
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => {
         if (target === 'condition') {
           return {
             ...p,
             conditions: p.conditions.map((c) =>
-              c.id === targetId
-                ? { ...c, evidence: [...c.evidence, newEvidence] }
-                : c,
+              c.id === targetId ? { ...c, evidence: [...c.evidence, newEvidence] } : c,
             ),
           };
         }
         return {
           ...p,
           outcomes: p.outcomes.map((o) =>
-            o.id === targetId
-              ? { ...o, evidence: [...o.evidence, newEvidence] }
-              : o,
+            o.id === targetId ? { ...o, evidence: [...o.evidence, newEvidence] } : o,
           ),
         };
       }),
@@ -189,30 +221,26 @@ export function usePredictionHandlers({
   };
 
   const removeEvidence = (
-    predictionId: string,
+    setId: string,
+    predId: string,
     target: 'condition' | 'outcome',
     targetId: string,
     evidenceId: string,
   ) => {
-    setPredictions((prev) =>
-      prev.map((p) => {
-        if (p.id !== predictionId) return p;
+    setPredictionSets((prev) =>
+      updatePredInSet(prev, setId, predId, (p) => {
         if (target === 'condition') {
           return {
             ...p,
             conditions: p.conditions.map((c) =>
-              c.id === targetId
-                ? { ...c, evidence: c.evidence.filter((e) => e.id !== evidenceId) }
-                : c,
+              c.id === targetId ? { ...c, evidence: c.evidence.filter((e) => e.id !== evidenceId) } : c,
             ),
           };
         }
         return {
           ...p,
           outcomes: p.outcomes.map((o) =>
-            o.id === targetId
-              ? { ...o, evidence: o.evidence.filter((e) => e.id !== evidenceId) }
-              : o,
+            o.id === targetId ? { ...o, evidence: o.evidence.filter((e) => e.id !== evidenceId) } : o,
           ),
         };
       }),
@@ -220,7 +248,10 @@ export function usePredictionHandlers({
   };
 
   return {
-    predictions,
+    predictionSets,
+    addSet,
+    renameSet,
+    deleteSet,
     addPrediction,
     updatePrediction,
     deletePrediction,

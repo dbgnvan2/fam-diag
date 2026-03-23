@@ -72,6 +72,17 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: 'Prediction Sets',
+    tips: [
+      'Use Options > Predictions to open the Predictions panel where you can create named Prediction Sets — each set holds one or more If/Then predictions.',
+      'Create multiple sets per diagram, for example one per person, relationship, symptom, or clinical theme.',
+      'Each prediction has an IF section (Conditions) and a THEN section (Outcomes). Conditions can be Custom text, linked to a Self in Relationship (SIR) category, or linked to a Papero Assessment topic.',
+      'When you choose SIR or Papero as a condition type and select a person, existing assessment data is shown so you can link the prediction to a specific entry.',
+      'Track evidence for or against each condition and outcome — mark entries as Supports, Contradicts, or Neutral.',
+      'Resolve predictions as Supported, Unsupported, or Revised. Active and resolved predictions are displayed separately within each set.',
+    ],
+  },
+  {
     title: 'Session Notes & Timelines',
     tips: [
       'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes. Use New/Open/Save/Save As/Location to manage note files separately from diagram JSON.',

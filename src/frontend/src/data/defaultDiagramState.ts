@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type {
   EmotionalLine,
   FunctionalIndicatorDefinition,
-  Prediction,
+  PredictionSet,
   SIRCategoryDefinition,
   PageNote,
   Partnership,
@@ -78,7 +78,7 @@ export type RawDiagramFile = {
   relationshipStatuses?: string[];
   autoSaveMinutes?: number;
   ideasText?: string;
-  predictions?: Prediction[];
+  predictionSets?: PredictionSet[];
 };
 
 export type DefaultDiagramState = {
@@ -96,7 +96,7 @@ export type DefaultDiagramState = {
   fileName: string;
   displayName: string;
   ideasText: string;
-  predictions: Prediction[];
+  predictionSets: PredictionSet[];
 };
 
 const toPositiveNumberOrNull = (value: unknown) => {
@@ -156,7 +156,7 @@ export const buildDefaultDiagramState = (
     fileName: FALLBACK_FILE_NAME,
     displayName: FALLBACK_FILE_NAME,
     ideasText: '',
-    predictions: [],
+    predictionSets: [],
   };
 
   if (!typed) {
@@ -212,7 +212,7 @@ export const buildDefaultDiagramState = (
         ? typed.fileMeta.fileName.trim()
         : base.displayName,
     ideasText: typeof typed.ideasText === 'string' ? typed.ideasText : base.ideasText,
-    predictions: Array.isArray(typed.predictions) ? typed.predictions : base.predictions,
+    predictionSets: Array.isArray(typed.predictionSets) ? typed.predictionSets : base.predictionSets,
   };
 };
 

@@ -317,6 +317,46 @@ All relationship types show:
 
 ---
 
+## Prediction Sets — Diagram-Level Hypothesis Tracking
+
+The **Prediction Sets** feature allows users to create named sets of If→Then predictions at the diagram level. Each diagram can have multiple prediction sets (e.g., one per person, relationship, or clinical theme). Accessed via **Options → Predictions** in the AppRibbon.
+
+### Data model:
+- **Storage:** `DiagramEditor` state `predictionSets: PredictionSet[]`, persisted to localStorage key `'predictions'` and saved in diagram JSON as `predictionSets`
+- **Types** (all in `types/index.ts`):
+  - `PredictionSet` — `{ id, name, createdDate, predictions: Prediction[] }`
+  - `Prediction` — `{ id, title, status, createdDate, resolvedDate?, conditions, outcomes, notes }`
+  - `PredictionCondition` — `{ id, type, personId?, description, linkedPaperoKey?, linkedSIRCategory?, linkedEventId?, evidence[] }`
+  - `PredictionOutcome` — `{ id, description, personIds[], evidence[] }`
+  - `PredictionEvidence` — `{ id, date, type, sourceId?, measurement?, direction, notes }`
+- **Condition types:** `'sir' | 'papero' | 'custom'` — SIR and Papero conditions link to existing assessment data
+- **Prediction statuses:** `'active' | 'supported' | 'unsupported' | 'revised'`
+- **Evidence directions:** `'supports' | 'contradicts' | 'neutral'`
+
+### UI architecture (PredictionsPanel.tsx):
+- **Two-view panel:** Set List view (create/rename/delete sets) → Active Set view (predictions within a set)
+- **Set List view:** Name input + Create button, list of sets with rename/delete, click to open
+- **Active Set view:** Back button, + New prediction, prediction cards with expand/collapse
+- **Prediction card (expanded):** Title, status badges, IF (Conditions) section, THEN (Outcomes) section, evidence rows, notes
+- **SIR Condition Linker:** When condition type is `'sir'` + person selected → shows SIR Category dropdown + list of existing SIR events for linking via `linkedEventId`
+- **Papero Condition Linker:** When condition type is `'papero'` + person selected → shows Papero Topic dropdown + current score display via `linkedPaperoKey`
+
+### Hook (usePredictionHandlers.ts):
+- Deps: `{ predictionSets, setPredictionSets }`
+- Returns: `{ predictionSets, addSet, renameSet, deleteSet, addPrediction, updatePrediction, deletePrediction, resolvePrediction, addCondition, updateCondition, removeCondition, addOutcome, updateOutcome, removeOutcome, addEvidence, removeEvidence }`
+- All prediction/condition/outcome/evidence CRUD ops take `setId` as first parameter
+- Uses `updatePredInSet` internal helper for immutable nested updates
+
+### When modifying Predictions:
+- All CRUD operations are set-scoped — always pass `setId` first
+- PredictionsPanel callbacks all include `setId` in their signatures
+- Prediction data is diagram-level (not per-person) — stored alongside people, partnerships, etc.
+- localStorage persistence fires on every `predictionSets` change via `useEffect`
+- `buildDiagramPayload` includes `predictionSets` for file save
+- `DiagramImportData` in `diagramEditor.ts` includes `predictionSets` for import
+
+---
+
 ## Code Patterns — Follow These Exactly
 
 ### Hook Pattern (all hooks in `src/frontend/src/hooks/`)
@@ -418,8 +458,8 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Type Locations
 
-- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType, PaperoScores, BirthSex (incl. `'ai-agent'`), GenderSymbol (incl. `'ai_agent'`)
-- **UI/editor types:** `src/frontend/src/types/diagramEditor.ts` — PropertiesPanelIntent, SessionNoteFileRecord, drafts, import/export
+- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType, PaperoScores, BirthSex (incl. `'ai-agent'`), GenderSymbol (incl. `'ai_agent'`), Prediction, PredictionSet, PredictionCondition, PredictionOutcome, PredictionEvidence
+- **UI/editor types:** `src/frontend/src/types/diagramEditor.ts` — PropertiesPanelIntent, SessionNoteFileRecord, drafts, import/export, DiagramImportData (incl. `predictionSets`)
 - **Event constants:** `src/frontend/src/constants/eventConstants.ts` — all event hierarchy lookups, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY
 - **Indicator scales:** `src/frontend/src/constants/functionalIndicatorScales.ts` — frequency/intensity/impact ratings
 
@@ -508,6 +548,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 - `DiagramCanvas.tsx` related: `PartnershipNode.test.tsx`, `PersonNode.test.tsx` (incl. AI agent hexagon), `TriangleNode.test.tsx`, `EmotionalLineNode.test.tsx`, `EmotionalLineNode.regression.test.tsx`, `ChildConnection.test.tsx`, `NoteNode.test.tsx`, `SiblingConflictOverlay.test.tsx`
 - `sections/PersonPaperoSection.test.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns, help dialogs, score updates, category averages
 - `sections/PersonSIRSection.test.tsx` — Self in Relationship: entry cards, add/edit/delete, HWDID help dialog, form fields, event filtering
+- `PredictionsPanel.test.tsx` — Prediction Sets: set CRUD, two-view navigation, prediction cards, conditions (SIR/Papero/Custom), outcomes, evidence, SIR/Papero linking
 
 **Utility tests (co-located in `utils/`):**
 - `dataCleanup.test.ts`, `noteVisibility.test.ts`, `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
@@ -630,6 +671,7 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `useVoiceHandlers` — reviewVoiceCommands, applyVoiceCommands, toggleVoiceListening
 - `useEmotionalLineOperations` — emotional line + triangle CRUD
 - `useUpdateHandlers` — handleUpdatePerson/Partnership/EmotionalLine, focusItemInPropertiesPanel, openContextualEventCreator, client profile + coach thinking modals
+- `usePredictionHandlers` — Prediction Set CRUD: addSet, renameSet, deleteSet, plus set-scoped prediction/condition/outcome/evidence CRUD
 
 ### Pure utilities (`src/frontend/src/utils/`):
 - `emotionalLineNormalization.ts` — normalizeEmotionalLine, normalizeEmotionalLines, buildDefaultTpl, normalizeTriangles
@@ -666,6 +708,7 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `modals/EmotionalPatternModal.tsx`
 - `modals/SessionEventModal.tsx`
 - `modals/TimelineBoardModal.tsx`
+- `PredictionsPanel.tsx` — Prediction Sets: two-view UI (Set List + Active Set), If→Then prediction cards with SIR/Papero/Custom conditions, outcomes, and evidence tracking
 
 ### Static data (`src/frontend/src/data/`):
 - `defaultDiagramState.ts` — blank diagram starting state

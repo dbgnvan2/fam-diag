@@ -251,6 +251,13 @@ export type Prediction = {
   notes: string;
 };
 
+export type PredictionSet = {
+  id: string;
+  name: string;
+  createdDate: string;
+  predictions: Prediction[];
+};
+
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
 export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO' | 'SIR';
 export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';

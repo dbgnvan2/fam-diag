@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-22T16:47:24.570Z"
+    "exportedAt": "2026-03-23T01:28:51.102Z"
   },
   "people": [
     {
@@ -847,6 +847,17 @@
       "x": 942.4586956521736,
       "y": 515.3147078804348,
       "gender": "female",
+      "partnerships": [],
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": []
+    },
+    {
+      "id": "bvTA3fOHXX8xWU_vmffmP",
+      "name": "AI Agent",
+      "x": 1045,
+      "y": 741,
+      "gender": "ai-agent",
       "partnerships": [],
       "lifeStatus": "alive",
       "isCoach": false,
@@ -2264,5 +2275,34 @@
     "Widowed"
   ],
   "autoSaveMinutes": 1,
-  "ideasText": "create a correlate list of events - deaths and births for example."
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictions": [
+    {
+      "id": "5NxgEC45P3Eb9aTHs_Y0p",
+      "title": "First Predtion",
+      "status": "active",
+      "createdDate": "2026-03-23",
+      "conditions": [
+        {
+          "id": "hA0Sm9jhbflciAAOOruu4",
+          "type": "sir",
+          "description": "Be less reactive on topics",
+          "evidence": [],
+          "personId": "demo-dad",
+          "linkedSIRCategory": "Managing Reactivity"
+        }
+      ],
+      "outcomes": [
+        {
+          "id": "4RFm9LTkuUAN4UM_8ShJ2",
+          "description": "other will be less reactive to me",
+          "personIds": [
+            "demo-mom"
+          ],
+          "evidence": []
+        }
+      ],
+      "notes": ""
+    }
+  ]
 }

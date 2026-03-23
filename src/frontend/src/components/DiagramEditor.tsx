@@ -5,7 +5,7 @@ import type {
   EmotionalLine,
   Triangle,
   FunctionalIndicatorDefinition,
-  Prediction,
+  PredictionSet,
   SIRCategoryDefinition,
   EmotionalProcessEvent,
   EventType,
@@ -245,13 +245,13 @@ const DiagramEditor = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [predictionsOpen, setPredictionsOpen] = useState(false);
-  const [predictions, setPredictions] = useState<Prediction[]>(() => {
-    if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictions;
+  const [predictionSets, setPredictionSets] = useState<PredictionSet[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictionSets;
     const stored = getStoredValue('predictions');
     if (stored) {
       try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
     }
-    return DEFAULT_DIAGRAM_STATE.predictions;
+    return DEFAULT_DIAGRAM_STATE.predictionSets;
   });
   const [ideasText, setIdeasText] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.ideasText;
@@ -1454,8 +1454,8 @@ useEffect(() => {
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
-  setStoredValue('predictions', JSON.stringify(predictions));
-}, [predictions]);
+  setStoredValue('predictions', JSON.stringify(predictionSets));
+}, [predictionSets]);
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
@@ -1688,8 +1688,8 @@ useEffect(() => {
   });
 
   const predictionHandlers = usePredictionHandlers({
-    predictions,
-    setPredictions,
+    predictionSets,
+    setPredictionSets,
   });
 
   const addPartnership = () => {
@@ -1856,7 +1856,7 @@ useEffect(() => {
     relationshipStatuses,
     autoSaveMinutes,
     ideasText,
-    predictions,
+    predictionSets,
   });
 
   const setDiagramFileHandle = useCallback((handle: any | null) => {
@@ -2089,7 +2089,7 @@ useEffect(() => {
     } else {
       setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
     }
-    setPredictions(Array.isArray(data.predictions) ? data.predictions : []);
+    setPredictionSets(Array.isArray(data.predictionSets) ? data.predictionSets : []);
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
     setTimelineSelectionIds([]);
@@ -4203,10 +4203,13 @@ useEffect(() => {
           />
         <PredictionsPanel
           isOpen={predictionsOpen}
-          predictions={predictions}
+          predictionSets={predictionSets}
           people={people}
           sirCategories={sirCategories}
           onClose={() => setPredictionsOpen(false)}
+          onAddSet={predictionHandlers.addSet}
+          onRenameSet={predictionHandlers.renameSet}
+          onDeleteSet={predictionHandlers.deleteSet}
           onAddPrediction={predictionHandlers.addPrediction}
           onUpdatePrediction={predictionHandlers.updatePrediction}
           onDeletePrediction={predictionHandlers.deletePrediction}
