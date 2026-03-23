@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   relationshipStatuses: 'family-diagram-relationship-statuses',
   indicatorDefinitions: 'family-diagram-functional-indicators',
   ideas: 'family-diagram-ideas',
+  predictions: 'family-diagram-predictions',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
 } as const;
 

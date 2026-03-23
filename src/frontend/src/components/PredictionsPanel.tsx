@@ -34,8 +34,7 @@ const DIRECTION_COLORS: Record<PredictionEvidenceDirection, string> = {
 };
 
 const CONDITION_TYPE_LABELS: Record<PredictionConditionType, string> = {
-  goal: 'Goal',
-  sir: 'Self in Rel.',
+  sir: 'SIR',
   papero: 'Papero',
   custom: 'Custom',
 };
@@ -554,7 +553,7 @@ const PredictionCard = ({
                       <option key={k} value={k}>{v}</option>
                     ))}
                   </select>
-                  {(cond.type === 'goal' || cond.type === 'sir' || cond.type === 'papero') && (
+                  {(cond.type === 'sir' || cond.type === 'papero') && (
                     <select
                       value={cond.personId || ''}
                       onChange={(e) => onUpdateCondition(p.id, cond.id, { personId: e.target.value || undefined })}

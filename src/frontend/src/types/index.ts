@@ -210,7 +210,7 @@ export type Triangle = {
 export type PredictionStatus = 'active' | 'supported' | 'unsupported' | 'revised';
 export type PredictionEvidenceDirection = 'supports' | 'contradicts' | 'neutral';
 export type PredictionEvidenceType = 'event' | 'sir_entry' | 'papero_change' | 'observation';
-export type PredictionConditionType = 'goal' | 'sir' | 'papero' | 'custom';
+export type PredictionConditionType = 'sir' | 'papero' | 'custom';
 
 export type PredictionEvidence = {
   id: string;

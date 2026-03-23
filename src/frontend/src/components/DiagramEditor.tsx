@@ -245,9 +245,14 @@ const DiagramEditor = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [predictionsOpen, setPredictionsOpen] = useState(false);
-  const [predictions, setPredictions] = useState<Prediction[]>(() =>
-    DEFAULT_DIAGRAM_STATE.predictions,
-  );
+  const [predictions, setPredictions] = useState<Prediction[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictions;
+    const stored = getStoredValue('predictions');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
+    }
+    return DEFAULT_DIAGRAM_STATE.predictions;
+  });
   const [ideasText, setIdeasText] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.ideasText;
     const stored = getStoredValue('ideas');
@@ -1446,6 +1451,11 @@ useEffect(() => {
   if (typeof window === 'undefined') return;
   setStoredValue('ideas', ideasText);
 }, [ideasText]);
+
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+  setStoredValue('predictions', JSON.stringify(predictions));
+}, [predictions]);
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
