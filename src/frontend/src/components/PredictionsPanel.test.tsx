@@ -322,4 +322,24 @@ describe('PredictionsPanel', () => {
     // Should be back in set list
     expect(screen.getByText('Prediction Sets')).toBeTruthy();
   });
+
+  it('shows Save & Close button in set list view and calls onClose', () => {
+    const onClose = vi.fn();
+    render(<PredictionsPanel {...defaultProps()} onClose={onClose} />);
+    const saveBtn = screen.getByText('Save & Close');
+    expect(saveBtn).toBeTruthy();
+    fireEvent.click(saveBtn);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Save & Close button in active set view and calls onClose', () => {
+    const onClose = vi.fn();
+    const sets = [makeSet({ predictions: [makePrediction()] })];
+    render(<PredictionsPanel {...defaultProps()} predictionSets={sets} onClose={onClose} />);
+    fireEvent.click(screen.getByText('My Set'));
+    const saveBtn = screen.getByText('Save & Close');
+    expect(saveBtn).toBeTruthy();
+    fireEvent.click(saveBtn);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

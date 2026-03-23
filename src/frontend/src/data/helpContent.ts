@@ -80,6 +80,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       'When you choose SIR or Papero as a condition type and select a person, existing assessment data is shown so you can link the prediction to a specific entry.',
       'Track evidence for or against each condition and outcome — mark entries as Supports, Contradicts, or Neutral.',
       'Resolve predictions as Supported, Unsupported, or Revised. Active and resolved predictions are displayed separately within each set.',
+      'Changes are saved automatically as you type. Click Save & Close at the bottom of the panel when you are done.',
     ],
   },
   {
