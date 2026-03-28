@@ -15,7 +15,7 @@ export const EVENT_STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
 // ─── Category options per EventType ─────────────────────────────────────────
 export const EVENT_CATEGORIES: Record<EventType, string[]> = {
   SYMPTOM: ['Physical', 'Emotional', 'Social'],
-  EPE: ['Fusion', 'Distance', 'Conflict', 'Projection', 'Cutoff'],
+  EPE: ['+/- Adequate', 'Distance', 'Conflict', 'Projection', 'Cutoff'],
   NODAL: ['Birth', 'Death', 'Marriage', 'Separation', 'Divorce', 'Affair', 'Engagement', 'Friendship'],
   EA: ['Emotional Autonomy'],
   FAMILY: ['Triangles', 'Stress'],
@@ -23,6 +23,7 @@ export const EVENT_CATEGORIES: Record<EventType, string[]> = {
   TRIANGLE: ['Primary', 'Secondary'],
   PAPERO: ['Resourceful', 'Connectedness & Integration', 'Tension Management', 'Systems Thinking', 'Goal Structure'],
   SIR: ['Resource to Other', 'Managing Reactivity', 'Defining Self', 'Detriangulating', 'Emotional Contact', 'Systems Perspective'],
+  FF: [],  // Functional Fact categories are configurable in Settings — populated dynamically
 };
 
 // ─── Subtype options per EventType+Category (only where subtypes exist) ──────
@@ -440,6 +441,7 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   TRIANGLE: 'Triangle Property',
   PAPERO: 'Papero Assessment',
   SIR: 'Self in Relationship',
+  FF: 'Functional Fact',
 };
 
 // ─── Infer EventType from legacy event data ───────────────────────────────────
@@ -484,6 +486,7 @@ export const EVENT_TYPE_HAS_PERSONS: Record<EventType, boolean> = {
   TRIANGLE: false,
   PAPERO: true,
   SIR: true,
+  FF: true,
 };
 
 // ─── Which event types have a subtype field ───────────────────────────────────
@@ -497,4 +500,5 @@ export const EVENT_TYPE_HAS_SUBTYPE: Record<EventType, boolean> = {
   TRIANGLE: true,
   PAPERO: true,
   SIR: false,
+  FF: true,
 };

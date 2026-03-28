@@ -6,6 +6,7 @@
 
 import type {
   FunctionalIndicatorDefinition,
+  FunctionalFactCategoryDefinition,
   SIRCategoryDefinition,
   EmotionalProcessEvent,
   EmotionalLine,
@@ -21,7 +22,9 @@ export type StoredUserSettings = {
   relationshipStatuses?: string[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   sirCategories?: SIRCategoryDefinition[];
+  functionalFactCategories?: FunctionalFactCategoryDefinition[];
   autoSaveMinutes?: number;
+  backupCount?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -107,6 +110,7 @@ export type EmotionalPatternDraft = {
   impact: number;
   notes: string;
   color: string;
+  adequatePersonId: string;
 };
 
 export type ClientProfileDraft = {

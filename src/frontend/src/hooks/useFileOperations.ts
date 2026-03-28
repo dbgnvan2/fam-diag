@@ -26,7 +26,9 @@ import {
 } from '../utils/dataImport';
 import {
   loadDiagramBackups,
+  clearDiagramLocalStorage,
 } from '../utils/storage';
+import type { BackupVersions } from '../utils/storage';
 import {
   DEMO_DIAGRAM_DATA,
   DEFAULT_DEMO_FILE_NAME,
@@ -52,7 +54,7 @@ interface UseFileOperationsDeps {
   eventCategories: string[];
   relationshipTypes: string[];
   relationshipStatuses: string[];
-  backupRestoreVersions: { v1?: string | null; v2?: string | null; v3?: string | null } | null;
+  backupRestoreVersions: BackupVersions | null;
   buildDemoSnapshots: any[];
   buildDemoSteps: any[];
   // Refs
@@ -82,7 +84,7 @@ interface UseFileOperationsDeps {
   setIdeasText: Dispatch<SetStateAction<string>>;
   setLastSavedAt: Dispatch<SetStateAction<number | null>>;
   setBackupRestoreOpen: Dispatch<SetStateAction<boolean>>;
-  setBackupRestoreVersions: Dispatch<SetStateAction<{ v1?: string | null; v2?: string | null; v3?: string | null } | null>>;
+  setBackupRestoreVersions: Dispatch<SetStateAction<BackupVersions | null>>;
   setHelpOpen: Dispatch<SetStateAction<boolean>>;
   setTrainingVideosOpen: Dispatch<SetStateAction<boolean>>;
   setBuildDemoOpen: Dispatch<SetStateAction<boolean>>;
@@ -181,6 +183,7 @@ export function useFileOperations({
     );
     setLastSavedAt(null);
     setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
+    clearDiagramLocalStorage();
   }, [markSnapshotClean, setDiagramFileHandle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async (forcePrompt = false) => {
@@ -209,7 +212,7 @@ export function useFileOperations({
     setBackupRestoreOpen(true);
   };
 
-  const handleRestoreBackupVersion = (versionKey: 'v1' | 'v2' | 'v3') => {
+  const handleRestoreBackupVersion = (versionKey: string) => {
     const raw = backupRestoreVersions?.[versionKey];
     if (!raw) return;
     try {

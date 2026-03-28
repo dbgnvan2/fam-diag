@@ -557,11 +557,69 @@ const EmotionalLineNode = ({
         return labels;
     };
 
+    const renderAdequateLabels = () => {
+        if (relationshipType !== 'fusion' || !emotionalLine.adequatePersonId) return null;
+        const fontSize = 16;
+        const padX = 2;
+        const padY = 1;
+        const bgSize = fontSize + padX * 2;
+        // Place labels centered on the EPL line, a full circle (2×radius) from each person center.
+        // This avoids collision with the person shape and symptom indicator circles.
+        const lineLen = Math.sqrt(
+            (p2_x_center - p1_x_center) ** 2 + (p2_y_center - p1_y_center) ** 2
+        );
+        const circleAway = radius * 2;
+        const p1Frac = lineLen > 0 ? circleAway / lineLen : 0.2;
+        const p2Frac = lineLen > 0 ? 1 - circleAway / lineLen : 0.8;
+        const isP1Adequate = emotionalLine.adequatePersonId === emotionalLine.person1_id;
+        const p1Label = isP1Adequate ? '+' : '−';
+        const p2Label = isP1Adequate ? '−' : '+';
+        const makeLabel = (label: string, frac: number, key: string) => {
+            const clampedFrac = Math.max(0.1, Math.min(0.9, frac));
+            const x = p1_x_center + (p2_x_center - p1_x_center) * clampedFrac;
+            const y = p1_y_center + (p2_y_center - p1_y_center) * clampedFrac;
+            const isPlus = label === '+';
+            return (
+                <Group key={key} x={x} y={y} listening={false}>
+                    <Rect
+                        x={-bgSize / 2}
+                        y={-bgSize / 2}
+                        width={bgSize}
+                        height={bgSize}
+                        fill="white"
+                        stroke={isPlus ? '#2e7d32' : '#c62828'}
+                        strokeWidth={1}
+                        cornerRadius={bgSize / 2}
+                    />
+                    <Text
+                        x={-bgSize / 2}
+                        y={-bgSize / 2 + padY}
+                        width={bgSize}
+                        height={bgSize}
+                        text={label}
+                        fontSize={fontSize}
+                        fontStyle="bold"
+                        fill={isPlus ? '#2e7d32' : '#c62828'}
+                        align="center"
+                        verticalAlign="middle"
+                    />
+                </Group>
+            );
+        };
+        return (
+            <>
+                {makeLabel(p1Label, p1Frac, `${emotionalLine.id}-adequate-p1`)}
+                {makeLabel(p2Label, p2Frac, `${emotionalLine.id}-adequate-p2`)}
+            </>
+        );
+    };
+
     return (
         <Group>
             {renderLines()}
             {renderEndings()}
             {renderDateLabels()}
+            {renderAdequateLabels()}
         </Group>
     );
 };

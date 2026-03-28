@@ -25,6 +25,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -57,6 +58,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={updateEmotionalLine}
@@ -131,6 +133,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -167,6 +170,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -199,6 +203,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -232,6 +237,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -266,6 +272,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -300,6 +307,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -334,6 +342,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -368,6 +377,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -399,6 +409,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -430,6 +441,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -461,6 +473,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -492,6 +505,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -523,6 +537,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -554,6 +569,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -585,6 +601,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -616,6 +633,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -651,6 +669,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={updateEmotionalLine}
@@ -693,6 +712,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -725,6 +745,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -759,6 +780,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -799,6 +821,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -950,6 +973,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -982,6 +1006,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1023,6 +1048,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1064,6 +1090,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1266,6 +1293,7 @@ describe('PropertiesPanel', () => {
                 relationshipStatuses={['start', 'married', 'separated', 'divorce']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={updatePartnership}
                 onUpdateEmotionalLine={() => {}}
@@ -1337,6 +1365,7 @@ describe('PropertiesPanel', () => {
                 relationshipStatuses={['married', 'estranged']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1368,6 +1397,7 @@ describe('PropertiesPanel', () => {
                 relationshipStatuses={['married', 'separated', 'divorce', 'widowed', 'start', 'ongoing', 'ended']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1405,6 +1435,7 @@ describe('PropertiesPanel', () => {
                 relationshipStatuses={['married', 'separated', 'divorce', 'widowed', 'start', 'ongoing', 'ended']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1455,6 +1486,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Individual']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1522,6 +1554,7 @@ describe('PropertiesPanel', () => {
                 eventCategories={['Relationship']}
                 functionalIndicatorDefinitions={indicatorDefinitions}
                 sirCategories={[]}
+                functionalFactCategories={[]}
                 initialActiveTab="events"
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}

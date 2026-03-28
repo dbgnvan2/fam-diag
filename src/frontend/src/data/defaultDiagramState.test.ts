@@ -34,4 +34,30 @@ describe('defaultDiagramState', () => {
     expect(state.partnerships.length).toBeGreaterThan(0);
     expect(state.fileName).toBe(FALLBACK_FILE_NAME);
   });
+
+  it('initializes functionalFactCategories from application settings', () => {
+    expect(DEFAULT_DIAGRAM_STATE.functionalFactCategories).toEqual(
+      APPLICATION_SETTINGS.functionalFactCategories
+    );
+  });
+
+  it('loads functionalFactCategories from diagram file data', () => {
+    const ffCats = [{ id: 'ff-test', name: 'Coping' }];
+    const state = buildDefaultDiagramState({
+      people: [{ id: 'p1', name: 'Test', x: 0, y: 0, gender: 'male', partnerships: [] }],
+      partnerships: [],
+      emotionalLines: [],
+      functionalFactCategories: ffCats,
+    });
+    expect(state.functionalFactCategories).toEqual(ffCats);
+  });
+
+  it('falls back to empty functionalFactCategories when not in file data', () => {
+    const state = buildDefaultDiagramState({
+      people: [{ id: 'p1', name: 'Test', x: 0, y: 0, gender: 'male', partnerships: [] }],
+      partnerships: [],
+      emotionalLines: [],
+    });
+    expect(Array.isArray(state.functionalFactCategories)).toBe(true);
+  });
 });

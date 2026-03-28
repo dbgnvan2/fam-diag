@@ -53,16 +53,16 @@ cd src/frontend && npm run dev                         # Start dev server (http:
 
 ---
 
-## Domain Model — The 9 Entity Types
+## Domain Model — The 10 Entity Types
 
-The app models family systems using 9 entity types. **Every entity type follows the same patterns for properties, events, and display.** When you implement something for one entity type, you MUST implement it the same way for ALL entity types that share that pattern.
+The app models family systems using 10 entity types. **Every entity type follows the same patterns for properties, events, and display.** When you implement something for one entity type, you MUST implement it the same way for ALL entity types that share that pattern.
 
-### The 9 entities and their event groups:
+### The 10 entities and their event groups:
 
 | Entity | Panel | Event Group (eventType) | eventClass | category pattern |
 |--------|-------|------------------------|------------|-----------------|
-| **Person** | Individual Functional Facts | NODAL, SYMPTOM, SIR | `'individual'` | `'Individual'` |
-| **AI Agent** | Same as Person (hexagon shape) | NODAL, SYMPTOM, PAPERO, SIR | `'individual'` | `'Individual'` |
+| **Person** | Individual Functional Facts | NODAL, SYMPTOM, SIR, FF | `'individual'` | `'Individual'` |
+| **AI Agent** | Same as Person (hexagon shape) | NODAL, SYMPTOM, PAPERO, SIR, FF | `'individual'` | `'Individual'` |
 | **Partner Relationship** | Partner Relationship Line (PRL) | NODAL | `'relationship'` | `toTitleCase(relationshipType)` |
 | **Emotional Pattern** | Emotional Pattern Line (EPL) | EPE | `'emotional-pattern'` | `'Emotional Pattern'` |
 | **Family** | Family view | FAMILY | `'family'` | from event |
@@ -72,6 +72,7 @@ The app models family systems using 9 entity types. **Every entity type follows 
 | **Symptom** | Symptoms tab (Person) | SYMPTOM | `'symptom'` | physical/emotional/social |
 | **Papero Assessment** | Papero tab (Person) | PAPERO | `'individual'` | Resourceful/Connectedness/Tension/Systems/Goals |
 | **Self in Relationship** | Self in Rel. tab (Person) | SIR | `'individual'` | Configurable via SIR Settings |
+| **Functional Fact** | Events tab (Person) | FF | `'individual'` | Configurable via FF Settings |
 
 ### Where entities store events:
 
@@ -317,6 +318,33 @@ All relationship types show:
 
 ---
 
+## Functional Facts (FF) — Configurable Per-Person Event Categories
+
+The **Functional Facts** feature allows users to define custom event categories for recording discrete observations about a person's functioning. Unlike other event types with fixed categories, FF categories are fully user-configurable via Settings.
+
+### Data model:
+- **Event type:** `'FF'` (added to `EventType` union)
+- **Storage:** `Person.events[]` as `EmotionalProcessEvent` records with `eventType: 'FF'`
+- **Category source:** `ApplicationSettings.functionalFactCategories` / `DefaultDiagramState.functionalFactCategories`
+- **Type:** `FunctionalFactCategoryDefinition` — `{ id: string; name: string }` (simple name-only, no 5-level scale)
+
+### UI architecture:
+- **Settings:** Settings > Functional Fact Categories opens `FunctionalFactSettingsModal` for CRUD
+- **Context menu:** Right-click person > Add > Functional Fact > [Category] — submenu dynamically built from configured categories; only appears when at least one category exists
+- **EventModal:** When `eventType === 'FF'`, category dropdown shows user-configured categories (via `functionalFactCategoryNames` prop) instead of the empty `EVENT_CATEGORIES.FF` static array
+- **Events tab:** FF events appear in the person's Events tab with type label "Functional Fact"
+
+### When modifying Functional Facts:
+- Category definitions come from `ApplicationSettings.functionalFactCategories` — never hardcode category names
+- Categories flow: `DiagramEditor` state → `DiagramCanvas` → `PropertiesPanel` → `EventModal`
+- Context menu flow: `DiagramEditor` → `useContextMenuHandlers` (receives `functionalFactCategories` dep)
+- Settings flow: `DiagramEditor` → `AppRibbon` (settings menu) → `DiagramModals` → `FunctionalFactSettingsModal`
+- `EVENT_CATEGORIES.FF = []` by design — categories are dynamic, not static
+- `buildDiagramPayload` includes `functionalFactCategories` for file save
+- `replaceDiagramState` restores `functionalFactCategories` from loaded file data
+
+---
+
 ## Prediction Sets — Diagram-Level Hypothesis Tracking
 
 The **Prediction Sets** feature allows users to create named sets of If→Then predictions at the diagram level. Each diagram can have multiple prediction sets (e.g., one per person, relationship, or clinical theme). Accessed via **Options → Predictions** in the AppRibbon.
@@ -441,7 +469,7 @@ EventType → EVENT_TYPE_HAS_SUBTYPE[type] → boolean (show subtype dropdown?)
 EventType → getIntensityScale(type, category?, subtype?) → correct scale
 ```
 
-**The 9 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE, PAPERO, SIR
+**The 10 event types:** SYMPTOM, EPE, NODAL, EA, FAMILY, FOO, TRIANGLE, PAPERO, SIR, FF
 
 **When touching any event-related code:**
 1. Read `eventConstants.ts` first
@@ -458,7 +486,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Type Locations
 
-- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType, PaperoScores, BirthSex (incl. `'ai-agent'`), GenderSymbol (incl. `'ai_agent'`), Prediction, PredictionSet, PredictionCondition, PredictionOutcome, PredictionEvidence
+- **Domain model:** `src/frontend/src/types/index.ts` — Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent, EventType, PaperoScores, BirthSex (incl. `'ai-agent'`), GenderSymbol (incl. `'ai_agent'`), Prediction, PredictionSet, PredictionCondition, PredictionOutcome, PredictionEvidence, FunctionalFactCategoryDefinition
 - **UI/editor types:** `src/frontend/src/types/diagramEditor.ts` — PropertiesPanelIntent, SessionNoteFileRecord, drafts, import/export, DiagramImportData (incl. `predictionSets`)
 - **Event constants:** `src/frontend/src/constants/eventConstants.ts` — all event hierarchy lookups, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY
 - **Indicator scales:** `src/frontend/src/constants/functionalIndicatorScales.ts` — frequency/intensity/impact ratings
@@ -539,7 +567,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 
 ### Existing test files:
 **Component tests:**
-- `EventModal.test.tsx` — all 9 event types (incl. PAPERO, SIR), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb)
+- `EventModal.test.tsx` — all 10 event types (incl. PAPERO, SIR, FF), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb), FF configurable categories
 - `EventCard.test.tsx` — event card rendering
 - `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
 - `MultiPersonPropertiesPanel.test.tsx` — multi-select panel
@@ -701,6 +729,7 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `sections/PersonPaperoSection.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns with ? help
 - `sections/PersonSIRSection.tsx` — Self in Relationship: entry cards, inline add/edit form, HWDID help dialog
 - `modals/SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete categories with 5-level HWDID scales
+- `modals/FunctionalFactSettingsModal.tsx` — Functional Fact category management: Create/Edit/Delete simple name-only categories
 - `sections/PersonFOOSection.tsx` — FOO scales: emotional cutoff, family stability, family intactness
 - `modals/SessionCaptureDialog.tsx`
 - `modals/ClientProfileModal.tsx`

@@ -27,6 +27,7 @@ export interface AppRibbonProps {
   ribbonHelpKey: RibbonHelpKey | null;
   notesLayerEnabled: boolean;
   autoSaveMinutes: number;
+  backupCount: number;
   timelineYear: number | null;
   timelinePlaying: boolean;
   timelineSliderDisabled: boolean;
@@ -53,6 +54,7 @@ export interface AppRibbonProps {
   setRelationshipStatusSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIndicatorSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSirSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setFfSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIdeasOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPredictionsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -88,6 +90,9 @@ export interface AppRibbonProps {
   handleTimelinePlayToggle: () => void;
   adjustTimelineYear: (delta: number) => void;
   handleAutoSaveMinutesInput: (value: number) => void;
+  handleBackupCountInput: (value: number) => void;
+  handleSetBackupFolder: () => void;
+  handleOpenFileBackupRestore: () => void;
   handleCenterDiagramView: () => void;
 }
 
@@ -110,6 +115,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   demoBlinkVisible,
   notesLayerEnabled,
   autoSaveMinutes,
+  backupCount,
   timelinePlaying,
   timelineSliderDisabled,
   timelineYearBounds,
@@ -133,6 +139,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setRelationshipStatusSettingsOpen,
   setIndicatorSettingsOpen,
   setSirSettingsOpen,
+  setFfSettingsOpen,
   setIdeasOpen,
   setPredictionsOpen,
   setSessionNotesOpen,
@@ -166,6 +173,9 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   handleTimelinePlayToggle,
   adjustTimelineYear,
   handleAutoSaveMinutesInput,
+  handleBackupCountInput,
+  handleSetBackupFolder,
+  handleOpenFileBackupRestore,
   handleCenterDiagramView,
 }) => {
   const now = Date.now();
@@ -205,7 +215,8 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Import Person Events', action: handleImportPersonEventsPicker },
     { label: 'Save', action: () => handleSave(false) },
     { label: 'Save As', action: handleSaveAs },
-    { label: 'Restore Backup', action: () => void handleOpenBackupRestore() },
+    { label: 'Restore Backup (Browser)', action: () => void handleOpenBackupRestore() },
+    { label: 'Restore Backup (Files)', action: () => void handleOpenFileBackupRestore() },
     { label: 'Export Person Events', action: handleExportPersonEvents },
     { label: 'Export PNG', action: handleExportPNG },
     { label: 'Export SVG', action: handleExportSVG },
@@ -225,6 +236,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Relationship Statuses', action: () => setRelationshipStatusSettingsOpen(true) },
     { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
     { label: 'Self in Relationship Categories', action: () => setSirSettingsOpen(true) },
+    { label: 'Functional Fact Categories', action: () => setFfSettingsOpen(true) },
     {
       label: `Notes Layer: ${notesLayerEnabled ? 'On' : 'Off'}`,
       action: () => setNotesLayerEnabled((prev) => !prev),
@@ -242,6 +254,20 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
         if (Number.isNaN(next)) return;
         handleAutoSaveMinutesInput(next);
       },
+    },
+    {
+      label: `Backup Count: ${backupCount}`,
+      action: () => {
+        const entered = window.prompt('Number of backup versions to keep (1-20):', String(backupCount));
+        if (entered == null) return;
+        const next = Number(entered);
+        if (Number.isNaN(next)) return;
+        handleBackupCountInput(next);
+      },
+    },
+    {
+      label: 'Set Backup Folder',
+      action: () => handleSetBackupFolder(),
     },
   ];
   const helpMenuItems = [

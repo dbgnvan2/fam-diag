@@ -109,6 +109,11 @@ export type SIRCategoryDefinition = {
   levels: [string, string, string, string, string]; // 5-level HWDID descriptions
 };
 
+export type FunctionalFactCategoryDefinition = {
+  id: string;
+  name: string;
+};
+
 export type PaperoScores = {
   resourceful_engagement?: number;
   resourceful_problemSolving?: number;
@@ -143,10 +148,15 @@ export type Partnership = {
   children: string[];
   familyName?: string;
   familyNameOffsetX?: number;
+  familyNameOffsetY?: number;
+  familyNameWidth?: number;
+  familyNameHeight?: number;
   notes?: string;
   notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
   notesSize?: { width: number; height: number };
+  color?: string;
+  backgroundColor?: string;
   events?: EmotionalProcessEvent[];
   familyEvents?: EmotionalProcessEvent[];
 };
@@ -176,6 +186,8 @@ export type EmotionalLine = {
     // Open Connection
     'open-connection-1' | 'open-connection-2' | 'open-connection-3' | 'open-connection-4' | 'open-connection-5';
   lineEnding: 'none' | 'arrow-p1-to-p2' | 'arrow-p2-to-p1' | 'arrow-bidirectional' | 'perpendicular-p1' | 'perpendicular-p2' | 'double-perpendicular-p1' | 'double-perpendicular-p2';
+  /** For fusion lines: which person is the adequate/overfunctioning (+) side. The other is underfunctioning (−). */
+  adequatePersonId?: string;
   color?: string;
   notes?: string;
   notesEnabled?: boolean;
@@ -259,7 +271,7 @@ export type PredictionSet = {
 };
 
 export type EventClass = 'individual' | 'relationship' | 'emotional-pattern' | 'family' | 'triangle';
-export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO' | 'SIR';
+export type EventType = 'SYMPTOM' | 'EPE' | 'NODAL' | 'EA' | 'FAMILY' | 'FOO' | 'TRIANGLE' | 'PAPERO' | 'SIR' | 'FF';
 export type EventStatus = 'start' | 'ongoing' | 'end' | 'discrete';
 export type EventAnchorType = 'PERSON' | 'RELATIONSHIP_PRL' | 'EMOTIONAL_PROCESS_EP' | 'FAMILY' | 'TRIANGLE';
 

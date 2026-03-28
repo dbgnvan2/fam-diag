@@ -24,6 +24,7 @@ const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave
     status: draft.status,
     lineStyle: draft.lineStyle,
     lineEnding: 'none',
+    adequatePersonId: draft.adequatePersonId || undefined,
     startDate: draft.startDate,
     endDate: draft.endDate || undefined,
     notes: draft.notes || undefined,
@@ -94,6 +95,7 @@ const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave
           onFrequencyChange={(frequency) => onUpdate({ frequency })}
           onColorPresetSelect={(color) => onUpdate({ color })}
           onSwapPersons={() => onUpdate({ person1Id: draft.person2Id, person2Id: draft.person1Id })}
+          onAdequatePersonChange={(personId) => onUpdate({ adequatePersonId: personId })}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
           <button onClick={onCancel}>Cancel</button>

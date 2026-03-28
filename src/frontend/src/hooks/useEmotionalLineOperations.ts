@@ -75,6 +75,7 @@ export function useEmotionalLineOperations({
       impact: 0,
       notes: '',
       color: DEFAULT_LINE_COLOR,
+      adequatePersonId: '',
     });
     setEmotionalPatternModalOpen(true);
   };
@@ -98,6 +99,7 @@ export function useEmotionalLineOperations({
       impact,
       notes,
       color,
+      adequatePersonId,
     } = emotionalPatternDraft;
     const newEmotionalLine = addEmotionalLine(person1Id, person2Id, relationshipType, lineStyle, 'none');
     const person1 = people.find((person) => person.id === person1Id);
@@ -131,6 +133,7 @@ export function useEmotionalLineOperations({
       endDate: endDate || undefined,
       notes: notes || undefined,
       color: color || DEFAULT_LINE_COLOR,
+      adequatePersonId: adequatePersonId || undefined,
       events: [seededEvent],
     });
     setEmotionalLines((prev) =>

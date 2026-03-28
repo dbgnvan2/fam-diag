@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { expandPartialDate } from '../utils/dateFormatting';
 
 interface DatePickerFieldProps {
   id: string;
@@ -15,15 +16,6 @@ interface DatePickerFieldProps {
 }
 
 const VALID_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const YEAR_ONLY = /^\d{4}$/;
-const YEAR_MONTH = /^\d{4}-\d{2}$/;
-
-/** Expand "2000" → "2000-01-01" and "1990-03" → "1990-03-01". Full dates pass through unchanged. */
-export const expandPartialDate = (text: string): string => {
-  if (YEAR_ONLY.test(text)) return `${text}-01-01`;
-  if (YEAR_MONTH.test(text)) return `${text}-01`;
-  return text;
-};
 
 const DatePickerField = ({
   id,

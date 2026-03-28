@@ -131,7 +131,7 @@ describe('DiagramEditor', () => {
         const fileMenuButton = screen.getByRole('button', { name: /file ▾/i });
         fireEvent.click(fileMenuButton);
         expect(screen.getByRole('button', { name: 'Load Demo Diagram' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Restore Backup' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Restore Backup (Browser)' })).toBeInTheDocument();
         fireEvent.click(fileMenuButton);
 
         fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));

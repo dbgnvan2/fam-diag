@@ -5,6 +5,7 @@ import type {
   Partnership,
   EmotionalLine,
   EmotionalProcessEvent,
+  FunctionalFactCategoryDefinition,
 } from '../types';
 import type { PropertiesPanelIntent } from '../types/diagramEditor';
 import { GENDER_SYMBOL_OPTIONS } from '../utils/dataNormalization';
@@ -16,6 +17,7 @@ interface UseContextMenuHandlersDeps {
   selectedPeopleIds: string[];
   selectedPartnershipId: string | null;
   relationshipTypes: string[];
+  functionalFactCategories: FunctionalFactCategoryDefinition[];
   // State setters
   setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
   setSelectedPeopleIds: Dispatch<SetStateAction<string[]>>;
@@ -73,6 +75,7 @@ export function useContextMenuHandlers({
   selectedPeopleIds,
   selectedPartnershipId,
   relationshipTypes,
+  functionalFactCategories,
   setContextMenu,
   setSelectedPeopleIds,
   setSelectedPartnershipId,
@@ -268,6 +271,36 @@ export function useContextMenuHandlers({
                   },
                 })),
               },
+              ...(functionalFactCategories.length > 0
+                ? [
+                    {
+                      label: 'Functional Fact',
+                      children: functionalFactCategories.map((cat) => ({
+                        label: cat.name,
+                        onClick: () => {
+                          openContextualEventCreator(
+                            { type: 'person', id: person.id },
+                            person,
+                            {
+                              eventType: 'FF' as const,
+                              category: cat.name,
+                              eventClass: 'individual' as const,
+                              status: 'discrete' as const,
+                              intensity: 1,
+                              frequency: 1,
+                              impact: 1,
+                              primaryPersonName: person.name || '',
+                              otherPersonName: 'None',
+                            },
+                            { x: e.evt.clientX, y: e.evt.clientY },
+                            `Person Add Functional Fact ${cat.name}`
+                          );
+                          setContextMenu(null);
+                        },
+                      })),
+                    },
+                  ]
+                : []),
               {
                 label: 'Emotional Autonomy',
                 onClick: () => {

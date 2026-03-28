@@ -1,4 +1,4 @@
-import type { FunctionalIndicatorDefinition, SIRCategoryDefinition } from '../types';
+import type { FunctionalIndicatorDefinition, FunctionalFactCategoryDefinition, SIRCategoryDefinition } from '../types';
 import applicationSettingsJson from './applicationSettings.json';
 import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
@@ -8,6 +8,7 @@ export type ApplicationSettings = {
   relationshipStatuses: string[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
+  functionalFactCategories: FunctionalFactCategoryDefinition[];
   autoSaveMinutes: number;
 };
 
@@ -144,6 +145,7 @@ const FALLBACK_SETTINGS: ApplicationSettings = {
       ],
     },
   ],
+  functionalFactCategories: [],
   autoSaveMinutes: 1,
 };
 
@@ -153,6 +155,14 @@ const sanitizeSIRCategories = (
 ): SIRCategoryDefinition[] => {
   if (!Array.isArray(value) || value.length === 0) return fallback;
   return value as SIRCategoryDefinition[];
+};
+
+const sanitizeFunctionalFactCategories = (
+  value: unknown,
+  fallback: FunctionalFactCategoryDefinition[]
+): FunctionalFactCategoryDefinition[] => {
+  if (!Array.isArray(value)) return fallback;
+  return value as FunctionalFactCategoryDefinition[];
 };
 
 export const normalizeApplicationSettings = (value: unknown): ApplicationSettings => {
@@ -175,6 +185,10 @@ export const normalizeApplicationSettings = (value: unknown): ApplicationSetting
       typed?.sirCategories,
       FALLBACK_SETTINGS.sirCategories
     ),
+    functionalFactCategories: sanitizeFunctionalFactCategories(
+      typed?.functionalFactCategories,
+      FALLBACK_SETTINGS.functionalFactCategories
+    ),
     autoSaveMinutes: toPositiveNumber(
       typed?.autoSaveMinutes,
       FALLBACK_SETTINGS.autoSaveMinutes
@@ -191,6 +205,7 @@ const productDefaultSettingsSource = (() => {
     relationshipStatuses: typed.relationshipStatuses,
     functionalIndicatorDefinitions: typed.functionalIndicatorDefinitions,
     sirCategories: typed.sirCategories,
+    functionalFactCategories: typed.functionalFactCategories,
     autoSaveMinutes: typed.autoSaveMinutes,
   };
 })();

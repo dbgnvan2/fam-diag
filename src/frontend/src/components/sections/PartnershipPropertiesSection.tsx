@@ -10,6 +10,9 @@ import DatePickerField from '../DatePickerField';
 const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
 const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
 
+const PRESET_LINE_COLORS = ['#000000', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
+const PRESET_BG_COLORS = ['#ffffff', '#fff3e0', '#e8f5e9', '#e3f2fd', '#fce4ec', '#f3e5f5'];
+
 interface PartnershipPropertiesSectionProps {
   partnershipDraft: Partnership;
   computedFamilyName?: string;
@@ -17,6 +20,7 @@ interface PartnershipPropertiesSectionProps {
   statusOptions: string[];
   statusDateRows: Array<{ status: string; dateLabel: string }>;
   onChange: React.ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
+  onColorPresetSelect: (field: 'color' | 'backgroundColor', value: string) => void;
   formatOptionLabel: (value: string) => string;
   normalizeStatusKey: (value: string) => string;
   readStatusDate: (partnership: Partnership, status: string) => string;
@@ -31,6 +35,7 @@ const PartnershipPropertiesSection = ({
   statusOptions,
   statusDateRows,
   onChange,
+  onColorPresetSelect,
   formatOptionLabel,
   normalizeStatusKey,
   readStatusDate,
@@ -98,6 +103,68 @@ const PartnershipPropertiesSection = ({
         onChange={onChange}
         style={{ width: '100%' }}
       />
+    </div>
+    <div style={{ ...rowStyle, alignItems: 'center' }}>
+      <label htmlFor={`${fieldIdPrefix}partnershipColor`} style={labelStyle}>Line Color:</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="color"
+          id={`${fieldIdPrefix}partnershipColor`}
+          name="color"
+          value={partnershipDraft.color || '#000000'}
+          onChange={onChange}
+          style={{ width: 60 }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          {PRESET_LINE_COLORS.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => onColorPresetSelect('color', hex)}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                border: hex === '#ffffff' ? '2px solid #ccc' : '1px solid #ccc',
+                background: hex,
+                cursor: 'pointer',
+              }}
+              aria-label={`Set line color ${hex}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+    <div style={{ ...rowStyle, alignItems: 'center' }}>
+      <label htmlFor={`${fieldIdPrefix}partnershipBgColor`} style={labelStyle}>Background:</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="color"
+          id={`${fieldIdPrefix}partnershipBgColor`}
+          name="backgroundColor"
+          value={partnershipDraft.backgroundColor || '#ffffff'}
+          onChange={onChange}
+          style={{ width: 60 }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          {PRESET_BG_COLORS.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => onColorPresetSelect('backgroundColor', hex)}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                border: hex === '#ffffff' ? '2px solid #ccc' : '1px solid #ccc',
+                background: hex,
+                cursor: 'pointer',
+              }}
+              aria-label={`Set background color ${hex}`}
+            />
+          ))}
+        </div>
+      </div>
     </div>
     {showNotes && (
       <div style={{ ...rowStyle, alignItems: 'flex-start' }}>

@@ -255,12 +255,12 @@ describe('EventModal', () => {
     render(
       <EventModal
         {...baseProps}
-        eventDraft={makeDraft({ eventType: 'EPE', category: 'Fusion', subtype: '' })}
+        eventDraft={makeDraft({ eventType: 'EPE', category: '+/- Adequate', subtype: '' })}
       />
     );
     const catSelect = screen.getByLabelText('Category:') as HTMLSelectElement;
     expect(catSelect.tagName).toBe('SELECT');
-    expect(screen.getByRole('option', { name: 'Fusion' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '+/- Adequate' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Cutoff' })).toBeInTheDocument();
   });
 
@@ -342,6 +342,55 @@ describe('EventModal', () => {
       />
     );
     expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
+  });
+
+  // ── FF (Functional Fact) ─────────────────────────────────────────────────────
+
+  it('FF: category dropdown shows configured functional fact categories', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        functionalFactCategoryNames={['Coping', 'Competence', 'Agency']}
+        eventDraft={makeDraft({ eventType: 'FF', category: 'Coping', subtype: '' })}
+      />
+    );
+    expect(screen.getByRole('option', { name: 'Coping' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Competence' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Agency' })).toBeInTheDocument();
+  });
+
+  it('FF: shows person fields', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        functionalFactCategoryNames={['Coping']}
+        eventDraft={makeDraft({ eventType: 'FF', category: 'Coping', subtype: 'Self-regulation' })}
+      />
+    );
+    expect(screen.getByLabelText('Primary Person:')).toBeInTheDocument();
+    expect(screen.getByLabelText('Other Person:')).toBeInTheDocument();
+  });
+
+  it('FF: shows subtype as text input', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        functionalFactCategoryNames={['Coping']}
+        eventDraft={makeDraft({ eventType: 'FF', category: 'Coping', subtype: 'Mindfulness' })}
+      />
+    );
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
+  });
+
+  it('FF: falls back to empty categories when no functionalFactCategoryNames provided', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ eventType: 'FF', category: '', subtype: '' })}
+      />
+    );
+    // Should render without errors — no category options but modal still works
+    expect(screen.getByText('Event')).toBeInTheDocument();
   });
 
   // ── Person fields visibility ──────────────────────────────────────────────────

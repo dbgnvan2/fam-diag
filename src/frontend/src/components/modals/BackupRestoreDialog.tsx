@@ -1,18 +1,11 @@
 import type { CSSProperties } from 'react';
-
-type BackupVersionKey = 'v1' | 'v2' | 'v3';
-
-type BackupVersions = {
-  v1?: string | null;
-  v2?: string | null;
-  v3?: string | null;
-};
+import type { BackupVersions } from '../../utils/storage';
 
 interface BackupRestoreDialogProps {
   open: boolean;
   versions: BackupVersions | null;
   onClose: () => void;
-  onRestoreVersion: (key: BackupVersionKey) => void;
+  onRestoreVersion: (key: string) => void;
 }
 
 const buttonStyle: CSSProperties = {
@@ -28,8 +21,20 @@ const buttonStyle: CSSProperties = {
   fontWeight: 500,
 };
 
+const versionLabel = (key: string, index: number, total: number): string => {
+  if (index === 0) return `${key.toUpperCase()} (most recent backup)`;
+  if (index === total - 1) return `${key.toUpperCase()} (oldest backup)`;
+  return `${key.toUpperCase()} (previous backup)`;
+};
+
 const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: BackupRestoreDialogProps) => {
   if (!open || !versions) return null;
+
+  // Collect all vN keys, sorted numerically
+  const versionKeys = Object.keys(versions)
+    .filter((k) => /^v\d+$/.test(k))
+    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+
   return (
     <div
       role="dialog"
@@ -78,7 +83,7 @@ const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: Back
           Restore a previous saved version of this diagram.
         </div>
         <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-          {(['v1', 'v2', 'v3'] as const).map((versionKey) => {
+          {versionKeys.map((versionKey, idx) => {
             const value = versions[versionKey];
             return (
               <button
@@ -93,12 +98,7 @@ const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: Back
                   opacity: value ? 1 : 0.5,
                 }}
               >
-                {versionKey.toUpperCase()}
-                {versionKey === 'v1'
-                  ? ' (most recent backup)'
-                  : versionKey === 'v2'
-                  ? ' (previous backup)'
-                  : ' (oldest backup)'}
+                {versionLabel(versionKey, idx, versionKeys.length)}
               </button>
             );
           })}

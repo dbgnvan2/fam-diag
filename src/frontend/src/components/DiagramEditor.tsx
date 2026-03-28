@@ -7,6 +7,7 @@ import type {
   FunctionalIndicatorDefinition,
   PredictionSet,
   SIRCategoryDefinition,
+  FunctionalFactCategoryDefinition,
   EmotionalProcessEvent,
   EventType,
   BirthSex,
@@ -70,7 +71,12 @@ import {
   persistDiagramFileHandle,
   restoreDiagramFileHandle,
   rotateDiagramBackups,
+  persistBackupDirectoryHandle,
+  restoreBackupDirectoryHandle,
+  writeFileBackup,
+  listFileBackups,
 } from '../utils/storage';
+import type { BackupVersions } from '../utils/storage';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -114,8 +120,29 @@ const initialIndicatorDefinitions: FunctionalIndicatorDefinition[] =
   DEFAULT_DIAGRAM_STATE.functionalIndicatorDefinitions;
 const initialSirCategories: SIRCategoryDefinition[] =
   DEFAULT_DIAGRAM_STATE.sirCategories;
+const initialFunctionalFactCategories: FunctionalFactCategoryDefinition[] =
+  DEFAULT_DIAGRAM_STATE.functionalFactCategories;
 const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
 const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
+
+/** Read diagram data from localStorage for initial mount — matches state initializer logic. */
+const readLocalStorageDiagramSnapshot = () => {
+  if (typeof window === 'undefined') {
+    return { people: initialPeople, partnerships: initialPartnerships, emotionalLines: initialEmotionalLines, pageNotes: initialPageNotes, triangles: initialTriangles };
+  }
+  const tryParse = <T,>(key: Parameters<typeof getStoredValue>[0], fallback: T): T => {
+    const raw = getStoredValue(key);
+    if (!raw) return fallback;
+    try { const p = JSON.parse(raw); return Array.isArray(p) ? (p as T) : fallback; } catch { return fallback; }
+  };
+  return {
+    people: tryParse<Person[]>('people', initialPeople),
+    partnerships: attachFamilyEventsToPartnerships(tryParse<Partnership[]>('partnerships', initialPartnerships)),
+    emotionalLines: tryParse<EmotionalLine[]>('emotionalLines', initialEmotionalLines),
+    pageNotes: tryParse<PageNote[]>('pageNotes', initialPageNotes),
+    triangles: tryParse<Triangle[]>('triangles', initialTriangles),
+  };
+};
 const DIAGRAM_FILE_PICKER_TYPES = [
   {
     description: 'Family Diagram JSON',
@@ -168,12 +195,51 @@ const DiagramEditor = () => {
     emotional: '#d81b60',
     social: '#2e7d32',
   };
-  const [people, setPeople] = useState<Person[]>(initialPeople);
-  const [partnerships, setPartnerships] = useState<Partnership[]>(initialPartnerships);
-  const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialEmotionalLines);
-  const [pageNotes, setPageNotes] = useState<PageNote[]>(initialPageNotes);
-  const [triangles, setTriangles] = useState<Triangle[]>(initialTriangles);
-  const [fileName, setFileName] = useState(initialFileName);
+  const [people, setPeople] = useState<Person[]>(() => {
+    if (typeof window === 'undefined') return initialPeople;
+    const stored = getStoredValue('people');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length > 0) return parsed; } catch { /* ignore */ }
+    }
+    return initialPeople;
+  });
+  const [partnerships, setPartnerships] = useState<Partnership[]>(() => {
+    if (typeof window === 'undefined') return initialPartnerships;
+    const stored = getStoredValue('partnerships');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length > 0) return attachFamilyEventsToPartnerships(parsed); } catch { /* ignore */ }
+    }
+    return initialPartnerships;
+  });
+  const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(() => {
+    if (typeof window === 'undefined') return initialEmotionalLines;
+    const stored = getStoredValue('emotionalLines');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
+    }
+    return initialEmotionalLines;
+  });
+  const [pageNotes, setPageNotes] = useState<PageNote[]>(() => {
+    if (typeof window === 'undefined') return initialPageNotes;
+    const stored = getStoredValue('pageNotes');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
+    }
+    return initialPageNotes;
+  });
+  const [triangles, setTriangles] = useState<Triangle[]>(() => {
+    if (typeof window === 'undefined') return initialTriangles;
+    const stored = getStoredValue('triangles');
+    if (stored) {
+      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
+    }
+    return initialTriangles;
+  });
+  const [fileName, setFileName] = useState(() => {
+    if (typeof window === 'undefined') return initialFileName;
+    const stored = getStoredValue('fileName');
+    return stored && stored.trim().length > 0 ? stored.trim() : initialFileName;
+  });
   const [autoSaveMinutes, setAutoSaveMinutes] = useState(() => {
     if (typeof window === 'undefined') return initialAutoSaveMinutes;
     const storedSettings = parseStoredUserSettings();
@@ -187,6 +253,14 @@ const DiagramEditor = () => {
     const stored = getStoredValue('autoSave');
     const parsed = stored ? Number(stored) : initialAutoSaveMinutes;
     return !Number.isFinite(parsed) || parsed <= 0 ? initialAutoSaveMinutes : parsed;
+  });
+  const [backupCount, setBackupCount] = useState(() => {
+    if (typeof window === 'undefined') return 3;
+    const storedSettings = parseStoredUserSettings();
+    if (typeof storedSettings?.backupCount === 'number' && storedSettings.backupCount >= 1) {
+      return Math.min(storedSettings.backupCount, 20);
+    }
+    return 3;
   });
   const [selectedPeopleIds, setSelectedPeopleIds] = useState<string[]>([]);
   const [selectedPartnershipId, setSelectedPartnershipId] = useState<string | null>(null);
@@ -289,6 +363,14 @@ const DiagramEditor = () => {
       ? stored.sirCategories as SIRCategoryDefinition[]
       : initialSirCategories;
   });
+  const [functionalFactCategories, setFunctionalFactCategories] = useState<FunctionalFactCategoryDefinition[]>(() => {
+    if (typeof window === 'undefined') return initialFunctionalFactCategories;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.functionalFactCategories)
+      ? stored.functionalFactCategories as FunctionalFactCategoryDefinition[]
+      : initialFunctionalFactCategories;
+  });
+  const [ffSettingsOpen, setFfSettingsOpen] = useState(false);
   const [sirSettingsOpen, setSirSettingsOpen] = useState(false);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
@@ -344,11 +426,7 @@ const DiagramEditor = () => {
   const [pendingImportFileName, setPendingImportFileName] = useState('');
   const [pendingImportSource, setPendingImportSource] = useState<'import' | 'transcript' | 'facts'>('import');
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
-  const [backupRestoreVersions, setBackupRestoreVersions] = useState<{
-    v1?: string | null;
-    v2?: string | null;
-    v3?: string | null;
-  } | null>(null);
+  const [backupRestoreVersions, setBackupRestoreVersions] = useState<BackupVersions | null>(null);
   const scrollHintShownRef = useRef(false);
   const [canvasScrollHintOpen, setCanvasScrollHintOpen] = useState(false);
   const [sessionCaptureDialogOpen, setSessionCaptureDialogOpen] = useState(false);
@@ -393,25 +471,27 @@ const DiagramEditor = () => {
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
     pageNotes: Map<string, { x: number; y: number }>;
   } | null>(null);
-  const savedSnapshotRef = useRef(
-    JSON.stringify({
-      people: initialPeople,
-      partnerships: initialPartnerships,
-      emotionalLines: initialEmotionalLines,
-      pageNotes: initialPageNotes,
-      triangles: initialTriangles,
+  const savedSnapshotRef = useRef((() => {
+    const ls = readLocalStorageDiagramSnapshot();
+    return JSON.stringify({
+      people: ls.people,
+      partnerships: ls.partnerships,
+      emotionalLines: ls.emotionalLines,
+      pageNotes: ls.pageNotes,
+      triangles: ls.triangles,
       functionalIndicatorDefinitions: initialIndicatorDefinitions,
       eventCategories: initialEventCategories,
       relationshipTypes: initialRelationshipTypes,
       relationshipStatuses: initialRelationshipStatuses,
-    })
-  );
+    });
+  })());
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
   const helpMenuRef = useRef<HTMLDivElement>(null);
   const loadInputRef = useRef<HTMLInputElement>(null);
   const diagramFileHandleRef = useRef<any>(null);
+  const backupDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const importPersonEventsInputRef = useRef<HTMLInputElement>(null);
   const transcriptInputRef = useRef<HTMLInputElement>(null);
@@ -1473,15 +1553,21 @@ useEffect(() => {
     relationshipTypes,
     relationshipStatuses,
     functionalIndicatorDefinitions,
+    sirCategories,
+    functionalFactCategories,
     autoSaveMinutes,
+    backupCount,
   };
   setStoredValue('userSettings', JSON.stringify(payload));
 }, [
   autoSaveMinutes,
+  backupCount,
   eventCategories,
   functionalIndicatorDefinitions,
+  functionalFactCategories,
   relationshipStatuses,
   relationshipTypes,
+  sirCategories,
 ]);
 
 useEffect(() => {
@@ -1515,6 +1601,72 @@ useEffect(() => {
     setAutoSaveMinutes(clampAutoSaveMinutes(value));
   };
 
+  const handleBackupCountInput = (value: number) => {
+    if (!Number.isFinite(value)) return;
+    setBackupCount(Math.max(1, Math.min(20, Math.round(value))));
+  };
+
+  const handleSetBackupFolder = async () => {
+    if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
+      alert('Your browser does not support the directory picker. Use Chrome or Edge for file-based backups.');
+      return;
+    }
+    try {
+      const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+      backupDirHandleRef.current = dirHandle;
+      await persistBackupDirectoryHandle(dirHandle);
+      alert(`Backup folder set. Backups will be saved as "${fileName.replace(/\.json$/i, '')}.backup-N.json" in that folder.`);
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        alert('Could not set backup folder.');
+      }
+    }
+  };
+
+  const handleOpenFileBackupRestore = async () => {
+    if (!backupDirHandleRef.current) {
+      alert('No backup folder is set. Use Settings > Set Backup Folder first.');
+      return;
+    }
+    try {
+      const perm = await (backupDirHandleRef.current as any).requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        alert('Permission denied to read backup folder.');
+        return;
+      }
+    } catch {
+      alert('Could not access backup folder.');
+      return;
+    }
+    const diagramName = diagramFileHandleRef.current?.name || fileName || FALLBACK_FILE_NAME;
+    const backups = await listFileBackups(backupDirHandleRef.current, diagramName, backupCount);
+    if (backups.length === 0) {
+      alert('No backup files found for this diagram.');
+      return;
+    }
+    // Build a list for the user to choose from
+    const choices = backups.map((b, idx) => {
+      const date = new Date(b.lastModified);
+      const dateStr = date.toLocaleString();
+      return `${idx + 1}. ${b.fileName} (${dateStr})`;
+    }).join('\n');
+    const entered = window.prompt(`Select a backup to restore:\n\n${choices}\n\nEnter number (1-${backups.length}):`);
+    if (entered == null) return;
+    const idx = Number(entered) - 1;
+    if (idx < 0 || idx >= backups.length || !Number.isFinite(idx)) {
+      alert('Invalid selection.');
+      return;
+    }
+    try {
+      const file = await backups[idx].handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      replaceDiagramState(data, diagramName);
+    } catch {
+      alert('Could not restore backup file.');
+    }
+  };
+
   useAutosave(
     people,
     (data) => {
@@ -1543,6 +1695,22 @@ useEffect(() => {
     triangles,
     (data) => {
       setStoredValue('triangles', JSON.stringify(data));
+    },
+    autosaveDelayMs
+  );
+
+  useAutosave(
+    pageNotes,
+    (data) => {
+      setStoredValue('pageNotes', JSON.stringify(data));
+    },
+    autosaveDelayMs
+  );
+
+  useAutosave(
+    fileName,
+    (data) => {
+      setStoredValue('fileName', data);
     },
     autosaveDelayMs
   );
@@ -1866,6 +2034,7 @@ useEffect(() => {
     autoSaveMinutes,
     ideasText,
     predictionSets,
+    functionalFactCategories,
   });
 
   const setDiagramFileHandle = useCallback((handle: any | null) => {
@@ -1891,12 +2060,20 @@ useEffect(() => {
     if (!browserSupportsFileSystemAccess) return;
     void (async () => {
       const restoredHandle = await restoreDiagramFileHandle();
-      if (!restoredHandle) return;
-      const hasReadPermission =
-        !restoredHandle.queryPermission ||
-        (await ensureDiagramHandlePermission(restoredHandle, 'read'));
-      if (!hasReadPermission) return;
-      setDiagramFileHandle(restoredHandle);
+      if (restoredHandle) {
+        const hasReadPermission =
+          !restoredHandle.queryPermission ||
+          (await ensureDiagramHandlePermission(restoredHandle, 'read'));
+        if (hasReadPermission) {
+          setDiagramFileHandle(restoredHandle);
+        }
+      }
+      // Restore backup directory handle — silently set if already granted,
+      // otherwise it will be re-prompted on the next save.
+      const restoredBackupDir = await restoreBackupDirectoryHandle();
+      if (restoredBackupDir) {
+        backupDirHandleRef.current = restoredBackupDir;
+      }
     })();
   }, [browserSupportsFileSystemAccess, ensureDiagramHandlePermission, setDiagramFileHandle]);
 
@@ -1916,10 +2093,12 @@ useEffect(() => {
       requestedFileName,
       forceChooseLocation = false,
       allowPicker = true,
+      isAutosave = false,
     }: {
       requestedFileName?: string;
       forceChooseLocation?: boolean;
       allowPicker?: boolean;
+      isAutosave?: boolean;
     } = {}) => {
       const normalizedRequestedName = (() => {
         const base = (requestedFileName || fileName || FALLBACK_FILE_NAME).trim() || FALLBACK_FILE_NAME;
@@ -1932,6 +2111,30 @@ useEffect(() => {
           suggestedName: normalizedRequestedName,
           types: DIAGRAM_FILE_PICKER_TYPES,
         });
+
+        // Feature 3: Overwrite protection — if saving to a different-named file, require YES confirmation
+        if (handle && forceChooseLocation) {
+          const chosenName = handle.name || '';
+          const currentName = (fileName || '').toLowerCase();
+          if (chosenName.toLowerCase() !== currentName && currentName !== FALLBACK_FILE_NAME.toLowerCase()) {
+            // Check if the chosen file has existing content (i.e. it's a real file, not a new one)
+            let hasExistingContent = false;
+            try {
+              const existingFile = await handle.getFile();
+              hasExistingContent = existingFile.size > 0;
+            } catch { /* new file — no content */ }
+
+            if (hasExistingContent) {
+              const answer = window.prompt(
+                `You are about to overwrite "${chosenName}" with the current diagram ("${fileName}").\n\nType YES to confirm:`
+              );
+              if (answer !== 'YES') {
+                return false;
+              }
+            }
+          }
+        }
+
         setDiagramFileHandle(handle);
       }
 
@@ -1958,7 +2161,32 @@ useEffect(() => {
         }
         await writeDiagramJsonToHandle(handle, jsonString);
         if (priorJson) {
-          await rotateDiagramBackups(backupKey, priorJson);
+          await rotateDiagramBackups(backupKey, priorJson, backupCount);
+
+          // Write file-based backup to the same folder as the diagram file.
+          // On first save we auto-prompt for the directory (pre-navigated to the file's folder).
+          let dirHandle = backupDirHandleRef.current;
+          if (!dirHandle && !isAutosave && typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+            try {
+              dirHandle = await (window as any).showDirectoryPicker({
+                id: 'backup-dir',
+                mode: 'readwrite',
+                startIn: handle,  // opens picker in the same folder as the diagram file
+              });
+              backupDirHandleRef.current = dirHandle;
+              await persistBackupDirectoryHandle(dirHandle);
+            } catch {
+              dirHandle = null;
+            }
+          }
+          if (dirHandle) {
+            try {
+              const perm = await (dirHandle as any).requestPermission({ mode: 'readwrite' });
+              if (perm === 'granted') {
+                await writeFileBackup(dirHandle, resolvedFileName, priorJson, backupCount);
+              }
+            } catch { /* silently skip if permission denied */ }
+          }
         }
         setFileName(resolvedFileName);
         markSnapshotClean(
@@ -1983,7 +2211,17 @@ useEffect(() => {
       a.download = resolvedFileName;
       a.click();
       URL.revokeObjectURL(url);
-      await rotateDiagramBackups(backupKey, jsonString);
+      await rotateDiagramBackups(backupKey, jsonString, backupCount);
+
+      // Write file-based backup for the download path too
+      if (backupDirHandleRef.current) {
+        try {
+          const perm = await (backupDirHandleRef.current as any).requestPermission({ mode: 'readwrite' });
+          if (perm === 'granted') {
+            await writeFileBackup(backupDirHandleRef.current, resolvedFileName, jsonString, backupCount);
+          }
+        } catch { /* silently skip */ }
+      }
       setFileName(resolvedFileName);
       markSnapshotClean(
         people,
@@ -1999,7 +2237,7 @@ useEffect(() => {
       setLastSavedAt(Date.now());
       return true;
     },
-    [buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, readDiagramJsonFromHandle, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
+    [backupCount, buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, readDiagramJsonFromHandle, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
   );
 
   useEffect(() => {
@@ -2010,6 +2248,7 @@ useEffect(() => {
         requestedFileName: fileName,
         forceChooseLocation: false,
         allowPicker: false,
+        isAutosave: true,
       }).catch(() => {
         // Keep the diagram dirty if the autosave write fails.
       });
@@ -2076,6 +2315,12 @@ useEffect(() => {
     }
     if (Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0) {
       setRelationshipStatuses(data.relationshipStatuses);
+    }
+    if (Array.isArray(data.sirCategories) && data.sirCategories.length > 0) {
+      setSirCategories(data.sirCategories);
+    }
+    if (Array.isArray(data.functionalFactCategories)) {
+      setFunctionalFactCategories(data.functionalFactCategories);
     }
     if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
       setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
@@ -3216,6 +3461,7 @@ useEffect(() => {
     selectedPeopleIds,
     selectedPartnershipId,
     relationshipTypes,
+    functionalFactCategories,
     setContextMenu,
     setSelectedPeopleIds,
     setSelectedPartnershipId,
@@ -3811,6 +4057,7 @@ useEffect(() => {
             ribbonHelpKey={ribbonHelpKey}
             notesLayerEnabled={notesLayerEnabled}
             autoSaveMinutes={autoSaveMinutes}
+            backupCount={backupCount}
             timelineYear={timelineYear}
             timelinePlaying={timelinePlaying}
             timelineSliderDisabled={timelineSliderDisabled}
@@ -3835,6 +4082,7 @@ useEffect(() => {
             setRelationshipStatusSettingsOpen={setRelationshipStatusSettingsOpen}
             setIndicatorSettingsOpen={setIndicatorSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}
+            setFfSettingsOpen={setFfSettingsOpen}
             setIdeasOpen={setIdeasOpen}
             setPredictionsOpen={setPredictionsOpen}
             setSessionNotesOpen={setSessionNotesOpen}
@@ -3868,6 +4116,9 @@ useEffect(() => {
             handleTimelinePlayToggle={handleTimelinePlayToggle}
             adjustTimelineYear={adjustTimelineYear}
             handleAutoSaveMinutesInput={handleAutoSaveMinutesInput}
+            handleBackupCountInput={handleBackupCountInput}
+            handleSetBackupFolder={handleSetBackupFolder}
+            handleOpenFileBackupRestore={handleOpenFileBackupRestore}
             handleCenterDiagramView={handleCenterDiagramView}
           />
           <VoiceInputModal
@@ -3984,6 +4235,7 @@ useEffect(() => {
             setHoveredPersonId={setHoveredPersonId}
             functionalIndicatorDefinitions={functionalIndicatorDefinitions}
             sirCategories={sirCategories}
+            functionalFactCategories={functionalFactCategories}
             selectedGroupBounds={selectedGroupBounds}
             beginGroupResize={beginGroupResize}
             applyGroupResize={applyGroupResize}
@@ -4138,6 +4390,10 @@ useEffect(() => {
             setSirSettingsOpen={setSirSettingsOpen}
             sirCategories={sirCategories}
             onSaveSirCategories={setSirCategories}
+            ffSettingsOpen={ffSettingsOpen}
+            setFfSettingsOpen={setFfSettingsOpen}
+            functionalFactCategories={functionalFactCategories}
+            onSaveFunctionalFactCategories={setFunctionalFactCategories}
             people={people}
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}

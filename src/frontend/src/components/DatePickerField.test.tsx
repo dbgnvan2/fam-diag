@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { expandPartialDate } from './DatePickerField';
+import { expandPartialDate } from '../utils/dateFormatting';
 
 describe('expandPartialDate', () => {
   it('expands year-only to Jan 1', () => {

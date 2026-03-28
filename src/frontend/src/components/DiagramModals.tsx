@@ -4,6 +4,7 @@ import type {
   Partnership,
   EmotionalLine,
   FunctionalIndicatorDefinition,
+  FunctionalFactCategoryDefinition,
   SIRCategoryDefinition,
   EmotionalProcessEvent,
   EventClass,
@@ -26,6 +27,7 @@ import EmotionalPatternModal from './modals/EmotionalPatternModal';
 import SettingsListModal from './modals/SettingsListModal';
 import IndicatorSettingsModal from './modals/IndicatorSettingsModal';
 import SIRSettingsModal from './modals/SIRSettingsModal';
+import FunctionalFactSettingsModal from './modals/FunctionalFactSettingsModal';
 import TimelineBoardModal from './modals/TimelineBoardModal';
 import SessionNotesPanel from './SessionNotesPanel';
 import RibbonHelpModal from './modals/RibbonHelpModal';
@@ -131,6 +133,12 @@ interface DiagramModalsProps {
   setSirSettingsOpen: Dispatch<SetStateAction<boolean>>;
   sirCategories: SIRCategoryDefinition[];
   onSaveSirCategories: (categories: SIRCategoryDefinition[]) => void;
+
+  // FunctionalFactSettingsModal
+  ffSettingsOpen: boolean;
+  setFfSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  functionalFactCategories: FunctionalFactCategoryDefinition[];
+  onSaveFunctionalFactCategories: (categories: FunctionalFactCategoryDefinition[]) => void;
 
   // TimelineBoardModal
   people: Person[];
@@ -295,6 +303,10 @@ export default function DiagramModals({
   setSirSettingsOpen,
   sirCategories,
   onSaveSirCategories,
+  ffSettingsOpen,
+  setFfSettingsOpen,
+  functionalFactCategories,
+  onSaveFunctionalFactCategories,
   people,
   partnerships,
   allEmotionalLines,
@@ -510,6 +522,12 @@ export default function DiagramModals({
         onClose={() => setSirSettingsOpen(false)}
         categories={sirCategories}
         onSave={onSaveSirCategories}
+      />
+      <FunctionalFactSettingsModal
+        open={ffSettingsOpen}
+        onClose={() => setFfSettingsOpen(false)}
+        categories={functionalFactCategories}
+        onSave={onSaveFunctionalFactCategories}
       />
       <TimelineBoardModal
         people={people}

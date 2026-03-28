@@ -10,6 +10,7 @@ import type {
   Triangle,
   FunctionalIndicatorDefinition,
   SIRCategoryDefinition,
+  FunctionalFactCategoryDefinition,
   PageNote,
   SymptomGroup,
 } from '../types';
@@ -169,6 +170,7 @@ interface DiagramCanvasProps {
   setHoveredPersonId: Dispatch<SetStateAction<string | null>>;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
+  functionalFactCategories: FunctionalFactCategoryDefinition[];
 
   // Group resize
   selectedGroupBounds: { x: number; y: number; width: number; height: number } | null;
@@ -315,6 +317,7 @@ export default function DiagramCanvas({
   setHoveredPersonId,
   functionalIndicatorDefinitions,
   sirCategories,
+  functionalFactCategories,
   selectedGroupBounds,
   beginGroupResize,
   applyGroupResize,
@@ -418,6 +421,7 @@ export default function DiagramCanvas({
               relationshipStatuses={relationshipStatuses}
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
               sirCategories={sirCategories}
+                functionalFactCategories={functionalFactCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -469,6 +473,7 @@ export default function DiagramCanvas({
               relationshipStatuses={relationshipStatuses}
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
               sirCategories={sirCategories}
+                functionalFactCategories={functionalFactCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -699,7 +704,8 @@ export default function DiagramCanvas({
                             isFamilySelected={selectedFamilyId === p.id}
                             onSelect={handlePartnershipSelect}
                             onHorizontalConnectorDragEnd={handleHorizontalConnectorDragEnd}
-                            onFamilyNameOffsetChange={(id, offsetX) => handleUpdatePartnership(id, { familyNameOffsetX: offsetX })}
+                            onFamilyNameOffsetChange={(id, offsetX, offsetY) => handleUpdatePartnership(id, { familyNameOffsetX: offsetX, familyNameOffsetY: offsetY })}
+                            onFamilyNameSizeChange={(id, width, height) => handleUpdatePartnership(id, { familyNameWidth: width, familyNameHeight: height })}
                             onContextMenu={handlePartnershipContextMenu}
                             onFamilyClick={handleFamilyClick}
                             onFamilyContextMenu={handleFamilyContextMenu}
@@ -1184,6 +1190,7 @@ export default function DiagramCanvas({
                 relationshipStatuses={relationshipStatuses}
                 functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                 sirCategories={sirCategories}
+                functionalFactCategories={functionalFactCategories}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePartnership={handleUpdatePartnership}
                 onUpdateEmotionalLine={handleUpdateEmotionalLine}

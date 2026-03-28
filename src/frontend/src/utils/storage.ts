@@ -21,6 +21,8 @@ export const STORAGE_KEYS = {
   relationshipTypes: 'family-diagram-relationship-types',
   relationshipStatuses: 'family-diagram-relationship-statuses',
   indicatorDefinitions: 'family-diagram-functional-indicators',
+  pageNotes: 'family-diagram-page-notes',
+  fileName: 'family-diagram-file-name',
   ideas: 'family-diagram-ideas',
   predictions: 'family-diagram-predictions',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
@@ -134,9 +136,10 @@ export const restoreDiagramFileHandle = async (): Promise<any | null> => {
   });
 };
 
-export const rotateDiagramBackups = async (key: string, backupJson: string) => {
+export const rotateDiagramBackups = async (key: string, backupJson: string, maxSlots = 3) => {
   const db = await openDiagramHandleDb();
   if (!db) return;
+  const slots = Math.max(1, Math.min(maxSlots, 20));
   await new Promise<void>((resolve) => {
     const tx = db.transaction(DIAGRAM_BACKUP_STORE, 'readwrite');
     const store = tx.objectStore(DIAGRAM_BACKUP_STORE);
@@ -145,17 +148,17 @@ export const rotateDiagramBackups = async (key: string, backupJson: string) => {
       const current =
         request.result && typeof request.result === 'object'
           ? request.result
-          : { v1: null, v2: null, v3: null };
-      const next = {
-        v1: backupJson,
-        v2: current.v1 ?? null,
-        v3: current.v2 ?? null,
-        updatedAt: new Date().toISOString(),
-      };
+          : {};
+      const next: Record<string, string | null> = { updatedAt: new Date().toISOString() };
+      next.v1 = backupJson;
+      for (let i = 2; i <= slots; i++) {
+        next[`v${i}`] = (current[`v${i - 1}`] as string | null) ?? null;
+      }
       store.put(next, key);
     };
     request.onerror = () => {
-      store.put({ v1: backupJson, v2: null, v3: null, updatedAt: new Date().toISOString() }, key);
+      const fallback: Record<string, string | null> = { v1: backupJson, updatedAt: new Date().toISOString() };
+      store.put(fallback, key);
     };
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); resolve(); };
@@ -163,9 +166,11 @@ export const rotateDiagramBackups = async (key: string, backupJson: string) => {
   });
 };
 
+export type BackupVersions = Record<string, string | null>;
+
 export const loadDiagramBackups = async (
   key: string
-): Promise<{ v1?: string | null; v2?: string | null; v3?: string | null } | null> => {
+): Promise<BackupVersions | null> => {
   const db = await openDiagramHandleDb();
   if (!db) return null;
   return new Promise((resolve) => {
@@ -175,4 +180,119 @@ export const loadDiagramBackups = async (
     request.onsuccess = () => { db.close(); resolve(request.result || null); };
     request.onerror = () => { db.close(); resolve(null); };
   });
+};
+
+// ---------------------------------------------------------------------------
+// IndexedDB — backup directory handle persistence
+// ---------------------------------------------------------------------------
+
+const BACKUP_DIR_HANDLE_KEY = 'backup-directory';
+
+export const persistBackupDirectoryHandle = async (handle: FileSystemDirectoryHandle | null) => {
+  const db = await openDiagramHandleDb();
+  if (!db) return;
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(DIAGRAM_HANDLE_STORE, 'readwrite');
+    const store = tx.objectStore(DIAGRAM_HANDLE_STORE);
+    if (handle) {
+      store.put(handle, BACKUP_DIR_HANDLE_KEY);
+    } else {
+      store.delete(BACKUP_DIR_HANDLE_KEY);
+    }
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); resolve(); };
+    tx.onabort = () => { db.close(); resolve(); };
+  });
+};
+
+export const restoreBackupDirectoryHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
+  const db = await openDiagramHandleDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    const tx = db.transaction(DIAGRAM_HANDLE_STORE, 'readonly');
+    const store = tx.objectStore(DIAGRAM_HANDLE_STORE);
+    const request = store.get(BACKUP_DIR_HANDLE_KEY);
+    request.onsuccess = () => { db.close(); resolve(request.result || null); };
+    request.onerror = () => { db.close(); resolve(null); };
+  });
+};
+
+/**
+ * Write round-robin backup files to a user-chosen directory.
+ * Files are named: `{baseName}.backup-1.json` ... `{baseName}.backup-{N}.json`
+ * Returns the slot number that was written (1-based).
+ */
+export const writeFileBackup = async (
+  dirHandle: FileSystemDirectoryHandle,
+  diagramFileName: string,
+  jsonContent: string,
+  maxSlots: number
+): Promise<number> => {
+  const baseName = diagramFileName.replace(/\.json$/i, '');
+  const slotCount = Math.max(1, Math.min(maxSlots, 20));
+
+  // Determine which slot to write: find the oldest or first empty slot
+  let oldestSlot = 1;
+  let oldestTime = Infinity;
+  for (let i = 1; i <= slotCount; i++) {
+    const backupName = `${baseName}.backup-${i}.json`;
+    try {
+      const fh = await dirHandle.getFileHandle(backupName);
+      const file = await fh.getFile();
+      if (file.lastModified < oldestTime) {
+        oldestTime = file.lastModified;
+        oldestSlot = i;
+      }
+    } catch {
+      // File doesn't exist — use this slot
+      oldestSlot = i;
+      break;
+    }
+  }
+
+  const backupName = `${baseName}.backup-${oldestSlot}.json`;
+  const fh = await dirHandle.getFileHandle(backupName, { create: true });
+  const writable = await (fh as any).createWritable();
+  await writable.write(new Blob([jsonContent], { type: 'application/json' }));
+  await writable.close();
+  return oldestSlot;
+};
+
+/**
+ * List backup files found in the directory for a given diagram.
+ * Returns array of { slot, fileName, lastModified, handle }.
+ */
+export const listFileBackups = async (
+  dirHandle: FileSystemDirectoryHandle,
+  diagramFileName: string,
+  maxSlots: number
+): Promise<{ slot: number; fileName: string; lastModified: number; handle: FileSystemFileHandle }[]> => {
+  const baseName = diagramFileName.replace(/\.json$/i, '');
+  const results: { slot: number; fileName: string; lastModified: number; handle: FileSystemFileHandle }[] = [];
+  for (let i = 1; i <= Math.min(maxSlots, 20); i++) {
+    const backupName = `${baseName}.backup-${i}.json`;
+    try {
+      const fh = await dirHandle.getFileHandle(backupName);
+      const file = await fh.getFile();
+      if (file.size > 0) {
+        results.push({ slot: i, fileName: backupName, lastModified: file.lastModified, handle: fh });
+      }
+    } catch {
+      // File doesn't exist
+    }
+  }
+  // Sort most recent first
+  results.sort((a, b) => b.lastModified - a.lastModified);
+  return results;
+};
+
+/** Clear all localStorage keys holding diagram entity data (people, partnerships, etc.). */
+export const clearDiagramLocalStorage = () => {
+  if (typeof window === 'undefined') return;
+  const diagramKeys: (keyof typeof STORAGE_KEYS)[] = [
+    'people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes', 'fileName',
+  ];
+  for (const k of diagramKeys) {
+    localStorage.removeItem(STORAGE_KEYS[k]);
+  }
 };

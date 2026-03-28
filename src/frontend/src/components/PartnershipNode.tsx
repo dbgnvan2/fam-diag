@@ -12,7 +12,8 @@ interface PartnershipNodeProps {
   isFamilySelected: boolean;
   onSelect: (partnershipId: string) => void;
   onHorizontalConnectorDragEnd: (partnershipId: string, y: number) => void;
-  onFamilyNameOffsetChange: (partnershipId: string, offsetX: number) => void;
+  onFamilyNameOffsetChange: (partnershipId: string, offsetX: number, offsetY: number) => void;
+  onFamilyNameSizeChange: (partnershipId: string, width: number, height: number) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
   onFamilyClick: (partnershipId: string) => void;
   onFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
@@ -38,6 +39,11 @@ const getDashStyle = (relationshipType: string) => {
 }
 
 const normalizeCoord = (value: number) => Number(value.toFixed(3));
+const normalizeRelationshipStatus = (value?: string) => {
+  const normalized = (value || '').trim().toLowerCase();
+  if (normalized === 'divorced') return 'divorce';
+  return normalized;
+};
 
 const TRI_SIDE = 16;
 const TRI_HALF = TRI_SIDE / 2;
@@ -57,9 +63,12 @@ const STRESSOR_INDICATOR_DEFS = [
   { letter: 'C', subtype: 'Chronic Stress' },
 ] as const;
 
-const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamilySelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onContextMenu, onFamilyClick, onFamilyContextMenu, onFamilyIndicatorClick }: PartnershipNodeProps) => {
-  const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX } = partnership;
+const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamilySelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onFamilyNameSizeChange, onContextMenu, onFamilyClick, onFamilyContextMenu, onFamilyIndicatorClick }: PartnershipNodeProps) => {
+  const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX, familyNameOffsetY, familyNameWidth, familyNameHeight, color, backgroundColor } = partnership;
   const dashStyle = getDashStyle(relationshipType);
+  const normalizedRelationshipStatus = normalizeRelationshipStatus(relationshipStatus);
+  const lineColor = color || 'black';
+  const bgColor = backgroundColor;
 
   const connectorY = normalizeCoord(horizontalConnectorY);
   const p1Extents = getPersonVerticalExtents(partner1);
@@ -106,14 +115,14 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
         {/* Left Partner Descending Line (PDL) */}
         <Line
             points={[pLeft_x_center, pLeft_y_bottom, pLeft_x_center, connectorY]}
-            stroke="black"
+            stroke={isSelected ? 'blue' : lineColor}
             strokeWidth={2}
             dash={dashStyle}
         />
         {/* Right Partner Descending Line (PDL) */}
         <Line
             points={[pRight_x_center, pRight_y_bottom, pRight_x_center, connectorY]}
-            stroke="black"
+            stroke={isSelected ? 'blue' : lineColor}
             strokeWidth={2}
             dash={dashStyle}
         />
@@ -137,6 +146,14 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           onTap={handleSelect}
           onContextMenu={(e) => onContextMenu(e, partnership.id)}
         >
+          {bgColor && (
+            <Line
+              points={[pLeft_x_center, 0, pRight_x_center, 0]}
+              stroke={bgColor}
+              strokeWidth={10}
+              listening={false}
+            />
+          )}
           <Line
               points={[pLeft_x_center, 0, pRight_x_center, 0]}
               stroke="transparent" // invisible, just for hit detection
@@ -144,7 +161,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           />
           <Line
               points={[pLeft_x_center, 0, pRight_x_center, 0]}
-              stroke={isSelected ? 'blue' : 'black'}
+              stroke={isSelected ? 'blue' : lineColor}
               strokeWidth={2}
               dash={dashStyle}
           />
@@ -186,38 +203,48 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           />
         )}
 
-        {(relationshipStatus === 'separated' || relationshipStatus === 'ended') && (
-            <Line points={[midPointX - 5, connectorY - 10, midPointX + 5, connectorY + 10]} stroke="black" strokeWidth={2} />
+        {(normalizedRelationshipStatus === 'separated' || normalizedRelationshipStatus === 'ended') && (
+            <Line points={[midPointX - 5, connectorY - 10, midPointX + 5, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />
         )}
-        {(relationshipStatus === 'divorced' || relationshipStatus === 'ended') && (
+        {(normalizedRelationshipStatus === 'divorce' || normalizedRelationshipStatus === 'ended') && (
             <>
-                <Line points={[midPointX - 10, connectorY - 10, midPointX, connectorY + 10]} stroke="black" strokeWidth={2} />
-                <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke="black" strokeWidth={2} />
+                <Line points={[midPointX - 10, connectorY - 10, midPointX, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />
+                <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />
             </>
         )}
         {(() => {
           const label = familyName !== undefined ? familyName : computeDefaultFamilyName(partner1, partner2);
           if (!label) return null;
-          const fontSize = 22;
+          const BASE_FONT = 22;
           const padX = 4;
           const padY = 4;
-          const charWidth = fontSize * 0.58;
-          const boxW = Math.max(100, label.length * charWidth + padX * 2);
-          const boxH = fontSize + padY * 2;
+          const charWidth = BASE_FONT * 0.58;
+          const autoW = Math.max(100, label.length * charWidth + padX * 2);
+          const autoH = BASE_FONT + padY * 2;
+          const MIN_BOX = 20;
+          const boxW = familyNameWidth ?? autoW;
+          const boxH = familyNameHeight ?? autoH;
+          // Scale font when box is smaller than auto size
+          const scaleW = boxW / autoW;
+          const scaleH = boxH / autoH;
+          const fontScale = Math.min(scaleW, scaleH, 1);
+          const fontSize = Math.max(6, Math.round(BASE_FONT * fontScale));
           const centerX = midPointX + (familyNameOffsetX ?? 0);
-          const boxY = connectorY + 8;
+          const boxY = connectorY + 8 + (familyNameOffsetY ?? 0);
+          const RESIZE_HANDLE = 10;
           return (
             <Group
               x={centerX}
               y={boxY}
               draggable
-              dragBoundFunc={(pos) => ({
-                x: Math.max(pLeft_x_center + boxW / 2, Math.min(pRight_x_center - boxW / 2, pos.x)),
-                y: boxY,
-              })}
               onDragEnd={(e) => {
                 const newCenterX = e.target.x();
-                onFamilyNameOffsetChange(partnership.id, normalizeCoord(newCenterX - midPointX));
+                const newY = e.target.y();
+                onFamilyNameOffsetChange(
+                  partnership.id,
+                  normalizeCoord(newCenterX - midPointX),
+                  normalizeCoord(newY - (connectorY + 8)),
+                );
               }}
               onClick={() => onFamilyClick(partnership.id)}
               onTap={() => onFamilyClick(partnership.id)}
@@ -242,7 +269,48 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                 fontSize={fontSize}
                 fontFamily="sans-serif"
                 fill="#23324a"
+                width={boxW - padX * 2}
                 listening={false}
+              />
+              {/* Resize handle — bottom-right corner */}
+              <Rect
+                x={boxW / 2 - RESIZE_HANDLE}
+                y={boxH - RESIZE_HANDLE}
+                width={RESIZE_HANDLE}
+                height={RESIZE_HANDLE}
+                fill={isFamilySelected ? '#93bbfd' : '#c4cdd8'}
+                cornerRadius={[0, 0, 3, 0]}
+                draggable
+                onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'nwse-resize'; }}
+                onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
+                onDragMove={(e) => {
+                  e.cancelBubble = true;
+                  const handle = e.target;
+                  const newW = Math.max(MIN_BOX, (handle.x() + RESIZE_HANDLE) * 2);
+                  const newH = Math.max(MIN_BOX, handle.y() + RESIZE_HANDLE);
+                  handle.x(newW / 2 - RESIZE_HANDLE);
+                  handle.y(newH - RESIZE_HANDLE);
+                  const parent = handle.getParent();
+                  if (parent) {
+                    const rect = parent.findOne('Rect') as import('konva/lib/shapes/Rect').Rect | undefined;
+                    const text = parent.findOne('Text') as import('konva/lib/shapes/Text').Text | undefined;
+                    if (rect) { rect.width(newW); rect.x(-newW / 2); rect.height(newH); }
+                    if (text) {
+                      const s = Math.min(newW / autoW, newH / autoH, 1);
+                      const fs = Math.max(6, Math.round(BASE_FONT * s));
+                      text.fontSize(fs);
+                      text.width(newW - padX * 2);
+                      text.x(-newW / 2 + padX);
+                    }
+                  }
+                }}
+                onDragEnd={(e) => {
+                  e.cancelBubble = true;
+                  const handle = e.target;
+                  const newW = Math.max(MIN_BOX, (handle.x() + RESIZE_HANDLE) * 2);
+                  const newH = Math.max(MIN_BOX, handle.y() + RESIZE_HANDLE);
+                  onFamilyNameSizeChange(partnership.id, normalizeCoord(newW), normalizeCoord(newH));
+                }}
               />
               {(() => {
                 const active = INDICATOR_DEFS.flatMap((def) => {

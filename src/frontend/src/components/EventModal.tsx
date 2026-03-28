@@ -43,6 +43,7 @@ export interface EventModalProps {
   primaryPersonOptions: string[];
   otherPersonOptions: string[];
   eventCategories: string[];
+  functionalFactCategoryNames?: string[];
   symptomTypeOptions: string[];
   resolvedEventClass: EventClass;
   lockEventType?: boolean;
@@ -62,6 +63,7 @@ const EventModal = ({
   primaryPersonOptions,
   otherPersonOptions,
   symptomTypeOptions,
+  functionalFactCategoryNames = [],
   lockEventType = false,
   modalTitle,
   onChange,
@@ -101,7 +103,9 @@ const EventModal = ({
 
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
-  const categoryOptions = EVENT_CATEGORIES[eventType] || [];
+  const categoryOptions = eventType === 'FF' && functionalFactCategoryNames.length > 0
+    ? functionalFactCategoryNames
+    : EVENT_CATEGORIES[eventType] || [];
 
   // On mount: if category or subtype is invalid for the current eventType, auto-correct.
   // This handles editing old events that have stale/wrong category values.

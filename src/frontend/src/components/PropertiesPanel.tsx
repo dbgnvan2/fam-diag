@@ -6,6 +6,7 @@ import type {
   EmotionalProcessEvent,
   FunctionalIndicatorDefinition,
   SIRCategoryDefinition,
+  FunctionalFactCategoryDefinition,
   EventClass,
   EventType,
   EventAnchorType,
@@ -175,7 +176,7 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' 
   patterns: {
     title: 'Patterns Tab Help',
     body:
-      'The Patterns tab lists all emotional patterns (fusion, distance, conflict, cutoff, projection) connected to this person. Click a pattern to open its full properties.',
+      'The Patterns tab lists all emotional patterns (+/- adequate, distance, conflict, cutoff, projection) connected to this person. Click a pattern to open its full properties.',
   },
   papero: {
     title: 'Papero Assessment Help',
@@ -243,7 +244,7 @@ const PERSON_DEFERRED_IDENTITY_FIELDS: (keyof Pick<Person, 'birthSex' | 'genderI
   'birthSex',
   'genderIdentity',
 ];
-const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'familyName' | 'notes'>)[] = [
+const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | 'relationshipStatus' | 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate' | 'familyName' | 'notes' | 'color' | 'backgroundColor'>)[] = [
   'relationshipType',
   'relationshipStatus',
   'relationshipStartDate',
@@ -252,8 +253,10 @@ const PARTNERSHIP_STRING_FIELDS: (keyof Pick<Partnership, 'relationshipType' | '
   'divorceDate',
   'familyName',
   'notes',
+  'color',
+  'backgroundColor',
 ];
-const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate' | 'relationshipType' | 'lineStyle' | 'lineEnding' | 'color' | 'notes' | 'status'>)[] = [
+const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate' | 'relationshipType' | 'lineStyle' | 'lineEnding' | 'color' | 'notes' | 'status' | 'adequatePersonId'>)[] = [
   'startDate',
   'endDate',
   'relationshipType',
@@ -262,6 +265,7 @@ const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate
   'color',
   'notes',
   'status',
+  'adequatePersonId',
 ];
 const readPartnershipStatusDate = (partnership: Partnership, status: string) => {
   const key = normalizeStatusKey(status);
@@ -304,6 +308,7 @@ interface PropertiesPanelProps {
   relationshipStatuses?: string[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
+  functionalFactCategories?: FunctionalFactCategoryDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
@@ -346,6 +351,7 @@ const PropertiesPanel = ({
   relationshipStatuses = ['married', 'separated', 'divorce', 'widowed', 'start', 'ended', 'ongoing'],
   functionalIndicatorDefinitions,
   sirCategories,
+  functionalFactCategories = [],
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
@@ -2174,6 +2180,7 @@ const PropertiesPanel = ({
             statusOptions={partnershipStatusOptions}
             statusDateRows={partnershipStatusDateRows}
             onChange={handlePartnershipChange}
+            onColorPresetSelect={(field, hex) => { updatePartnershipDraftState({ [field]: hex }); setPartnershipPristine(false); }}
             formatOptionLabel={formatOptionLabel}
             normalizeStatusKey={normalizeStatusKey}
             readStatusDate={readPartnershipStatusDate}
@@ -2503,6 +2510,7 @@ const PropertiesPanel = ({
             statusOptions={partnershipStatusOptions}
             statusDateRows={partnershipStatusDateRows}
             onChange={handlePartnershipChange}
+            onColorPresetSelect={(field, hex) => { updatePartnershipDraftState({ [field]: hex }); setPartnershipPristine(false); }}
             formatOptionLabel={formatOptionLabel}
             normalizeStatusKey={normalizeStatusKey}
             readStatusDate={readPartnershipStatusDate}
@@ -2529,6 +2537,7 @@ const PropertiesPanel = ({
             onFrequencyChange={(val) => { setEmotionalFrequencyDraft(val); setEmotionalPristine(false); }}
             onColorPresetSelect={(hex) => { updateEmotionalDraftState({ color: hex }); setEmotionalPristine(false); }}
             onSwapPersons={() => { updateEmotionalDraftState({ person1_id: emotionalDraft.person2_id, person2_id: emotionalDraft.person1_id }); setEmotionalPristine(false); }}
+            onAdequatePersonChange={(personId) => { updateEmotionalDraftState({ adequatePersonId: personId || undefined }); setEmotionalPristine(false); }}
             triangleId={triangleId}
             triangleColorDraft={triangleColorDraft}
             triangleIntensityDraft={triangleIntensityDraft}
@@ -2656,6 +2665,7 @@ const PropertiesPanel = ({
                       impact: 0,
                       notes: el.notes || '',
                       color: el.color || '#444444',
+                      adequatePersonId: el.adequatePersonId || '',
                     });
                   }}
                   onDelete={onRemoveEmotionalLine ? () => onRemoveEmotionalLine(el.id) : undefined}
@@ -2710,6 +2720,7 @@ const PropertiesPanel = ({
           primaryPersonOptions={primaryPersonOptions}
           otherPersonOptions={otherPersonOptions}
           eventCategories={eventCategories}
+          functionalFactCategoryNames={functionalFactCategories.map((c) => c.name)}
           symptomTypeOptions={symptomTypeOptions}
           resolvedEventClass={resolveEventClass()}
           modalTitle={eventModalTitle}

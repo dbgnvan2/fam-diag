@@ -145,6 +145,7 @@ interface EPLPropertiesSectionProps {
   onFrequencyChange: (frequency: number) => void;
   onColorPresetSelect: (color: string) => void;
   onSwapPersons?: () => void;
+  onAdequatePersonChange?: (personId: string) => void;
   triangleId?: string;
   triangleColorDraft?: string;
   triangleIntensityDraft?: 'low' | 'medium' | 'high';
@@ -166,6 +167,7 @@ const EPLPropertiesSection = ({
   onFrequencyChange,
   onColorPresetSelect,
   onSwapPersons,
+  onAdequatePersonChange,
   triangleId,
   triangleColorDraft,
   triangleIntensityDraft,
@@ -212,6 +214,20 @@ const EPLPropertiesSection = ({
               </button>
             )}
           </div>
+          {emotionalDraft.relationshipType === 'fusion' && onAdequatePersonChange && (
+            <div style={rowStyle}>
+              <span style={labelStyle}>Adequate (+):</span>
+              <select
+                value={emotionalDraft.adequatePersonId || ''}
+                onChange={(e) => onAdequatePersonChange(e.target.value)}
+                style={{ flex: 1, padding: '4px 8px', fontSize: 14, borderRadius: 6, border: '1px solid #c3cad8' }}
+              >
+                <option value="">— Not set —</option>
+                <option value={emotionalDraft.person1_id}>{person1Name} (+)</option>
+                <option value={emotionalDraft.person2_id}>{person2Name} (+)</option>
+              </select>
+            </div>
+          )}
         </>
       )}
       <div style={rowStyle}>

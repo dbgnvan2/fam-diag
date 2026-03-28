@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-23T01:28:51.102Z"
+    "exportedAt": "2026-03-24T19:43:37.356Z"
   },
   "people": [
     {
@@ -508,6 +508,27 @@
           "symptomType": "",
           "eventClass": "individual",
           "sourceIndicatorId": "symptom-physical-default"
+        },
+        {
+          "id": "1774377516524-cc46ec11ee3188",
+          "date": "2026-03-24",
+          "startDate": "2026-03-24",
+          "category": "Systems Perspective",
+          "eventType": "SIR",
+          "anchorType": "PERSON",
+          "anchorId": "demo-mom",
+          "status": "discrete",
+          "subtype": "",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 0,
+          "otherPersonName": "Alex Carter",
+          "primaryPersonName": "Renee Carter",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "individual",
+          "createdAt": 1774377516524
         }
       ],
       "size": 60,
@@ -529,7 +550,11 @@
           "date": "2026-03-21",
           "lastUpdatedAt": 1774062163217
         }
-      ]
+      ],
+      "paperoScores": {
+        "resourceful_engagement": 2,
+        "resourceful_familyAwareness": 2
+      }
     },
     {
       "id": "demo-son",
@@ -774,8 +799,8 @@
     {
       "id": "oUv3ZjIYgh5dOAn2i7yUF",
       "name": "New Person",
-      "x": 639.5411377199097,
-      "y": 735.1729966504881,
+      "x": 294.54113771990967,
+      "y": 756.1729966504881,
       "gender": "female",
       "partnerships": [
         "hEiIM-iZ6GHBqXNh5vFig"
@@ -787,8 +812,8 @@
     {
       "id": "lkTcWzWpuw9JvuIzjjf-f",
       "name": "Dave Partner",
-      "x": 494.14879322230263,
-      "y": 738.106573909143,
+      "x": 149.14879322230263,
+      "y": 759.106573909143,
       "gender": "male",
       "partnerships": [
         "hEiIM-iZ6GHBqXNh5vFig"
@@ -842,21 +867,10 @@
       "firstName": "Dave"
     },
     {
-      "id": "Tj40eD2M13e6ZKCnm1Nt5",
-      "name": "New Person",
-      "x": 942.4586956521736,
-      "y": 515.3147078804348,
-      "gender": "female",
-      "partnerships": [],
-      "lifeStatus": "alive",
-      "isCoach": false,
-      "events": []
-    },
-    {
       "id": "bvTA3fOHXX8xWU_vmffmP",
       "name": "AI Agent",
-      "x": 1045,
-      "y": 741,
+      "x": 593,
+      "y": 697,
       "gender": "ai-agent",
       "partnerships": [],
       "lifeStatus": "alive",
@@ -1153,7 +1167,7 @@
       "id": "hEiIM-iZ6GHBqXNh5vFig",
       "partner1_id": "oUv3ZjIYgh5dOAn2i7yUF",
       "partner2_id": "lkTcWzWpuw9JvuIzjjf-f",
-      "horizontalConnectorY": 799.471,
+      "horizontalConnectorY": 820.471,
       "relationshipType": "dating",
       "relationshipStatus": "married",
       "children": [],
@@ -2276,33 +2290,73 @@
   ],
   "autoSaveMinutes": 1,
   "ideasText": "create a correlate list of events - deaths and births for example.",
-  "predictions": [
+  "predictionSets": [
     {
-      "id": "5NxgEC45P3Eb9aTHs_Y0p",
-      "title": "First Predtion",
-      "status": "active",
+      "id": "hJpxhubmeb0Ga2b-en8Z7",
+      "name": "Migrated Predictions",
       "createdDate": "2026-03-23",
-      "conditions": [
+      "predictions": [
         {
-          "id": "hA0Sm9jhbflciAAOOruu4",
-          "type": "sir",
-          "description": "Be less reactive on topics",
-          "evidence": [],
-          "personId": "demo-dad",
-          "linkedSIRCategory": "Managing Reactivity"
-        }
-      ],
-      "outcomes": [
-        {
-          "id": "4RFm9LTkuUAN4UM_8ShJ2",
-          "description": "other will be less reactive to me",
-          "personIds": [
-            "demo-mom"
+          "id": "5NxgEC45P3Eb9aTHs_Y0p",
+          "title": "First Predtion",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "hA0Sm9jhbflciAAOOruu4",
+              "type": "sir",
+              "description": "Be less reactive on topics",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedSIRCategory": "Managing Reactivity"
+            }
           ],
-          "evidence": []
+          "outcomes": [
+            {
+              "id": "4RFm9LTkuUAN4UM_8ShJ2",
+              "description": "other will be less reactive to me",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            }
+          ],
+          "notes": ""
+        },
+        {
+          "id": "8IDxY_jPIuWwMQA2Bm0Ow",
+          "title": "My Second Predition ",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "D-_aMixVErTI61qsZ_sRz",
+              "type": "papero",
+              "description": "Improve Family Awareness of Role",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedPaperoKey": "resourceful_familyAwareness"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "tsDkII_zIaEplo5tYob45",
+              "description": "other person symptom goes down",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            },
+            {
+              "id": "1bNHFlPX6kU245EqLwZAr",
+              "description": "symptom decreases",
+              "personIds": [],
+              "evidence": []
+            }
+          ],
+          "notes": ""
         }
-      ],
-      "notes": ""
+      ]
     }
   ]
 }
