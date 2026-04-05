@@ -13,14 +13,33 @@
  * Position code and maturity level are always shown in PersonNode, not here.
  */
 import { Group, Line } from 'react-konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Person, Partnership } from '../types';
 import { deriveSiblingPositionResult, partnerForPerson } from '../utils/siblingPosition';
 import type { ConflictResult } from '../utils/siblingPosition';
+
+export interface SiblingConflictHoverInfo {
+  personId: string;
+  role: 'father' | 'mother' | 'partner';
+  lineType: 'rank' | 'sex';
+  x: number;
+  y: number;
+  conflict: ConflictResult | null;
+}
+
+export interface SiblingConflictClickInfo {
+  personId: string;
+  role: 'father' | 'mother' | 'partner';
+  conflict: ConflictResult | null;
+}
 
 interface Props {
   person: Person;
   people: Person[];
   partnerships: Partnership[];
+  onHover?: (info: SiblingConflictHoverInfo) => void;
+  onHoverLeave?: () => void;
+  onLineClick?: (info: SiblingConflictClickInfo) => void;
 }
 
 const SQ2 = Math.SQRT1_2;
@@ -30,6 +49,7 @@ const PARENT_START_GAP = 4;
 const PARENT_SEG_LEN   = 28;
 const PARENT_PERP_SEP  = 5;   // perpendicular gap between rank and sex lines
 const PARENT_STROKE    = 3.5;
+const HIT_STROKE       = 14;  // wider hit area for easier interaction
 
 // Partner horizontal segments (parallel, stacked vertically)
 const PARTNER_START_GAP = 5;
@@ -50,9 +70,12 @@ interface ParentIndicatorsProps {
   dy: number;  // unit direction y
   conflict: ConflictResult | null;
   keyBase: string;
+  onHover?: (lineType: 'rank' | 'sex', x: number, y: number) => void;
+  onHoverLeave?: () => void;
+  onClick?: () => void;
 }
 
-function ParentIndicators({ topX, topY, dx, dy, conflict, keyBase }: ParentIndicatorsProps) {
+function ParentIndicators({ topX, topY, dx, dy, conflict, keyBase, onHover, onHoverLeave, onClick }: ParentIndicatorsProps) {
   // Perpendicular unit vector (rotate direction 90° CCW): (-dy, dx)
   const px = -dy;
   const py = dx;
@@ -85,16 +108,30 @@ function ParentIndicators({ topX, topY, dx, dy, conflict, keyBase }: ParentIndic
     ? '#43a047'  // N/A for same-sex pair = no conflict
     : conflictColor(conflict!.sex_conflict);
 
+  const handleMouseEnter = (lineType: 'rank' | 'sex') => (e: KonvaEventObject<MouseEvent>) => {
+    onHover?.(lineType, e.evt.clientX, e.evt.clientY);
+  };
+
   return (
     <>
       <Line key={`${keyBase}-rank`} points={rank}
         stroke={rankUnknown ? '#bdbdbd' : conflictColor(conflict!.rank_conflict)}
-        strokeWidth={PARENT_STROKE} lineCap="round" listening={false}
-        dash={rankUnknown ? [4, 3] : undefined} />
+        strokeWidth={PARENT_STROKE} lineCap="round"
+        hitStrokeWidth={HIT_STROKE}
+        dash={rankUnknown ? [4, 3] : undefined}
+        onMouseEnter={onHover ? handleMouseEnter('rank') : undefined}
+        onMouseLeave={onHoverLeave}
+        onClick={onClick}
+      />
       <Line key={`${keyBase}-sex`} points={sex}
         stroke={sexColor}
-        strokeWidth={PARENT_STROKE} lineCap="round" listening={false}
-        dash={sexUnknown ? [4, 3] : undefined} />
+        strokeWidth={PARENT_STROKE} lineCap="round"
+        hitStrokeWidth={HIT_STROKE}
+        dash={sexUnknown ? [4, 3] : undefined}
+        onMouseEnter={onHover ? handleMouseEnter('sex') : undefined}
+        onMouseLeave={onHoverLeave}
+        onClick={onClick}
+      />
     </>
   );
 }
@@ -107,9 +144,12 @@ interface PartnerIndicatorsProps {
   dir: 1 | -1;    // 1 = rightward, -1 = leftward
   conflict: ConflictResult | null;
   keyBase: string;
+  onHover?: (lineType: 'rank' | 'sex', x: number, y: number) => void;
+  onHoverLeave?: () => void;
+  onClick?: () => void;
 }
 
-function PartnerIndicators({ edgeX, centreY, dir, conflict, keyBase }: PartnerIndicatorsProps) {
+function PartnerIndicators({ edgeX, centreY, dir, conflict, keyBase, onHover, onHoverLeave, onClick }: PartnerIndicatorsProps) {
   const x1 = edgeX + dir * PARTNER_START_GAP;
   const x2 = edgeX + dir * (PARTNER_START_GAP + PARTNER_SEG_LEN);
 
@@ -124,23 +164,37 @@ function PartnerIndicators({ edgeX, centreY, dir, conflict, keyBase }: PartnerIn
     ? '#43a047'  // N/A for same-sex pair = no conflict
     : conflictColor(conflict!.sex_conflict);
 
+  const handleMouseEnter = (lineType: 'rank' | 'sex') => (e: KonvaEventObject<MouseEvent>) => {
+    onHover?.(lineType, e.evt.clientX, e.evt.clientY);
+  };
+
   return (
     <>
       <Line key={`${keyBase}-rank`} points={[x1, rankY, x2, rankY]}
         stroke={rankUnknown ? '#bdbdbd' : conflictColor(conflict!.rank_conflict)}
-        strokeWidth={PARTNER_STROKE} lineCap="round" listening={false}
-        dash={rankUnknown ? [4, 3] : undefined} />
+        strokeWidth={PARTNER_STROKE} lineCap="round"
+        hitStrokeWidth={HIT_STROKE}
+        dash={rankUnknown ? [4, 3] : undefined}
+        onMouseEnter={onHover ? handleMouseEnter('rank') : undefined}
+        onMouseLeave={onHoverLeave}
+        onClick={onClick}
+      />
       <Line key={`${keyBase}-sex`} points={[x1, sexY, x2, sexY]}
         stroke={sexColor}
-        strokeWidth={PARTNER_STROKE} lineCap="round" listening={false}
-        dash={sexUnknown ? [4, 3] : undefined} />
+        strokeWidth={PARTNER_STROKE} lineCap="round"
+        hitStrokeWidth={HIT_STROKE}
+        dash={sexUnknown ? [4, 3] : undefined}
+        onMouseEnter={onHover ? handleMouseEnter('sex') : undefined}
+        onMouseLeave={onHoverLeave}
+        onClick={onClick}
+      />
     </>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const SiblingConflictOverlay = ({ person, people, partnerships }: Props) => {
+const SiblingConflictOverlay = ({ person, people, partnerships, onHover, onHoverLeave, onLineClick }: Props) => {
   const result  = deriveSiblingPositionResult({ person, people, partnerships });
   const partner = partnerForPerson(person, people, partnerships);
 
@@ -152,14 +206,28 @@ const SiblingConflictOverlay = ({ person, people, partnerships }: Props) => {
   const partnerDir: 1 | -1 = partner && partner.x < person.x ? -1 : 1;
   const partnerEdgeX = person.x + partnerDir * halfExtent;
 
+  const makeHover = (role: 'father' | 'mother' | 'partner', conflict: ConflictResult | null) =>
+    onHover
+      ? (lineType: 'rank' | 'sex', x: number, y: number) =>
+          onHover({ personId: person.id, role, lineType, x, y, conflict })
+      : undefined;
+
+  const makeClick = (role: 'father' | 'mother' | 'partner', conflict: ConflictResult | null) =>
+    onLineClick
+      ? () => onLineClick({ personId: person.id, role, conflict })
+      : undefined;
+
   return (
-    <Group listening={false}>
+    <Group listening={!!(onHover || onLineClick)}>
       {/* Father — 45° upper-left from top-centre */}
       <ParentIndicators
         topX={topX} topY={topY}
         dx={-SQ2} dy={-SQ2}
         conflict={result.conflict_with_father}
         keyBase={`${person.id}-father`}
+        onHover={makeHover('father', result.conflict_with_father)}
+        onHoverLeave={onHoverLeave}
+        onClick={makeClick('father', result.conflict_with_father)}
       />
       {/* Mother — 45° upper-right from top-centre */}
       <ParentIndicators
@@ -167,6 +235,9 @@ const SiblingConflictOverlay = ({ person, people, partnerships }: Props) => {
         dx={SQ2} dy={-SQ2}
         conflict={result.conflict_with_mother}
         keyBase={`${person.id}-mother`}
+        onHover={makeHover('mother', result.conflict_with_mother)}
+        onHoverLeave={onHoverLeave}
+        onClick={makeClick('mother', result.conflict_with_mother)}
       />
       {/* Partner — horizontal from the side facing the partner */}
       {result.conflict_with_partner !== null && (
@@ -176,6 +247,9 @@ const SiblingConflictOverlay = ({ person, people, partnerships }: Props) => {
           dir={partnerDir}
           conflict={result.conflict_with_partner}
           keyBase={`${person.id}-partner`}
+          onHover={makeHover('partner', result.conflict_with_partner)}
+          onHoverLeave={onHoverLeave}
+          onClick={makeClick('partner', result.conflict_with_partner)}
         />
       )}
     </Group>

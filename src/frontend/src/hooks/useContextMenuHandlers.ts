@@ -40,7 +40,6 @@ interface UseContextMenuHandlersDeps {
   removePerson: (personId: string) => void;
   removeChildFromPartnership: (childId: string, partnershipId: string) => void;
   // Other passed functions
-  addPartnership: () => void;
   addPartnerForPerson: (person: Person) => void;
   openAddEmotionalPatternModal: (person1Id: string, person2Id: string) => void;
   handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
@@ -95,7 +94,6 @@ export function useContextMenuHandlers({
   removePartnership,
   removePerson,
   removeChildFromPartnership,
-  addPartnership,
   addPartnerForPerson,
   openAddEmotionalPatternModal,
   handleUpdatePerson,
@@ -142,36 +140,8 @@ export function useContextMenuHandlers({
       setSelectedPageNoteId(null);
       setPageNoteDraft(null);
 
-      if (selectedPeopleIds.length === 2 && selectedPeopleIds.includes(person.id)) {
-        const [p1_id, p2_id] = selectedPeopleIds;
-        setContextMenu({
-          x: e.evt.clientX,
-          y: e.evt.clientY,
-          items: [
-            {
-              label: 'Timeline',
-              onClick: () => {
-                setTimelineSelectionIds(selectedPeopleIds);
-                setContextMenu(null);
-              },
-            },
-            {
-              label: 'Add Partnership',
-              onClick: () => {
-                addPartnership();
-                setContextMenu(null);
-                setSelectedPeopleIds([]);
-              },
-            },
-            {
-              label: 'Add Emotional Pattern',
-              onClick: () => {
-                openAddEmotionalPatternModal(p1_id, p2_id);
-                setContextMenu(null);
-              },
-            },
-          ],
-        });
+      if (selectedPeopleIds.length >= 2 && selectedPeopleIds.includes(person.id)) {
+        showGroupContextMenu(e.evt.clientX, e.evt.clientY);
         return;
       }
 
@@ -432,9 +402,9 @@ export function useContextMenuHandlers({
           {
             label: person.notes
               ? person.notesEnabled
-                ? 'Note Off'
-                : 'Note On'
-              : 'Note Off',
+                ? 'Hide Note'
+                : 'Show Note'
+              : 'No Note',
             onClick: () => {
               if (!person.notes) return;
               handleUpdatePerson(person.id, { notesEnabled: person.notesEnabled ? false : true });
@@ -673,12 +643,24 @@ export function useContextMenuHandlers({
             {
               label: partnership.notes
                 ? partnership.notesEnabled
-                  ? 'Hide Note (Use Layer)'
-                  : 'Show Note'
-                : 'No Note',
+                  ? 'Hide PRL Note'
+                  : 'Show PRL Note'
+                : 'No PRL Note',
               onClick: () => {
                   if (!partnership.notes) return;
                   handleUpdatePartnership(partnershipId, { notesEnabled: partnership.notesEnabled ? false : true });
+                  setContextMenu(null);
+              }
+            },
+            {
+              label: partnership.familyNotes
+                ? partnership.familyNotesEnabled
+                  ? 'Hide Family Note'
+                  : 'Show Family Note'
+                : 'No Family Note',
+              onClick: () => {
+                  if (!partnership.familyNotes) return;
+                  handleUpdatePartnership(partnershipId, { familyNotesEnabled: partnership.familyNotesEnabled ? false : true });
                   setContextMenu(null);
               }
             },
@@ -784,10 +766,41 @@ export function useContextMenuHandlers({
     });
   };
 
+  const showGroupContextMenu = (clientX: number, clientY: number) => {
+    const items: { label: string; onClick: () => void }[] = [
+      {
+        label: 'Timeline',
+        onClick: () => {
+          setTimelineSelectionIds(selectedPeopleIds);
+          setContextMenu(null);
+        },
+      },
+    ];
+    if (selectedPeopleIds.length === 2) {
+      const [p1_id, p2_id] = selectedPeopleIds;
+      items.push({
+        label: 'Add Emotional Pattern',
+        onClick: () => {
+          openAddEmotionalPatternModal(p1_id, p2_id);
+          setContextMenu(null);
+        },
+      });
+    }
+    setContextMenu({ x: clientX, y: clientY, items });
+  };
+
+  const handleGroupContextMenu = (e: KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+    e.cancelBubble = true;
+    if (selectedPeopleIds.length < 2) return;
+    showGroupContextMenu(e.evt.clientX, e.evt.clientY);
+  };
+
   return {
     handlePersonContextMenu,
     handleChildLineContextMenu,
     handlePartnershipContextMenu,
     handleStageContextMenu,
+    handleGroupContextMenu,
   };
 }

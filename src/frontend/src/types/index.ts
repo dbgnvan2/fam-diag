@@ -47,6 +47,7 @@ export type Person = {
   birthDate?: string;
   birthOrderOverride?: number;
   deathDate?: string;
+  deathDateKnown?: boolean;
   adoptionDate?: string;
   genderDate?: string;
   gender?: string;
@@ -155,6 +156,10 @@ export type Partnership = {
   notesEnabled?: boolean;
   notesPosition?: { x: number; y: number };
   notesSize?: { width: number; height: number };
+  familyNotes?: string;
+  familyNotesEnabled?: boolean;
+  familyNotesPosition?: { x: number; y: number };
+  familyNotesSize?: { width: number; height: number };
   color?: string;
   backgroundColor?: string;
   events?: EmotionalProcessEvent[];
@@ -216,6 +221,10 @@ export type Triangle = {
   intensity?: 'low' | 'medium' | 'high';
   tpls?: EmotionalLine[];
   events?: EmotionalProcessEvent[];
+  notes?: string;
+  notesEnabled?: boolean;
+  notesPosition?: { x: number; y: number };
+  notesSize?: { width: number; height: number };
 };
 
 // ─── Prediction Types ──────────────────────────────────────────────────────

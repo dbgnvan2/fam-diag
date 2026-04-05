@@ -22,6 +22,7 @@ const baseProps = {
   onUpdatePerson: vi.fn(),
   updatePersonDraftState: vi.fn(),
   onSetPersonPristine: vi.fn(),
+  onScoreChange: vi.fn(),
 };
 
 describe('PersonPaperoSection', () => {
@@ -102,6 +103,7 @@ describe('PersonPaperoSection', () => {
         onUpdatePerson={onUpdatePerson}
         updatePersonDraftState={updatePersonDraftState}
         onSetPersonPristine={vi.fn()}
+        onScoreChange={vi.fn()}
       />
     );
     // Open help dialog
@@ -130,6 +132,7 @@ describe('PersonPaperoSection', () => {
         onUpdatePerson={onUpdatePerson}
         updatePersonDraftState={vi.fn()}
         onSetPersonPristine={vi.fn()}
+        onScoreChange={vi.fn()}
       />
     );
     // There are 16 Level dropdowns — get all selects and pick the first (Engagement with Issue)
@@ -159,6 +162,38 @@ describe('PersonPaperoSection', () => {
     );
     // Average of 4+2+3+5+1 = 15/5 = 3.0
     expect(screen.getByText('Avg: 3.0')).toBeInTheDocument();
+  });
+
+  it('calls onScoreChange with (subtypeKey, newValue, oldValue) when score changes', () => {
+    const person = makePerson({ paperoScores: { resourceful_engagement: 2 } });
+    const onScoreChange = vi.fn();
+    render(
+      <PersonPaperoSection
+        personDraft={person}
+        selectedPerson={person}
+        {...baseProps}
+        onScoreChange={onScoreChange}
+      />
+    );
+    const selects = document.querySelectorAll('select');
+    fireEvent.change(selects[0], { target: { value: '4' } });
+    expect(onScoreChange).toHaveBeenCalledWith('Engagement with Issue', 4, 2);
+  });
+
+  it('does not call onScoreChange when the same value is selected', () => {
+    const person = makePerson({ paperoScores: { resourceful_engagement: 3 } });
+    const onScoreChange = vi.fn();
+    render(
+      <PersonPaperoSection
+        personDraft={person}
+        selectedPerson={person}
+        {...baseProps}
+        onScoreChange={onScoreChange}
+      />
+    );
+    const selects = document.querySelectorAll('select');
+    fireEvent.change(selects[0], { target: { value: '3' } });
+    expect(onScoreChange).not.toHaveBeenCalled();
   });
 
   it('displays current level label when score is set', () => {

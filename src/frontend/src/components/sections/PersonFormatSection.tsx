@@ -2,7 +2,7 @@
  * PersonFormatSection — person size and color (foreground, border, background) controls.
  * Rendered inside PropertiesPanel (full panel) or a PopupShell (canvas popup).
  */
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Person } from '../../types';
 
 const DEFAULT_BORDER_COLOR = '#000000';
@@ -36,6 +36,7 @@ interface PersonFormatSectionProps {
   personDraft: Person;
   onChange: React.ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
   onAdjustSize: (delta: number) => void;
+  onSizeSet: (value: number) => void;
   colorInputRefs: ColorInputRefs;
 }
 
@@ -43,8 +44,41 @@ const PersonFormatSection = ({
   personDraft,
   onChange,
   onAdjustSize,
+  onSizeSet,
   colorInputRefs,
 }: PersonFormatSectionProps) => {
+  const committedSize = personDraft.size ?? 60;
+  const [sizeText, setSizeText] = useState(String(committedSize));
+  const prevCommittedRef = useRef(committedSize);
+
+  // Sync local text when size changes externally (e.g. +/- buttons)
+  useEffect(() => {
+    if (committedSize !== prevCommittedRef.current) {
+      prevCommittedRef.current = committedSize;
+      setSizeText(String(committedSize));
+    }
+  }, [committedSize]);
+
+  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setSizeText(raw);
+    const num = parseInt(raw, 10);
+    if (!isNaN(num) && num > 9) {
+      onSizeSet(Math.min(400, num));
+    }
+  };
+
+  const handleSizeBlur = () => {
+    const num = parseInt(sizeText, 10);
+    if (!isNaN(num) && num > 9) {
+      const clamped = Math.min(400, num);
+      setSizeText(String(clamped));
+      onSizeSet(clamped);
+    } else {
+      setSizeText(String(committedSize));
+    }
+  };
+
   const renderColorControl = (
     key: 'foreground' | 'border' | 'background',
     label: string,
@@ -112,14 +146,13 @@ const PersonFormatSection = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button type="button" onClick={() => onAdjustSize(-1)} style={{ padding: '0 6px' }}>−</button>
           <input
-            type="number"
+            type="text"
             id="size"
             name="size"
-            min={20}
-            max={200}
-            value={personDraft.size ?? 60}
-            onChange={onChange}
-            style={{ width: 60, textAlign: 'center' }}
+            value={sizeText}
+            onChange={handleSizeChange}
+            onBlur={handleSizeBlur}
+            style={{ width: '4ch', textAlign: 'center' }}
           />
           <button type="button" onClick={() => onAdjustSize(1)} style={{ padding: '0 6px' }}>+</button>
         </div>

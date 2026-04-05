@@ -181,6 +181,25 @@ const FAMILY_INTACTNESS_SCALE: IntensityScale = {
   ],
 };
 
+// ─── Sibling Maturity Level scale ────────────────────────────────────────────
+
+export const MATURITY_SCALE: IntensityScale = {
+  labels: [
+    'Role-Reactive',
+    'Partially Aware',
+    'Emerging Flexibility',
+    'Established Maturity',
+    'Highly Differentiated',
+  ],
+  help: [
+    'Role-Reactive – Responds automatically from sibling position; strongly driven by birth-order expectations and sibling system anxiety. Little ability to step back from the role.',
+    'Partially Aware – Some awareness of sibling role patterns; occasional ability to observe and partially step back, but anxiety quickly overrides self-regulation.',
+    'Emerging Flexibility – Can recognize and partially manage sibling role dynamics; more differentiated in low-stress situations but tends to revert under pressure.',
+    'Established Maturity – Consistently maintains self-defined functioning in the sibling role; less driven by rank/sex expectations even under moderate stress.',
+    'Highly Differentiated – Functions from a principled, self-defined position regardless of birth-order pressures; the sibling role informs perspective without driving behavior.',
+  ],
+};
+
 // ─── Papero Assessment scales ─────────────────────────────────────────────────
 
 // Category: Resourceful

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { EmotionalLine, Partnership, Person } from '../types';
+import type { EmotionalLine, Partnership, Person, Triangle } from '../types';
 import {
   shouldShowEmotionalNote,
+  shouldShowFamilyNote,
   shouldShowPartnershipNote,
   shouldShowPersonNote,
+  shouldShowTriangleNote,
 } from './noteVisibility';
 
 describe('noteVisibility', () => {
@@ -55,6 +57,90 @@ describe('noteVisibility', () => {
     };
     expect(shouldShowPartnershipNote(partnership, false)).toBe(true);
     expect(shouldShowEmotionalNote(line, false)).toBe(true);
+  });
+
+  it('shows triangle note when explicitly enabled while layer is off', () => {
+    const triangle: Triangle = {
+      id: 't1',
+      person1_id: 'a',
+      person2_id: 'b',
+      person3_id: 'c',
+      notes: 'triangle note',
+      notesEnabled: true,
+    };
+    expect(shouldShowTriangleNote(triangle, false)).toBe(true);
+  });
+
+  it('shows family note when explicitly enabled while layer is off', () => {
+    const partnership: Partnership = {
+      id: 'r3',
+      partner1_id: 'a',
+      partner2_id: 'b',
+      horizontalConnectorY: 0,
+      relationshipType: 'married',
+      relationshipStatus: 'married',
+      children: [],
+      familyNotes: 'family note',
+      familyNotesEnabled: true,
+    };
+    expect(shouldShowFamilyNote(partnership, false)).toBe(true);
+  });
+
+  it('hides triangle note when no notes text even if layer is on', () => {
+    const triangle: Triangle = {
+      id: 't2',
+      person1_id: 'a',
+      person2_id: 'b',
+      person3_id: 'c',
+    };
+    expect(shouldShowTriangleNote(triangle, true)).toBe(false);
+  });
+
+  it('hides family note when no familyNotes text even if layer is on', () => {
+    const partnership: Partnership = {
+      id: 'r4',
+      partner1_id: 'a',
+      partner2_id: 'b',
+      horizontalConnectorY: 0,
+      relationshipType: 'married',
+      relationshipStatus: 'married',
+      children: [],
+    };
+    expect(shouldShowFamilyNote(partnership, true)).toBe(false);
+  });
+
+  it('hides family note when familyNotesEnabled is false even if layer is on', () => {
+    const partnership: Partnership = {
+      id: 'r5',
+      partner1_id: 'a',
+      partner2_id: 'b',
+      horizontalConnectorY: 0,
+      relationshipType: 'married',
+      relationshipStatus: 'married',
+      children: [],
+      familyNotes: 'hidden',
+      familyNotesEnabled: false,
+    };
+    expect(shouldShowFamilyNote(partnership, true)).toBe(false);
+  });
+
+  it('PRL note and family note are independent on the same partnership', () => {
+    const partnership: Partnership = {
+      id: 'r6',
+      partner1_id: 'a',
+      partner2_id: 'b',
+      horizontalConnectorY: 0,
+      relationshipType: 'married',
+      relationshipStatus: 'married',
+      children: [],
+      notes: 'prl note',
+      notesEnabled: true,
+      familyNotes: 'family note',
+      familyNotesEnabled: false,
+    };
+    // PRL note is enabled, family note is disabled
+    expect(shouldShowPartnershipNote(partnership, false)).toBe(true);
+    expect(shouldShowFamilyNote(partnership, false)).toBe(false);
   });
 
   it('hides notes when explicitly disabled even if the notes layer is on', () => {

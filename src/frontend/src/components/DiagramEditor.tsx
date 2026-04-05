@@ -38,6 +38,8 @@ import DiagramModals from './DiagramModals';
 import PredictionsPanel from './PredictionsPanel';
 import DiagramCanvas from './DiagramCanvas';
 import EventModal from './EventModal';
+import FileBackupListDialog from './modals/FileBackupListDialog';
+import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import {
   DEFAULT_DIAGRAM_STATE,
@@ -427,6 +429,9 @@ const DiagramEditor = () => {
   const [pendingImportSource, setPendingImportSource] = useState<'import' | 'transcript' | 'facts'>('import');
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
   const [backupRestoreVersions, setBackupRestoreVersions] = useState<BackupVersions | null>(null);
+  const [fileBackupListOpen, setFileBackupListOpen] = useState(false);
+  const [fileBackupEntries, setFileBackupEntries] = useState<FileBackupEntry[]>([]);
+  const fileBackupHandlesRef = useRef<Map<number, FileSystemFileHandle>>(new Map());
   const scrollHintShownRef = useRef(false);
   const [canvasScrollHintOpen, setCanvasScrollHintOpen] = useState(false);
   const [sessionCaptureDialogOpen, setSessionCaptureDialogOpen] = useState(false);
@@ -941,6 +946,7 @@ const DiagramEditor = () => {
       id: triangle.id,
       color: triangle.color || '#8a5a00',
       intensity: triangle.intensity || 'medium',
+      notes: triangle.notes || '',
     };
   }, [propertiesPanelItem, triangleByTplLineId, triangles]);
 
@@ -1644,21 +1650,18 @@ useEffect(() => {
       alert('No backup files found for this diagram.');
       return;
     }
-    // Build a list for the user to choose from
-    const choices = backups.map((b, idx) => {
-      const date = new Date(b.lastModified);
-      const dateStr = date.toLocaleString();
-      return `${idx + 1}. ${b.fileName} (${dateStr})`;
-    }).join('\n');
-    const entered = window.prompt(`Select a backup to restore:\n\n${choices}\n\nEnter number (1-${backups.length}):`);
-    if (entered == null) return;
-    const idx = Number(entered) - 1;
-    if (idx < 0 || idx >= backups.length || !Number.isFinite(idx)) {
-      alert('Invalid selection.');
-      return;
-    }
+    fileBackupHandlesRef.current = new Map(backups.map((b) => [b.slot, b.handle]));
+    setFileBackupEntries(backups.map((b) => ({ slot: b.slot, fileName: b.fileName, lastModified: b.lastModified })));
+    setFileBackupListOpen(true);
+  };
+
+  const handleFileBackupSelect = async (slot: number) => {
+    setFileBackupListOpen(false);
+    const handle = fileBackupHandlesRef.current.get(slot);
+    if (!handle) return;
+    const diagramName = diagramFileHandleRef.current?.name || fileName || FALLBACK_FILE_NAME;
     try {
-      const file = await backups[idx].handle.getFile();
+      const file = await handle.getFile();
       const text = await file.text();
       const data = JSON.parse(text);
       replaceDiagramState(data, diagramName);
@@ -1845,6 +1848,7 @@ useEffect(() => {
     removeEmotionalLine,
     addTriangle,
     removeTriangle,
+    updateTriangle,
     updateTriangleColor,
     updateTriangleIntensity,
   } = useEmotionalLineOperations({
@@ -1869,22 +1873,6 @@ useEffect(() => {
     setPredictionSets,
   });
 
-  const addPartnership = () => {
-    if (selectedPeopleIds.length !== 2) return;
-
-    const [p1_id, p2_id] = selectedPeopleIds;
-    const newPartnership: Partnership = {
-        id: nanoid(),
-        partner1_id: p1_id,
-        partner2_id: p2_id,
-        horizontalConnectorY: Math.max(people.find(p=>p.id === p1_id)!.y, people.find(p=>p.id === p2_id)!.y) + 100, // default y
-        relationshipType: 'dating',
-        relationshipStatus: 'married',
-        children: [],
-        events: [],
-    };
-    setPartnerships([...partnerships, newPartnership]);
-  };
 
   const changeSex = (personId: string) => {
     setPeopleAligned((prev) =>
@@ -2106,35 +2094,12 @@ useEffect(() => {
       })();
 
       let handle = forceChooseLocation ? null : diagramFileHandleRef.current;
-      if (!handle && allowPicker && typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
-        handle = await (window as any).showSaveFilePicker({
-          suggestedName: normalizedRequestedName,
+      if (!handle && allowPicker && typeof window !== 'undefined' && 'showOpenFilePicker' in window) {
+        const handles = await (window as any).showOpenFilePicker({
+          multiple: false,
           types: DIAGRAM_FILE_PICKER_TYPES,
         });
-
-        // Feature 3: Overwrite protection — if saving to a different-named file, require YES confirmation
-        if (handle && forceChooseLocation) {
-          const chosenName = handle.name || '';
-          const currentName = (fileName || '').toLowerCase();
-          if (chosenName.toLowerCase() !== currentName && currentName !== FALLBACK_FILE_NAME.toLowerCase()) {
-            // Check if the chosen file has existing content (i.e. it's a real file, not a new one)
-            let hasExistingContent = false;
-            try {
-              const existingFile = await handle.getFile();
-              hasExistingContent = existingFile.size > 0;
-            } catch { /* new file — no content */ }
-
-            if (hasExistingContent) {
-              const answer = window.prompt(
-                `You are about to overwrite "${chosenName}" with the current diagram ("${fileName}").\n\nType YES to confirm:`
-              );
-              if (answer !== 'YES') {
-                return false;
-              }
-            }
-          }
-        }
-
+        handle = handles?.[0] ?? null;
         setDiagramFileHandle(handle);
       }
 
@@ -3113,6 +3078,7 @@ useEffect(() => {
     markSnapshotClean,
   });
 
+
   const handleCanvasScrollHint = () => {
     if (scrollHintShownRef.current) return;
     scrollHintShownRef.current = true;
@@ -3403,13 +3369,19 @@ useEffect(() => {
   const {
     handlePersonDragStart,
     handlePersonDrag,
+    handleGroupBoxDragStart,
+    handleGroupBoxDragMove,
     handleHorizontalConnectorDragEnd,
     handlePersonNoteDragEnd,
     handlePersonNoteResizeEnd,
     handlePartnershipNoteDragEnd,
     handlePartnershipNoteResizeEnd,
+    handleFamilyNoteDragEnd,
+    handleFamilyNoteResizeEnd,
     handleEmotionalLineNoteDragEnd,
     handleEmotionalLineNoteResizeEnd,
+    handleTriangleNoteDragEnd,
+    handleTriangleNoteResizeEnd,
   } = useCanvasDragHandlers({
     selectedPeopleIds,
     selectedPageNoteIds,
@@ -3455,6 +3427,7 @@ useEffect(() => {
     handleChildLineContextMenu,
     handlePartnershipContextMenu,
     handleStageContextMenu,
+    handleGroupContextMenu,
   } = useContextMenuHandlers({
     people,
     partnerships,
@@ -3481,7 +3454,6 @@ useEffect(() => {
     removePartnership,
     removePerson,
     removeChildFromPartnership,
-    addPartnership,
     addPartnerForPerson,
     openAddEmotionalPatternModal,
     handleUpdatePerson,
@@ -3744,6 +3716,7 @@ useEffect(() => {
     openTrianglePropertyModal,
     removeTriangle,
     removeEmotionalLine,
+    updateTriangle,
   });
 
   const getPersonSelectionBounds = useCallback((person: Person) => {
@@ -4142,6 +4115,12 @@ useEffect(() => {
             onClose={() => { setBackupRestoreOpen(false); setBackupRestoreVersions(null); }}
             onRestoreVersion={handleRestoreBackupVersion}
           />
+          <FileBackupListDialog
+            open={fileBackupListOpen}
+            entries={fileBackupEntries}
+            onSelect={handleFileBackupSelect}
+            onClose={() => setFileBackupListOpen(false)}
+          />
           <DiagramCanvas
             contextMenu={contextMenu}
             setContextMenu={setContextMenu}
@@ -4232,6 +4211,7 @@ useEffect(() => {
             handlePersonDrag={handlePersonDrag}
             dragGroupRef={dragGroupRef}
             handlePersonContextMenu={handlePersonContextMenu}
+            handleGroupContextMenu={handleGroupContextMenu}
             setHoveredPersonId={setHoveredPersonId}
             functionalIndicatorDefinitions={functionalIndicatorDefinitions}
             sirCategories={sirCategories}
@@ -4240,6 +4220,8 @@ useEffect(() => {
             beginGroupResize={beginGroupResize}
             applyGroupResize={applyGroupResize}
             endGroupResize={endGroupResize}
+            handleGroupBoxDragStart={handleGroupBoxDragStart}
+            handleGroupBoxDragMove={handleGroupBoxDragMove}
             notesLayerEnabled={notesLayerEnabled}
             showSiblingConflicts={showSiblingConflicts}
             hoveredPersonId={hoveredPersonId}
@@ -4247,6 +4229,8 @@ useEffect(() => {
             handlePersonNoteResizeEnd={handlePersonNoteResizeEnd}
             handlePartnershipNoteDragEnd={handlePartnershipNoteDragEnd}
             handlePartnershipNoteResizeEnd={handlePartnershipNoteResizeEnd}
+            handleFamilyNoteDragEnd={handleFamilyNoteDragEnd}
+            handleFamilyNoteResizeEnd={handleFamilyNoteResizeEnd}
             handleEmotionalLineNoteDragEnd={handleEmotionalLineNoteDragEnd}
             handleEmotionalLineNoteResizeEnd={handleEmotionalLineNoteResizeEnd}
             pageNotes={pageNotes}
@@ -4268,6 +4252,7 @@ useEffect(() => {
             showMultiPersonPanel={showMultiPersonPanel}
             multiSelectedPeople={multiSelectedPeople}
             handleBatchUpdatePersons={handleBatchUpdatePersons}
+            openAddEmotionalPatternModal={openAddEmotionalPatternModal}
             propertiesPanelItem={propertiesPanelItem}
             eventCategories={eventCategories}
             relationshipTypes={relationshipTypes}
@@ -4278,6 +4263,9 @@ useEffect(() => {
             panelTriangleContext={panelTriangleContext}
             updateTriangleColor={updateTriangleColor}
             updateTriangleIntensity={updateTriangleIntensity}
+            updateTriangle={updateTriangle}
+            handleTriangleNoteDragEnd={handleTriangleNoteDragEnd}
+            handleTriangleNoteResizeEnd={handleTriangleNoteResizeEnd}
             propertiesPanelIntent={propertiesPanelIntent}
             setPropertiesPanelIntent={setPropertiesPanelIntent}
             ensureSymptomDefinition={ensureSymptomDefinition}

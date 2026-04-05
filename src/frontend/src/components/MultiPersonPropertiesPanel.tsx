@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import type { Person } from '../types';
 
 const DEFAULT_SIZE = 60;
@@ -8,10 +8,11 @@ const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 interface MultiPersonPropertiesPanelProps {
   selectedPeople: Person[];
   onBatchUpdate: (personIds: string[], updates: Partial<Person>) => void;
+  onAddEmotionalPattern: (person1Id: string, person2Id: string) => void;
   onClose: () => void;
 }
 
-const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onClose }: MultiPersonPropertiesPanelProps) => {
+const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onAddEmotionalPattern, onClose }: MultiPersonPropertiesPanelProps) => {
   const personIds = selectedPeople.map((person) => person.id);
 
   const resolveValue = <T,>(person: Person, getter: (p: Person) => T | undefined, fallback: T): T => {
@@ -67,10 +68,33 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onClose }: 
     }
   }, [sharedBackgroundEnabled]);
 
+  const [sizeText, setSizeText] = useState(sharedSize !== undefined ? String(sharedSize) : '');
+  const prevSharedSizeRef = useRef(sharedSize);
+  useEffect(() => {
+    if (sharedSize !== prevSharedSizeRef.current) {
+      prevSharedSizeRef.current = sharedSize;
+      setSizeText(sharedSize !== undefined ? String(sharedSize) : '');
+    }
+  }, [sharedSize]);
+
   const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numeric = Number(e.target.value);
-    if (Number.isNaN(numeric)) return;
-    onBatchUpdate(personIds, { size: Math.max(20, Math.min(200, numeric)) });
+    const raw = e.target.value;
+    setSizeText(raw);
+    const num = parseInt(raw, 10);
+    if (!isNaN(num) && num > 9) {
+      onBatchUpdate(personIds, { size: Math.min(400, num) });
+    }
+  };
+
+  const handleSizeBlur = () => {
+    const num = parseInt(sizeText, 10);
+    if (!isNaN(num) && num > 9) {
+      const clamped = Math.min(400, num);
+      setSizeText(String(clamped));
+      onBatchUpdate(personIds, { size: clamped });
+    } else {
+      setSizeText(String(sharedSize ?? DEFAULT_SIZE));
+    }
   };
 
   const handleBorderColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,12 +124,12 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onClose }: 
         <label htmlFor="multi-size">Size (px)</label>
         <input
           id="multi-size"
-          type="number"
-          min={20}
-          max={200}
-          value={sharedSize ?? ''}
+          type="text"
+          value={sizeText}
           placeholder={sharedSize === undefined ? 'Mixed' : undefined}
           onChange={handleSizeChange}
+          onBlur={handleSizeBlur}
+          style={{ width: '4ch', textAlign: 'center' }}
         />
         <label htmlFor="multi-border-color" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           Border Color
@@ -145,6 +169,28 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onClose }: 
         <p style={{ fontSize: 12, color: '#666' }}>
           Background squares render at 110% of each person&apos;s size, centered behind the node.
         </p>
+        {selectedPeople.length === 2 && (
+          <div style={{ marginTop: 8, borderTop: '1px solid #ddd', paddingTop: 12 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#23324a', marginBottom: 8 }}>Emotional Pattern</div>
+            <button
+              type="button"
+              onClick={() => onAddEmotionalPattern(selectedPeople[0].id, selectedPeople[1].id)}
+              style={{
+                width: '100%',
+                padding: '7px 12px',
+                background: '#1565c0',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              Add Emotional Pattern
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

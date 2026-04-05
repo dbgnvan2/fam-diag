@@ -456,7 +456,7 @@ const PersonNode = ({
   };
 
   const renderDeathOverlay = () => {
-    if (!person.deathDate) return null;
+    if (!person.deathDate && !person.deathDateKnown) return null;
     if (lifeStatus === 'miscarriage' || lifeStatus === 'stillbirth') return null;
     // Keep the X fully inside each shape. Circles need inset endpoints.
     const half = shapeSize / 2;
@@ -535,7 +535,7 @@ const PersonNode = ({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onClick={(e) => onSelect(person.id, e.evt.shiftKey)}
+      onClick={(e) => { if (e.evt.button !== 0) return; onSelect(person.id, e.evt.shiftKey); }}
       onTap={() => onSelect(person.id, false)}
       onContextMenu={(e) => onContextMenu(e, person)}
       onMouseEnter={() => onHoverChange(person.id)}

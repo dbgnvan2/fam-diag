@@ -51,6 +51,7 @@ interface UseSelectionHandlersDeps {
   ) => void;
   removeTriangle: (triangleId: string) => void;
   removeEmotionalLine: (emotionalLineId: string) => void;
+  updateTriangle: (triangleId: string, updates: Partial<import('../types').Triangle>) => void;
 }
 
 export function useSelectionHandlers({
@@ -81,6 +82,7 @@ export function useSelectionHandlers({
   openTrianglePropertyModal,
   removeTriangle,
   removeEmotionalLine,
+  updateTriangle,
 }: UseSelectionHandlersDeps) {
   const handlePageNoteSelect = (noteId: string) => {
     const note = pageNotes.find((entry) => entry.id === noteId);
@@ -193,7 +195,7 @@ export function useSelectionHandlers({
       {
         label: emotionalLine.notes
           ? emotionalLine.notesEnabled
-            ? 'Hide Note (Use Layer)'
+            ? 'Hide Note'
             : 'Show Note'
           : 'No Note',
         onClick: () => {
@@ -304,6 +306,18 @@ export function useSelectionHandlers({
         makeTrianglePropertyItem('Triangle Functioning', 'triangle-functioning'),
         makeTrianglePropertyItem('Triangle Flexibility', 'triangle-flexibility'),
         makeTrianglePropertyItem('Triangle Stress Response', 'triangle-stress-response'),
+        {
+          label: triangle.notes
+            ? triangle.notesEnabled
+              ? 'Hide Note'
+              : 'Show Note'
+            : 'No Note',
+          onClick: () => {
+            if (!triangle.notes) return;
+            updateTriangle(triangleId, { notesEnabled: triangle.notesEnabled ? false : true });
+            setContextMenu(null);
+          },
+        },
         {
           label: 'Delete Triangle',
           onClick: () => removeTriangle(triangleId),

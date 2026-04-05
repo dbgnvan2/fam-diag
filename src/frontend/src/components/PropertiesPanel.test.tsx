@@ -693,6 +693,129 @@ describe('PropertiesPanel', () => {
         expect(updateEmotionalLine).not.toHaveBeenCalled();
     });
 
+    it('shows triangle notes textarea for TPL and saves on Save click', () => {
+        const updateTriangleNotes = vi.fn();
+        const emotionalLine: EmotionalLine = {
+            id: 'tpl-notes',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'fusion-dotted-wide',
+            lineEnding: 'none',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={emotionalLine}
+                people={[]}
+                eventCategories={[]}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                triangleId="tri-notes"
+                triangleColor="#8a5a00"
+                triangleIntensity="medium"
+                triangleNotes="existing note"
+                onUpdateTriangleColor={() => {}}
+                onUpdateTriangleIntensity={() => {}}
+                onUpdateTriangleNotes={updateTriangleNotes}
+                onClose={() => {}}
+            />
+        );
+
+        const textarea = screen.getByLabelText('Triangle Notes:');
+        expect(textarea).toBeInTheDocument();
+        expect((textarea as HTMLTextAreaElement).value).toBe('existing note');
+        fireEvent.change(textarea, { target: { value: 'updated note' } });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updateTriangleNotes).toHaveBeenCalledWith('tri-notes', 'updated note');
+    });
+
+    it('shows family notes textarea in the Family tab and saves on Save click', () => {
+        const updatePartnership = vi.fn();
+        const partnership: Partnership = {
+            id: 'fam-1',
+            partner1_id: 'p1',
+            partner2_id: 'p2',
+            horizontalConnectorY: 100,
+            relationshipType: 'married',
+            relationshipStatus: 'married',
+            children: [],
+            familyNotes: 'family observation',
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={partnership}
+                people={[]}
+                partnerships={[partnership]}
+                eventCategories={[]}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={updatePartnership}
+                onUpdateEmotionalLine={() => {}}
+                isFamilyView
+                onClose={() => {}}
+            />
+        );
+
+        const textarea = screen.getByLabelText('Notes:');
+        expect(textarea).toBeInTheDocument();
+        expect((textarea as HTMLTextAreaElement).value).toBe('family observation');
+        fireEvent.change(textarea, { target: { value: 'updated family note' } });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+        expect(updatePartnership).toHaveBeenCalledWith('fam-1', expect.objectContaining({ familyNotes: 'updated family note' }));
+    });
+
+    it('shows Add Pattern row in Patterns tab when onAddEmotionalPattern is provided', () => {
+        const addPattern = vi.fn();
+        const person: Person = {
+            id: 'p-pat',
+            name: 'Alice',
+            x: 0,
+            y: 0,
+            partnerships: [],
+        };
+        const other: Person = {
+            id: 'p-other',
+            name: 'Bob',
+            x: 100,
+            y: 0,
+            partnerships: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person, other]}
+                eventCategories={[]}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onAddEmotionalPattern={addPattern}
+                initialActiveTab="patterns"
+                onClose={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('tab', { name: /Patterns/i })).toBeInTheDocument();
+        const addBtn = screen.getByRole('button', { name: /Add Pattern/i });
+        expect(addBtn).toBeInTheDocument();
+        // Select Bob from the dropdown and click Add Pattern
+        const select = screen.getByRole('combobox');
+        fireEvent.change(select, { target: { value: 'p-other' } });
+        fireEvent.click(addBtn);
+        expect(addPattern).toHaveBeenCalledWith('p-pat', 'p-other');
+    });
+
     it('applies person size changes immediately without pressing Save', () => {
         const updatePerson = vi.fn();
         const person: Person = {
@@ -1409,7 +1532,7 @@ describe('PropertiesPanel', () => {
         const options = within(statusSelect).getAllByRole('option').map((option) => option.textContent);
         expect(options).toEqual(['Married', 'Divorce', 'Separated', 'Widowed']);
         expect(screen.getByLabelText('Married:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Divorces:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Divorced:')).toBeInTheDocument();
         expect(screen.getByLabelText('Separated:')).toBeInTheDocument();
         expect(screen.getByLabelText('Widowed:')).toBeInTheDocument();
         expect(screen.queryByLabelText('Start:')).not.toBeInTheDocument();

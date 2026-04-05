@@ -52,6 +52,15 @@ const PersonDatesSection = ({ personDraft, onChange }: PersonDatesSectionProps) 
       </div>
       <div style={rowStyle}>
         <label htmlFor="deathDate" style={labelStyle}>Death Date:</label>
+        <input
+          type="checkbox"
+          id="deathDateKnown"
+          name="deathDateKnown"
+          checked={!!personDraft.deathDateKnown}
+          onChange={onChange}
+          title="Check if deceased (date unknown)"
+          style={{ marginRight: 4 }}
+        />
         <DatePickerField
           id="deathDate"
           name="deathDate"

@@ -17,7 +17,7 @@ import type {
   PredictionStatus,
   SIRCategoryDefinition,
 } from '../types';
-import { PAPERO_SUBTYPE_TO_KEY } from '../constants/eventConstants';
+import { PAPERO_SUBTYPE_TO_KEY, PAPERO_SCALES } from '../constants/eventConstants';
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
@@ -193,6 +193,16 @@ const getPaperoScoreForPerson = (person: Person | undefined, paperoKey: string):
   return (person.paperoScores as Record<string, number | undefined>)[paperoKey] || 0;
 };
 
+const getPaperoEventsForPerson = (
+  person: Person | undefined,
+  subtypeKey: string
+): EmotionalProcessEvent[] => {
+  if (!person) return [];
+  return (person.events || [])
+    .filter((e) => e.eventType === 'PAPERO' && e.subtype === subtypeKey)
+    .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''));
+};
+
 const SIRConditionLinker = ({
   cond,
   setId,
@@ -286,6 +296,8 @@ const PaperoConditionLinker = ({
   const linkedTopicName = cond.linkedPaperoKey
     ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === cond.linkedPaperoKey)?.[0] || ''
     : '';
+  const paperoEvents = linkedTopicName ? getPaperoEventsForPerson(person, linkedTopicName) : [];
+  const linkedEvent = cond.linkedEventId ? paperoEvents.find((e) => e.id === cond.linkedEventId) : undefined;
 
   return (
     <div style={{ marginBottom: 6 }}>
@@ -298,6 +310,7 @@ const PaperoConditionLinker = ({
             const topicName = key ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === key)?.[0] || '' : '';
             onUpdateCondition(setId, predId, cond.id, {
               linkedPaperoKey: key || undefined,
+              linkedEventId: undefined,
               description: cond.description || (topicName ? `Improve ${topicName}` : ''),
             });
           }}
@@ -312,6 +325,47 @@ const PaperoConditionLinker = ({
       {cond.linkedPaperoKey && (
         <div style={{ fontSize: 11, color: '#4b68a6', fontStyle: 'italic', marginBottom: 4 }}>
           {linkedTopicName}: current score = {currentScore > 0 ? `${currentScore}/5` : 'unset'}
+        </div>
+      )}
+      {cond.linkedPaperoKey && paperoEvents.length > 0 && (
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 10, color: '#7a8aaa', fontWeight: 600 }}>Link score change event:</span>
+          <div style={{ marginTop: 2, maxHeight: 100, overflowY: 'auto' }}>
+            {paperoEvents.map((ev) => {
+              const isLinked = cond.linkedEventId === ev.id;
+              const scale = PAPERO_SCALES[ev.subtype || ''];
+              const scoreLabel = scale && ev.intensity > 0 ? scale.labels[ev.intensity - 1] : '';
+              return (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => onUpdateCondition(setId, predId, cond.id, {
+                    linkedEventId: isLinked ? undefined : ev.id,
+                  })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left',
+                    padding: '3px 6px', borderRadius: 5, border: `1px solid ${isLinked ? '#4b68a6' : '#e4e8ee'}`,
+                    background: isLinked ? '#eef3ff' : '#fff', cursor: 'pointer', fontSize: 11, marginBottom: 2,
+                  }}
+                >
+                  <span style={{ color: '#7a8aaa' }}>{formatDateShort(ev.startDate || ev.date)}</span>
+                  {ev.intensity > 0 && (
+                    <span style={{ color: '#4b68a6', fontWeight: 600 }}>{ev.intensity}/5</span>
+                  )}
+                  {scoreLabel && <span style={{ color: '#333', flex: 1 }}>{scoreLabel}</span>}
+                  {(ev.frequency ?? 0) > 0 && (
+                    <span style={{ fontSize: 10, color: '#888' }}>prev: {ev.frequency}</span>
+                  )}
+                  {isLinked && <span style={{ color: '#4b68a6', fontWeight: 700 }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {linkedEvent && (
+        <div style={{ fontSize: 11, color: '#4b68a6', fontStyle: 'italic', marginBottom: 4 }}>
+          Linked to: {linkedEvent.subtype} — score {linkedEvent.intensity}/5 ({formatDateShort(linkedEvent.startDate || linkedEvent.date)})
         </div>
       )}
     </div>

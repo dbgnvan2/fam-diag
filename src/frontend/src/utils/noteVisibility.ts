@@ -1,4 +1,4 @@
-import type { EmotionalLine, Partnership, Person } from '../types';
+import type { EmotionalLine, Partnership, Person, Triangle } from '../types';
 
 export const shouldShowPersonNote = (
   person: Person,
@@ -30,4 +30,24 @@ export const shouldShowEmotionalNote = (
   Boolean(
     line.notes &&
       (line.notesEnabled === false ? false : notesLayerEnabled || line.notesEnabled === true)
+  );
+
+export const shouldShowFamilyNote = (
+  partnership: Partnership,
+  notesLayerEnabled: boolean
+) =>
+  Boolean(
+    partnership.familyNotes &&
+      (partnership.familyNotesEnabled === false
+        ? false
+        : notesLayerEnabled || partnership.familyNotesEnabled === true)
+  );
+
+export const shouldShowTriangleNote = (
+  triangle: Triangle,
+  notesLayerEnabled: boolean
+) =>
+  Boolean(
+    triangle.notes &&
+      (triangle.notesEnabled === false ? false : notesLayerEnabled || triangle.notesEnabled === true)
   );

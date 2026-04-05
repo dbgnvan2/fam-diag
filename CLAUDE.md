@@ -295,6 +295,65 @@ The **Self in Relationship (SIR)** tab tracks how a person manages themselves in
 
 ---
 
+## Notes System — Same Pattern for Every Object
+
+Every canvas object that supports notes follows an **identical pattern**. When implementing or changing notes for any object, apply the same pattern to ALL objects.
+
+### Fields on each type (in `types/index.ts`):
+
+| Object | Note fields | Special case |
+|--------|-------------|--------------|
+| Person | `notes`, `notesEnabled`, `notesPosition`, `notesSize` | — |
+| Partnership (PRL) | `notes`, `notesEnabled`, `notesPosition`, `notesSize` | PRL note only |
+| Partnership (Family) | `familyNotes`, `familyNotesEnabled`, `familyNotesPosition`, `familyNotesSize` | Separate from PRL note; same Partnership object |
+| EmotionalLine | `notes`, `notesEnabled`, `notesPosition`, `notesSize` | — |
+| Triangle | `notes`, `notesEnabled`, `notesPosition`, `notesSize` | — |
+
+**Why Partnership has two note sets:** the Partnership object serves as both the PRL (relationship line) and the Family. They are independently togglable.
+
+### Right-click context menu labels (standardized — NEVER deviate):
+
+All objects use this exact pattern:
+```typescript
+label: obj.notes ? (obj.notesEnabled ? 'Hide Note' : 'Show Note') : 'No Note'
+onClick: () => { if (!obj.notes) return; update(id, { notesEnabled: !obj.notesEnabled }); }
+```
+
+Partnership has two entries (PRL and Family):
+- "Hide PRL Note" / "Show PRL Note" / "No PRL Note"
+- "Hide Family Note" / "Show Family Note" / "No Family Note"
+
+### Properties panel — where notes textarea lives:
+
+- **Person** — `PersonNameSection` (Name sub-tab) with inline `notesEnabled` checkbox
+- **PRL** — `PartnershipPropertiesSection` (main section)
+- **Family** — `PropertiesPanel` Family tab, "Family" sub-tab, Notes label + Save/Cancel buttons
+- **EPL** — `EPLPropertiesSection` main section
+- **Triangle** — `EPLPropertiesSection` inside the `{triangleId && ...}` block (Triangle Notes label)
+
+### Canvas NoteNode rendering (`DiagramCanvas.tsx`):
+
+Every NoteNode uses `shouldShow*Note()` from `noteVisibility.ts` to gate visibility. Anchor points:
+- Person → person's `(x, y)`
+- PRL → `((p1.x+p2.x)/2, horizontalConnectorY)`
+- Family → same as PRL anchor, offset `+60y`
+- EPL → `((p1.x+p2.x)/2, (p1.y+p2.y)/2)`
+- Triangle → centroid `((p1.x+p2.x+p3.x)/3, (p1.y+p2.y+p3.y)/3)`
+
+### Visibility logic (`noteVisibility.ts`):
+
+All functions follow this identical rule:
+- Returns `false` if no notes text
+- Returns `false` if `notesEnabled === false` (explicitly hidden)
+- Returns `true` if `notesEnabled === true` OR `notesLayerEnabled === true`
+- Person additionally returns `true` on hover (`hoveredPersonId === person.id`)
+
+### Drag/resize handlers (`useCanvasDragHandlers.ts`):
+
+Each note type has `handle{Type}NoteDragEnd` and `handle{Type}NoteResizeEnd` updating the matching `*Position` and `*Size` fields respectively. For Family: `handleFamilyNoteDragEnd` / `handleFamilyNoteResizeEnd`.
+
+---
+
 ## Properties Panel — Field Visibility Rules
 
 ### Partnership panel — fields depend on `relationshipType`:
@@ -569,7 +628,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 **Component tests:**
 - `EventModal.test.tsx` — all 10 event types (incl. PAPERO, SIR, FF), subtype dropdown, category auto-correct, lockEventType, modalTitle (click-path breadcrumb), FF configurable categories
 - `EventCard.test.tsx` — event card rendering
-- `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals
+- `PropertiesPanel.test.tsx` — person/partnership/emotional-line tabs, symptom bars, seeded event modals, triangle notes, family notes, Add Pattern from Patterns tab
 - `MultiPersonPropertiesPanel.test.tsx` — multi-select panel
 - `SessionNotesPanel.test.tsx` — session notes workspace
 - `DiagramEditor.test.tsx` — top-level orchestration, file load, demo tour, context menu (Add AI Agent)
@@ -579,7 +638,7 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 - `PredictionsPanel.test.tsx` — Prediction Sets: set CRUD, two-view navigation, prediction cards, conditions (SIR/Papero/Custom), outcomes, evidence, SIR/Papero linking
 
 **Utility tests (co-located in `utils/`):**
-- `dataCleanup.test.ts`, `noteVisibility.test.ts`, `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
+- `dataCleanup.test.ts`, `noteVisibility.test.ts` (all 5 object types incl. Triangle + Family), `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
 
 **Data tests:**
 - `defaultDiagramState.test.ts`

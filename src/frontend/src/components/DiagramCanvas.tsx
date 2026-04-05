@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -30,11 +30,14 @@ import EmotionalLineNode from './EmotionalLineNode';
 import TriangleFillNode from './TriangleFillNode';
 import NoteNode from './NoteNode';
 import SiblingConflictOverlay from './SiblingConflictOverlay';
+import type { SiblingConflictHoverInfo, SiblingConflictClickInfo } from './SiblingConflictOverlay';
 import { deriveSiblingPositionResult } from '../utils/siblingPosition';
 import {
   shouldShowPersonNote,
   shouldShowPartnershipNote,
+  shouldShowFamilyNote,
   shouldShowEmotionalNote,
+  shouldShowTriangleNote,
 } from '../utils/noteVisibility';
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 
@@ -167,6 +170,7 @@ interface DiagramCanvasProps {
   handlePersonDrag: (personId: string, x: number, y: number) => void;
   dragGroupRef: DragGroupRef;
   handlePersonContextMenu: (e: KonvaEventObject<PointerEvent>, person: Person) => void;
+  handleGroupContextMenu: (e: KonvaEventObject<PointerEvent>) => void;
   setHoveredPersonId: Dispatch<SetStateAction<string | null>>;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
@@ -177,6 +181,8 @@ interface DiagramCanvasProps {
   beginGroupResize: () => void;
   applyGroupResize: (nextBounds: { width: number; height: number }) => void;
   endGroupResize: () => void;
+  handleGroupBoxDragStart: (x: number, y: number) => void;
+  handleGroupBoxDragMove: (x: number, y: number) => void;
 
   // Notes layer
   notesLayerEnabled: boolean;
@@ -188,6 +194,8 @@ interface DiagramCanvasProps {
   handlePersonNoteResizeEnd: (personId: string, width: number, height: number) => void;
   handlePartnershipNoteDragEnd: (partnershipId: string, x: number, y: number) => void;
   handlePartnershipNoteResizeEnd: (partnershipId: string, width: number, height: number) => void;
+  handleFamilyNoteDragEnd: (partnershipId: string, x: number, y: number) => void;
+  handleFamilyNoteResizeEnd: (partnershipId: string, width: number, height: number) => void;
   handleEmotionalLineNoteDragEnd: (emotionalLineId: string, x: number, y: number) => void;
   handleEmotionalLineNoteResizeEnd: (emotionalLineId: string, width: number, height: number) => void;
 
@@ -219,6 +227,7 @@ interface DiagramCanvasProps {
   showMultiPersonPanel: boolean;
   multiSelectedPeople: Person[];
   handleBatchUpdatePersons: (personIds: string[], updates: Partial<Person>) => void;
+  openAddEmotionalPatternModal: (person1Id: string, person2Id: string) => void;
 
   // Properties panel
   propertiesPanelItem: Person | Partnership | EmotionalLine | null;
@@ -228,9 +237,12 @@ interface DiagramCanvasProps {
   handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
   handleUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
-  panelTriangleContext: { id: string; color: string; intensity: 'low' | 'medium' | 'high' } | null;
+  panelTriangleContext: { id: string; color: string; intensity: 'low' | 'medium' | 'high'; notes: string } | null;
   updateTriangleColor: (triangleId: string, color: string) => void;
   updateTriangleIntensity: (triangleId: string, intensity: 'low' | 'medium' | 'high') => void;
+  updateTriangle: (triangleId: string, updates: Partial<import('../types').Triangle>) => void;
+  handleTriangleNoteDragEnd: (triangleId: string, x: number, y: number) => void;
+  handleTriangleNoteResizeEnd: (triangleId: string, width: number, height: number) => void;
   propertiesPanelIntent: PropertiesPanelIntent;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
   ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
@@ -314,6 +326,7 @@ export default function DiagramCanvas({
   handlePersonDrag,
   dragGroupRef,
   handlePersonContextMenu,
+  handleGroupContextMenu,
   setHoveredPersonId,
   functionalIndicatorDefinitions,
   sirCategories,
@@ -322,6 +335,8 @@ export default function DiagramCanvas({
   beginGroupResize,
   applyGroupResize,
   endGroupResize,
+  handleGroupBoxDragStart,
+  handleGroupBoxDragMove,
   notesLayerEnabled,
   showSiblingConflicts,
   hoveredPersonId,
@@ -329,6 +344,8 @@ export default function DiagramCanvas({
   handlePersonNoteResizeEnd,
   handlePartnershipNoteDragEnd,
   handlePartnershipNoteResizeEnd,
+  handleFamilyNoteDragEnd,
+  handleFamilyNoteResizeEnd,
   handleEmotionalLineNoteDragEnd,
   handleEmotionalLineNoteResizeEnd,
   pageNotes,
@@ -350,6 +367,7 @@ export default function DiagramCanvas({
   showMultiPersonPanel,
   multiSelectedPeople,
   handleBatchUpdatePersons,
+  openAddEmotionalPatternModal,
   propertiesPanelItem,
   eventCategories,
   relationshipTypes,
@@ -360,6 +378,9 @@ export default function DiagramCanvas({
   panelTriangleContext,
   updateTriangleColor,
   updateTriangleIntensity,
+  updateTriangle,
+  handleTriangleNoteDragEnd,
+  handleTriangleNoteResizeEnd,
   propertiesPanelIntent,
   setPropertiesPanelIntent,
   ensureSymptomDefinition,
@@ -369,6 +390,8 @@ export default function DiagramCanvas({
   onSymptomBadgeClick,
 }: DiagramCanvasProps) {
   const prevScrollTopRef = useRef<number>(0);
+  const [siblingTooltip, setSiblingTooltip] = useState<SiblingConflictHoverInfo | null>(null);
+  const [siblingDetail, setSiblingDetail] = useState<SiblingConflictClickInfo | null>(null);
 
 
   const handleScrollbarScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -382,6 +405,109 @@ export default function DiagramCanvas({
   return (
     <div style={{ display: 'flex' }}>
       {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
+
+      {/* Sibling conflict line tooltip (hover) */}
+      {siblingTooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left: siblingTooltip.x + 14,
+            top: siblingTooltip.y - 10,
+            zIndex: 3000,
+            background: '#23324a',
+            color: '#fff',
+            borderRadius: 6,
+            padding: '5px 10px',
+            fontSize: 12,
+            pointerEvents: 'none',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            maxWidth: 240,
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 2 }}>
+            {siblingTooltip.role === 'father' ? 'vs Father' : siblingTooltip.role === 'mother' ? 'vs Mother' : 'vs Partner'}
+            {' — '}{siblingTooltip.lineType === 'rank' ? 'Rank' : 'Sex'} line
+          </div>
+          {siblingTooltip.conflict ? (
+            <>
+              <div>{siblingTooltip.conflict.category}</div>
+              {siblingTooltip.conflict.confidence_note && (
+                <div style={{ color: '#f9a825', fontSize: 11 }}>{siblingTooltip.conflict.confidence_note}</div>
+              )}
+            </>
+          ) : (
+            <div style={{ color: '#bdbdbd' }}>Insufficient data</div>
+          )}
+          <div style={{ marginTop: 3, fontSize: 10, color: '#90a4c0' }}>Click for details</div>
+        </div>
+      )}
+
+      {/* Sibling conflict detail panel (click) */}
+      {siblingDetail && (() => {
+        const detailPerson = people.find((p) => p.id === siblingDetail.personId);
+        const MARGIN = 12;
+        const PANEL_W = 260;
+        const PANEL_H = 200;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const rawLeft = siblingTooltip ? siblingTooltip.x + 14 : vw / 2 - PANEL_W / 2;
+        const rawTop  = siblingTooltip ? siblingTooltip.y - 10 : vh / 2 - PANEL_H / 2;
+        const left = Math.max(MARGIN, Math.min(rawLeft, vw - PANEL_W - MARGIN));
+        const top  = Math.max(MARGIN, Math.min(rawTop, vh - PANEL_H - MARGIN));
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              left,
+              top,
+              width: PANEL_W,
+              zIndex: 3000,
+              background: '#fff',
+              border: '1px solid #c6cfde',
+              borderRadius: 10,
+              padding: '10px 12px',
+              boxShadow: '0 10px 28px rgba(28,41,61,0.18)',
+              fontSize: 13,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <strong style={{ color: '#23324a' }}>
+                {detailPerson?.name || 'Person'} — {siblingDetail.role === 'father' ? 'vs Father' : siblingDetail.role === 'mother' ? 'vs Mother' : 'vs Partner'}
+              </strong>
+              <button
+                type="button"
+                onClick={() => setSiblingDetail(null)}
+                style={{ border: '1px solid #bdbdbd', borderRadius: 5, background: '#f5f5f5', cursor: 'pointer', padding: '2px 7px', fontSize: 12 }}
+              >
+                ×
+              </button>
+            </div>
+            {siblingDetail.conflict ? (
+              <div style={{ display: 'grid', gap: 4, color: '#23324a' }}>
+                <div><strong>Category:</strong> {siblingDetail.conflict.category}</div>
+                <div><strong>Rank Conflict:</strong> {siblingDetail.conflict.rank_conflict ? 'Yes' : 'No'}</div>
+                <div>
+                  <strong>Sex Conflict:</strong>{' '}
+                  {siblingDetail.conflict.sex_conflict_uncertain
+                    ? 'Uncertain'
+                    : siblingDetail.conflict.sex_conflict === null
+                    ? 'N/A (same-sex pair)'
+                    : siblingDetail.conflict.sex_conflict ? 'Yes' : 'No'}
+                </div>
+                <div><strong>Other Position:</strong> {siblingDetail.conflict.other_effective_position}</div>
+                {siblingDetail.conflict.confidence_note && (
+                  <div style={{ color: '#6a4b10', fontSize: 12 }}>
+                    <strong>Note:</strong> {siblingDetail.conflict.confidence_note}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: '#5e6d84' }}>Insufficient position data for this relationship.</div>
+            )}
+          </div>
+        );
+      })()}
       {personSectionPopup && personSectionPopupPerson && (
         <div
           onClick={() => setPersonSectionPopup(null)}
@@ -747,6 +873,36 @@ export default function DiagramCanvas({
               });
             })()}
 
+            {/* Group drag rect — below people so right-click on nodes still works */}
+            {selectedGroupBounds && (
+              <Rect
+                x={selectedGroupBounds.x}
+                y={selectedGroupBounds.y}
+                width={selectedGroupBounds.width}
+                height={selectedGroupBounds.height}
+                fill="transparent"
+                draggable
+                onContextMenu={handleGroupContextMenu}
+                onDragStart={(e) => {
+                  e.cancelBubble = true;
+                  handleGroupBoxDragStart(e.target.x(), e.target.y());
+                }}
+                onDragMove={(e) => {
+                  e.cancelBubble = true;
+                  handleGroupBoxDragMove(e.target.x(), e.target.y());
+                  const ref = dragGroupRef.current;
+                  if (ref) {
+                    e.target.x(ref.startX);
+                    e.target.y(ref.startY);
+                  }
+                }}
+                onDragEnd={(e) => {
+                  e.cancelBubble = true;
+                  dragGroupRef.current = null;
+                }}
+              />
+            )}
+
             {/* Render People — top layer */}
             {people.map((person) => {
               if (!personVisibility.get(person.id)) return null;
@@ -785,6 +941,11 @@ export default function DiagramCanvas({
                   person={person}
                   people={people}
                   partnerships={partnerships}
+                  onHover={setSiblingTooltip}
+                  onHoverLeave={() => setSiblingTooltip(null)}
+                  onLineClick={(info) => setSiblingDetail((prev) =>
+                    prev?.personId === info.personId && prev?.role === info.role ? null : info
+                  )}
                 />
               ) : null
             ))}
@@ -916,6 +1077,40 @@ export default function DiagramCanvas({
                 />
               );
             })}
+            {partnerships.map((p) => {
+              if (!shouldShowFamilyNote(p, notesLayerEnabled)) return null;
+              if (!partnershipVisibility.get(p.id)) return null;
+              const partner1 = people.find(person => person.id === p.partner1_id);
+              const partner2 = people.find(person => person.id === p.partner2_id);
+              if (!partner1 || !partner2) return null;
+              const anchorX = (partner1.x + partner2.x) / 2;
+              const anchorY = p.horizontalConnectorY;
+              const x = p.familyNotesPosition?.x ?? anchorX + 20;
+              const y = p.familyNotesPosition?.y ?? anchorY + 60;
+              const familyName = p.familyName || [partner1.name, partner2.name].filter(Boolean).join(' & ') || 'Family';
+              return (
+                <NoteNode
+                  key={`note-family-${p.id}`}
+                  x={x}
+                  y={y}
+                  title={`${familyName}\nFamily`}
+                  text={p.familyNotes || ''}
+                  width={p.familyNotesSize?.width}
+                  height={p.familyNotesSize?.height}
+                  anchorX={anchorX}
+                  anchorY={anchorY}
+                  onDragEnd={(e) => handleFamilyNoteDragEnd(p.id, e.target.x(), e.target.y())}
+                  onResizeEnd={(w, h) => handleFamilyNoteResizeEnd(p.id, w, h)}
+                  onSelect={() => {
+                    setSelectedPeopleIds([]);
+                    setSelectedPartnershipId(p.id);
+                    setSelectedEmotionalLineId(null);
+                    setSelectedChildId(null);
+                    setPropertiesPanelItem(p);
+                  }}
+                />
+              );
+            })}
             {allEmotionalLines.map((el) => {
               if (!shouldShowEmotionalNote(el, notesLayerEnabled)) return null;
               if (!emotionalVisibility.get(el.id)) return null;
@@ -945,6 +1140,42 @@ export default function DiagramCanvas({
                     setSelectedEmotionalLineId(el.id);
                     setSelectedChildId(null);
                     setPropertiesPanelItem(el);
+                  }}
+                />
+              );
+            })}
+            {triangles.map((triangle) => {
+              if (!shouldShowTriangleNote(triangle, notesLayerEnabled)) return null;
+              const p1 = people.find((p) => p.id === triangle.person1_id);
+              const p2 = people.find((p) => p.id === triangle.person2_id);
+              const p3 = people.find((p) => p.id === triangle.person3_id);
+              if (!p1 || !p2 || !p3) return null;
+              const anchorX = (p1.x + p2.x + p3.x) / 3;
+              const anchorY = (p1.y + p2.y + p3.y) / 3;
+              const x = triangle.notesPosition?.x ?? anchorX + 20;
+              const y = triangle.notesPosition?.y ?? anchorY + 20;
+              return (
+                <NoteNode
+                  key={`note-tri-${triangle.id}`}
+                  x={x}
+                  y={y}
+                  title={`${p1.name}\n${p2.name}\n${p3.name}`}
+                  text={triangle.notes || ''}
+                  width={triangle.notesSize?.width}
+                  height={triangle.notesSize?.height}
+                  anchorX={anchorX}
+                  anchorY={anchorY}
+                  onDragEnd={(e) => handleTriangleNoteDragEnd(triangle.id, e.target.x(), e.target.y())}
+                  onResizeEnd={(w, h) => handleTriangleNoteResizeEnd(triangle.id, w, h)}
+                  onSelect={() => {
+                    const firstTpl = triangle.tpls?.[0];
+                    setSelectedPeopleIds([]);
+                    setSelectedPartnershipId(null);
+                    setSelectedChildId(null);
+                    if (firstTpl) {
+                      setSelectedEmotionalLineId(firstTpl.id);
+                      setPropertiesPanelItem(firstTpl);
+                    }
                   }}
                 />
               );
@@ -1174,6 +1405,7 @@ export default function DiagramCanvas({
             <MultiPersonPropertiesPanel
               selectedPeople={multiSelectedPeople}
               onBatchUpdate={handleBatchUpdatePersons}
+              onAddEmotionalPattern={openAddEmotionalPatternModal}
               onClose={() => {
                 setSelectedPeopleIds([]);
                 setPropertiesPanelItem(null);
@@ -1197,8 +1429,10 @@ export default function DiagramCanvas({
                 triangleId={panelTriangleContext?.id}
                 triangleColor={panelTriangleContext?.color}
                 triangleIntensity={panelTriangleContext?.intensity}
+                triangleNotes={panelTriangleContext?.notes}
                 onUpdateTriangleColor={updateTriangleColor}
                 onUpdateTriangleIntensity={updateTriangleIntensity}
+                onUpdateTriangleNotes={(id, n) => updateTriangle(id, { notes: n })}
                 isFamilyView={propertiesPanelItem.id === selectedFamilyId}
                 onOpenFamilyProperty={(category, subtype, position) =>
                   selectedFamilyId && onOpenFamilyProperty(selectedFamilyId, category, subtype, position)
@@ -1256,6 +1490,7 @@ export default function DiagramCanvas({
                   setPropertiesPanelItem(null);
                   setSelectedEmotionalLineId(null);
                 }}
+                onAddEmotionalPattern={openAddEmotionalPatternModal}
                 onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
                 onClose={() => {
                   setPropertiesPanelItem(null);

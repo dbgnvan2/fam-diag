@@ -12,11 +12,13 @@ import {
   parentMatchForRole,
   partnerForPerson,
 } from '../../utils/siblingPosition';
+import { MATURITY_SCALE } from '../../constants/eventConstants';
 
 const SIBLING_OVERRIDE_HELP = [
   'Siblings Complete: turn this on only when every relevant sibling is shown on the diagram. Leave it off when you know siblings are missing, because the derived position should stay provisional.',
   'Birth Order Override: use this when birth dates are missing or twins need to be distinguished. It gives the ranking engine an explicit place in the sibling order.',
   'Override Position: use this only when the computed Toman code is not the one you want to use. A manual override becomes the effective position and drives the conflict results.',
+  'Maturity Level: rates how fully this person functions from their sibling position (1 = Role-Reactive, 5 = Highly Differentiated). Use the ? button on the Maturity Level field for detailed level descriptions.',
 ];
 
 const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
@@ -82,6 +84,7 @@ const PersonSiblingSection = ({
   onSiblingHelpOpenChange,
 }: PersonSiblingSectionProps) => {
   const [expandedConflict, setExpandedConflict] = useState<'father' | 'mother' | 'partner' | null>(null);
+  const [maturityHelpOpen, setMaturityHelpOpen] = useState(false);
   const renderOverrideControls = () => (
     <>
       <div style={rowStyle}>
@@ -128,14 +131,86 @@ const PersonSiblingSection = ({
           name="siblingMaturityLevel"
           value={personDraft.siblingMaturityLevel ?? ''}
           onChange={onChange}
-          style={{ width: 120 }}
+          style={{ width: 60 }}
         >
           <option value="">—</option>
           {[1, 2, 3, 4, 5].map((n) => (
             <option key={n} value={n}>{n}</option>
           ))}
         </select>
+        {personDraft.siblingMaturityLevel && (
+          <span style={{ fontSize: 11, color: '#4b68a6', flex: 1 }}>
+            {MATURITY_SCALE.labels[(personDraft.siblingMaturityLevel as number) - 1]}
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label="Maturity level help"
+          onClick={() => setMaturityHelpOpen(!maturityHelpOpen)}
+          style={helpBadgeStyle}
+        >
+          ?
+        </button>
       </div>
+      {maturityHelpOpen && (
+        <div
+          role="dialog"
+          aria-label="Maturity Level Scale"
+          style={{
+            marginTop: 6,
+            border: '1px solid #c6cfde',
+            borderRadius: 10,
+            background: '#fff',
+            padding: '10px 12px',
+            boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <strong style={{ fontSize: 13 }}>Maturity Level — Scale</strong>
+            <button
+              type="button"
+              onClick={() => setMaturityHelpOpen(false)}
+              style={{ padding: '3px 8px', fontSize: 12 }}
+            >
+              Cancel
+            </button>
+          </div>
+          <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+            {MATURITY_SCALE.labels.map((label, index) => {
+              const level = index + 1;
+              const isActive = (personDraft.siblingMaturityLevel as number | undefined) === level;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    const syntheticEvent = {
+                      target: { name: 'siblingMaturityLevel', value: String(level), type: 'select-one' },
+                    } as React.ChangeEvent<HTMLSelectElement>;
+                    onChange(syntheticEvent);
+                    setMaturityHelpOpen(false);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    border: `1px solid ${isActive ? '#4b68a6' : '#d4dae5'}`,
+                    borderRadius: 8,
+                    background: isActive ? '#eef3ff' : '#fff',
+                    padding: '6px 10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#23324a', fontSize: 13 }}>
+                    {level}. {label}
+                  </div>
+                  <div style={{ marginTop: 2, fontSize: 12, lineHeight: 1.4, color: '#555' }}>
+                    {MATURITY_SCALE.help[index]}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
         <button
           type="button"
@@ -173,6 +248,7 @@ const PersonSiblingSection = ({
             <div><strong>Siblings Complete:</strong> {SIBLING_OVERRIDE_HELP[0]}</div>
             <div><strong>Birth Order Override:</strong> {SIBLING_OVERRIDE_HELP[1]}</div>
             <div><strong>Override Position:</strong> {SIBLING_OVERRIDE_HELP[2]}</div>
+            <div><strong>Maturity Level:</strong> {SIBLING_OVERRIDE_HELP[3]}</div>
           </div>
         </div>
       )}

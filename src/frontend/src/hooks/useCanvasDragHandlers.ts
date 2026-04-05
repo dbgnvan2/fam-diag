@@ -41,12 +41,7 @@ export function useCanvasDragHandlers({
   setTriangles,
   setPageNotes,
 }: UseCanvasDragHandlersDeps) {
-  const handlePersonDragStart = (personId: string, x: number, y: number) => {
-    if (!selectedPeopleIds.includes(personId) || selectedPeopleIds.length < 2) {
-      dragGroupRef.current = null;
-      return;
-    }
-
+  const buildDragGroup = (anchorId: string, startX: number, startY: number) => {
     const selectedIds = [...selectedPeopleIds];
     const peopleMap = new Map<string, { x: number; y: number; notesPosition?: { x: number; y: number } }>();
     for (const person of people) {
@@ -58,7 +53,6 @@ export function useCanvasDragHandlers({
         });
       }
     }
-
     const partnershipsMap = new Map<string, { horizontalConnectorY: number; notesPosition?: { x: number; y: number } }>();
     for (const partnership of partnerships) {
       if (selectedIds.includes(partnership.partner1_id) && selectedIds.includes(partnership.partner2_id)) {
@@ -68,7 +62,6 @@ export function useCanvasDragHandlers({
         });
       }
     }
-
     const emotionalLinesMap = new Map<string, { notesPosition?: { x: number; y: number } }>();
     for (const emotionalLine of allEmotionalLines) {
       if (selectedIds.includes(emotionalLine.person1_id) && selectedIds.includes(emotionalLine.person2_id)) {
@@ -77,24 +70,39 @@ export function useCanvasDragHandlers({
         });
       }
     }
-
     const pageNotesMap = new Map<string, { x: number; y: number }>();
     for (const note of pageNotes) {
       if (selectedPageNoteIds.includes(note.id)) {
         pageNotesMap.set(note.id, { x: note.x, y: note.y });
       }
     }
-
     dragGroupRef.current = {
-      personId,
-      startX: x,
-      startY: y,
+      personId: anchorId,
+      startX,
+      startY,
       selectedIds,
       people: peopleMap,
       partnerships: partnershipsMap,
       emotionalLines: emotionalLinesMap,
       pageNotes: pageNotesMap,
     };
+  };
+
+  const handlePersonDragStart = (personId: string, x: number, y: number) => {
+    if (!selectedPeopleIds.includes(personId) || selectedPeopleIds.length < 2) {
+      dragGroupRef.current = null;
+      return;
+    }
+    buildDragGroup(personId, x, y);
+  };
+
+  const handleGroupBoxDragStart = (x: number, y: number) => {
+    if (selectedPeopleIds.length < 2) return;
+    buildDragGroup('__group_bbox__', x, y);
+  };
+
+  const handleGroupBoxDragMove = (x: number, y: number) => {
+    handlePersonDrag('__group_bbox__', x, y);
   };
 
   const handlePersonDrag = (personId: string, x: number, y: number) => {
@@ -220,6 +228,22 @@ export function useCanvasDragHandlers({
     );
   };
 
+  const handleFamilyNoteDragEnd = (partnershipId: string, x: number, y: number) => {
+    setPartnerships(
+      partnerships.map((p) =>
+        p.id === partnershipId ? { ...p, familyNotesPosition: { x, y } } : p
+      )
+    );
+  };
+
+  const handleFamilyNoteResizeEnd = (partnershipId: string, width: number, height: number) => {
+    setPartnerships(
+      partnerships.map((p) =>
+        p.id === partnershipId ? { ...p, familyNotesSize: { width, height } } : p
+      )
+    );
+  };
+
   const handleEmotionalLineNoteDragEnd = (emotionalLineId: string, x: number, y: number) => {
     setEmotionalLines((prev) =>
       prev.map((el) => (el.id === emotionalLineId ? { ...el, notesPosition: { x, y } } : el))
@@ -235,6 +259,18 @@ export function useCanvasDragHandlers({
         });
         return changed ? { ...triangle, tpls: nextTpls } : triangle;
       })
+    );
+  };
+
+  const handleTriangleNoteDragEnd = (triangleId: string, x: number, y: number) => {
+    setTriangles((prev) =>
+      prev.map((t) => (t.id === triangleId ? { ...t, notesPosition: { x, y } } : t))
+    );
+  };
+
+  const handleTriangleNoteResizeEnd = (triangleId: string, width: number, height: number) => {
+    setTriangles((prev) =>
+      prev.map((t) => (t.id === triangleId ? { ...t, notesSize: { width, height } } : t))
     );
   };
 
@@ -259,12 +295,18 @@ export function useCanvasDragHandlers({
   return {
     handlePersonDragStart,
     handlePersonDrag,
+    handleGroupBoxDragStart,
+    handleGroupBoxDragMove,
     handleHorizontalConnectorDragEnd,
     handlePersonNoteDragEnd,
     handlePersonNoteResizeEnd,
     handlePartnershipNoteDragEnd,
     handlePartnershipNoteResizeEnd,
+    handleFamilyNoteDragEnd,
+    handleFamilyNoteResizeEnd,
     handleEmotionalLineNoteDragEnd,
     handleEmotionalLineNoteResizeEnd,
+    handleTriangleNoteDragEnd,
+    handleTriangleNoteResizeEnd,
   };
 }

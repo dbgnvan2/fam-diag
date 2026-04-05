@@ -149,8 +149,10 @@ interface EPLPropertiesSectionProps {
   triangleId?: string;
   triangleColorDraft?: string;
   triangleIntensityDraft?: 'low' | 'medium' | 'high';
+  triangleNotesDraft?: string;
   onTriangleColorChange?: (color: string) => void;
   onTriangleIntensityChange?: (intensity: 'low' | 'medium' | 'high') => void;
+  onTriangleNotesChange?: (notes: string) => void;
 }
 
 const EPLPropertiesSection = ({
@@ -171,8 +173,10 @@ const EPLPropertiesSection = ({
   triangleId,
   triangleColorDraft,
   triangleIntensityDraft,
+  triangleNotesDraft,
   onTriangleColorChange,
   onTriangleIntensityChange,
+  onTriangleNotesChange,
 }: EPLPropertiesSectionProps) => {
   const [intensityHelpOpen, setIntensityHelpOpen] = useState(false);
 
@@ -464,6 +468,16 @@ const EPLPropertiesSection = ({
               value={triangleColorDraft || '#8a5a00'}
               onChange={(e) => onTriangleColorChange?.(e.target.value)}
               style={{ width: 60 }}
+            />
+          </div>
+          <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+            <label htmlFor="triangleNotes" style={{ ...labelStyle, marginTop: 6 }}>Triangle Notes:</label>
+            <textarea
+              id="triangleNotes"
+              value={triangleNotesDraft || ''}
+              onChange={(e) => onTriangleNotesChange?.(e.target.value)}
+              rows={4}
+              style={{ width: '100%', minHeight: '5rem', fontFamily: 'inherit', fontSize: '0.95rem' }}
             />
           </div>
         </>

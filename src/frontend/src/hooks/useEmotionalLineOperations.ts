@@ -194,6 +194,12 @@ export function useEmotionalLineOperations({
     setContextMenu(null);
   };
 
+  const updateTriangle = (triangleId: string, updates: Partial<import('../types').Triangle>) => {
+    setTriangles((prev) =>
+      prev.map((t) => (t.id === triangleId ? { ...t, ...updates } : t))
+    );
+  };
+
   const updateTriangleColor = (triangleId: string, color: string) => {
     setTriangles((prev) =>
       prev.map((triangle) => {
@@ -222,6 +228,7 @@ export function useEmotionalLineOperations({
     removeEmotionalLine,
     addTriangle,
     removeTriangle,
+    updateTriangle,
     updateTriangleColor,
     updateTriangleIntensity,
   };

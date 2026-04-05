@@ -15,7 +15,7 @@ import type {
 import {
   clampIndicatorDimension,
 } from '../constants/functionalIndicatorScales';
-import { EVENT_TYPE_LABELS, inferEventType as inferEventTypeFromConstants } from '../constants/eventConstants';
+import { EVENT_TYPE_LABELS, EVENT_SUBTYPES, PAPERO_SUBTYPE_TO_KEY, inferEventType as inferEventTypeFromConstants } from '../constants/eventConstants';
 import {
   deriveSiblingPositionResult,
   getSiblingPositionOptions,
@@ -66,7 +66,7 @@ const humanizeOptionLabel = (value: string) =>
 const RELATIONSHIP_TYPE_STATUS_ROWS: Record<string, { status: string; dateLabel: string }[]> = {
   married: [
     { status: 'married', dateLabel: 'Married' },
-    { status: 'divorce', dateLabel: 'Divorces' },
+    { status: 'divorce', dateLabel: 'Divorced' },
     { status: 'separated', dateLabel: 'Separated' },
     { status: 'widowed', dateLabel: 'Widowed' },
   ],
@@ -157,6 +157,33 @@ const emotionalLineStyleLevelFor = (
   const index = lineStyleValues[relationshipType].indexOf(lineStyle);
   return index >= 0 ? index + 1 : 0;
 };
+const AddPatternRow = ({ people, onAdd }: { people: Person[]; onAdd: (otherId: string) => void }) => {
+  const [otherId, setOtherId] = React.useState(people[0]?.id ?? '');
+  React.useEffect(() => { setOtherId(people[0]?.id ?? ''); }, [people]);
+  if (people.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+      <select
+        value={otherId}
+        onChange={(e) => setOtherId(e.target.value)}
+        style={{ flex: 1, fontSize: 13, padding: '4px 6px', borderRadius: 4, border: '1px solid #c0ccd9' }}
+      >
+        {people.map((p) => (
+          <option key={p.id} value={p.id}>{p.name || '(unnamed)'}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => { if (otherId) onAdd(otherId); }}
+        disabled={!otherId}
+        style={{ padding: '4px 12px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: 4, cursor: otherId ? 'pointer' : 'not-allowed', fontSize: 13, whiteSpace: 'nowrap' }}
+      >
+        + Add Pattern
+      </button>
+    </div>
+  );
+};
+
 const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir', { title: string; body: string }> = {
   properties: {
     title: 'Person Tab Help',
@@ -315,14 +342,17 @@ interface PropertiesPanelProps {
   triangleId?: string;
   triangleColor?: string;
   triangleIntensity?: 'low' | 'medium' | 'high';
+  triangleNotes?: string;
   onUpdateTriangleColor?: (triangleId: string, color: string) => void;
   onUpdateTriangleIntensity?: (
     triangleId: string,
     intensity: 'low' | 'medium' | 'high'
   ) => void;
+  onUpdateTriangleNotes?: (triangleId: string, notes: string) => void;
   allEmotionalLines?: EmotionalLine[];
   onSelectEmotionalLine?: (line: EmotionalLine) => void;
   onRemoveEmotionalLine?: (id: string) => void;
+  onAddEmotionalPattern?: (person1Id: string, person2Id: string) => void;
   initialActiveTab?: 'properties' | 'functional' | 'events' | 'patterns';
   initialPersonSection?: 'name' | 'dates' | 'format' | 'sibling' | 'foo';
   initialPartnershipType?: string;
@@ -358,8 +388,10 @@ const PropertiesPanel = ({
   triangleId,
   triangleColor,
   triangleIntensity,
+  triangleNotes,
   onUpdateTriangleColor,
   onUpdateTriangleIntensity,
+  onUpdateTriangleNotes,
   initialActiveTab,
   initialPersonSection,
   initialPartnershipType,
@@ -371,6 +403,7 @@ const PropertiesPanel = ({
   allEmotionalLines = [],
   onSelectEmotionalLine: _onSelectEmotionalLine,
   onRemoveEmotionalLine,
+  onAddEmotionalPattern,
   onEnsureSymptomCategoryDefinition,
   compactPersonSectionMode = false,
   compactPartnershipSectionMode = false,
@@ -398,6 +431,7 @@ const PropertiesPanel = ({
   const [eventModalTitle, setEventModalTitle] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir'>('properties');
   const [activeFamilyTab, setActiveFamilyTab] = useState<'family' | 'triangles' | 'stressors' | 'events'>('family');
+  const [familyNotesDraft, setFamilyNotesDraft] = useState('');
   const [activePersonSection, setActivePersonSection] = useState<
     'name' | 'dates' | 'format' | 'sibling' | 'foo'
   >('name');
@@ -552,6 +586,7 @@ const PropertiesPanel = ({
   const [triangleIntensityDraft, setTriangleIntensityDraft] = useState<'low' | 'medium' | 'high'>(
     triangleIntensity || 'medium'
   );
+  const [triangleNotesDraft, setTriangleNotesDraft] = useState(triangleNotes || '');
   const selectedPersonIdRef = useRef<string | null>(selectedPerson?.id ?? null);
   const lastNewEventRequestIdRef = useRef<string | null>(null);
   const deriveFallbackParts = (person: Person | null) => {
@@ -705,6 +740,16 @@ const PropertiesPanel = ({
   useEffect(() => {
     setTriangleIntensityDraft(triangleIntensity || 'medium');
   }, [triangleId, triangleIntensity]);
+  useEffect(() => {
+    setTriangleNotesDraft(triangleNotes || '');
+  }, [triangleId, triangleNotes]);
+
+  useEffect(() => {
+    if (isFamilyView && selectedPartnership) {
+      const p = partnerships.find((x) => x.id === selectedPartnership.id) || selectedPartnership;
+      setFamilyNotesDraft(p.familyNotes || '');
+    }
+  }, [isFamilyView, selectedPartnership?.id]);
 
   const composeDisplayName = (
     overrides: Partial<Person> = {},
@@ -737,12 +782,6 @@ const PropertiesPanel = ({
     let nextValue: any = value;
     if (isCheckbox) {
       nextValue = (e.target as HTMLInputElement).checked;
-    } else if (name === 'size') {
-      const numericValue = Number(value);
-      if (Number.isNaN(numericValue)) {
-        return;
-      }
-      nextValue = Math.max(20, Math.min(400, numericValue));
     } else if (name === 'birthOrderOverride') {
       const trimmed = value.trim();
       if (!trimmed) {
@@ -802,7 +841,7 @@ const PropertiesPanel = ({
     }
     updatePersonDraftState(updates);
     const isDeferredDateField =
-      name === 'birthDate' || name === 'deathDate' || name === 'genderDate' || name === 'adoptionDate';
+      name === 'birthDate' || name === 'deathDate' || name === 'genderDate' || name === 'adoptionDate' || name === 'deathDateKnown';
     const isDeferredIdentityField = name === 'birthSex' || name === 'genderIdentity';
     if (!selectedPerson) return;
     if (isDeferredDateField || isDeferredIdentityField) {
@@ -814,13 +853,17 @@ const PropertiesPanel = ({
     setPersonPristine(true);
   };
 
+  const setPersonSize = (value: number) => {
+    if (!personDraft || !selectedPerson) return;
+    onUpdatePerson(selectedPerson.id, { size: value });
+    updatePersonDraftState({ size: value });
+    setPersonPristine(true);
+  };
+
   const adjustPersonSize = (delta: number) => {
     if (!personDraft || !selectedPerson) return;
-    const next = Math.max(20, Math.min(400, (personDraft.size ?? 60) + delta));
-    // Apply size changes immediately so node size updates live without Save.
-    onUpdatePerson(selectedPerson.id, { size: next });
-    updatePersonDraftState({ size: next });
-    setPersonPristine(true);
+    const next = Math.max(10, Math.min(400, (personDraft.size ?? 60) + delta));
+    setPersonSize(next);
   };
 
   const updatePartnershipDraftState = (updates: Partial<Partnership>) => {
@@ -1023,6 +1066,42 @@ const PropertiesPanel = ({
     };
   };
 
+  const buildPaperoScoreEvent = (
+    person: Person,
+    subtypeKey: string,
+    newValue: number,
+    oldValue: number
+  ): EmotionalProcessEvent => {
+    const today = new Date().toISOString().slice(0, 10);
+    const displayName = composeDisplayName({}, person) || person.name || '';
+    const paperoSubtypes = EVENT_SUBTYPES.PAPERO ?? {};
+    const category =
+      Object.entries(paperoSubtypes).find(([, topics]) => topics.includes(subtypeKey))?.[0] ??
+      'Resourceful';
+    const scoreFieldKey = PAPERO_SUBTYPE_TO_KEY[subtypeKey] ?? subtypeKey;
+    return {
+      id: createEventId(),
+      date: today,
+      startDate: today,
+      category,
+      eventType: 'PAPERO' as const,
+      anchorType: 'PERSON' as const,
+      anchorId: person.id,
+      status: 'discrete' as const,
+      subtype: subtypeKey,
+      intensity: newValue,
+      frequency: oldValue,
+      impact: 0,
+      howWell: DEFAULT_HOW_WELL,
+      otherPersonName: '',
+      primaryPersonName: displayName,
+      wwwwh: DEFAULT_OBSERVATION,
+      observations: `${scoreFieldKey}: ${oldValue > 0 ? oldValue : 'unset'} → ${newValue}`,
+      eventClass: 'individual' as const,
+      createdAt: Date.now(),
+    };
+  };
+
   const buildPartnershipEvent = (
     partnership: Partnership,
     status: string,
@@ -1146,13 +1225,19 @@ const PropertiesPanel = ({
       const selectedValue = selectedPerson[field] ?? '';
       return draftValue !== selectedValue;
     });
-    return hasDeferredDateChanges || hasAdoptionDateChanges || hasIdentityChanges;
+    const hasDeathKnownChange = (personDraft.deathDateKnown ?? false) !== (selectedPerson.deathDateKnown ?? false);
+    return hasDeferredDateChanges || hasAdoptionDateChanges || hasIdentityChanges || hasDeathKnownChange;
   }, [selectedPerson, personDraft]);
 
   const savePersonProperties = () => {
     if (!selectedPerson || !personDraft || !personDirty) return;
     const updates: Partial<Person> = {};
     const newEvents: EmotionalProcessEvent[] = [];
+    const prevDeathKnown = selectedPerson.deathDateKnown ?? false;
+    const nextDeathKnown = personDraft.deathDateKnown ?? false;
+    if (prevDeathKnown !== nextDeathKnown) {
+      updates.deathDateKnown = nextDeathKnown || undefined;
+    }
     PERSON_DEFERRED_DATE_FIELDS.forEach((field) => {
       const prev = selectedPerson[field] ?? '';
       const next = personDraft[field] ?? '';
@@ -1162,6 +1247,11 @@ const PropertiesPanel = ({
           const event = buildPersonDateEvent(personDraft, field, next);
           if (event) newEvents.push(event);
         }
+      }
+      // Create event when death checkbox newly checked without a date
+      if (field === 'deathDate' && !next && nextDeathKnown && !prevDeathKnown) {
+        const today = new Date().toISOString().slice(0, 10);
+        newEvents.push(buildPersonDateEvent(personDraft, field, today));
       }
     });
     if ((selectedPerson.adoptionDate ?? '') !== (personDraft.adoptionDate ?? '')) {
@@ -1232,12 +1322,13 @@ const PropertiesPanel = ({
       stringDiffers(partnershipDraft[field], selectedPartnership[field])
     );
     if (stringFieldChanged) return true;
-    return allRelationshipStatuses.some((status) =>
+    const hasStatusDateChanges = allRelationshipStatuses.some((status) =>
       stringDiffers(
         readPartnershipStatusDate(partnershipDraft, status),
         readPartnershipStatusDate(selectedPartnership, status)
       )
     );
+    return hasStatusDateChanges;
   }, [selectedPartnership, partnershipDraft, allRelationshipStatuses]);
 
   const savePartnershipProperties = () => {
@@ -1363,12 +1454,16 @@ const PropertiesPanel = ({
     if (!triangleId) return false;
     return triangleIntensityDraft !== (triangleIntensity || 'medium');
   }, [triangleId, triangleIntensity, triangleIntensityDraft]);
+  const triangleNotesDirty = useMemo(() => {
+    if (!triangleId) return false;
+    return triangleNotesDraft !== (triangleNotes || '');
+  }, [triangleId, triangleNotes, triangleNotesDraft]);
 
   const saveEmotionalLineProperties = () => {
     if (
       !selectedEmotionalLine ||
       !emotionalDraft ||
-      (!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty)
+      (!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty && !triangleNotesDirty)
     ) {
       return;
     }
@@ -1453,6 +1548,9 @@ const PropertiesPanel = ({
     if (triangleId && onUpdateTriangleIntensity && triangleIntensityDirty) {
       onUpdateTriangleIntensity(triangleId, triangleIntensityDraft);
     }
+    if (triangleId && onUpdateTriangleNotes && triangleNotesDirty) {
+      onUpdateTriangleNotes(triangleId, triangleNotesDraft);
+    }
     if (!Object.keys(updates).length) {
       setEmotionalPristine(true);
       setEmotionalDraft({ ...selectedEmotionalLine });
@@ -1476,6 +1574,7 @@ const PropertiesPanel = ({
     setEmotionalImpactDraft(metrics.impact);
     setTriangleColorDraft(triangleColor || '#8a5a00');
     setTriangleIntensityDraft(triangleIntensity || 'medium');
+    setTriangleNotesDraft(triangleNotes || '');
     setEmotionalPristine(true);
   };
 
@@ -2048,6 +2147,7 @@ const PropertiesPanel = ({
         personDraft={personDraft}
         onChange={handlePersonChange}
         onAdjustSize={adjustPersonSize}
+        onSizeSet={setPersonSize}
         colorInputRefs={colorInputRefs}
       />
     );
@@ -2298,8 +2398,34 @@ const PropertiesPanel = ({
         {activeFamilyTab === 'family' && (
           <div style={{ marginTop: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#23324a', marginBottom: 6 }}>{familyName}</div>
-            <div style={{ fontSize: 12, color: '#6b7a93' }}>
+            <div style={{ fontSize: 12, color: '#6b7a93', marginBottom: 12 }}>
               {partnerNames ? `Partners: ${partnerNames}` : 'No partners recorded'}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <label htmlFor="familyNotes" style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#23324a', marginBottom: 4 }}>Notes:</label>
+              <textarea
+                id="familyNotes"
+                value={familyNotesDraft}
+                onChange={(e) => setFamilyNotesDraft(e.target.value)}
+                rows={6}
+                style={{ width: '100%', minHeight: '7rem', fontFamily: 'inherit', fontSize: '0.95rem', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  disabled={familyNotesDraft === (familyPartnership.familyNotes || '')}
+                  onClick={() => setFamilyNotesDraft(familyPartnership.familyNotes || '')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={familyNotesDraft === (familyPartnership.familyNotes || '')}
+                  onClick={() => onUpdatePartnership(familyPartnership.id, { familyNotes: familyNotesDraft || undefined })}
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2541,21 +2667,23 @@ const PropertiesPanel = ({
             triangleId={triangleId}
             triangleColorDraft={triangleColorDraft}
             triangleIntensityDraft={triangleIntensityDraft}
+            triangleNotesDraft={triangleNotesDraft}
             onTriangleColorChange={(c) => { setTriangleColorDraft(c); setEmotionalPristine(false); }}
             onTriangleIntensityChange={(i) => { setTriangleIntensityDraft(i); setEmotionalPristine(false); }}
+            onTriangleNotesChange={(n) => { setTriangleNotesDraft(n); setEmotionalPristine(false); }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
             <button
               type="button"
               onClick={cancelEmotionalChanges}
-              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
+              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty && !triangleNotesDirty}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={saveEmotionalLineProperties}
-              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty}
+              disabled={!emotionalDirty && !emotionalMetricDirty && !triangleColorDirty && !triangleIntensityDirty && !triangleNotesDirty}
             >
               Save
             </button>
@@ -2614,6 +2742,16 @@ const PropertiesPanel = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <strong>Patterns</strong>
           </div>
+          {onAddEmotionalPattern && (() => {
+            const person = selectedItem as Person;
+            const others = people.filter((p) => p.id !== person.id);
+            return (
+              <AddPatternRow
+                people={others}
+                onAdd={(otherId) => onAddEmotionalPattern(person.id, otherId)}
+              />
+            );
+          })()}
           {(() => {
             const person = selectedItem as Person;
             const connected = allEmotionalLines.filter(
@@ -2682,6 +2820,10 @@ const PropertiesPanel = ({
           onUpdatePerson={onUpdatePerson}
           updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
           onSetPersonPristine={setPersonPristine}
+          onScoreChange={(subtypeKey, newValue, oldValue) => {
+            const event = buildPaperoScoreEvent(selectedPerson, subtypeKey, newValue, oldValue);
+            appendEventsToPerson(selectedPerson.id, [event]);
+          }}
         />
       )}
       {activeTab === 'sir' && isPerson && selectedPerson && personDraft && (
