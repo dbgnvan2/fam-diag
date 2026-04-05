@@ -3,7 +3,7 @@
  * Builds the guided walkthrough steps from demo diagram notes and static spec data.
  */
 
-import type { Person, Partnership, EmotionalLine, PageNote } from '../types';
+import type { Person, Partnership, EmotionalLine } from '../types';
 import type {
   DiagramImportData,
   DemoTourStep,
