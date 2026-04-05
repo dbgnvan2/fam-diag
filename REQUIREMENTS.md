@@ -1,77 +1,95 @@
-# Project Requirements & Specifications
+# Family Diagram Drawing Application - Comprehensive Requirements
 
 ## 1. Executive Summary
+This document serves as the single source of truth for the functional and technical requirements of the Family Diagram Drawing Application. It covers the core diagramming engine, emotional process tracking, assessment frameworks, and hypothesis management.
 
-This document outlines the functional and technical requirements for the Family Diagram Drawing Application. It serves as the source of truth for development and testing, specifically addressing the need for a robust interaction model and comprehensive support for Emotional Process Lines (EPLs).
+## 2. Universal Interaction Model
+All interactive elements (People, Partnerships, Emotional Process Lines, Notes) must follow this pattern:
+1. **Selection**: Left-click to select and highlight an object. Selecting a new object deselects the previous one.
+2. **Context Menu**: Right-click (on a selected or unselected object) to open a context-sensitive menu.
+3. **Canvas Actions**: Right-click on empty canvas to "Add Person" or "Add Event".
+4. **Multi-Select**: Shift-click or Click-Hold-Drag to select multiple objects for batch movement or styling.
+5. **Panning**: Space + Left-drag (or Alt-drag / Middle-click) to pan the canvas.
+6. **Zooming**: Slider or Ctrl+Scroll to zoom (25%–300%) centered on the viewport.
 
-## 2. User Interaction Model
+---
 
-To ensure consistency and usability, all interactive elements must adhere to the following "Universal Interaction" pattern.
+## 3. Core Entities
 
-### 2.1 Selection & Highlighting
+### 3.1 Person Object (Nodes)
+*   **Visual Representation**: 
+    *   **Male**: Square.
+    *   **Female**: Circle.
+    *   **AI Agent**: Lavender hexagon (`#C5B3E6`).
+    *   **Deceased**: "X" overlay.
+    *   **Adopted**: Dashed border.
+    *   **Miscarriage**: Triangle with "X".
+    *   **Stillbirth**: Small person icon with "X".
+*   **Properties**: Name, First/Last/Maiden Name, Birth/Death/Gender Dates, Birth Sex (Female, Male, Intersex, AI Agent), Gender Identity, Adoption Status.
+*   **Special Behaviors**:
+    *   **Age Badge**: Automatically rendered centered beneath nodes with a birth date.
+    *   **Shaded Background**: Optional backplate (110% size) for highlighting specific individuals.
+    *   **AI Agent**: Hides irrelevant fields (maiden name, adoption) and defaults to non-binary identity.
 
-- **Trigger:** Left-click on any interactive element (Person Node, Partnership Line, Emotional Process Line).
-- **Feedback:** The selected element must immediately render a visual highlight state (e.g., distinct color, glow, or bounding box) to confirm selection to the user.
-- **Deselection:** Clicking on the empty canvas background deselects the current element.
+### 3.2 Partnership Object (PRL)
+*   **Visual Representation**: U-shaped line consisting of two vertical drops (PDLs) and one horizontal connector.
+*   **Behaviors**:
+    *   Horizontal connector is vertically draggable.
+    *   Width adjusts automatically as partners move.
+    *   Direct Child Linking: Clicking a PRL then a non-partner person attaches them as a child.
+*   **Shortcuts**: "Add parents" (generates two nodes + PRL above) and "Add Adopted Child" (links to adopting PRL + creates birth-parent nodes).
 
-### 2.2 Context Actions
+### 3.3 Emotional Process Lines (EPL)
+*   **Types**: Fusion, Distance, Cutoff, Conflict, Projection, Open Connection.
+*   **Visual Styling**:
+    *   **Fusion**: Single, Double, Triple solid lines.
+    *   **Distance**: Dotted, Dashed, Long-dash (various intervals).
+    *   **Cutoff**: Perpendicular double-bars.
+    *   **Conflict**: Sawtooth patterns (Solid, Dotted, Double).
+*   **Properties**: Status (Ongoing/Ended), End Date (Ended lines hide from canvas but remain in timeline), Color, Notes, and Line Endings (Arrows, Perpendicular).
 
-- **Trigger:** Right-click on a **selected** or **unselected** element.
-- **Behavior:**
-  1.  If the element was not selected, it becomes selected (and highlighted).
-  2.  A context menu appears at the cursor location.
-- **Menu Contents:** Options must be context-aware based on the element type (see Section 3).
+---
 
-## 3. Domain Entities & Features
+## 4. Assessment Frameworks
 
-### 3.1 People (Nodes)
+### 4.1 Papero Assessment
+Adapted from Dr. Dan Papero's "Family Unit Response to Challenge" framework.
+*   **Location**: Dedicated "Papero" tab in Person Properties.
+*   **Categories**: Resourceful, Connectedness, Tension Management, Systems Thinking, Goal Structure.
+*   **Mechanism**: 16 topics rated 1-5 with detailed HWDID (How Well Did I Do) help dialogs for each level.
 
-- **Visuals:**
-  - **Male:** Square shape.
-  - **Female:** Circle shape.
-  - **Deceased:** Overlay with an "X".
-  - **Adopted:** Dashed outline (visualized based on parent partnership status).
-- **Attributes:** Name, Gender, Birth Date, Death Date, ID, Coordinates (x, y).
-- **Context Menu Options:** Edit Properties, Add Parent, Add Spouse, Add Child, Delete, Start Emotional Line.
+### 4.2 Self in Relationship (SIR)
+*   **Location**: Dedicated "Self in Rel." tab in Person Properties.
+*   **Mechanism**: Configurable categories (e.g., Defining Self, Detriangulating) for logging behavioral observations.
+*   **Data**: Records Date, "With" (Person), Behavior text, Intensity (1-5), Stress (1-5), and HWDID (1-5).
 
-### 3.2 Partnerships (Relationship Lines)
+### 4.3 Functional Indicators
+*   **Mechanism**: User-defined labels (e.g., "Substance Use") and optional icons.
+*   **Tracking**: Past/Current status with ratings for Frequency, Intensity, and Functional Impact (0-5 scale).
+*   **Timeline Integration**: Changing ratings automatically logs an Emotional Process Event.
 
-- **Visuals:**
-  - Horizontal line connecting two Person nodes.
-  - Vertical "drop lines" connecting to children.
-- **Attributes:** Relationship Type (e.g., Married, Dating), Status (e.g., Separated, Divorced), Start/End Dates.
-- **Context Menu Options:** Edit Partnership Details, Delete.
+---
 
-### 3.3 Emotional Process Lines (EPLs)
+## 5. Hypothesis & Timeline Tools
 
-EPLs represent the emotional dynamic between two individuals.
+### 5.1 Prediction Sets
+*   **Purpose**: Diagram-level If→Then hypothesis tracking.
+*   **Structure**: Named sets containing multiple Predictions.
+*   **Prediction Model**:
+    *   **Conditions**: Linked to SIR entries, Papero changes, or custom observations.
+    *   **Outcomes**: Predicted behaviors/changes.
+    *   **Evidence**: Observed data points linked as "Supports", "Contradicts", or "Neutral".
 
-- **Data Structure (based on `src/frontend/src/data/defaultDiagramData.json`, exported from the “Myfamily1” diagram):**
-  - `person1_id` (Source)
-  - `person2_id` (Target)
-  - `relationshipType` (Enum: `fusion`, `cutoff`, `conflict`, `distance`)
-  - `lineStyle` (Enum: `single`, `double`, `dashed`, `double-angular`)
-  - `lineEnding` (Enum: `none`, `arrow-p1-to-p2`, `double-perpendicular-p1`, `double-perpendicular-p2`)
-- **Interaction:**
-  - Must be selectable via click (requires precise hit-testing with a buffer for thin lines).
-  - **Selection Feedback:**
-    - The line must be highlighted.
-    - A notes/info box must appear displaying the names of the two individuals.
-    - **Formatting:** The names must be stacked vertically (Name 2 under Name 1).
-    - **Layout:** The notes box must automatically resize to fit the text content. The background rectangle dimensions must be calculated dynamically based on the measured width of the longest text line and the total height of all lines plus padding.
-  - Must support Right-Click -> Delete/Edit.
+### 5.2 Timeline & Events
+*   **Global Timeline**: Slider with Play/Pause to view diagram evolution year-by-year.
+*   **Event Creator**: Standalone mode for bulk event editing.
+*   **Session Notes**: Floating workspace for running notes, auto-saved every 5 minutes, with "Make Event" shortcut to convert highlights into timeline entries.
+*   **Functional Facts (FF)**: User-configurable event categories for logging discrete observations.
 
-## 4. Technical Architecture
+---
 
-### 4.1 Canvas Rendering
-
-- The application uses an HTML5 Canvas for high-performance rendering.
-- **Hit Testing:** Custom logic required to detect clicks on non-rectangular shapes.
-
-## 5. Quality Assurance Strategy
-
-Due to the canvas-based nature of the application, standard DOM testing is insufficient.
-
-- **Framework:** Cypress.
-- **Methodology:** End-to-End (E2E) Visual & Interaction Testing.
-- **Key Goal:** Verify that clicking coordinates (x,y) results in the correct internal state change and visual update (highlighting).
+## 6. Technical Specifications
+*   **Stack**: React 18, TypeScript, Konva.js (Canvas), Vite.
+*   **Persistence**: Local JSON files (Save/Open) and `localStorage` auto-save.
+*   **Rendering**: 60fps target; custom hit-testing for non-rectangular shapes.
+*   **Testing**: Vitest for unit/logic; Cypress for E2E visual interaction.

@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-03-24T19:43:37.356Z"
+    "exportedAt": "2026-04-05T03:21:59.658Z"
   },
   "people": [
     {
@@ -49,7 +49,8 @@
           "symptomGroup": "physical",
           "symptomType": "stomach",
           "sourceIndicatorId": "symptom-physical-default",
-          "isNodalEvent": false
+          "isNodalEvent": false,
+          "status": "discrete"
         },
         {
           "id": "1772585212171-f02d16c9ca419",
@@ -67,7 +68,9 @@
           "isNodalEvent": true,
           "eventClass": "individual",
           "createdAt": 1772585212171,
-          "continuesFromPrevious": false
+          "continuesFromPrevious": false,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1772769789229-f26aac2456a5f",
@@ -130,7 +133,8 @@
           "symptomGroup": "social",
           "symptomType": "Drinkig",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-social-default"
+          "sourceIndicatorId": "symptom-social-default",
+          "status": "discrete"
         },
         {
           "id": "1773955344079-69e7b4b4af534",
@@ -193,7 +197,8 @@
           "symptomGroup": "physical",
           "symptomType": "Anxiety",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-physical-default"
+          "sourceIndicatorId": "symptom-physical-default",
+          "status": "discrete"
         },
         {
           "id": "1773955501610-126d570f371b88",
@@ -224,7 +229,8 @@
           "symptomGroup": "physical",
           "symptomType": "Anxiety",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-physical-default"
+          "sourceIndicatorId": "symptom-physical-default",
+          "status": "discrete"
         },
         {
           "id": "1773955565905-3bce4bbc219c08",
@@ -255,7 +261,8 @@
           "symptomGroup": "social",
           "symptomType": "Drinking",
           "eventClass": "individual",
-          "sourceIndicatorId": "symptom-social-default"
+          "sourceIndicatorId": "symptom-social-default",
+          "status": "discrete"
         },
         {
           "id": "1774061911172-2d31b4d69a5ff8",
@@ -435,7 +442,9 @@
           "observations": "[2] Female Person. Right Click on a person to change sex / gender",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772584371602
+          "createdAt": 1772584371602,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773871634785-ea29d011e846c",
@@ -463,7 +472,8 @@
           "continuesFromPrevious": false,
           "continuesToNext": false,
           "createdAt": 1773871634785,
-          "eventClass": "individual"
+          "eventClass": "individual",
+          "status": "discrete"
         },
         {
           "id": "1774048345577-01fb69b8efbc58",
@@ -585,7 +595,9 @@
           "observations": "[4] Male. children are added by right clicking on the Partner Relationship Line and select Add Child. Clicka nd Drag to move a child objeect.",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772585174714
+          "createdAt": 1772585174714,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773795324254-e6588260bad02",
@@ -602,7 +614,9 @@
           "observations": "[4] Male. children are added by right clicking on the Partner Relationship Line and select Add Child. Clicka nd Drag to move a child objeect.",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1773795324254
+          "createdAt": 1773795324254,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955082399-284406299ec9c",
@@ -630,7 +644,8 @@
           "continuesFromPrevious": false,
           "continuesToNext": false,
           "createdAt": 1773955082399,
-          "eventClass": "individual"
+          "eventClass": "individual",
+          "status": "discrete"
         }
       ],
       "size": 54,
@@ -676,7 +691,9 @@
           "isNodalEvent": true,
           "eventClass": "individual",
           "createdAt": 1772779499091,
-          "continuesToNext": false
+          "continuesToNext": false,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1772779574450-a3211fec5ce878",
@@ -693,7 +710,9 @@
           "observations": "[5] Female.  Marked as Client. Partner Relationship Line to Noah. Emotional Pattern Line to Renee. ",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772779574450
+          "createdAt": 1772779574450,
+          "eventType": "NODAL",
+          "status": "discrete"
         }
       ],
       "size": 54,
@@ -746,7 +765,9 @@
           "observations": "[6] Partner Relationship Line to Emma.  Males default to the LEFT side of a relationship. ",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772585357444
+          "createdAt": 1772585357444,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1772779586583-1bd589eb394a8",
@@ -763,7 +784,9 @@
           "observations": "[6] Partner Relationship Line to Emma.  Males default to the LEFT side of a relationship. ",
           "isNodalEvent": true,
           "eventClass": "individual",
-          "createdAt": 1772779586583
+          "createdAt": 1772779586583,
+          "eventType": "NODAL",
+          "status": "discrete"
         }
       ],
       "size": 54,
@@ -794,77 +817,8 @@
         "thinking": "a dfa sdf as dfsa df.   asdff",
         "notes": "asdf.  fasdfasfasdf",
         "updatedAt": 1774196291907
-      }
-    },
-    {
-      "id": "oUv3ZjIYgh5dOAn2i7yUF",
-      "name": "New Person",
-      "x": 294.54113771990967,
-      "y": 756.1729966504881,
-      "gender": "female",
-      "partnerships": [
-        "hEiIM-iZ6GHBqXNh5vFig"
-      ],
-      "lifeStatus": "alive",
-      "isCoach": false,
-      "events": []
-    },
-    {
-      "id": "lkTcWzWpuw9JvuIzjjf-f",
-      "name": "Dave Partner",
-      "x": 149.14879322230263,
-      "y": 759.106573909143,
-      "gender": "male",
-      "partnerships": [
-        "hEiIM-iZ6GHBqXNh5vFig"
-      ],
-      "events": [
-        {
-          "id": "1774139637888-fa1df21078c428",
-          "date": "2020-01-01",
-          "startDate": "2020-01-01",
-          "category": "Individual",
-          "eventType": "NODAL",
-          "status": "discrete",
-          "subtype": "Birth Date",
-          "intensity": 0,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "",
-          "primaryPersonName": "New Partner",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "Not recorded - ask client",
-          "eventClass": "individual",
-          "createdAt": 1774139637888
-        },
-        {
-          "id": "1774142885214-a4c6c9085e4d5",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "endDate": "",
-          "category": "Birth",
-          "eventType": "NODAL",
-          "subtype": "",
-          "anchorType": "PERSON",
-          "anchorId": "lkTcWzWpuw9JvuIzjjf-f",
-          "status": "discrete",
-          "intensity": 2,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "None",
-          "primaryPersonName": "Dave Partner",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "Not recorded - ask client",
-          "priorEventsNote": "",
-          "reflectionsNote": "",
-          "createdAt": 1774142885214,
-          "eventClass": "individual"
-        }
-      ],
-      "birthDate": "2020-01-01",
-      "firstName": "Dave"
+      },
+      "notes": "(10) A person can be added as the Coach/Therapist to track processes and connections.  Right click on the Coach for properties. "
     },
     {
       "id": "bvTA3fOHXX8xWU_vmffmP",
@@ -875,7 +829,12 @@
       "partnerships": [],
       "lifeStatus": "alive",
       "isCoach": false,
-      "events": []
+      "events": [],
+      "notes": "(11) AI Agent BOT  ",
+      "notesPosition": {
+        "x": 633,
+        "y": 724
+      }
     }
   ],
   "partnerships": [
@@ -902,7 +861,7 @@
         "width": 206,
         "height": 107
       },
-      "familyNameOffsetX": 105.07,
+      "familyNameOffsetX": 107.07,
       "familyEvents": [
         {
           "date": "2026-03-19",
@@ -1080,7 +1039,16 @@
           "anchorType": "EMOTIONAL_PROCESS_EP",
           "anchorId": "demo-prl-parents"
         }
-      ]
+      ],
+      "familyNotesSize": {
+        "width": 248,
+        "height": 68
+      },
+      "familyNotesPosition": {
+        "x": 389.9586956521736,
+        "y": 861.7873745471013
+      },
+      "familyNameOffsetY": 0
     },
     {
       "id": "demo-prl-emma",
@@ -1162,39 +1130,6 @@
         }
       ],
       "familyNameOffsetX": 3
-    },
-    {
-      "id": "hEiIM-iZ6GHBqXNh5vFig",
-      "partner1_id": "oUv3ZjIYgh5dOAn2i7yUF",
-      "partner2_id": "lkTcWzWpuw9JvuIzjjf-f",
-      "horizontalConnectorY": 820.471,
-      "relationshipType": "dating",
-      "relationshipStatus": "married",
-      "children": [],
-      "events": [],
-      "familyNameOffsetX": 0.84,
-      "familyEvents": [
-        {
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "category": "Triangles",
-          "subtype": "Functioning",
-          "status": "ongoing",
-          "intensity": 1,
-          "frequency": 1,
-          "impact": 1,
-          "howWell": 0,
-          "wwwwh": "",
-          "observations": "",
-          "primaryPersonName": "New Person",
-          "otherPersonName": "Dave Partner",
-          "eventType": "FAMILY",
-          "eventClass": "emotional-pattern",
-          "id": "d8i9JV23na03TS5412wz4",
-          "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "hEiIM-iZ6GHBqXNh5vFig"
-        }
-      ]
     }
   ],
   "emotionalLines": [
@@ -1269,7 +1204,8 @@
           "observations": "[9] Example Emotional Pattern Line EPL: Conflict with Low Intensity",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773871475435
+          "createdAt": 1773871475435,
+          "status": "discrete"
         },
         {
           "id": "1774155925624-099e1c07d55b48",
@@ -1355,7 +1291,8 @@
           "observations": "",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1772770322557
+          "createdAt": 1772770322557,
+          "status": "discrete"
         },
         {
           "id": "1773955688922-917d959c3fe58",
@@ -1372,7 +1309,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955688922
+          "createdAt": 1773955688922,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955688922-ba75863a6f99a8",
@@ -1394,7 +1333,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955688922
+          "createdAt": 1773955688922,
+          "status": "discrete"
         },
         {
           "id": "1773955718936-9c0e416677595",
@@ -1411,7 +1351,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955718936
+          "createdAt": 1773955718936,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955740823-aa18d9e394afe8",
@@ -1428,7 +1370,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955740823
+          "createdAt": 1773955740823,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955740823-b5d32e71f0ca6",
@@ -1450,7 +1394,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955740823
+          "createdAt": 1773955740823,
+          "status": "discrete"
         },
         {
           "id": "1773955742626-d707707ccb715",
@@ -1472,7 +1417,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955742626
+          "createdAt": 1773955742626,
+          "status": "discrete"
         },
         {
           "id": "1774196196466-90d84ee2732ea8",
@@ -1528,7 +1474,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773853927957
+          "createdAt": 1773853927957,
+          "status": "discrete"
         },
         {
           "id": "1773956010354-dd0fc4a0cd0d9",
@@ -1545,7 +1492,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956010354
+          "createdAt": 1773956010354,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773956022126-f851946866d71",
@@ -1567,7 +1516,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956022126
+          "createdAt": 1773956022126,
+          "status": "discrete"
         },
         {
           "id": "1773956031376-5bd7a17f0bc56",
@@ -1584,7 +1534,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956031376
+          "createdAt": 1773956031376,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773956031376-c94818cb7c4c6",
@@ -1606,7 +1558,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956031376
+          "createdAt": 1773956031376,
+          "status": "discrete"
         },
         {
           "id": "1773956043872-5fe6f21c33411",
@@ -1623,7 +1576,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956043872
+          "createdAt": 1773956043872,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773956043872-dd2e1f74e6764",
@@ -1645,7 +1600,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773956043872
+          "createdAt": 1773956043872,
+          "status": "discrete"
         }
       ]
     },
@@ -1680,7 +1636,8 @@
           "observations": "",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773854097770
+          "createdAt": 1773854097770,
+          "status": "discrete"
         },
         {
           "id": "1773871449231-d8d16be8f0659",
@@ -1702,7 +1659,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773871449231
+          "createdAt": 1773871449231,
+          "status": "discrete"
         },
         {
           "id": "1773871463007-c8dba1a59eb6",
@@ -1724,7 +1682,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773871463007
+          "createdAt": 1773871463007,
+          "status": "discrete"
         }
       ]
     },
@@ -1759,7 +1718,8 @@
           "observations": "",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773875211482
+          "createdAt": 1773875211482,
+          "status": "discrete"
         },
         {
           "id": "1773875317481-59ece3bcdef638",
@@ -1781,7 +1741,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773875317481
+          "createdAt": 1773875317481,
+          "status": "discrete"
         }
       ]
     },
@@ -1816,7 +1777,8 @@
           "observations": "",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955828819
+          "createdAt": 1773955828819,
+          "status": "discrete"
         },
         {
           "id": "1773955851545-6aca4c7c7f1b28",
@@ -1833,7 +1795,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955851545
+          "createdAt": 1773955851545,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955851545-66a3516a508998",
@@ -1855,7 +1819,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955851545
+          "createdAt": 1773955851545,
+          "status": "discrete"
         },
         {
           "id": "1773955862763-38478d6e65ee1",
@@ -1872,7 +1837,9 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": true,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955862763
+          "createdAt": 1773955862763,
+          "eventType": "NODAL",
+          "status": "discrete"
         },
         {
           "id": "1773955862763-0d0a1f709ec888",
@@ -1894,103 +1861,8 @@
           "observations": "Not recorded - ask client",
           "isNodalEvent": false,
           "eventClass": "emotional-pattern",
-          "createdAt": 1773955862763
-        }
-      ]
-    },
-    {
-      "id": "EqqKVeHStBadwdqKy3YVM",
-      "person1_id": "demo-mom",
-      "person2_id": "gpG0pHe4SmANLqMwi8A1y",
-      "status": "ongoing",
-      "relationshipType": "projection",
-      "lineStyle": "projection-5",
-      "lineEnding": "none",
-      "startDate": "2026-03-22",
-      "color": "#FF9100",
-      "events": [
-        {
-          "id": "9dvNTWo8Hh_f-wO2vWArY",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "category": "Emotional Pattern",
-          "eventType": "EPE",
-          "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "EqqKVeHStBadwdqKy3YVM",
-          "status": "ongoing",
-          "intensity": 1,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 5,
-          "otherPersonName": "Renee Carter",
-          "primaryPersonName": "Coach",
-          "wwwwh": "",
-          "observations": "",
-          "eventClass": "emotional-pattern",
-          "createdAt": 1774149911209
-        },
-        {
-          "id": "1774149938830-4cfc18545e6e88",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "category": "Emotional Pattern",
-          "eventType": "EPE",
-          "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "EqqKVeHStBadwdqKy3YVM",
-          "status": "discrete",
-          "subtype": "Style: Projection 2",
-          "intensity": 0,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "Renee Carter",
-          "primaryPersonName": "Coach",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "Not recorded - ask client",
-          "eventClass": "emotional-pattern",
-          "createdAt": 1774149938830
-        },
-        {
-          "id": "1774149938830-cad6175c4ea6b",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "category": "Emotional Pattern",
-          "eventType": "EPE",
-          "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "EqqKVeHStBadwdqKy3YVM",
-          "status": "ongoing",
-          "subtype": "Projection – Measurement",
-          "intensity": 2,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "Renee Carter",
-          "primaryPersonName": "Coach",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "Not recorded - ask client",
-          "eventClass": "emotional-pattern",
-          "createdAt": 1774149938830
-        },
-        {
-          "id": "1774196016773-185bb92ee0d15",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
-          "category": "Emotional Pattern",
-          "eventType": "EPE",
-          "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "EqqKVeHStBadwdqKy3YVM",
-          "status": "ongoing",
-          "subtype": "Projection – Measurement",
-          "intensity": 5,
-          "frequency": 0,
-          "impact": 0,
-          "howWell": 1,
-          "otherPersonName": "Coach",
-          "primaryPersonName": "Renee Carter",
-          "wwwwh": "Not recorded - ask client",
-          "observations": "Not recorded - ask client",
-          "eventClass": "emotional-pattern",
-          "createdAt": 1774196016773
+          "createdAt": 1773955862763,
+          "status": "discrete"
         }
       ]
     },
@@ -2028,48 +1900,49 @@
       ]
     },
     {
-      "id": "u5o_J4UWVGKlBZZhwSOnX",
-      "person1_id": "gpG0pHe4SmANLqMwi8A1y",
-      "person2_id": "demo-mom",
+      "id": "L9SoENjjgNZnLTzGpNBYk",
+      "person1_id": "demo-daughter",
+      "person2_id": "bvTA3fOHXX8xWU_vmffmP",
       "status": "ongoing",
-      "relationshipType": "conflict",
-      "lineStyle": "conflict-solid-wide",
+      "relationshipType": "open-connection",
+      "lineStyle": "open-connection-2",
       "lineEnding": "none",
-      "startDate": "2026-03-22",
+      "startDate": "2026-04-05",
       "color": "#444444",
       "events": [
         {
-          "id": "r7PQE1BB35D_OACnfhG6Z",
-          "date": "2026-03-22",
-          "startDate": "2026-03-22",
+          "id": "TsjMdQF6hpEaREPMXgAtx",
+          "date": "2026-04-05",
+          "startDate": "2026-04-05",
           "category": "Emotional Pattern",
           "eventType": "EPE",
           "anchorType": "EMOTIONAL_PROCESS_EP",
-          "anchorId": "u5o_J4UWVGKlBZZhwSOnX",
+          "anchorId": "L9SoENjjgNZnLTzGpNBYk",
           "status": "ongoing",
-          "intensity": 3,
+          "intensity": 2,
           "frequency": 0,
           "impact": 0,
           "howWell": 5,
-          "otherPersonName": "Renee Carter",
-          "primaryPersonName": "Coach",
+          "otherPersonName": "AI Agent",
+          "primaryPersonName": "Emma Carter",
           "wwwwh": "",
           "observations": "",
           "eventClass": "emotional-pattern",
-          "createdAt": 1774155891679
+          "createdAt": 1775352869658
         }
-      ]
+      ],
+      "adequatePersonId": "bvTA3fOHXX8xWU_vmffmP"
     }
   ],
   "pageNotes": [
     {
       "id": "9UThrI14h5C-rr7iadBR4",
-      "x": -85.55869565217415,
-      "y": 519.2571671195653,
-      "title": "General Note",
+      "x": 951.4413043478258,
+      "y": 638.2571671195653,
+      "title": "(12) General Note",
       "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
-      "width": 220,
-      "height": 140,
+      "width": 224,
+      "height": 80,
       "fillColor": "#fff8c6"
     }
   ],
@@ -2357,6 +2230,12 @@
           "notes": ""
         }
       ]
+    }
+  ],
+  "functionalFactCategories": [
+    {
+      "id": "ff-cdgd9Ilq",
+      "name": "Anxiety Level"
     }
   ]
 }

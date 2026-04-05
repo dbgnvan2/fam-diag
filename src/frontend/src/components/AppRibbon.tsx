@@ -662,6 +662,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                   alignItems: 'flex-start',
                   gap: 4,
                   width: 'calc(100% - 26px)',
+                  ...toolbarHighlightStyle('zoom'),
                 }}
               >
                 <input

@@ -72,6 +72,26 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: 'Papero Assessment',
+    tips: [
+      'The Papero Assessment (Family Unit Response to Challenge) is a specialized framework for evaluating family functioning.',
+      'Access it via the "Papero" tab in the Person Properties panel.',
+      'Rate 16 topics across 5 categories: Resourceful, Connectedness, Tension Management, Systems Thinking, and Goal Structure.',
+      'Click the "?" button beside any topic to open a detailed help dialog showing descriptions for each of the 5 levels.',
+      'Scores are saved immediately upon selection, and category averages are displayed in the section headers.',
+    ],
+  },
+  {
+    title: 'Self in Relationship (SIR)',
+    tips: [
+      'The Self in Relationship tab tracks how an individual manages themselves in relationship interactions.',
+      'Record specific behaviors, their intensity, the associated stress level, and a "How Well Did I Do" (HWDID) score.',
+      'Each entry is linked to another person in the diagram, allowing for a detailed map of relational reactivity.',
+      'Categories (e.g., Detriangulating, Defining Self) are fully configurable via Settings > Self in Relationship Categories.',
+      'HWDID scores include a "?" help button that provides clinical descriptions for each of the 5 levels.',
+    ],
+  },
+  {
     title: 'Prediction Sets',
     tips: [
       'Use Options > Predictions to open the Predictions panel where you can create named Prediction Sets — each set holds one or more If/Then predictions.',
@@ -129,10 +149,10 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
     demoBody: 'Zoom changes canvas scale from 25% to 300% around the canvas center. The ⊕ control recenters the diagram at 50% zoom.',
   },
   'event-categories': {
-    title: 'Event Categories',
-    demoTitle: 'Ribbon · Event Categories',
-    body: 'Opens event category settings used for event creation and classification.',
-    demoBody: 'Event Categories opens the list used for event classification and filtering.',
+    title: 'Settings Menu',
+    demoTitle: 'Ribbon · Settings Menu',
+    body: 'Event Categories, Relationship Types, Relationship Statuses, Symptom Categories, SIR Categories, Functional Fact Categories, Notes Layer, Sibling Conflicts, Auto-Save, and Backup settings.',
+    demoBody: 'Event Categories, Relationship Types, Relationship Statuses, Symptom Categories, SIR Categories, Functional Fact Categories, Notes Layer, Sibling Conflicts, Auto-Save, and Backup settings.',
   },
   'functional-indicators': {
     title: 'Symptom Categories',
@@ -141,10 +161,10 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
     demoBody: 'Symptom Categories configures definitions used beside people and in symptom event logging.',
   },
   'transcripts-menu': {
-    title: 'Transcripts Menu',
-    demoTitle: 'Ribbon · Transcripts Menu',
-    body: 'Contains transcript workflow actions: Process and Import Data.',
-    demoBody: 'Transcripts menu contains Process and Import Data for transcript/facts workflows.',
+    title: 'Options Menu',
+    demoTitle: 'Ribbon · Options Menu',
+    body: 'Transcripts, Voice Input, Timeline Event Creator, Ideas, Predictions, and Session Notes.',
+    demoBody: 'Transcripts, Voice Input, Timeline Event Creator, Ideas, Predictions, and Session Notes.',
   },
   'timeline-menu': {
     title: 'Timeline Menu',

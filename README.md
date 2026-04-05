@@ -1,74 +1,47 @@
 # Family Diagram Drawing Application
 
-This is a web-based application for drawing family diagrams. A family diagram is a visual representation of a family tree that includes information about relationships, medical history, and other significant life events.
+A specialized, web-based family diagramming application designed for clinical and research use. It models family systems across generations, tracking relationships, biological markers, and emotional patterns over time.
 
-## Implemented Features
+## Key Features
 
-*   **Create, modify, and delete people and partnerships:** Users can create, modify, and delete people and partnerships to build a family diagram.
-*   **Separated relationship type and status:** The application separates the concept of relationship type (e.g., married, dating) from relationship status (e.g., married, separated, divorced).
-*   **Date fields with pickers:** Every timeline field (birth/death, partnership milestones, EPL start dates, event rows, session-note captures) includes a text box plus an inline calendar picker, so you can free-type `YYYY-MM-DD` or pop open the native date selector without switching components.
-*   **Adoption:** The application supports adoption, and adopted children are visually represented with a dashed line.
-*   **Deceased individuals:** Deceased individuals are visually represented with an "X" through their node.
-*   **Save and load:** Users can save their family diagram to a JSON file and load it back into the application.
-*   **Auto-save:** The application automatically saves the family diagram data to `localStorage`.
-*   **Export:** Users can export the family diagram as a PNG or SVG image.
-*   **Emotional Pattern Lines (EPLs):** Users can create and style emotional pattern lines between individuals to represent different types of emotional bonds (e.g., fusion, conflict, distance, cutoff). Fusion, distance, conflict, and projection now use a five-level graphic scale. Distance moves from tight dashes through spaced dashes to dotted spacing, conflict moves from single dotted sawtooth through double/triple sawtooth variants, and the Properties panel keeps `Intensity` (graphic style) synchronized with `Intensity Level` (1-5 rating). Distance and conflict also provide anchored `?` pickers beside `Intensity Level` so users can choose the level from descriptive clinical text. Every EPL supports custom colors for triangle highlighting plus configurable endings (arrows, perpendicular), and now tracks a Status (Ongoing/Ended) with optional End Date so you can archive resolved triangles—only ongoing lines stay on the canvas while ended ones remain in the data/timeline.
-*   **Triangle TPL editing parity:** Triangle process lines (TPLs) now use full EPL editing controls (relationship type, intensity/style, line endings, status/dates, color, and notes), while still supporting triangle-level color/intensity settings.
-*   **Contextual creation tools:** Right-clicking a Partner Relationship Line (PRL) offers quick actions to add single children, twin/triplet sets, miscarriages (triangle with X), and stillbirth markers (mini person icon with X) so charts can represent perinatal events without manual drawing, while the canvas menu focuses on adding standalone people.
-*   **Adoption and parent-generation shortcuts:** Right-click a PRL to `Add Adopted Child` (child links to adopting PRL and also gets a birth-parent PRL above), and right-click any person to `Add Parents` so parent nodes/PRL are generated above the selected person quickly.
-*   **Gender matrix symbols:** Person context menu now supports both quick `Change sex to ...` and `Edit Gender` (second popup). `Edit Gender` uses a Birth-Sex × Gender-Identity option list and applies the corresponding composed symbol on the canvas.
-*   **Direct PRL child linking:** Click a PRL, then click a non-partner person to attach that person as a child immediately; duplicate links are prevented and prior parent-link cleanup is handled automatically.
-*   **Floating notes:** Person notes inherit soft male/female shading (or a neutral tone) and connect back to their owner with heavier dashed leader lines for quick visual association, while PRL/EPL notes keep a neutral white card.
-*   **Notes Layer + overrides:** A global `Notes Layer` toolbar toggle can hide/show all notes. Right-click any person/PRL/EPL to `Show Note` (pin that note on), and person-note hover still reveals the note temporarily even when the global layer is off. Object-level note pins override the global layer state.
-*   **Data cleanup for orphan miscarriages:** When previously saved data is loaded, any miscarriage markers that were placed directly on the canvas (and never attached to a PRL) are automatically removed so broken symbols do not linger in the diagram.
-*   **Canvas navigation:** Hold `Space` and left-drag on empty canvas to pan the entire family diagram (legacy `Alt`-drag and middle-button drag still work). The zoom slider (25–300%) now scales around the canvas center instead of the upper-left corner, and the `⊕` centering control under `Help` resets the view to a centered 50% zoom. Panning translates every node, relationship line, and general note so saved diagrams keep the moved layout.
-*   **Multi-select styling:** Shift-click to select multiple Person Nodes and use the multi-edit panel to batch-adjust size, border color, and shaded background (square backplates render 10px larger than each person for emphasis).
-*   **Live person size preview:** Person size changes in the Properties panel apply on-canvas immediately, so you can resize visually without pressing Save.
-*   **On-node age badges:** Whenever a person has a birth date, the diagram automatically calculates and renders “Age NN” centered beneath the node (using the death date when present, otherwise today’s date), so you can gauge generations without opening the properties panel.
-*   **Global timeline controls:** The widened Timeline slider (left of the Zoom control) now scans year-by-year from the earliest recorded event, includes ±1 year nudge buttons plus a Play/Pause toggle (1 year/second), and only shows people/PRLs/EPLs whose start dates fall on or before the selected year so you can “grow” the diagram chronologically.
-*   **Timeline block editing flow:** In the Timeline Board, clicking any event block now opens the related object in the right-side Properties panel on the Events tab so events can be edited immediately.
-*   **Canvas add-event shortcut:** Right-clicking empty canvas now includes `Add Event`, letting you append a person event without opening an existing object first.
-*   **Separate Event Creator web mode:** Use `Timeline -> Export Person Events` to generate a standalone `name - timeline.json`, open `File -> Open Event Creator` (or `?mode=event-creator`) to bulk add/edit/delete events in a two-panel list+properties editor, then import with `Timeline -> Import Person Events`. Merge is event-ID based and supports updates/deletions from the exported baseline.
-*   **Session capture import review:** The app now accepts `fam-diag-session-capture` JSON (see `session_capture_schema.json`) and opens a confidence/ambiguity review dialog before applying operations, so low-confidence extractions can be skipped.
-*   **Functional indicators:** Define reusable functional indicator labels (Affair, Substance Use, etc.), optionally upload icon images, and track each indicator per person with Past/Current status plus 0–5 ratings for Frequency, Intensity, and Functional Impact. Indicators render beside the person node so high-impact situations stand out instantly.
-*   **Client profiling shortcut (`Make Client`):** Right-click a person and choose `Make Client` to open a client properties modal with Presenting Issues (1-3), Desired Outcomes (1-3), and Client Conceptualization notes. The modal also includes a color selector that applies shaded background directly to the person node when saved.
-*   **Indicator-driven timelines:** Whenever you change an indicator’s Frequency/Intensity/Impact, the app logs or updates an Emotional Process Event for that indicator (capped at one entry per indicator per 60 minutes), so the Events tab reflects the most recent ratings without filling the timeline with duplicates.
-*   **Functional Facts panel:** The right-hand inspector now adapts its title based on context—Individual Functional Facts for a Person, Relationship Functional Facts for a PRL, and Emotional Pattern Functional Facts for an EPL—while exposing the same Person/Indicators/Events tabs so you can focus on biographical data, functional indicators, or timeline entries without scrolling miles of form fields. Every event is tagged with an **Event Class** (Individual, Relationship, or Emotional Pattern) plus a separate **Status** label, so entries read like “Job – Promotion” or “Marriage – Ended”. Editing PRL date fields automatically logs nodal events for the couple, EPL start/end saves emit Emotional Pattern events, and person birth/death saves create Individual events—nothing hits the timeline until you click the new Save buttons on each Properties tab, which lets you stage multiple edits before committing and keeps accidental keystrokes from flooding the history. Events render as compact two-line tiles (Category/Status + Date on top, ratings/participants/actions below) and the modal editor mirrors the new layout with Frequency/Impact selectors, Prior Events, Reflections, and Nodal Event toggles.
-*   **Session Notes workspace:** Launch a floating Session Notes window from the toolbar to capture coach/client details, presenting issues, and running notes. Session notes are now managed separately from diagram JSON with a file-style flow (`New`, `Open`, `Save`, `Save As`, `Location`) and can reopen prior notes by active diagram file name plus focus person/target. Notes still auto-save to a primary/backup rotation every five minutes, support explicit JSON/Markdown export, and let you highlight a line (or use the last line) to pre-populate an Emotional Process Event for any person, partnership, or EPL—complete with inferred names/years and a dedicated event editor.
-*   **Contextual Event Creation + Continuation markers:** Right-click a Person, PRL, or EPL and choose `Add Event...` to open the event creator already anchored to that object. New events now support `NODAL`, `FF`, and `EPE` types, Start/End dates, optional nodal subtype, and continuation state (Discrete/Start/Middle/End). The Events tab now includes Compact/Expanded list modes, type/anchor filters, and right-click row actions to attach/detach or create-and-attach previous/next events in a series.
-*   **Quick Start help + in-app Training Videos + Build Demo:** Tap the Help button any time to launch a modal with curated tips, an embedded scrollable copy of `README.md`, and an in-app Training Videos panel with selectable lessons and inline playback. Help also includes `Demo` (guided feature tour of the finished sample) and `Build Demo` (step-by-step walkthrough from blank canvas to the same final sample diagram). Training video URLs are currently defined in `src/frontend/src/components/DiagramEditor.tsx` in the `TRAINING_VIDEOS` array.
-*   **Demo intro orientation + note-driven walkthrough text:** `Help -> Demo` now begins with a five-step orientation pass (Canvas, Menu Ribbon, Person Object, PRL, EPL) with blinking highlights, then continues through the note-driven walkthrough content.
-*   **Properties panel title + compact event row actions:** The right inspector now shows a persistent `Properties Panel` title, and Events-tab `Edit`/`Delete` buttons use tighter padding for denser lists.
-*   **Ribbon `?` help popovers:** Every top ribbon control includes a `?` button that opens a focused help text box. These help snippets and ribbon demo descriptions are sourced from one file: `src/frontend/src/data/helpContent.ts`.
-*   **File-aware toolbar:** The drawing surface now shows a “Family Diagram Maker” heading with the active file name, provides a File dropdown (New, Open, Save, Save As, Export PNG/SVG, Quit), exposes an Auto-Save minutes control, and highlights the Save button red whenever there are unsaved edits (blinking red if changes are more than ten minutes old). When the browser supports the File System Access API, the app remembers the linked diagram file handle across reloads so Save and Auto-Save can continue writing back to the same target after permission is restored.
-*   **Vocabulary:** Person Nodes represent individuals; Partner Descending Lines (PDLs) drop vertically from each partner into the shared Partner Relationship Line (PRL); PRLs connect couples; Parent-Child Lines (PCLs) link children to PRLs; Emotional Pattern Lines (EPLs) visualize emotional dynamics. These terms appear in the Properties panel to keep language consistent.
+### 🎨 Core Diagramming
+*   **Intelligent Nodes**: Square (Male), Circle (Female), and Lavender Hexagon (**AI Agent**) symbols. Nodes automatically render an **Age Badge** when birth dates are present.
+*   **Dynamic Relationships**: U-shaped Partner Relationship Lines (PRLs) with vertical drop-lines. Dragging a person automatically updates all connected relationship lines.
+*   **Shortcuts**: Right-click to "Add Parents", "Add Adopted Child", or "Make Client" (includes shaded background coloring).
+*   **Contextual Editing**: Direct child-linking (Click PRL → Click Person) and on-canvas size/color overrides.
+
+### 🎭 Emotional Pattern Lines (EPLs)
+*   **Advanced Styling**: Visualize Fusion, Distance, Cutoff, Conflict, Projection, and Open Connections with multi-level graphic scales (sawtooth, dashes, parallel lines).
+*   **Lifecycle Management**: Tracks "Ongoing" vs. "Ended" status with end dates—ended lines remain in the timeline/data but hide from the active canvas.
+
+### 🧠 Clinical Assessment Frameworks
+*   **Papero Assessment**: 16 topics across 5 categories (Resourceful, Connectedness, Tension, Systems, Goals) with detailed 1-5 HWDID help dialogs.
+*   **Self in Relationship (SIR)**: Configurable behavioral categories for tracking how individuals manage themselves in relationship interactions.
+*   **Functional Indicators**: track symptoms (Affair, Substance Use, etc.) with Past/Current status and 0–5 ratings for Frequency, Intensity, and Impact.
+
+### 🔮 Hypothesis & Analysis
+*   **Prediction Sets**: Diagram-level hypothesis tracking. Create If→Then predictions linked to SIR entries, Papero changes, or custom observations, and track supporting/contradicting evidence over time.
+*   **Global Timeline**: A year-by-year slider to "play back" the growth of the diagram chronologically.
+*   **Session Notes**: A floating, auto-saving workspace for coach notes that can be converted directly into timeline events.
+
+### 💾 Data & Portability
+*   **Save/Open**: Direct JSON file management.
+*   **Export**: High-resolution PNG or SVG image export.
+*   **Auto-Save**: Integrated `localStorage` protection with configurable intervals.
 
 ## How to Run the Application
 
 1.  Navigate to the `src/frontend` directory.
-2.  Install the dependencies: `npm install`
-3.  Run the application in development mode: `npm run dev`
-4.  Open a web browser and navigate to `http://localhost:5173/`.
+2.  Install dependencies: `npm install`
+3.  Run in development mode: `npm run dev`
+4.  Open `http://localhost:5173/` in your browser.
 
-## Default Diagram + Demo Dataset
+## Project Structure
+*   `src/frontend/src/types/`: Domain models and TypeScript interfaces.
+*   `src/frontend/src/hooks/`: Business logic and state management.
+*   `src/frontend/src/components/`: React UI components.
+*   `src/frontend/src/data/`: Default states and static configuration.
 
-The shipped default diagram is `src/frontend/src/data/demofamilydiagram.json`.
-
-Startup behavior:
-*   On app startup, the editor opens the configured default document state and does not force-load the demo diagram.
-*   Use `File -> Load Demo Diagram` to load `demofamilydiagram.json` explicitly at any time.
-
-Demo behavior:
-*   `Help -> Demo` loads the demo diagram and runs the guided walkthrough using numbered notes from the diagram data.
-*   `Help -> Build Demo` uses progressive snapshots derived from the same demo file, and the step instructions are sourced from the demo file notes (with fallback text only when a note is missing).
-
-## Functional Indicator Rating Table
-
-| Level    | Frequency                 | Intensity                 | Functional Impact                    |
-|----------|---------------------------|---------------------------|--------------------------------------|
-| Absent   | 0 — Absent                | 0 — Absent                | 0 — None                             |
-| Minimum  | 1 — Rare                  | 1 — Faint                 | 1 — Not Limiting                     |
-| Mild     | 2 — Occasional            | 2 — Noticeable            | 2 — Minor Interference               |
-| Moderate | 3 — Regular               | 3 — Evident               | 3 — Manageable                       |
-| Major    | 4 — Frequent              | 4 — Marked                | 4 — Significant-Daily                |
-| Maximal  | 5 — Continuous            | 5 — Extreme               | 5 — Dictates Daily Choices           |
+## Documentation
+*   [REQUIREMENTS.md](./REQUIREMENTS.md): Comprehensive functional and technical specifications.
+*   [GEMINI.md](./GEMINI.md): Coding standards and assistant instructions.

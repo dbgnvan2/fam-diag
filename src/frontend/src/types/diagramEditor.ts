@@ -149,6 +149,7 @@ export type DemoTourStep = {
     | { kind: 'person'; personId: string; tab?: 'properties' | 'functional' | 'events' }
     | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
     | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' }
+    | { kind: 'note'; noteId: string }
     | { kind: 'timeline'; personIds: string[] }
     | { kind: 'toolbar'; target: string };
 };
@@ -160,7 +161,8 @@ export type BuildDemoStep = {
     | { kind: 'none' }
     | { kind: 'person'; personId: string; tab?: 'properties' | 'events' }
     | { kind: 'partnership'; partnershipId: string; tab?: 'properties' | 'events' }
-    | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' };
+    | { kind: 'emotional'; lineId: string; tab?: 'properties' | 'events' }
+    | { kind: 'note'; noteId: string };
 };
 
 export type BuildDemoStepSpec = Omit<BuildDemoStep, 'instruction'> & {

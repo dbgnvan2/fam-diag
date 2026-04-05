@@ -3,7 +3,7 @@
  * Builds the guided walkthrough steps from demo diagram notes and static spec data.
  */
 
-import type { Person, Partnership, EmotionalLine } from '../types';
+import type { Person, Partnership, EmotionalLine, PageNote } from '../types';
 import type {
   DiagramImportData,
   DemoTourStep,
@@ -124,23 +124,31 @@ const BASE_DEMO_TOUR_STEPS: DemoTourStep[] = [
   },
   {
     itemNumber: 10,
+    title: 'Item 10 · Coach',
+    body: '(10) A person can be added as the Coach/Therapist to track processes and connections. Right click on the Coach for properties.',
+    clickToSelectHint: 'Click the Coach node to open coach-specific properties and thinking.',
+    focus: { kind: 'person', personId: 'gpG0pHe4SmANLqMwi8A1y', tab: 'properties' },
+  },
+  {
+    itemNumber: 11,
+    title: 'Item 11 · AI Agent',
+    body: '(11) AI Agent BOT. A specialized person entity with a lavender hexagon symbol.',
+    clickToSelectHint: 'Click the AI Agent to see how specialized entities are handled.',
+    focus: { kind: 'person', personId: 'bvTA3fOHXX8xWU_vmffmP', tab: 'properties' },
+  },
+  {
+    itemNumber: 12,
     title: RIBBON_HELP['file-menu'].demoTitle,
     body: RIBBON_HELP['file-menu'].demoBody,
     clickToSelectHint: 'Click File ▾ to open file-level operations.',
     focus: { kind: 'toolbar', target: 'file-menu' },
   },
-  { itemNumber: 11, title: RIBBON_HELP.save.demoTitle, body: RIBBON_HELP.save.demoBody, focus: { kind: 'toolbar', target: 'save' } },
-  { itemNumber: 12, title: RIBBON_HELP['timeline-controls'].demoTitle, body: RIBBON_HELP['timeline-controls'].demoBody, focus: { kind: 'toolbar', target: 'timeline-controls' } },
-  { itemNumber: 13, title: RIBBON_HELP.zoom.demoTitle, body: RIBBON_HELP.zoom.demoBody, focus: { kind: 'toolbar', target: 'zoom' } },
-  { itemNumber: 14, title: RIBBON_HELP['event-categories'].demoTitle, body: RIBBON_HELP['event-categories'].demoBody, focus: { kind: 'toolbar', target: 'event-categories' } },
-  { itemNumber: 15, title: RIBBON_HELP['functional-indicators'].demoTitle, body: RIBBON_HELP['functional-indicators'].demoBody, focus: { kind: 'toolbar', target: 'functional-indicators' } },
-  { itemNumber: 16, title: RIBBON_HELP['transcripts-menu'].demoTitle, body: RIBBON_HELP['transcripts-menu'].demoBody, focus: { kind: 'toolbar', target: 'transcripts-menu' } },
-  { itemNumber: 17, title: RIBBON_HELP['timeline-menu'].demoTitle, body: RIBBON_HELP['timeline-menu'].demoBody, focus: { kind: 'toolbar', target: 'timeline-menu' } },
-  { itemNumber: 18, title: RIBBON_HELP['event-creator'].demoTitle, body: RIBBON_HELP['event-creator'].demoBody, focus: { kind: 'toolbar', target: 'event-creator' } },
-  { itemNumber: 19, title: RIBBON_HELP['notes-layer'].demoTitle, body: RIBBON_HELP['notes-layer'].demoBody, focus: { kind: 'toolbar', target: 'notes-layer' } },
-  { itemNumber: 20, title: RIBBON_HELP.ideas.demoTitle, body: RIBBON_HELP.ideas.demoBody, focus: { kind: 'toolbar', target: 'ideas' } },
-  { itemNumber: 21, title: RIBBON_HELP['session-notes'].demoTitle, body: RIBBON_HELP['session-notes'].demoBody, focus: { kind: 'toolbar', target: 'session-notes' } },
-  { itemNumber: 22, title: RIBBON_HELP.help.demoTitle, body: RIBBON_HELP.help.demoBody, focus: { kind: 'toolbar', target: 'help' } },
+  { itemNumber: 13, title: RIBBON_HELP.save.demoTitle, body: RIBBON_HELP.save.demoBody, focus: { kind: 'toolbar', target: 'save' } },
+  { itemNumber: 14, title: RIBBON_HELP['timeline-controls'].demoTitle, body: RIBBON_HELP['timeline-controls'].demoBody, focus: { kind: 'toolbar', target: 'timeline-controls' } },
+  { itemNumber: 15, title: RIBBON_HELP.zoom.demoTitle, body: RIBBON_HELP.zoom.demoBody, focus: { kind: 'toolbar', target: 'zoom' } },
+  { itemNumber: 16, title: RIBBON_HELP['event-categories'].demoTitle, body: RIBBON_HELP['event-categories'].demoBody, focus: { kind: 'toolbar', target: 'event-categories' } },
+  { itemNumber: 17, title: RIBBON_HELP['transcripts-menu'].demoTitle, body: RIBBON_HELP['transcripts-menu'].demoBody, focus: { kind: 'toolbar', target: 'transcripts-menu' } },
+  { itemNumber: 18, title: RIBBON_HELP.help.demoTitle, body: RIBBON_HELP.help.demoBody, focus: { kind: 'toolbar', target: 'help' } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -253,6 +261,8 @@ export const buildCreationDemoSnapshots = (base: DiagramImportData): DiagramImpo
   const liamFinal = clonePerson('demo-son');
   const emmaFinal = clonePerson('demo-daughter');
   const noahFinal = clonePerson('demo-emma-partner');
+  const coachFinal = clonePerson('gpG0pHe4SmANLqMwi8A1y');
+  const aiAgentFinal = clonePerson('bvTA3fOHXX8xWU_vmffmP');
   const parentPrlFinal = clonePartnership('demo-prl-parents');
   const emmaPrlFinal = clonePartnership('demo-prl-emma');
   const distanceEplFinal = cloneLine('demo-epl-distance');
@@ -280,6 +290,8 @@ export const buildCreationDemoSnapshots = (base: DiagramImportData): DiagramImpo
     buildSnapshot([alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote], [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }], [], 'Build Demo Step 9 - Configure Emma/Noah PRL'),
     buildSnapshot([alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote], [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }], [{ ...distanceEplFinal, notes: undefined, notesEnabled: false }], 'Build Demo Step 10 - Add Distance EPL'),
     buildSnapshot([alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote], [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }], [{ ...distanceEplFinal, notes: undefined, notesEnabled: false }, { ...conflictEplFinal, notes: undefined, notesEnabled: false }], 'Build Demo Step 11 - Add Conflict EPL'),
+    buildSnapshot([alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote, coachFinal], [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }], [{ ...distanceEplFinal, notes: undefined, notesEnabled: false }, { ...conflictEplFinal, notes: undefined, notesEnabled: false }], 'Build Demo Step 12 - Add Coach'),
+    buildSnapshot([alexMoved, reneeAdded, liamNoNote, { ...emmaNoNote, partnerships: ['demo-prl-emma'] }, noahNoNote, coachFinal, aiAgentFinal], [{ ...parentPrlMarriedNoKids, children: ['demo-son', 'demo-daughter'] }, { ...emmaPrlFinal, notes: undefined, notesEnabled: false }], [{ ...distanceEplFinal, notes: undefined, notesEnabled: false }, { ...conflictEplFinal, notes: undefined, notesEnabled: false }], 'Build Demo Step 13 - Add AI Agent'),
     deepCloneDiagramImport(base),
   ];
 };
@@ -300,7 +312,10 @@ const BUILD_DEMO_STEP_SPECS: BuildDemoStepSpec[] = [
   { title: 'Step 9 - Configure Emma/Noah PRL', fallbackInstruction: 'Set Emma-Noah PRL fields (type/status/start date) to match the demo.', focus: { kind: 'partnership', partnershipId: 'demo-prl-emma', tab: 'properties' } },
   { title: 'Step 10 - Add Distance EPL', fallbackInstruction: 'Select Alex + Liam and add EPL. Set type distance and style dashed.', focus: { kind: 'emotional', lineId: 'demo-epl-distance', tab: 'properties' } },
   { title: 'Step 11 - Add Conflict EPL', fallbackInstruction: 'Select Renee + Emma and add EPL. Set type conflict and style dotted-saw-tooth.', focus: { kind: 'emotional', lineId: 'demo-epl-conflict', tab: 'properties' } },
-  { title: 'Step 12 - Finalize Notes', fallbackInstruction: 'Add numbered notes [1]-[9] on people, PRLs, and EPLs to complete the same demo diagram.', focus: { kind: 'none' } },
+  { title: 'Step 12 - Add Coach', fallbackInstruction: 'Right-click empty canvas and choose Add Coach. Use the coach properties to record thinking and connections.', focus: { kind: 'person', personId: 'gpG0pHe4SmANLqMwi8A1y', tab: 'properties' } },
+  { title: 'Step 13 - Add AI Agent', fallbackInstruction: 'Right-click empty canvas and choose Add AI Agent. This creates a specialized person entity with a lavender hexagon symbol.', focus: { kind: 'person', personId: 'bvTA3fOHXX8xWU_vmffmP', tab: 'properties' } },
+  { title: 'Step 14 - Finalize Assessments', fallbackInstruction: 'Explore the Papero and SIR tabs on person nodes to record specialized assessment data.', focus: { kind: 'none' } },
+  { title: 'Step 15 - Finalize Notes', fallbackInstruction: 'Add numbered notes [1]-[11] on people, PRLs, and EPLs to complete the same demo diagram.', focus: { kind: 'none' } },
 ];
 
 export const buildBuildDemoStepsFromNotes = (base: DiagramImportData): BuildDemoStep[] => {
