@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import DiagramEditor from './DiagramEditor';
 import { vi } from 'vitest';
 
@@ -208,12 +208,26 @@ describe('DiagramEditor', () => {
         expect(screen.getByText(/Add children to Harry \+ Betty: Tom, Dick, Jane/i)).toBeInTheDocument();
     });
 
-    it('creates a blank untitled diagram from File New', () => {
+    it('creates a blank untitled diagram from File New', async () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
-        fireEvent.click(screen.getByRole('button', { name: 'New' }));
-
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'New' }));
+        });
         expect(screen.getByText('newDiagram')).toBeInTheDocument();
+    });
+
+    it('File New opens SaveAsDialog to name the new diagram', async () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'New' }));
+        });
+        const dialog = screen.getByRole('dialog', { name: /save as/i });
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).getByPlaceholderText('family-diagram')).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
     });
 
     it('adds and opens an editable general note from the canvas menu', () => {

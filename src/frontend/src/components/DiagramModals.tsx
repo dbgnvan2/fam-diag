@@ -38,6 +38,7 @@ import BuildDemoModal from './modals/BuildDemoModal';
 import ReadmeViewerModal from './modals/ReadmeViewerModal';
 import SessionEventModal from './modals/SessionEventModal';
 import IdeasPanel from './IdeasPanel';
+import SaveAsDialog from './modals/SaveAsDialog';
 import { sortLabelsAZ } from '../utils/storage';
 import readmeContent from '../../../../README.md?raw';
 
@@ -230,6 +231,12 @@ interface DiagramModalsProps {
   ideasText: string;
   setIdeasText: Dispatch<SetStateAction<string>>;
   setIdeasOpen: Dispatch<SetStateAction<boolean>>;
+
+  // SaveAsDialog
+  saveAsDialogOpen: boolean;
+  saveAsCurrentFileName: string;
+  onSaveAsConfirm: (fileName: string) => void;
+  onSaveAsClose: () => void;
 }
 
 export default function DiagramModals({
@@ -378,6 +385,10 @@ export default function DiagramModals({
   ideasText,
   setIdeasText,
   setIdeasOpen,
+  saveAsDialogOpen,
+  saveAsCurrentFileName,
+  onSaveAsConfirm,
+  onSaveAsClose,
 }: DiagramModalsProps) {
   return (
     <>
@@ -625,6 +636,12 @@ export default function DiagramModals({
         ideasText={ideasText}
         onChange={setIdeasText}
         onClose={() => setIdeasOpen(false)}
+      />
+      <SaveAsDialog
+        open={saveAsDialogOpen}
+        currentFileName={saveAsCurrentFileName}
+        onSave={onSaveAsConfirm}
+        onClose={onSaveAsClose}
       />
     </>
   );

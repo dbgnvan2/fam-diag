@@ -2,7 +2,7 @@
   "fileMeta": {
     "fileName": "PRODUCT_DEFAULT.diagram.json",
     "displayName": "PRODUCT_DEFAULT.diagram.json",
-    "exportedAt": "2026-04-05T03:21:59.658Z"
+    "exportedAt": "2026-04-10T22:46:56.449Z"
   },
   "people": [
     {
@@ -11,8 +11,8 @@
       "firstName": "Alex",
       "lastName": "Carter",
       "gender": "male",
-      "x": 138.45869565217367,
-      "y": 142.68529211956525,
+      "x": 285.4586956521737,
+      "y": 168.68529211956525,
       "birthDate": "1978-04-16",
       "partnerships": [
         "demo-prl-parents"
@@ -375,8 +375,8 @@
         "height": 122
       },
       "notesPosition": {
-        "x": 276.4586956521737,
-        "y": 162.68529211956525
+        "x": 423.4586956521737,
+        "y": 188.68529211956525
       },
       "functionalIndicators": [
         {
@@ -418,8 +418,8 @@
       "firstName": "Renee",
       "lastName": "Carter",
       "gender": "female",
-      "x": 795.4586956521736,
-      "y": 217.68529211956525,
+      "x": 942.4586956521736,
+      "y": 243.68529211956525,
       "birthDate": "1970-09-06",
       "partnerships": [
         "demo-prl-parents"
@@ -543,8 +543,8 @@
       ],
       "size": 60,
       "notesPosition": {
-        "x": 878.9586956521734,
-        "y": 78.68529211956525
+        "x": 1025.9586956521734,
+        "y": 104.68529211956525
       },
       "siblingPositionOverride": "os/s",
       "siblingMaturityLevel": 3,
@@ -572,8 +572,8 @@
       "firstName": "Liam",
       "lastName": "Carter",
       "gender": "male",
-      "x": 176.25869565217386,
-      "y": 454.2852921195654,
+      "x": 323.25869565217386,
+      "y": 480.2852921195654,
       "birthDate": "2000-08-13",
       "partnerships": [],
       "parentPartnership": "demo-prl-parents",
@@ -650,8 +650,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 157.25869565217369,
-        "y": 557.2852921195654
+        "x": 304.2586956521737,
+        "y": 583.2852921195654
       },
       "notesSize": {
         "width": 154,
@@ -665,8 +665,8 @@
       "firstName": "Emma",
       "lastName": "Carter",
       "gender": "female",
-      "x": 652.2586956521739,
-      "y": 456.8852921195653,
+      "x": 799.2586956521739,
+      "y": 482.8852921195653,
       "birthDate": "2005-01-05",
       "partnerships": [
         "demo-prl-emma"
@@ -717,8 +717,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 720.4586956521737,
-        "y": 469.68529211956525
+        "x": 867.4586956521737,
+        "y": 495.68529211956525
       },
       "isClient": true,
       "backgroundEnabled": true,
@@ -741,8 +741,8 @@
       "firstName": "Noah",
       "lastName": "Reed",
       "gender": "male",
-      "x": 447.0586956521739,
-      "y": 450.8852921195655,
+      "x": 594.0586956521739,
+      "y": 476.8852921195655,
       "birthDate": "2004-03-18",
       "partnerships": [
         "demo-prl-emma"
@@ -791,8 +791,8 @@
       ],
       "size": 54,
       "notesPosition": {
-        "x": 335.85863031181975,
-        "y": 579.4853580986085
+        "x": 482.85863031181975,
+        "y": 605.4853580986085
       },
       "notesSize": {
         "width": 145,
@@ -806,8 +806,8 @@
     {
       "id": "gpG0pHe4SmANLqMwi8A1y",
       "name": "Coach",
-      "x": 1056.5586956521743,
-      "y": 220.91470788043466,
+      "x": 1203.5586956521743,
+      "y": 246.91470788043466,
       "gender": "female",
       "partnerships": [],
       "lifeStatus": "alive",
@@ -823,8 +823,8 @@
     {
       "id": "bvTA3fOHXX8xWU_vmffmP",
       "name": "AI Agent",
-      "x": 593,
-      "y": 697,
+      "x": 740,
+      "y": 723,
       "gender": "ai-agent",
       "partnerships": [],
       "lifeStatus": "alive",
@@ -832,8 +832,8 @@
       "events": [],
       "notes": "(11) AI Agent BOT  ",
       "notesPosition": {
-        "x": 633,
-        "y": 724
+        "x": 780,
+        "y": 750
       }
     }
   ],
@@ -842,7 +842,7 @@
       "id": "demo-prl-parents",
       "partner1_id": "demo-dad",
       "partner2_id": "demo-mom",
-      "horizontalConnectorY": 329.7873745471013,
+      "horizontalConnectorY": 355.7873745471013,
       "relationshipType": "married",
       "relationshipStatus": "married",
       "relationshipStartDate": "2003-05-20",
@@ -854,8 +854,8 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 442.4586956521737,
-        "y": 175.68529211956525
+        "x": 589.4586956521737,
+        "y": 201.68529211956525
       },
       "notesSize": {
         "width": 206,
@@ -1054,7 +1054,7 @@
       "id": "demo-prl-emma",
       "partner1_id": "demo-emma-partner",
       "partner2_id": "demo-daughter",
-      "horizontalConnectorY": 545.3747078804347,
+      "horizontalConnectorY": 571.3747078804347,
       "relationshipType": "dating",
       "relationshipStatus": "ongoing",
       "relationshipStartDate": "2024-03-01",
@@ -1063,8 +1063,8 @@
       "notesEnabled": true,
       "events": [],
       "notesPosition": {
-        "x": 705.4587136770989,
-        "y": 599.6850980635563
+        "x": 852.4587136770989,
+        "y": 625.6850980635563
       },
       "notesSize": {
         "width": 187,
@@ -1168,8 +1168,8 @@
       ],
       "color": "#444444",
       "notesPosition": {
-        "x": -63.541304347826326,
-        "y": 356.68529211956525
+        "x": 83.45869565217367,
+        "y": 382.68529211956525
       }
     },
     {
@@ -1256,8 +1256,8 @@
         "height": 88
       },
       "notesPosition": {
-        "x": 844.4586956521737,
-        "y": 350.18529211956525
+        "x": 991.4586956521737,
+        "y": 376.18529211956525
       }
     },
     {
@@ -1937,8 +1937,8 @@
   "pageNotes": [
     {
       "id": "9UThrI14h5C-rr7iadBR4",
-      "x": 951.4413043478258,
-      "y": 638.2571671195653,
+      "x": 1098.4413043478257,
+      "y": 664.2571671195653,
       "title": "(12) General Note",
       "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
       "width": 224,

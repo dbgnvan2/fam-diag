@@ -98,6 +98,7 @@ interface UseFileOperationsDeps {
   beginSessionCaptureFlow: (data: any, sourceFileName: string) => void;
   setDiagramFileHandle: (handle: any | null) => void;
   markSnapshotClean: (...args: any[]) => void;
+  triggerSaveAs: (suggestedName: string) => Promise<void>;
 }
 
 export function useFileOperations({
@@ -149,6 +150,7 @@ export function useFileOperations({
   beginSessionCaptureFlow,
   setDiagramFileHandle,
   markSnapshotClean,
+  triggerSaveAs,
 }: UseFileOperationsDeps) {
   const isCurrentDemoDiagram = isDemoDiagramFileName(fileName);
 
@@ -187,14 +189,16 @@ export function useFileOperations({
   }, [markSnapshotClean, setDiagramFileHandle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async (forcePrompt = false) => {
-    let requestedFileName = fileName;
-    if (!requestedFileName || requestedFileName === FALLBACK_FILE_NAME) {
-      requestedFileName = 'family-diagram.json';
+    const isUnnamed = !fileName || fileName === FALLBACK_FILE_NAME;
+    if (isUnnamed || forcePrompt) {
+      const suggested = isUnnamed ? 'family-diagram.json' : fileName;
+      await triggerSaveAs(suggested);
+      return;
     }
     await saveDiagramToCurrentTarget({
-      requestedFileName,
-      forceChooseLocation: forcePrompt,
-      allowPicker: true,
+      requestedFileName: fileName,
+      forceChooseLocation: false,
+      allowPicker: false,
     });
   };
 
@@ -311,7 +315,7 @@ export function useFileOperations({
     e.target.value = '';
   };
 
-  const handleNewFile = () => {
+  const handleNewFile = async () => {
     if (isDirty) {
       const confirmReset = window.confirm(
         'Start a new family diagram? Unsaved changes will be lost.'
@@ -321,6 +325,7 @@ export function useFileOperations({
       }
     }
     resetDiagramToBlankState();
+    await triggerSaveAs('family-diagram.json');
   };
 
   const handleOpenFilePicker = () => {

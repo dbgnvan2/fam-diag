@@ -430,6 +430,8 @@ const DiagramEditor = () => {
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
   const [backupRestoreVersions, setBackupRestoreVersions] = useState<BackupVersions | null>(null);
   const [fileBackupListOpen, setFileBackupListOpen] = useState(false);
+  const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false);
+  const saveAsOnConfirmRef = useRef<((name: string) => void) | null>(null);
   const [fileBackupEntries, setFileBackupEntries] = useState<FileBackupEntry[]>([]);
   const fileBackupHandlesRef = useRef<Map<number, FileSystemFileHandle>>(new Map());
   const scrollHintShownRef = useRef(false);
@@ -1617,13 +1619,48 @@ useEffect(() => {
       alert('Your browser does not support the directory picker. Use Chrome or Edge for file-based backups.');
       return;
     }
-    try {
-      const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    const attemptPick = async (startIn?: string) => {
+      const opts: Record<string, unknown> = { mode: 'readwrite' };
+      if (startIn) opts.startIn = startIn;
+      return (window as any).showDirectoryPicker(opts) as Promise<FileSystemDirectoryHandle>;
+    };
+
+    const applyHandle = async (dirHandle: FileSystemDirectoryHandle) => {
       backupDirHandleRef.current = dirHandle;
       await persistBackupDirectoryHandle(dirHandle);
-      alert(`Backup folder set. Backups will be saved as "${fileName.replace(/\.json$/i, '')}.backup-N.json" in that folder.`);
+      alert(`Backup folder set to "${dirHandle.name}". Backups will be saved as "${fileName.replace(/\.json$/i, '')}.backup-N.json" in that folder.`);
+    };
+
+    try {
+      const dirHandle = await attemptPick();
+      await applyHandle(dirHandle);
     } catch (err) {
-      if ((err as Error)?.name !== 'AbortError') {
+      const name = (err as Error)?.name;
+      if (name === 'AbortError') return;
+      if (name === 'SecurityError') {
+        // Browser blocked a top-level system folder (Downloads, Desktop, Documents, etc.).
+        // Explain what to do, then re-open the picker starting in Downloads.
+        alert(
+          'That folder is blocked by the browser.\n\n' +
+          'The file picker will now open inside your Downloads folder.\n\n' +
+          'In the picker: use the "New Folder" button to create a folder (e.g. "FamilyDiagramMaker"), then select it.'
+        );
+        try {
+          const dirHandle = await attemptPick('downloads');
+          await applyHandle(dirHandle);
+        } catch (retryErr) {
+          const retryName = (retryErr as Error)?.name;
+          if (retryName === 'AbortError') return;
+          if (retryName === 'SecurityError') {
+            alert(
+              'Still blocked — you selected a protected folder again.\n\n' +
+              'Use the "New Folder" button inside the picker to create a subfolder first, then select that new folder.'
+            );
+          } else {
+            alert('Could not set backup folder.');
+          }
+        }
+      } else {
         alert('Could not set backup folder.');
       }
     }
@@ -3004,6 +3041,45 @@ useEffect(() => {
   };
 
 
+  const openSaveAsDialog = useCallback((onConfirm: (name: string) => void) => {
+    saveAsOnConfirmRef.current = onConfirm;
+    setSaveAsDialogOpen(true);
+  }, []);
+
+  // Always points to the latest saveDiagramToCurrentTarget so async flows
+  // (e.g. triggerSaveAs) read fresh state after a reset, not a stale closure.
+  const saveDiagramToCurrentTargetRef = useRef(saveDiagramToCurrentTarget);
+  saveDiagramToCurrentTargetRef.current = saveDiagramToCurrentTarget;
+
+  /**
+   * triggerSaveAs — unified "Save As" entry point.
+   * On Chrome/Edge: opens the native OS Save dialog (user can navigate to any folder + type a name).
+   * On Firefox/Safari (no showSaveFilePicker): falls back to the in-app name dialog + download.
+   *
+   * Uses saveDiagramToCurrentTargetRef so that a state reset (File > New) that happens
+   * before the async dialog resolves doesn't produce a stale-closure save of the old diagram.
+   */
+  const triggerSaveAs = useCallback(async (suggestedName: string) => {
+    if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName,
+          types: DIAGRAM_FILE_PICKER_TYPES,
+        });
+        setDiagramFileHandle(handle);
+        await saveDiagramToCurrentTargetRef.current({ requestedFileName: handle.name, forceChooseLocation: false, allowPicker: false });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return; // user cancelled — do nothing
+        // Unexpected error: fall through to name-dialog fallback
+      }
+    }
+    // Fallback for browsers without showSaveFilePicker
+    openSaveAsDialog((name: string) => {
+      void saveDiagramToCurrentTargetRef.current({ requestedFileName: name, forceChooseLocation: false, allowPicker: false });
+    });
+  }, [openSaveAsDialog, setDiagramFileHandle]);
+
   const {
     handleSave,
     handleSaveAs,
@@ -3076,6 +3152,7 @@ useEffect(() => {
     beginSessionCaptureFlow,
     setDiagramFileHandle,
     markSnapshotClean,
+    triggerSaveAs,
   });
 
 
@@ -4453,6 +4530,17 @@ useEffect(() => {
             ideasText={ideasText}
             setIdeasText={setIdeasText}
             setIdeasOpen={setIdeasOpen}
+            saveAsDialogOpen={saveAsDialogOpen}
+            saveAsCurrentFileName={fileName === FALLBACK_FILE_NAME ? 'family-diagram.json' : fileName}
+            onSaveAsConfirm={(name: string) => {
+              setSaveAsDialogOpen(false);
+              saveAsOnConfirmRef.current?.(name);
+              saveAsOnConfirmRef.current = null;
+            }}
+            onSaveAsClose={() => {
+              setSaveAsDialogOpen(false);
+              saveAsOnConfirmRef.current = null;
+            }}
           />
         <PredictionsPanel
           isOpen={predictionsOpen}

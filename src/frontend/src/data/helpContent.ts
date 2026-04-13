@@ -127,14 +127,14 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   'file-menu': {
     title: 'File Menu',
     demoTitle: 'Ribbon · File Menu',
-    body: 'Opens New, Open, Save/Save As, import, export, Event Creator launch, and Quit actions.',
-    demoBody: 'Use the File menu to access New/Open/Save/Save As/import/export actions.',
+    body: 'File > New clears the canvas and immediately asks for a filename so the fresh diagram is saved right away. Opens New, Open, Save/Save As, import, export, Event Creator launch, and Quit actions.',
+    demoBody: 'Use the File menu to access New/Open/Save/Save As/import/export actions. File > New clears the canvas and prompts for a name before saving.',
   },
   save: {
     title: 'Save',
     demoTitle: 'Ribbon · Save + Auto-Save',
-    body: 'Save writes the current diagram now. If the document was opened or saved with disk access, Save overwrites that same file. Otherwise Save creates a download copy and does not overwrite an existing local file. Auto-Save sets the periodic save interval in minutes.',
-    demoBody: 'Save commits the diagram now; Auto-Save sets periodic save cadence in minutes. Files are saved to our local computer.',
+    body: 'Save writes the current diagram now. On a new unnamed diagram, Save prompts for a filename first — Chrome/Edge open the native OS Save dialog (navigate to any folder); Firefox/Safari show an in-app name dialog. Once named, subsequent Saves overwrite the same file silently. Save As always re-prompts for a name or location. Auto-Save sets the periodic save interval in minutes.',
+    demoBody: 'Save commits the diagram now. New unnamed diagrams prompt for a filename first; named diagrams save silently. Auto-Save sets periodic save cadence in minutes.',
   },
   'timeline-controls': {
     title: 'Timeline Controls',

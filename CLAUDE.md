@@ -638,7 +638,10 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 - `PredictionsPanel.test.tsx` — Prediction Sets: set CRUD, two-view navigation, prediction cards, conditions (SIR/Papero/Custom), outcomes, evidence, SIR/Papero linking
 
 **Utility tests (co-located in `utils/`):**
-- `dataCleanup.test.ts`, `noteVisibility.test.ts` (all 5 object types incl. Triangle + Family), `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`
+- `dataCleanup.test.ts`, `noteVisibility.test.ts` (all 5 object types incl. Triangle + Family), `personEventBundle.test.ts`, `saveButtonState.test.ts`, `siblingPosition.test.ts`, `voiceCommands.test.ts`, `dateFormatting.test.ts`
+
+**Reusable component tests:**
+- `DatePickerField.test.tsx` — partial date expansion, calendar picker toggle, disabled state
 
 **Data tests:**
 - `defaultDiagramState.test.ts`
@@ -734,6 +737,50 @@ When no title is supplied, EventModal defaults to `"Event"`.
 
 ---
 
+## File Operations — New / Save / Save As
+
+All file operations live in `useFileOperations.ts`. The key entry point for naming/saving is `triggerSaveAs`, defined in `DiagramEditor.tsx` and passed down as a dep.
+
+### Save flow
+
+```
+handleSave(forcePrompt?)
+  → if unnamed (fileName === FALLBACK_FILE_NAME) OR forcePrompt:
+      await triggerSaveAs(suggestedName)   ← asks for a name first
+  → else:
+      saveDiagramToCurrentTarget(...)      ← silently overwrites
+```
+
+### triggerSaveAs — two-tier strategy
+
+```
+triggerSaveAs(suggestedName)
+  → Chrome/Edge: window.showSaveFilePicker  ← native OS dialog (user picks folder + name)
+  → Firefox/Safari fallback: openSaveAsDialog  ← in-app name dialog (<SaveAsDialog>)
+  → AbortError (user cancelled): no-op
+```
+
+`SaveAsDialog` is rendered by `DiagramModals` and lives at `components/modals/SaveAsDialog.tsx`.
+
+### File > New — stale-closure fix
+
+`handleNewFile` resets state then awaits `triggerSaveAs`. Without a ref, the async callback would close over pre-reset state (saving the OLD diagram). The fix:
+
+```typescript
+// DiagramEditor.tsx — updated every render
+const saveDiagramToCurrentTargetRef = useRef(saveDiagramToCurrentTarget);
+saveDiagramToCurrentTargetRef.current = saveDiagramToCurrentTarget;
+
+// triggerSaveAs reads the ref at call-time, never a stale closure
+void saveDiagramToCurrentTargetRef.current({ ... });
+```
+
+### FALLBACK_FILE_NAME = `'newDiagram'`
+
+Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been saved. Any save of an unnamed diagram routes through `triggerSaveAs`.
+
+---
+
 ## Architecture: DiagramEditor.tsx
 
 **Refactoring complete.** Started at ~10,695 lines, now ~3,881 lines. Remaining bulk is legitimate coordinator code (state declarations, lifecycle effects, complex multi-step orchestration) that belongs in the top-level component.
@@ -764,39 +811,79 @@ When no title is supplied, EventModal defaults to `"Event"`.
 - `emotionalLineNormalization.ts` — normalizeEmotionalLine, normalizeEmotionalLines, buildDefaultTpl, normalizeTriangles
 - `emotionalPatternOptions.ts` — intensity labels, line style lookups
 - `personGeometry.ts` — node dimension calculations
-- `personEventBundle.ts` — event export bundle structures
+- `personEventBundle.ts` — event export bundle structures; `PersonEventBundle` and `TimelineJson` types + type guards
 - `partnershipUtils.ts` — family name derivation
 - `saveButtonState.ts` — save button visual state machine
 - `noteVisibility.ts` — note layer visibility predicates
-- `siblingPosition.ts` — Toman sibling position analysis
+- `siblingPosition.ts` — Toman sibling position analysis (`deriveSiblingPositionResult`, `getSiblingPositionLabel`, `getPositionOptionsForSex`, `parentMatchForRole`, `partnerForPerson`)
 - `dataCleanup.ts` — orphaned data removal
 - `dataNormalization.ts` — full diagram data migration
 - `dataImport.ts` — file parsing and import
 - `storage.ts` — localStorage/IndexedDB wrappers
+- `dateFormatting.ts` — `expandPartialDate` (expands partial YYYY, YYYY-MM to full ISO date) + date display helpers
+- `demoTour.ts` — generates guided demo tour steps from the current diagram state
+- `voiceCommands.ts` — parses voice/text input into `VoiceCommandOperation[]` for review and apply
 
 ### Components (`src/frontend/src/components/`):
 - `AppRibbon.tsx` — full toolbar/ribbon
 - `DiagramCanvas.tsx` — Stage + Layer with all Konva nodes, properties panel sidebar
-- `DiagramModals.tsx` — all 19 modal/panel components
+- `DiagramModals.tsx` — all modal/panel components (see full modal list below)
 - `EventCard.tsx` — event display card
 - `EventsSection.tsx` — events list/filter UI
 - `PropertiesPanel.tsx` — per-entity properties editor (person/partnership/EPL/family/papero tabs)
-- Canvas nodes: `PersonNode.tsx` (circle/square/triangle/hexagon shapes), `PartnershipNode.tsx`, `EmotionalLineNode.tsx`, `TriangleNode.tsx`, `ChildConnection.tsx`, `NoteNode.tsx`, `SiblingConflictOverlay.tsx`
 - `EventModal.tsx` — standalone event create/edit dialog
-- `sections/PersonNameSection.tsx` — person name fields (with AI Agent name help)
-- `sections/PersonDatesSection.tsx` — birth/death/gender dates and birth sex dropdown (incl. AI Agent)
-- `sections/PersonPaperoSection.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns with ? help
-- `sections/PersonSIRSection.tsx` — Self in Relationship: entry cards, inline add/edit form, HWDID help dialog
-- `modals/SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete categories with 5-level HWDID scales
-- `modals/FunctionalFactSettingsModal.tsx` — Functional Fact category management: Create/Edit/Delete simple name-only categories
-- `sections/PersonFOOSection.tsx` — FOO scales: emotional cutoff, family stability, family intactness
-- `modals/SessionCaptureDialog.tsx`
-- `modals/ClientProfileModal.tsx`
-- `modals/CoachThinkingModal.tsx`
-- `modals/EmotionalPatternModal.tsx`
-- `modals/SessionEventModal.tsx`
-- `modals/TimelineBoardModal.tsx`
+- `SessionNotesPanel.tsx` — session notes workspace (coach/client names, note capture)
+- `MultiPersonPropertiesPanel.tsx` — multi-select panel shown when multiple people are selected
 - `PredictionsPanel.tsx` — Prediction Sets: two-view UI (Set List + Active Set), If→Then prediction cards with SIR/Papero/Custom conditions, outcomes, and evidence tracking
+- `IdeasPanel.tsx` — freeform "Idea Log" scratchpad; text saved with the diagram via `ideasText` state
+- `DatePickerField.tsx` — reusable date input; accepts partial dates (YYYY, YYYY-MM) via `expandPartialDate`; has calendar-picker toggle button
+- `EventCreator.tsx` — **standalone** timeline JSON editor (rendered at `/creator` route, NOT part of the main diagram flow); loads/saves `TimelineJson` files, supports person lanes + inline event editing
+- `ContextMenu.tsx` — viewport-clamped right-click menu with sub-menu support
+
+**Canvas nodes (Konva):**
+- `PersonNode.tsx` — circle/square/triangle/hexagon (AI Agent) shapes
+- `PartnershipNode.tsx` — horizontal connector + marriage/relationship line
+- `EmotionalLineNode.tsx` — emotional pattern lines (fusion, distance, conflict, cutoff, projection, open-connection variants)
+- `TriangleNode.tsx` — triangle outline (clickable)
+- `TriangleFillNode.tsx` — triangle fill layer (separate Konva node for fill vs stroke)
+- `ChildConnection.tsx` — vertical/horizontal child connection lines
+- `FamilyCutoffArc.tsx` — renders cutoff arcs on a child connection line; arc count driven by the EPE event intensity (1–4 arcs)
+- `NoteNode.tsx` — draggable/resizable note overlay on the canvas
+- `SiblingConflictOverlay.tsx` — highlights sibling position conflicts between partners
+
+**Properties panel sections (`sections/`):**
+- `PersonNameSection.tsx` — first/last/maiden names; AI Agent shows "Agent Name" + hides maiden name
+- `PersonDatesSection.tsx` — birth/death/adoption/gender dates, birth sex dropdown (incl. AI Agent)
+- `PersonFormatSection.tsx` — person size (+/- controls) and foreground/border/background color pickers
+- `PersonSiblingSection.tsx` — Toman sibling position (three sub-tabs: Override, Position, Compatibility); uses `siblingPosition.ts` utils and `MATURITY_SCALE` from eventConstants
+- `PersonPaperoSection.tsx` — Papero Assessment: 5 categories, 16 topics, Level dropdowns with ? help
+- `PersonSIRSection.tsx` — Self in Relationship: entry cards, inline add/edit form, HWDID help dialog
+- `PersonFOOSection.tsx` — FOO scales: emotional cutoff, family stability, family intactness
+- `PartnershipPropertiesSection.tsx` — relationship type, status, dates, notes for PRL
+- `EPLPropertiesSection.tsx` — emotional pattern line properties (type, dates, intensity, notes, triangle notes)
+
+**Modals (`modals/`):**
+- `SessionCaptureDialog.tsx` — imports processed transcript data (SessionCaptureImportData)
+- `SessionEventModal.tsx` — event create/edit within session note context
+- `ClientProfileModal.tsx` — presenting issues and desired outcomes for client profile
+- `CoachThinkingModal.tsx` — coach's internal notes and conceptualization
+- `EmotionalPatternModal.tsx` — create/edit emotional pattern lines (type, persons, dates)
+- `TimelineBoardModal.tsx` — visual timeline board of events across persons
+- `SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete with 5-level HWDID scales
+- `FunctionalFactSettingsModal.tsx` — FF category management: Create/Edit/Delete (name only)
+- `IndicatorSettingsModal.tsx` — configure functional indicator definitions (icon, label, scale)
+- `SettingsListModal.tsx` — generic settings list manager (reused for various list settings)
+- `ImportModeDialog.tsx` — presents import strategy choices when loading a diagram file
+- `SaveAsDialog.tsx` — filename input for "Save As"; strips/re-adds `.json` extension automatically
+- `BackupRestoreDialog.tsx` — restore diagram from in-memory backup versions
+- `FileBackupListDialog.tsx` — browse and restore file-based backups
+- `DemoTourModal.tsx` — guided walkthrough overlay; step index driven by `demoTourStepIndex` state
+- `BuildDemoModal.tsx` — interactive tutorial for building a diagram step-by-step
+- `TrainingVideosModal.tsx` — embedded YouTube training video viewer
+- `HelpModal.tsx` — contextual help content viewer
+- `RibbonHelpModal.tsx` — context-sensitive help keyed by `ribbonHelpKey`
+- `ReadmeViewerModal.tsx` — renders the application README in-app
+- `VoiceInputModal.tsx` — voice command UI: mic toggle, command text, operations preview, apply/clear
 
 ### Static data (`src/frontend/src/data/`):
 - `defaultDiagramState.ts` — blank diagram starting state
