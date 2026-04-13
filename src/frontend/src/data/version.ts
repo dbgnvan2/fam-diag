@@ -1,3 +1,3 @@
 // Increment APP_VERSION for each release.
 // Format: v MAJOR.MINOR-MMDD-HH-MM  (build date/time in 24h, local time)
-export const APP_VERSION = 'v 1.77-0412-18-00';
+export const APP_VERSION = 'v 1.78-0412-18-38';
