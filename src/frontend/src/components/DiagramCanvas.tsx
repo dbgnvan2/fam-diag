@@ -40,6 +40,7 @@ import {
   shouldShowTriangleNote,
 } from '../utils/noteVisibility';
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
+import { APP_VERSION } from '../data/version';
 
 type MarqueeSelection = {
   active: boolean;
@@ -641,7 +642,8 @@ export default function DiagramCanvas({
           }}
         >
           <div style={{ fontSize: 18, fontWeight: 700, color: '#1f2f45' }}>
-            Family Diagram Maker
+            Family Diagram Maker{' '}
+            <span style={{ fontSize: 13, fontWeight: 400, color: '#6b7c93', letterSpacing: '0.01em' }}>{APP_VERSION}</span>
           </div>
           <div style={{ fontSize: 14, color: '#333' }}>
             {fileName || FALLBACK_FILE_NAME}
