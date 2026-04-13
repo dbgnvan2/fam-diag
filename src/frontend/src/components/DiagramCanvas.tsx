@@ -614,7 +614,7 @@ export default function DiagramCanvas({
         </div>
       )}
       <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', background: '#ffffff' }}>
         {isDemoFocusedCanvas && (
           <div
             style={{

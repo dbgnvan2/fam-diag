@@ -433,6 +433,8 @@ const DiagramEditor = () => {
   const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false);
   const saveAsOnConfirmRef = useRef<((name: string) => void) | null>(null);
   const [fileBackupEntries, setFileBackupEntries] = useState<FileBackupEntry[]>([]);
+  const [pendingReopenHandle, setPendingReopenHandle] = useState<any>(null);
+  const [pendingReopenName, setPendingReopenName] = useState<string>('');
   const fileBackupHandlesRef = useRef<Map<number, FileSystemFileHandle>>(new Map());
   const scrollHintShownRef = useRef(false);
   const [canvasScrollHintOpen, setCanvasScrollHintOpen] = useState(false);
@@ -2091,6 +2093,11 @@ useEffect(() => {
           (await ensureDiagramHandlePermission(restoredHandle, 'read'));
         if (hasReadPermission) {
           setDiagramFileHandle(restoredHandle);
+        } else {
+          // Permission not auto-granted (needs user gesture). Stash the handle
+          // so the File menu can offer a one-click "Reopen [filename]" shortcut.
+          setPendingReopenHandle(restoredHandle);
+          setPendingReopenName((restoredHandle.name as string) || '');
         }
       }
       // Restore backup directory handle — silently set if already granted,
@@ -3156,6 +3163,29 @@ useEffect(() => {
   });
 
 
+  // Re-opens the last-used file when browser permission wasn't auto-granted on
+  // startup. Called from the File menu "Reopen [filename]" item so the browser
+  // has a user-gesture context for requestPermission().
+  const handleReopenLastFile = useCallback(async () => {
+    if (!pendingReopenHandle) return;
+    const granted = await ensureDiagramHandlePermission(pendingReopenHandle, 'readwrite');
+    if (!granted) {
+      alert('Permission was not granted. Please use File > Open to locate the file manually.');
+      return;
+    }
+    try {
+      const file = await pendingReopenHandle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text) as Record<string, unknown>;
+      replaceDiagramState(data, pendingReopenHandle.name as string);
+      setDiagramFileHandle(pendingReopenHandle);
+      setPendingReopenHandle(null);
+      setPendingReopenName('');
+    } catch {
+      alert('Could not read the file. Please use File > Open to locate it manually.');
+    }
+  }, [pendingReopenHandle, ensureDiagramHandlePermission, replaceDiagramState, setDiagramFileHandle]);
+
   const handleCanvasScrollHint = () => {
     if (scrollHintShownRef.current) return;
     scrollHintShownRef.current = true;
@@ -4146,6 +4176,8 @@ useEffect(() => {
             showSiblingConflicts={showSiblingConflicts}
             setShowSiblingConflicts={setShowSiblingConflicts}
             handleNewFile={handleNewFile}
+            pendingReopenName={pendingReopenName}
+            handleReopenLastFile={handleReopenLastFile}
             handleLoadDemoDiagram={handleLoadDemoDiagram}
             handleOpenFilePicker={handleOpenFilePicker}
             handleImportDataPicker={handleImportDataPicker}

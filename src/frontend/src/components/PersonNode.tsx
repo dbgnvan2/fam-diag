@@ -569,7 +569,7 @@ const PersonNode = ({
             width={shapeSize}
             align="center"
             fontSize={12}
-            fill={textColor}
+            fill="#333333"
             listening={false}
           />
         )}
@@ -581,7 +581,7 @@ const PersonNode = ({
             width={shapeSize}
             align="center"
             fontSize={12}
-            fill={textColor}
+            fill="#333333"
             listening={false}
           />
         )}

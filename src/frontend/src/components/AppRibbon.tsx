@@ -70,6 +70,8 @@ export interface AppRibbonProps {
 
   // Handlers
   handleNewFile: () => void;
+  pendingReopenName?: string;
+  handleReopenLastFile?: () => void;
   handleLoadDemoDiagram: () => void;
   handleOpenFilePicker: () => void;
   handleImportDataPicker: () => void;
@@ -153,6 +155,8 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   showSiblingConflicts,
   setShowSiblingConflicts,
   handleNewFile,
+  pendingReopenName,
+  handleReopenLastFile,
   handleLoadDemoDiagram,
   handleOpenFilePicker,
   handleImportDataPicker,
@@ -209,6 +213,9 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   };
   const fileMenuItems = [
     { label: 'New', action: handleNewFile },
+    ...(pendingReopenName && handleReopenLastFile
+      ? [{ label: `Reopen: ${pendingReopenName}`, action: handleReopenLastFile }]
+      : []),
     { label: 'Load Demo Diagram', action: handleLoadDemoDiagram },
     { label: 'Open', action: handleOpenFilePicker },
     { label: 'Import Data', action: handleImportDataPicker },
