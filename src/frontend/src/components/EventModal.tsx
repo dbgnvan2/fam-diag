@@ -105,8 +105,11 @@ const EventModal = ({
 
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
-  const categoryOptions = eventType === 'NODAL' && nodalCategoryNames.length > 0
-    ? nodalCategoryNames
+  const categoryOptions = eventType === 'NODAL'
+    ? [
+        ...EVENT_CATEGORIES.NODAL,
+        ...nodalCategoryNames.filter((n) => !EVENT_CATEGORIES.NODAL.includes(n)),
+      ]
     : eventType === 'FF' && functionalFactCategoryNames.length > 0
       ? functionalFactCategoryNames
       : EVENT_CATEGORIES[eventType] || [];

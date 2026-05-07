@@ -215,6 +215,35 @@ describe('EventModal', () => {
     expect(subtypeInput.tagName).toBe('INPUT');
   });
 
+  it('NODAL: always shows built-in defaults (Birth, Death, Marriage) even when custom categories exist', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        nodalCategoryNames={['Job Change', 'House Move']}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
+      />
+    );
+    expect(screen.getByRole('option', { name: 'Birth' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Death' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Marriage' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Separation' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Divorce' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Job Change' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'House Move' })).toBeInTheDocument();
+  });
+
+  it('NODAL: deduplicates custom categories that match built-in defaults', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        nodalCategoryNames={['Birth', 'Job Change']}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
+      />
+    );
+    expect(screen.getAllByRole('option', { name: 'Birth' })).toHaveLength(1);
+    expect(screen.getByRole('option', { name: 'Job Change' })).toBeInTheDocument();
+  });
+
   // ── SYMPTOM ──────────────────────────────────────────────────────────────────
 
   it('SYMPTOM: shows Notes label (not Observations)', () => {
