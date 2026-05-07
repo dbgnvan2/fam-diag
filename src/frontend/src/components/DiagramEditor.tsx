@@ -70,7 +70,6 @@ import {
   parseStoredUserSettings,
   parseStoredArraySetting,
   parseStoredIndicatorDefinitions,
-  sortLabelsAZ,
   persistDiagramFileHandle,
   restoreDiagramFileHandle,
   rotateDiagramBackups,
@@ -523,14 +522,6 @@ const DiagramEditor = () => {
   const [addFamilyModalOpen, setAddFamilyModalOpen] = useState(false);
   const [addFamilyDraft, setAddFamilyDraft] = useState<AddFamilyDraft | null>(null);
   const [addFamilyPosition, setAddFamilyPosition] = useState<{ x: number; y: number } | null>(null);
-  const sortedRelationshipTypes = useMemo(
-    () => sortLabelsAZ(relationshipTypes),
-    [relationshipTypes]
-  );
-  const sortedRelationshipStatuses = useMemo(
-    () => sortLabelsAZ(relationshipStatuses),
-    [relationshipStatuses]
-  );
   const multiSelectedPeople = useMemo(
     () => people.filter((person) => selectedPeopleIds.includes(person.id)),
     [people, selectedPeopleIds]
@@ -4517,14 +4508,12 @@ useEffect(() => {
             setEventCategories={setEventCategories}
             relationshipTypeSettingsOpen={relationshipTypeSettingsOpen}
             setRelationshipTypeSettingsOpen={setRelationshipTypeSettingsOpen}
-            sortedRelationshipTypes={sortedRelationshipTypes}
             relationshipTypeDraft={relationshipTypeDraft}
             setRelationshipTypeDraft={setRelationshipTypeDraft}
             setRelationshipTypes={setRelationshipTypes}
             relationshipTypes={relationshipTypes}
             relationshipStatusSettingsOpen={relationshipStatusSettingsOpen}
             setRelationshipStatusSettingsOpen={setRelationshipStatusSettingsOpen}
-            sortedRelationshipStatuses={sortedRelationshipStatuses}
             relationshipStatusDraft={relationshipStatusDraft}
             setRelationshipStatusDraft={setRelationshipStatusDraft}
             setRelationshipStatuses={setRelationshipStatuses}
@@ -4553,6 +4542,7 @@ useEffect(() => {
             updateFunctionalIndicatorUseLetter={updateFunctionalIndicatorUseLetter}
             clearFunctionalIndicatorIcon={clearFunctionalIndicatorIcon}
             removeFunctionalIndicatorDefinition={removeFunctionalIndicatorDefinition}
+            reorderFunctionalIndicators={setFunctionalIndicatorDefinitions}
             sirSettingsOpen={sirSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}
             sirCategories={sirCategories}

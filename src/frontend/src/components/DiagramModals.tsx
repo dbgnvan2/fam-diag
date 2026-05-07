@@ -43,7 +43,6 @@ import ReadmeViewerModal from './modals/ReadmeViewerModal';
 import SessionEventModal from './modals/SessionEventModal';
 import IdeasPanel from './IdeasPanel';
 import SaveAsDialog from './modals/SaveAsDialog';
-import { sortLabelsAZ } from '../utils/storage';
 import readmeContent from '../../../../README.md?raw';
 
 type TrainingVideo = { id: string; title: string; duration: string; topic: string; embedUrl: string; url: string };
@@ -108,7 +107,6 @@ interface DiagramModalsProps {
   // Relationship types SettingsListModal
   relationshipTypeSettingsOpen: boolean;
   setRelationshipTypeSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  sortedRelationshipTypes: string[];
   relationshipTypeDraft: string;
   setRelationshipTypeDraft: Dispatch<SetStateAction<string>>;
   setRelationshipTypes: Dispatch<SetStateAction<string[]>>;
@@ -117,7 +115,6 @@ interface DiagramModalsProps {
   // Relationship statuses SettingsListModal
   relationshipStatusSettingsOpen: boolean;
   setRelationshipStatusSettingsOpen: Dispatch<SetStateAction<boolean>>;
-  sortedRelationshipStatuses: string[];
   relationshipStatusDraft: string;
   setRelationshipStatusDraft: Dispatch<SetStateAction<string>>;
   setRelationshipStatuses: Dispatch<SetStateAction<string[]>>;
@@ -139,6 +136,7 @@ interface DiagramModalsProps {
   updateFunctionalIndicatorUseLetter: (id: string, useLetter: boolean) => void;
   clearFunctionalIndicatorIcon: (id: string) => void;
   removeFunctionalIndicatorDefinition: (id: string) => void;
+  reorderFunctionalIndicators: (defs: FunctionalIndicatorDefinition[]) => void;
 
   // SIRSettingsModal
   sirSettingsOpen: boolean;
@@ -301,14 +299,12 @@ export default function DiagramModals({
   setEventCategories,
   relationshipTypeSettingsOpen,
   setRelationshipTypeSettingsOpen,
-  sortedRelationshipTypes,
   relationshipTypeDraft,
   setRelationshipTypeDraft,
   setRelationshipTypes,
   relationshipTypes,
   relationshipStatusSettingsOpen,
   setRelationshipStatusSettingsOpen,
-  sortedRelationshipStatuses,
   relationshipStatusDraft,
   setRelationshipStatusDraft,
   setRelationshipStatuses,
@@ -328,6 +324,7 @@ export default function DiagramModals({
   updateFunctionalIndicatorUseLetter,
   clearFunctionalIndicatorIcon,
   removeFunctionalIndicatorDefinition,
+  reorderFunctionalIndicators,
   sirSettingsOpen,
   setSirSettingsOpen,
   sirCategories,
@@ -487,7 +484,7 @@ export default function DiagramModals({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         title="Event Categories"
-        description="Default categories are shipped with the app. You can add categories, but categories cannot be deleted."
+        description="Default categories are shipped with the app. You can add categories, but categories cannot be deleted. Drag or use ▲/▼ to reorder."
         zIndex={2000}
         items={eventCategories}
         draft={settingsDraft}
@@ -501,14 +498,15 @@ export default function DiagramModals({
           }
           setSettingsDraft('');
         }}
+        onReorder={setEventCategories}
       />
       <SettingsListModal
         open={relationshipTypeSettingsOpen}
         onClose={() => setRelationshipTypeSettingsOpen(false)}
         title="Relationship Categories"
-        description="Add partnership relationship categories used in the Properties panel. Existing categories cannot be deleted here."
+        description="Add partnership relationship categories used in the Properties panel. Drag or use ▲/▼ to reorder."
         zIndex={2020}
-        items={sortedRelationshipTypes}
+        items={relationshipTypes}
         draft={relationshipTypeDraft}
         draftPlaceholder="Add relationship category"
         onDraftChange={setRelationshipTypeDraft}
@@ -516,20 +514,21 @@ export default function DiagramModals({
           const trimmed = relationshipTypeDraft.trim();
           if (!trimmed) return;
           if (!relationshipTypes.includes(trimmed)) {
-            setRelationshipTypes(sortLabelsAZ([...relationshipTypes, trimmed]));
+            setRelationshipTypes([...relationshipTypes, trimmed]);
           }
           setRelationshipTypeDraft('');
         }}
         onDelete={(item) => setRelationshipTypes((prev) => prev.filter((entry) => entry !== item))}
+        onReorder={setRelationshipTypes}
         formatItem={(item) => item.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
       />
       <SettingsListModal
         open={relationshipStatusSettingsOpen}
         onClose={() => setRelationshipStatusSettingsOpen(false)}
         title="Relationship Statuses"
-        description="Add partnership relationship statuses used in the Properties panel. Existing statuses cannot be deleted here."
+        description="Add partnership relationship statuses used in the Properties panel. Drag or use ▲/▼ to reorder."
         zIndex={2030}
-        items={sortedRelationshipStatuses}
+        items={relationshipStatuses}
         draft={relationshipStatusDraft}
         draftPlaceholder="Add relationship status"
         onDraftChange={setRelationshipStatusDraft}
@@ -537,11 +536,12 @@ export default function DiagramModals({
           const trimmed = relationshipStatusDraft.trim();
           if (!trimmed) return;
           if (!relationshipStatuses.includes(trimmed)) {
-            setRelationshipStatuses(sortLabelsAZ([...relationshipStatuses, trimmed]));
+            setRelationshipStatuses([...relationshipStatuses, trimmed]);
           }
           setRelationshipStatusDraft('');
         }}
         onDelete={(item) => setRelationshipStatuses((prev) => prev.filter((entry) => entry !== item))}
+        onReorder={setRelationshipStatuses}
         formatItem={(item) => item.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
       />
       <IndicatorSettingsModal
@@ -560,6 +560,7 @@ export default function DiagramModals({
         onUpdateUseLetter={updateFunctionalIndicatorUseLetter}
         onClearIcon={clearFunctionalIndicatorIcon}
         onRemove={removeFunctionalIndicatorDefinition}
+        onReorder={reorderFunctionalIndicators}
       />
       <SIRSettingsModal
         open={sirSettingsOpen}

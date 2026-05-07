@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { FunctionalFactCategoryDefinition } from '../../types';
+import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
 
 interface FunctionalFactSettingsModalProps {
   open: boolean;
@@ -18,8 +19,43 @@ const MODAL_Z = 12000;
 const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: FunctionalFactSettingsModalProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   if (!open) return null;
+
+  const handleMoveUp = (index: number) => onSave(moveItemUp(categories, index));
+  const handleMoveDown = (index: number) => onSave(moveItemDown(categories, index));
+  const handleDragStart = (index: number) => (e: React.DragEvent) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setOverIndex(index);
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const handleDrop = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      onSave(reorderItem(categories, draggedIndex, index));
+    }
+    setDraggedIndex(null);
+    setOverIndex(null);
+  };
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setOverIndex(null);
+  };
+
+  const arrowBtn: React.CSSProperties = {
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    padding: '0 4px',
+    fontSize: 14,
+  };
+  const arrowBtnDisabled: React.CSSProperties = { ...arrowBtn, opacity: 0.25, cursor: 'not-allowed' };
 
   const startAdd = () => {
     setEditingId('__new__');
@@ -85,22 +121,53 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
         </p>
 
         {/* Existing categories */}
-        {categories.map((cat) => (
+        {categories.map((cat, index) => (
           <div
             key={cat.id}
+            draggable={editingId === null}
+            onDragStart={handleDragStart(index)}
+            onDragOver={handleDragOver(index)}
+            onDrop={handleDrop(index)}
+            onDragEnd={handleDragEnd}
             style={{
               marginTop: 8,
-              border: '1px solid #d4dae5',
+              border: overIndex === index && draggedIndex !== index ? '2px solid #4b68a6' : '1px solid #d4dae5',
               borderRadius: 8,
               padding: '8px 10px',
+              opacity: draggedIndex === index ? 0.5 : 1,
+              cursor: editingId === null ? 'grab' : 'default',
+              background: draggedIndex === index ? '#f5f5f5' : 'transparent',
             }}
           >
             {editingId === cat.id ? (
               renderEditForm()
             ) : (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{cat.name}</div>
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
+                  <span aria-hidden="true" title="Drag to reorder" style={{ color: '#999', userSelect: 'none' }}>⋮⋮</span>
+                  {cat.name}
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    aria-label={`Move ${cat.name} up`}
+                    title="Move up"
+                    onClick={() => handleMoveUp(index)}
+                    disabled={index === 0}
+                    style={index === 0 ? arrowBtnDisabled : arrowBtn}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${cat.name} down`}
+                    title="Move down"
+                    onClick={() => handleMoveDown(index)}
+                    disabled={index === categories.length - 1}
+                    style={index === categories.length - 1 ? arrowBtnDisabled : arrowBtn}
+                  >
+                    ▼
+                  </button>
                   <button
                     type="button"
                     onClick={() => startEdit(cat)}

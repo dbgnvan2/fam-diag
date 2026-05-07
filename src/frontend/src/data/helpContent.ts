@@ -152,8 +152,8 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   'event-categories': {
     title: 'Settings Menu',
     demoTitle: 'Ribbon · Settings Menu',
-    body: 'Event Categories, Relationship Types, Relationship Statuses, Symptom Categories, SIR Categories, Functional Fact Categories, Notes Layer, Sibling Conflicts, Auto-Save, and Backup settings.',
-    demoBody: 'Event Categories, Relationship Types, Relationship Statuses, Symptom Categories, SIR Categories, Functional Fact Categories, Notes Layer, Sibling Conflicts, Auto-Save, and Backup settings.',
+    body: 'Event Categories, Relationship Types, Relationship Statuses, Symptom Categories, SIR Categories, Functional Fact Categories, Nodal Event Categories, Notes Layer, Sibling Conflicts, Auto-Save, and Backup settings. Items in every list can be reordered by dragging or using the ▲/▼ arrows.',
+    demoBody: 'Settings lists are user-ordered: drag items or use ▲/▼ arrows to put them in the order you want. The order you set is the order shown in dropdowns elsewhere in the app.',
   },
   'functional-indicators': {
     title: 'Symptom Categories',

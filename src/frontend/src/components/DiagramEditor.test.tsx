@@ -148,7 +148,7 @@ describe('DiagramEditor', () => {
         expect(screen.getByRole('button', { name: 'Timeline Event Creator' })).toBeInTheDocument();
     });
 
-    it('allows deleting and alphabetically displaying relationship settings values', () => {
+    it('appends new relationship settings values in insertion order and supports deletion', () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /settings ▾/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Relationship Categories' }));
@@ -169,7 +169,8 @@ describe('DiagramEditor', () => {
         const zetaIndex = labels.findIndex((text) => /Zeta/.test(text));
         expect(alphaIndex).toBeGreaterThan(-1);
         expect(zetaIndex).toBeGreaterThan(-1);
-        expect(alphaIndex).toBeLessThan(zetaIndex);
+        // Lists are now manually ordered (no auto-sort) — zeta was added first, alpha second
+        expect(zetaIndex).toBeLessThan(alphaIndex);
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Delete' }).find((button) =>
             button.closest('li')?.textContent?.includes('Alpha')

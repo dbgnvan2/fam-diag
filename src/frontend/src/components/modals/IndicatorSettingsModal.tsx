@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { FunctionalIndicatorDefinition, SymptomGroup } from '../../types';
 
 interface IndicatorSettingsModalProps {
@@ -15,6 +16,7 @@ interface IndicatorSettingsModalProps {
   onUpdateUseLetter: (id: string, useLetter: boolean) => void;
   onClearIcon: (id: string) => void;
   onRemove: (id: string) => void;
+  onReorder: (definitions: FunctionalIndicatorDefinition[]) => void;
   onSaveAsDefault: (definitions: FunctionalIndicatorDefinition[]) => void;
 }
 
@@ -35,9 +37,67 @@ const IndicatorSettingsModal = ({
   onUpdateUseLetter,
   onClearIcon,
   onRemove,
+  onReorder,
   onSaveAsDefault,
 }: IndicatorSettingsModalProps) => {
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
   if (!open) return null;
+
+  const swapByIds = (idA: string, idB: string) => {
+    const indexA = definitions.findIndex((d) => d.id === idA);
+    const indexB = definitions.findIndex((d) => d.id === idB);
+    if (indexA === -1 || indexB === -1) return;
+    const next = [...definitions];
+    [next[indexA], next[indexB]] = [next[indexB], next[indexA]];
+    onReorder(next);
+  };
+
+  const moveDefUp = (def: FunctionalIndicatorDefinition, groupKey: SymptomGroup) => {
+    const fullIndex = definitions.findIndex((d) => d.id === def.id);
+    let prevId: string | null = null;
+    for (let i = fullIndex - 1; i >= 0; i--) {
+      if ((definitions[i].group || 'physical') === groupKey) {
+        prevId = definitions[i].id;
+        break;
+      }
+    }
+    if (prevId) swapByIds(def.id, prevId);
+  };
+  const moveDefDown = (def: FunctionalIndicatorDefinition, groupKey: SymptomGroup) => {
+    const fullIndex = definitions.findIndex((d) => d.id === def.id);
+    let nextId: string | null = null;
+    for (let i = fullIndex + 1; i < definitions.length; i++) {
+      if ((definitions[i].group || 'physical') === groupKey) {
+        nextId = definitions[i].id;
+        break;
+      }
+    }
+    if (nextId) swapByIds(def.id, nextId);
+  };
+  const dropOn = (targetId: string, groupKey: SymptomGroup) => {
+    if (!draggedId || draggedId === targetId) return;
+    const dragged = definitions.find((d) => d.id === draggedId);
+    if (!dragged) return;
+    if ((dragged.group || 'physical') !== groupKey) return; // only reorder within same group
+    const fromIndex = definitions.findIndex((d) => d.id === draggedId);
+    const toIndex = definitions.findIndex((d) => d.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const next = [...definitions];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    onReorder(next);
+  };
+
+  const arrowBtn: React.CSSProperties = {
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    padding: '0 4px',
+    fontSize: 14,
+  };
+  const arrowBtnDisabled: React.CSSProperties = { ...arrowBtn, opacity: 0.25, cursor: 'not-allowed' };
 
   return (
     <div
@@ -102,20 +162,48 @@ const IndicatorSettingsModal = ({
                 </div>
               ) : (
                 <ul style={{ listStyle: 'none', padding: '8px 12px', margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {groupDefs.map((def) => (
+                  {groupDefs.map((def, groupIndex) => (
                     <li
                       key={def.id}
+                      draggable
+                      onDragStart={(e) => { setDraggedId(def.id); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragOver={(e) => { e.preventDefault(); setOverId(def.id); e.dataTransfer.dropEffect = 'move'; }}
+                      onDrop={(e) => { e.preventDefault(); dropOn(def.id, group.key); setDraggedId(null); setOverId(null); }}
+                      onDragEnd={() => { setDraggedId(null); setOverId(null); }}
                       style={{
-                        border: '1px solid #e0e0e0',
+                        border: overId === def.id && draggedId !== def.id ? '2px solid #4b68a6' : '1px solid #e0e0e0',
                         borderRadius: 6,
                         padding: 8,
-                        background: '#fdfdfd',
+                        background: draggedId === def.id ? '#f5f5f5' : '#fdfdfd',
+                        opacity: draggedId === def.id ? 0.5 : 1,
+                        cursor: 'grab',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 6,
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span aria-hidden="true" title="Drag to reorder" style={{ color: '#999', userSelect: 'none' }}>⋮⋮</span>
+                        <button
+                          type="button"
+                          aria-label={`Move ${def.label} up`}
+                          title="Move up"
+                          onClick={() => moveDefUp(def, group.key)}
+                          disabled={groupIndex === 0}
+                          style={groupIndex === 0 ? arrowBtnDisabled : arrowBtn}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Move ${def.label} down`}
+                          title="Move down"
+                          onClick={() => moveDefDown(def, group.key)}
+                          disabled={groupIndex === groupDefs.length - 1}
+                          style={groupIndex === groupDefs.length - 1 ? arrowBtnDisabled : arrowBtn}
+                        >
+                          ▼
+                        </button>
                         {/* Icon preview */}
                         <div
                           style={{
