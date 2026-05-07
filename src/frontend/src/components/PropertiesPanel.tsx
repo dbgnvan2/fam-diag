@@ -22,6 +22,11 @@ import {
   getSiblingPositionOptions,
 } from '../utils/siblingPosition';
 import { computeDefaultFamilyName } from '../utils/partnershipUtils';
+import {
+  synthesizePersonDateEvents,
+  synthesizePartnershipDateEvents,
+  synthesizeEmotionalLineDateEvents,
+} from '../utils/syntheticDateEvents';
 import PersonNameSection from './sections/PersonNameSection';
 import PersonDatesSection from './sections/PersonDatesSection';
 import PersonFormatSection from './sections/PersonFormatSection';
@@ -1599,30 +1604,72 @@ const PropertiesPanel = ({
   // relationship/EPL where they are a partner. Excludes triangle and family
   // events. Older partnership events get cloned to person.events with id
   // suffix `-p1` / `-p2`, so we dedupe by checking for that prefix.
+  // Also synthesizes phantom events for raw date fields (birthDate,
+  // deathDate, partnership marriage/divorce dates, EPL start/end) when no
+  // matching real event exists, so what's on the timeline matches what's
+  // listed in the Events tab.
   const getDisplayEvents = useCallback((): EmotionalProcessEvent[] => {
-    if (!isPerson) return getEvents();
+    if (!isPerson) {
+      const ownEvents = getEvents();
+      if (isPartnership) {
+        const partnership = selectedItem as Partnership;
+        const partner1 = people.find((p) => p.id === partnership.partner1_id);
+        const partner2 = people.find((p) => p.id === partnership.partner2_id);
+        return [
+          ...ownEvents,
+          ...synthesizePartnershipDateEvents(partnership, partner1?.name, partner2?.name),
+        ];
+      }
+      if (isEmotionalLine) {
+        const line = selectedItem as EmotionalLine;
+        const person1 = people.find((p) => p.id === line.person1_id);
+        const person2 = people.find((p) => p.id === line.person2_id);
+        return [
+          ...ownEvents,
+          ...synthesizeEmotionalLineDateEvents(line, person1?.name, person2?.name),
+        ];
+      }
+      return ownEvents;
+    }
     const person = selectedItem as Person;
     const ownEvents = person.events || [];
     const ownIds = new Set(ownEvents.map((e) => e.id));
     const isAlreadyCloned = (sourceId: string) =>
       ownIds.has(`${sourceId}-p1`) || ownIds.has(`${sourceId}-p2`);
     const extra: EmotionalProcessEvent[] = [];
+    // Synthesized birth/death/adoption from date fields
+    extra.push(...synthesizePersonDateEvents(person));
+    // Real events from partnerships the person is part of
     partnerships.forEach((p) => {
       if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;
+      const partner1 = people.find((q) => q.id === p.partner1_id);
+      const partner2 = people.find((q) => q.id === p.partner2_id);
       (p.events || []).forEach((event) => {
         if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
+      // Synthesized partnership-date events
+      synthesizePartnershipDateEvents(p, partner1?.name, partner2?.name).forEach((e) => {
+        if (ownIds.has(e.id)) return;
+        extra.push(e);
+      });
     });
+    // Real + synthesized EPL events from EPLs the person is part of
     allEmotionalLines.forEach((line) => {
       if (line.person1_id !== person.id && line.person2_id !== person.id) return;
+      const p1 = people.find((q) => q.id === line.person1_id);
+      const p2 = people.find((q) => q.id === line.person2_id);
       (line.events || []).forEach((event) => {
         if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
+      synthesizeEmotionalLineDateEvents(line, p1?.name, p2?.name).forEach((e) => {
+        if (ownIds.has(e.id)) return;
+        extra.push(e);
+      });
     });
     return [...ownEvents, ...extra];
-  }, [isPerson, selectedItem, partnerships, allEmotionalLines, getEvents]);
+  }, [isPerson, isPartnership, isEmotionalLine, selectedItem, people, partnerships, allEmotionalLines, getEvents]);
   const resolveEventClass = useCallback(
     (): EventClass => (isEmotionalLine ? 'emotional-pattern' : isPartnership ? 'relationship' : 'individual'),
     [isEmotionalLine, isPartnership]
