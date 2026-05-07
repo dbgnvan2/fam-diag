@@ -872,6 +872,7 @@ Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been sa
 - `TimelineBoardModal.tsx` — visual timeline board of events across persons
 - `SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete with 5-level HWDID scales
 - `FunctionalFactSettingsModal.tsx` — FF category management: Create/Edit/Delete (name only)
+- `NodalCategorySettingsModal.tsx` — Nodal Event category management: Create/Edit/Delete custom Nodal categories that appear alongside the built-in defaults (Birth, Death, Marriage, etc.) in person right-click "Add > Nodal Event" submenus
 - `IndicatorSettingsModal.tsx` — configure functional indicator definitions (icon, label, scale)
 - `SettingsListModal.tsx` — generic settings list manager (reused for various list settings)
 - `ImportModeDialog.tsx` — presents import strategy choices when loading a diagram file

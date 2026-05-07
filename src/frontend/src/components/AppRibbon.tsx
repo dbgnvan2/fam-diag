@@ -55,6 +55,7 @@ export interface AppRibbonProps {
   setIndicatorSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSirSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFfSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setNodalSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setIdeasOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPredictionsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -142,6 +143,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setIndicatorSettingsOpen,
   setSirSettingsOpen,
   setFfSettingsOpen,
+  setNodalSettingsOpen,
   setIdeasOpen,
   setPredictionsOpen,
   setSessionNotesOpen,
@@ -244,6 +246,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Symptom Categories', action: () => setIndicatorSettingsOpen(true) },
     { label: 'Self in Relationship Categories', action: () => setSirSettingsOpen(true) },
     { label: 'Functional Fact Categories', action: () => setFfSettingsOpen(true) },
+    { label: 'Nodal Event Categories', action: () => setNodalSettingsOpen(true) },
     {
       label: `Notes Layer: ${notesLayerEnabled ? 'On' : 'Off'}`,
       action: () => setNotesLayerEnabled((prev) => !prev),

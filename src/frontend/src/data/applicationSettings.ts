@@ -1,4 +1,4 @@
-import type { FunctionalIndicatorDefinition, FunctionalFactCategoryDefinition, SIRCategoryDefinition } from '../types';
+import type { FunctionalIndicatorDefinition, FunctionalFactCategoryDefinition, SIRCategoryDefinition, NodalCategoryDefinition } from '../types';
 import applicationSettingsJson from './applicationSettings.json';
 import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
@@ -9,6 +9,7 @@ export type ApplicationSettings = {
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
   functionalFactCategories: FunctionalFactCategoryDefinition[];
+  nodalCategories: NodalCategoryDefinition[];
   autoSaveMinutes: number;
 };
 
@@ -146,6 +147,16 @@ const FALLBACK_SETTINGS: ApplicationSettings = {
     },
   ],
   functionalFactCategories: [],
+  nodalCategories: [
+    { id: 'nodal-job', name: 'Job Change' },
+    { id: 'nodal-illness', name: 'Illness' },
+    { id: 'nodal-move', name: 'House Move' },
+    { id: 'nodal-education', name: 'Education' },
+    { id: 'nodal-relocation', name: 'Relocation' },
+    { id: 'nodal-retirement', name: 'Retirement' },
+    { id: 'nodal-hospitalization', name: 'Hospitalization' },
+    { id: 'nodal-loss', name: 'Loss' },
+  ],
   autoSaveMinutes: 1,
 };
 
@@ -163,6 +174,14 @@ const sanitizeFunctionalFactCategories = (
 ): FunctionalFactCategoryDefinition[] => {
   if (!Array.isArray(value)) return fallback;
   return value as FunctionalFactCategoryDefinition[];
+};
+
+const sanitizeNodalCategories = (
+  value: unknown,
+  fallback: NodalCategoryDefinition[]
+): NodalCategoryDefinition[] => {
+  if (!Array.isArray(value)) return fallback;
+  return value as NodalCategoryDefinition[];
 };
 
 export const normalizeApplicationSettings = (value: unknown): ApplicationSettings => {
@@ -189,6 +208,10 @@ export const normalizeApplicationSettings = (value: unknown): ApplicationSetting
       typed?.functionalFactCategories,
       FALLBACK_SETTINGS.functionalFactCategories
     ),
+    nodalCategories: sanitizeNodalCategories(
+      typed?.nodalCategories,
+      FALLBACK_SETTINGS.nodalCategories
+    ),
     autoSaveMinutes: toPositiveNumber(
       typed?.autoSaveMinutes,
       FALLBACK_SETTINGS.autoSaveMinutes
@@ -206,6 +229,7 @@ const productDefaultSettingsSource = (() => {
     functionalIndicatorDefinitions: typed.functionalIndicatorDefinitions,
     sirCategories: typed.sirCategories,
     functionalFactCategories: typed.functionalFactCategories,
+    nodalCategories: typed.nodalCategories,
     autoSaveMinutes: typed.autoSaveMinutes,
   };
 })();

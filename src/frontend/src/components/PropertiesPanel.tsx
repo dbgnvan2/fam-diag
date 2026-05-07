@@ -7,6 +7,7 @@ import type {
   FunctionalIndicatorDefinition,
   SIRCategoryDefinition,
   FunctionalFactCategoryDefinition,
+  NodalCategoryDefinition,
   EventClass,
   EventType,
   EventAnchorType,
@@ -336,6 +337,7 @@ interface PropertiesPanelProps {
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
   functionalFactCategories?: FunctionalFactCategoryDefinition[];
+  nodalCategories?: NodalCategoryDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   onUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
@@ -382,6 +384,7 @@ const PropertiesPanel = ({
   functionalIndicatorDefinitions,
   sirCategories,
   functionalFactCategories = [],
+  nodalCategories = [],
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
@@ -2863,6 +2866,7 @@ const PropertiesPanel = ({
           otherPersonOptions={otherPersonOptions}
           eventCategories={eventCategories}
           functionalFactCategoryNames={functionalFactCategories.map((c) => c.name)}
+          nodalCategoryNames={nodalCategories.map((c) => c.name)}
           symptomTypeOptions={symptomTypeOptions}
           resolvedEventClass={resolveEventClass()}
           modalTitle={eventModalTitle}

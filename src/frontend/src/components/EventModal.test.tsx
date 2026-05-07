@@ -51,6 +51,30 @@ describe('EventModal', () => {
     vi.clearAllMocks();
   });
 
+  it('allows editing startDate independently of date field', async () => {
+    const onChange = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        eventDraft={makeDraft({ startDate: '2024-01-01', date: '2024-01-01' })}
+        onChange={onChange}
+      />
+    );
+
+    // Get the start date input field by its id
+    const startInput = document.getElementById('eventStartDate') as HTMLInputElement;
+    expect(startInput).toBeInTheDocument();
+    expect(startInput.value).toBe('2024-01-01');
+
+    // Edit the start date field
+    fireEvent.change(startInput, { target: { value: '2025-06-15' } });
+    fireEvent.blur(startInput);
+
+    // Verify onChange was called with the new startDate
+    // Note: only startDate is updated by the field; the save function will sync both
+    expect(onChange).toHaveBeenCalledWith('startDate', '2025-06-15');
+  });
+
   it('shows subtype dropdown with correct options for FAMILY + Triangles', async () => {
     render(
       <EventModal

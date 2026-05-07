@@ -44,6 +44,7 @@ export interface EventModalProps {
   otherPersonOptions: string[];
   eventCategories: string[];
   functionalFactCategoryNames?: string[];
+  nodalCategoryNames?: string[];
   symptomTypeOptions: string[];
   resolvedEventClass: EventClass;
   lockEventType?: boolean;
@@ -64,6 +65,7 @@ const EventModal = ({
   otherPersonOptions,
   symptomTypeOptions,
   functionalFactCategoryNames = [],
+  nodalCategoryNames = [],
   lockEventType = false,
   modalTitle,
   onChange,
@@ -103,9 +105,11 @@ const EventModal = ({
 
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
-  const categoryOptions = eventType === 'FF' && functionalFactCategoryNames.length > 0
-    ? functionalFactCategoryNames
-    : EVENT_CATEGORIES[eventType] || [];
+  const categoryOptions = eventType === 'NODAL' && nodalCategoryNames.length > 0
+    ? nodalCategoryNames
+    : eventType === 'FF' && functionalFactCategoryNames.length > 0
+      ? functionalFactCategoryNames
+      : EVENT_CATEGORIES[eventType] || [];
 
   // On mount: if category or subtype is invalid for the current eventType, auto-correct.
   // This handles editing old events that have stale/wrong category values.
@@ -334,7 +338,6 @@ const EventModal = ({
                 placeholder="YYYY-MM-DD"
                 onChange={(e) => {
                   onChange('startDate', e.target.value);
-                  onChange('date', e.target.value);
                 }}
                 buttonLabel="Select start"
               />

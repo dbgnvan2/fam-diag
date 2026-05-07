@@ -115,6 +115,11 @@ export type FunctionalFactCategoryDefinition = {
   name: string;
 };
 
+export type NodalCategoryDefinition = {
+  id: string;
+  name: string;
+};
+
 export type PaperoScores = {
   resourceful_engagement?: number;
   resourceful_problemSolving?: number;

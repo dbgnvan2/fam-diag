@@ -8,6 +8,7 @@ import type {
   PredictionSet,
   SIRCategoryDefinition,
   FunctionalFactCategoryDefinition,
+  NodalCategoryDefinition,
   EmotionalProcessEvent,
   EventType,
   BirthSex,
@@ -125,6 +126,8 @@ const initialSirCategories: SIRCategoryDefinition[] =
   DEFAULT_DIAGRAM_STATE.sirCategories;
 const initialFunctionalFactCategories: FunctionalFactCategoryDefinition[] =
   DEFAULT_DIAGRAM_STATE.functionalFactCategories;
+const initialNodalCategories: NodalCategoryDefinition[] =
+  DEFAULT_DIAGRAM_STATE.nodalCategories;
 const initialAutoSaveMinutes = DEFAULT_DIAGRAM_STATE.autoSaveMinutes;
 const initialFileName = DEFAULT_DIAGRAM_STATE.fileName;
 
@@ -373,7 +376,15 @@ const DiagramEditor = () => {
       ? stored.functionalFactCategories as FunctionalFactCategoryDefinition[]
       : initialFunctionalFactCategories;
   });
+  const [nodalCategories, setNodalCategories] = useState<NodalCategoryDefinition[]>(() => {
+    if (typeof window === 'undefined') return initialNodalCategories;
+    const stored = parseStoredUserSettings();
+    return Array.isArray(stored?.nodalCategories)
+      ? stored.nodalCategories as NodalCategoryDefinition[]
+      : initialNodalCategories;
+  });
   const [ffSettingsOpen, setFfSettingsOpen] = useState(false);
+  const [nodalSettingsOpen, setNodalSettingsOpen] = useState(false);
   const [sirSettingsOpen, setSirSettingsOpen] = useState(false);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
@@ -1581,6 +1592,7 @@ useEffect(() => {
     functionalIndicatorDefinitions,
     sirCategories,
     functionalFactCategories,
+    nodalCategories,
     autoSaveMinutes,
     backupCount,
   };
@@ -1591,6 +1603,7 @@ useEffect(() => {
   eventCategories,
   functionalIndicatorDefinitions,
   functionalFactCategories,
+  nodalCategories,
   relationshipStatuses,
   relationshipTypes,
   sirCategories,
@@ -2078,6 +2091,7 @@ useEffect(() => {
     ideasText,
     predictionSets,
     functionalFactCategories,
+    nodalCategories,
   });
 
   const setDiagramFileHandle = useCallback((handle: any | null) => {
@@ -2346,6 +2360,9 @@ useEffect(() => {
     }
     if (Array.isArray(data.functionalFactCategories)) {
       setFunctionalFactCategories(data.functionalFactCategories);
+    }
+    if (Array.isArray(data.nodalCategories)) {
+      setNodalCategories(data.nodalCategories);
     }
     if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
       setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
@@ -4209,6 +4226,7 @@ useEffect(() => {
             setIndicatorSettingsOpen={setIndicatorSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}
             setFfSettingsOpen={setFfSettingsOpen}
+            setNodalSettingsOpen={setNodalSettingsOpen}
             setIdeasOpen={setIdeasOpen}
             setPredictionsOpen={setPredictionsOpen}
             setSessionNotesOpen={setSessionNotesOpen}
@@ -4371,6 +4389,7 @@ useEffect(() => {
             functionalIndicatorDefinitions={functionalIndicatorDefinitions}
             sirCategories={sirCategories}
             functionalFactCategories={functionalFactCategories}
+            nodalCategories={nodalCategories}
             selectedGroupBounds={selectedGroupBounds}
             beginGroupResize={beginGroupResize}
             applyGroupResize={applyGroupResize}
@@ -4542,6 +4561,10 @@ useEffect(() => {
             setFfSettingsOpen={setFfSettingsOpen}
             functionalFactCategories={functionalFactCategories}
             onSaveFunctionalFactCategories={setFunctionalFactCategories}
+            nodalSettingsOpen={nodalSettingsOpen}
+            setNodalSettingsOpen={setNodalSettingsOpen}
+            nodalCategories={nodalCategories}
+            onSaveNodalCategories={setNodalCategories}
             people={people}
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}

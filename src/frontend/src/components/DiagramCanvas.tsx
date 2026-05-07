@@ -11,6 +11,7 @@ import type {
   FunctionalIndicatorDefinition,
   SIRCategoryDefinition,
   FunctionalFactCategoryDefinition,
+  NodalCategoryDefinition,
   PageNote,
   SymptomGroup,
 } from '../types';
@@ -176,6 +177,7 @@ interface DiagramCanvasProps {
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
   functionalFactCategories: FunctionalFactCategoryDefinition[];
+  nodalCategories: NodalCategoryDefinition[];
 
   // Group resize
   selectedGroupBounds: { x: number; y: number; width: number; height: number } | null;
@@ -332,6 +334,7 @@ export default function DiagramCanvas({
   functionalIndicatorDefinitions,
   sirCategories,
   functionalFactCategories,
+  nodalCategories,
   selectedGroupBounds,
   beginGroupResize,
   applyGroupResize,
@@ -549,6 +552,7 @@ export default function DiagramCanvas({
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
               sirCategories={sirCategories}
                 functionalFactCategories={functionalFactCategories}
+                nodalCategories={nodalCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -601,6 +605,7 @@ export default function DiagramCanvas({
               functionalIndicatorDefinitions={functionalIndicatorDefinitions}
               sirCategories={sirCategories}
                 functionalFactCategories={functionalFactCategories}
+                nodalCategories={nodalCategories}
               onUpdatePerson={handleUpdatePerson}
               onUpdatePartnership={handleUpdatePartnership}
               onUpdateEmotionalLine={handleUpdateEmotionalLine}
@@ -1425,6 +1430,7 @@ export default function DiagramCanvas({
                 functionalIndicatorDefinitions={functionalIndicatorDefinitions}
                 sirCategories={sirCategories}
                 functionalFactCategories={functionalFactCategories}
+                nodalCategories={nodalCategories}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePartnership={handleUpdatePartnership}
                 onUpdateEmotionalLine={handleUpdateEmotionalLine}

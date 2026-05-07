@@ -8,6 +8,7 @@ import type {
   FunctionalIndicatorDefinition,
   FunctionalFactCategoryDefinition,
   SIRCategoryDefinition,
+  NodalCategoryDefinition,
   EmotionalProcessEvent,
   EmotionalLine,
 } from './index';
@@ -23,6 +24,7 @@ export type StoredUserSettings = {
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
   sirCategories?: SIRCategoryDefinition[];
   functionalFactCategories?: FunctionalFactCategoryDefinition[];
+  nodalCategories?: NodalCategoryDefinition[];
   autoSaveMinutes?: number;
   backupCount?: number;
 };
@@ -188,6 +190,7 @@ export type DiagramImportData = {
   pageNotes?: import('./index').PageNote[];
   triangles?: import('./index').Triangle[];
   functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
+  nodalCategories?: NodalCategoryDefinition[];
   eventCategories?: string[];
   relationshipTypes?: string[];
   relationshipStatuses?: string[];

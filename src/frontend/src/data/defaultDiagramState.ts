@@ -5,6 +5,7 @@ import type {
   FunctionalFactCategoryDefinition,
   PredictionSet,
   SIRCategoryDefinition,
+  NodalCategoryDefinition,
   PageNote,
   Partnership,
   Person,
@@ -80,6 +81,9 @@ export type RawDiagramFile = {
   autoSaveMinutes?: number;
   ideasText?: string;
   predictionSets?: PredictionSet[];
+  sirCategories?: SIRCategoryDefinition[];
+  functionalFactCategories?: FunctionalFactCategoryDefinition[];
+  nodalCategories?: NodalCategoryDefinition[];
 };
 
 export type DefaultDiagramState = {
@@ -91,6 +95,7 @@ export type DefaultDiagramState = {
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   sirCategories: SIRCategoryDefinition[];
   functionalFactCategories: FunctionalFactCategoryDefinition[];
+  nodalCategories: NodalCategoryDefinition[];
   eventCategories: string[];
   relationshipTypes: string[];
   relationshipStatuses: string[];
@@ -152,6 +157,7 @@ export const buildDefaultDiagramState = (
     functionalIndicatorDefinitions: applicationSettings.functionalIndicatorDefinitions,
     sirCategories: applicationSettings.sirCategories,
     functionalFactCategories: applicationSettings.functionalFactCategories,
+    nodalCategories: applicationSettings.nodalCategories,
     eventCategories: applicationSettings.eventCategories,
     relationshipTypes: applicationSettings.relationshipTypes,
     relationshipStatuses: applicationSettings.relationshipStatuses,
@@ -196,6 +202,11 @@ export const buildDefaultDiagramState = (
       Array.isArray((typed as Record<string, unknown>).functionalFactCategories)
         ? (typed as Record<string, unknown>).functionalFactCategories as FunctionalFactCategoryDefinition[]
         : base.functionalFactCategories,
+    nodalCategories:
+      includeEmbeddedSettings &&
+      Array.isArray((typed as Record<string, unknown>).nodalCategories)
+        ? (typed as Record<string, unknown>).nodalCategories as NodalCategoryDefinition[]
+        : base.nodalCategories,
     eventCategories:
       includeEmbeddedSettings
         ? sanitizeStringArray(typed.eventCategories) ?? base.eventCategories

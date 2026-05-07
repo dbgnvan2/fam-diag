@@ -6,6 +6,7 @@ import type {
   FunctionalIndicatorDefinition,
   FunctionalFactCategoryDefinition,
   SIRCategoryDefinition,
+  NodalCategoryDefinition,
   EmotionalProcessEvent,
   EventClass,
 } from '../types';
@@ -26,6 +27,7 @@ import ClientProfileModal from './modals/ClientProfileModal';
 import CoachThinkingModal from './modals/CoachThinkingModal';
 import EmotionalPatternModal from './modals/EmotionalPatternModal';
 import AddFamilyModal from './modals/AddFamilyModal';
+import NodalCategorySettingsModal from './modals/NodalCategorySettingsModal';
 import SettingsListModal from './modals/SettingsListModal';
 import IndicatorSettingsModal from './modals/IndicatorSettingsModal';
 import SIRSettingsModal from './modals/SIRSettingsModal';
@@ -149,6 +151,12 @@ interface DiagramModalsProps {
   setFfSettingsOpen: Dispatch<SetStateAction<boolean>>;
   functionalFactCategories: FunctionalFactCategoryDefinition[];
   onSaveFunctionalFactCategories: (categories: FunctionalFactCategoryDefinition[]) => void;
+
+  // NodalCategorySettingsModal
+  nodalSettingsOpen: boolean;
+  setNodalSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  nodalCategories: NodalCategoryDefinition[];
+  onSaveNodalCategories: (categories: NodalCategoryDefinition[]) => void;
 
   // TimelineBoardModal
   people: Person[];
@@ -328,6 +336,10 @@ export default function DiagramModals({
   setFfSettingsOpen,
   functionalFactCategories,
   onSaveFunctionalFactCategories,
+  nodalSettingsOpen,
+  setNodalSettingsOpen,
+  nodalCategories,
+  onSaveNodalCategories,
   people,
   partnerships,
   allEmotionalLines,
@@ -560,6 +572,12 @@ export default function DiagramModals({
         onClose={() => setFfSettingsOpen(false)}
         categories={functionalFactCategories}
         onSave={onSaveFunctionalFactCategories}
+      />
+      <NodalCategorySettingsModal
+        open={nodalSettingsOpen}
+        onClose={() => setNodalSettingsOpen(false)}
+        categories={nodalCategories}
+        onSave={onSaveNodalCategories}
       />
       <TimelineBoardModal
         people={people}
