@@ -856,6 +856,12 @@ export default function TimelineBoardModal({
                   return aStart < bStart ? -1 : 1;
                 });
                 const rowRightEdges = [-Infinity, -Infinity, -Infinity];
+                // Convert a duration in years to a percentage of the visible
+                // timeline range — used to give point events a default width
+                // of one year so a "Birth" or "Marriage" reads as a 1-yr block.
+                const ONE_YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+                const visibleSpanMs = Math.max(1, timelineDisplayRange.max - timelineDisplayRange.min);
+                const oneYearPct = (ONE_YEAR_MS / visibleSpanMs) * 100;
                 const place = sorted.map((item) => {
                   const startTs = parseTimelineDate(item.startDate) ?? timelineDisplayRange.min;
                   const endTsParsed = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
@@ -863,15 +869,12 @@ export default function TimelineBoardModal({
                   const isPointEvent = !item.endDate || endTs === startTs;
                   const leftPct = ((startTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
                   const endPct = ((endTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
-                  const spanPct = Math.max(0, endPct - leftPct);
-                  // Reserve a tiny slot for point events so they can stack
-                  // on the same row without overlapping each other.
-                  const reservedPct = isPointEvent ? 0.5 : spanPct;
+                  const spanPct = isPointEvent ? oneYearPct : Math.max(0, endPct - leftPct);
                   let rowIndex = rowRightEdges.findIndex((edge) => leftPct >= edge + 0.6);
                   if (rowIndex === -1) {
                     rowIndex = rowRightEdges.indexOf(Math.min(...rowRightEdges));
                   }
-                  rowRightEdges[rowIndex] = Math.max(rowRightEdges[rowIndex], leftPct + reservedPct);
+                  rowRightEdges[rowIndex] = Math.max(rowRightEdges[rowIndex], leftPct + spanPct);
                   return {
                     ...item,
                     leftPct,
@@ -935,10 +938,10 @@ export default function TimelineBoardModal({
                             position: 'absolute',
                             left: `${item.leftPct}%`,
                             top: 10 + item.rowOffset,
-                            width: item.isPointEvent ? 8 : `${item.spanPct}%`,
+                            width: `${item.spanPct}%`,
                             height: 26,
-                            padding: item.isPointEvent ? 0 : '4px 8px',
-                            borderRadius: item.isPointEvent ? 4 : 6,
+                            padding: '4px 8px',
+                            borderRadius: 6,
                             border:
                               timelineBoardSelection?.entityId === item.entityId &&
                               timelineBoardSelection?.eventId === item.eventId
@@ -953,28 +956,9 @@ export default function TimelineBoardModal({
                             boxSizing: 'border-box',
                           }}
                         >
-                          {!item.isPointEvent && (
-                            <>
-                              <strong>{stripSelfName(item.label, lane.label)}</strong>
-                              {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
-                            </>
-                          )}
+                          <strong>{stripSelfName(item.label, lane.label)}</strong>
+                          {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
                         </div>
-                        {item.isPointEvent && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: `calc(${item.leftPct}% + 12px)`,
-                              top: 10 + item.rowOffset + 4,
-                              fontSize: 11,
-                              color: '#444',
-                              whiteSpace: 'nowrap',
-                              pointerEvents: 'none',
-                            }}
-                          >
-                            {stripSelfName(item.label, lane.label)}
-                          </div>
-                        )}
                         </React.Fragment>
                       ))}
                     </div>
