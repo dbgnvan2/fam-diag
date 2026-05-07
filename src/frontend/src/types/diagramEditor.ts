@@ -133,6 +133,13 @@ export type CoachThinkingDraft = {
   notes: string;
 };
 
+export type AddFamilyDraft = {
+  parent1: { sex: 'male' | 'female'; firstName: string; birthDate: string };
+  parent2: { sex: 'male' | 'female'; firstName: string; birthDate: string };
+  familySurname: string;
+  children: Array<{ sex: 'male' | 'female'; firstName: string; birthDate: string }>;
+};
+
 // ---------------------------------------------------------------------------
 // Demo tour
 // ---------------------------------------------------------------------------

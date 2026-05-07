@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { nanoid } from 'nanoid';
 import type { Person, Partnership, EmotionalLine, Triangle } from '../types';
+import type { AddFamilyDraft } from '../types/diagramEditor';
 
 interface UsePersonOperationsProps {
   people: Person[];
@@ -368,6 +369,98 @@ export function usePersonOperations({
     setContextMenu(null);
   };
 
+  const createFamilyFromDraft = (draft: AddFamilyDraft, position: { x: number; y: number }) => {
+    const parentSpacing = 150;
+    const parent1X = position.x;
+    const parent2X = position.x + parentSpacing;
+    const parentY = position.y;
+
+    const parent1Id = nanoid();
+    const parent2Id = nanoid();
+    const partnershipId = nanoid();
+
+    const parent1Name = draft.familySurname
+      ? `${draft.parent1.firstName} ${draft.familySurname}`
+      : draft.parent1.firstName;
+    const parent2Name = draft.familySurname
+      ? `${draft.parent2.firstName} ${draft.familySurname}`
+      : draft.parent2.firstName;
+
+    const parent1: Person = {
+      id: parent1Id,
+      name: parent1Name,
+      x: parent1X,
+      y: parentY,
+      gender: draft.parent1.sex,
+      birthSex: draft.parent1.sex,
+      size: 45,
+      partnerships: [partnershipId],
+      lifeStatus: 'alive',
+      events: [],
+      ...(draft.parent1.birthDate && { birthDate: draft.parent1.birthDate }),
+    };
+
+    const parent2: Person = {
+      id: parent2Id,
+      name: parent2Name,
+      x: parent2X,
+      y: parentY,
+      gender: draft.parent2.sex,
+      birthSex: draft.parent2.sex,
+      size: 45,
+      partnerships: [partnershipId],
+      lifeStatus: 'alive',
+      events: [],
+      ...(draft.parent2.birthDate && { birthDate: draft.parent2.birthDate }),
+    };
+
+    const childIds: string[] = [];
+    const children: Person[] = [];
+
+    const anchorX = (parent1X + parent2X) / 2;
+    const childBaseY = parentY + 170;
+    const childSpacing = 50;
+    const startX = anchorX - ((draft.children.length - 1) * childSpacing) / 2;
+
+    draft.children.forEach((childDraft, index) => {
+      const childId = nanoid();
+      childIds.push(childId);
+      const childName = draft.familySurname
+        ? `${childDraft.firstName} ${draft.familySurname}`
+        : childDraft.firstName;
+
+      const child: Person = {
+        id: childId,
+        name: childName,
+        x: startX + index * childSpacing,
+        y: childBaseY,
+        gender: childDraft.sex,
+        birthSex: childDraft.sex,
+        size: 45,
+        partnerships: [],
+        parentPartnership: partnershipId,
+        lifeStatus: 'alive',
+        events: [],
+        ...(childDraft.birthDate && { birthDate: childDraft.birthDate }),
+      };
+      children.push(child);
+    });
+
+    const partnership: Partnership = {
+      id: partnershipId,
+      partner1_id: parent1Id,
+      partner2_id: parent2Id,
+      relationshipType: 'married',
+      relationshipStatus: 'ongoing',
+      horizontalConnectorY: parentY,
+      children: childIds,
+      events: [],
+    };
+
+    setPeopleAligned(prev => [...prev, parent1, parent2, ...children]);
+    setPartnerships(prev => [...prev, partnership]);
+  };
+
   return {
     addPerson,
     addCoach,
@@ -378,5 +471,6 @@ export function usePersonOperations({
     removePartnership,
     removePerson,
     removeChildFromPartnership,
+    createFamilyFromDraft,
   };
 }

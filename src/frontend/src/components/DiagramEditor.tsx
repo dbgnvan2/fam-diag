@@ -104,6 +104,7 @@ import type {
   EmotionalPatternDraft,
   ClientProfileDraft,
   CoachThinkingDraft,
+  AddFamilyDraft,
   DemoTourStep,
   DiagramImportData,
   SessionCaptureImportData,
@@ -508,6 +509,9 @@ const DiagramEditor = () => {
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
   const [diagramFileHandleName, setDiagramFileHandleName] = useState<string | null>(null);
+  const [addFamilyModalOpen, setAddFamilyModalOpen] = useState(false);
+  const [addFamilyDraft, setAddFamilyDraft] = useState<AddFamilyDraft | null>(null);
+  const [addFamilyPosition, setAddFamilyPosition] = useState<{ x: number; y: number } | null>(null);
   const sortedRelationshipTypes = useMemo(
     () => sortLabelsAZ(relationshipTypes),
     [relationshipTypes]
@@ -1200,6 +1204,18 @@ const DiagramEditor = () => {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [clientProfileDraft]);
+
+  useEffect(() => {
+    if (!addFamilyModalOpen) return;
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setAddFamilyModalOpen(false);
+      setAddFamilyDraft(null);
+      setAddFamilyPosition(null);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [addFamilyModalOpen]);
 
   useEffect(() => {
     setStoredValue('autoSave', String(autoSaveMinutes));
@@ -3433,6 +3449,7 @@ useEffect(() => {
     removePartnership,
     removePerson,
     removeChildFromPartnership,
+    createFamilyFromDraft,
   } = usePersonOperations({
     people,
     partnerships,
@@ -3529,6 +3546,34 @@ useEffect(() => {
     });
   };
 
+  const openAddFamilyModal = (position: { x: number; y: number }) => {
+    setAddFamilyDraft({
+      parent1: { sex: 'male' as const, firstName: '', birthDate: '' },
+      parent2: { sex: 'female' as const, firstName: '', birthDate: '' },
+      familySurname: '',
+      children: [
+        { sex: 'male' as const, firstName: '', birthDate: '' },
+        { sex: 'female' as const, firstName: '', birthDate: '' },
+        { sex: 'male' as const, firstName: '', birthDate: '' },
+      ],
+    });
+    setAddFamilyPosition(position);
+    setAddFamilyModalOpen(true);
+  };
+
+  const updateAddFamilyDraft = (updates: Partial<AddFamilyDraft>) => {
+    if (!addFamilyDraft) return;
+    setAddFamilyDraft({ ...addFamilyDraft, ...updates });
+  };
+
+  const saveAddFamily = () => {
+    if (!addFamilyDraft || !addFamilyPosition) return;
+    createFamilyFromDraft(addFamilyDraft, addFamilyPosition);
+    setAddFamilyModalOpen(false);
+    setAddFamilyDraft(null);
+    setAddFamilyPosition(null);
+  };
+
   const {
     handlePersonContextMenu,
     handleChildLineContextMenu,
@@ -3574,6 +3619,7 @@ useEffect(() => {
     openPersonSectionPopup,
     openPartnershipSectionPopup,
     addGeneralNote,
+    openAddFamilyModal,
     addEmotionalLine,
     removeEmotionalLine,
     zoom,
@@ -4439,6 +4485,11 @@ useEffect(() => {
             saveAddEmotionalPattern={saveAddEmotionalPattern}
             setEmotionalPatternModalOpen={setEmotionalPatternModalOpen}
             setEmotionalPatternDraft={setEmotionalPatternDraft}
+            addFamilyModalOpen={addFamilyModalOpen}
+            addFamilyDraft={addFamilyDraft}
+            updateAddFamilyDraft={updateAddFamilyDraft}
+            saveAddFamily={saveAddFamily}
+            cancelAddFamily={() => { setAddFamilyModalOpen(false); setAddFamilyDraft(null); setAddFamilyPosition(null); }}
             settingsOpen={settingsOpen}
             setSettingsOpen={setSettingsOpen}
             eventCategories={eventCategories}

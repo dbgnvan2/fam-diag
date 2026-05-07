@@ -13,6 +13,7 @@ import type {
   EmotionalPatternDraft,
   ClientProfileDraft,
   CoachThinkingDraft,
+  AddFamilyDraft,
   DiagramImportData,
   SessionCaptureImportData,
   DemoTourStep,
@@ -24,6 +25,7 @@ import SessionCaptureDialog from './modals/SessionCaptureDialog';
 import ClientProfileModal from './modals/ClientProfileModal';
 import CoachThinkingModal from './modals/CoachThinkingModal';
 import EmotionalPatternModal from './modals/EmotionalPatternModal';
+import AddFamilyModal from './modals/AddFamilyModal';
 import SettingsListModal from './modals/SettingsListModal';
 import IndicatorSettingsModal from './modals/IndicatorSettingsModal';
 import SIRSettingsModal from './modals/SIRSettingsModal';
@@ -85,6 +87,13 @@ interface DiagramModalsProps {
   saveAddEmotionalPattern: () => void;
   setEmotionalPatternModalOpen: Dispatch<SetStateAction<boolean>>;
   setEmotionalPatternDraft: Dispatch<SetStateAction<EmotionalPatternDraft | null>>;
+
+  // AddFamilyModal
+  addFamilyModalOpen: boolean;
+  addFamilyDraft: AddFamilyDraft | null;
+  updateAddFamilyDraft: (updates: Partial<AddFamilyDraft>) => void;
+  saveAddFamily: () => void;
+  cancelAddFamily: () => void;
 
   // Event categories SettingsListModal
   settingsOpen: boolean;
@@ -271,6 +280,11 @@ export default function DiagramModals({
   saveAddEmotionalPattern,
   setEmotionalPatternModalOpen,
   setEmotionalPatternDraft,
+  addFamilyModalOpen,
+  addFamilyDraft,
+  updateAddFamilyDraft,
+  saveAddFamily,
+  cancelAddFamily,
   settingsOpen,
   setSettingsOpen,
   eventCategories,
@@ -449,6 +463,13 @@ export default function DiagramModals({
         onUpdate={updateEmotionalPatternDraft}
         onCancel={() => { setEmotionalPatternModalOpen(false); setEmotionalPatternDraft(null); }}
         onSave={saveAddEmotionalPattern}
+      />
+      <AddFamilyModal
+        open={addFamilyModalOpen}
+        draft={addFamilyDraft}
+        onUpdate={updateAddFamilyDraft}
+        onCancel={cancelAddFamily}
+        onSave={saveAddFamily}
       />
       <SettingsListModal
         open={settingsOpen}

@@ -45,6 +45,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: 'People & Partnerships',
     tips: [
       'Right-click the canvas to Add Person; drag a person to move both their node and any attached notes.',
+      'Right-click the canvas and choose "Add Family" to bulk-create a family unit in one form: two parents (sex, first name, optional birth date), a shared family surname, and any number of children (start with 3, "+ Add Child" for more). Save creates both parents, a married Partner Relationship Line, and all children linked as siblings — every person sized to 45. Date fields accept partial dates (YYYY or YYYY-MM) and expand on blur.',
       'Select two partners and right-click to open the context-menu (“right-click options”) and create a Partner Relationship Line (PRL). Right-click that PRL to add child/twin/triplet/miscarriage/stillbirth symbols, or click the PRL then click any non-partner person to attach that person as a child. Parent-Child Lines (PCLs) stay attached as you move people or the PRL.',
       'Each person’s right-click menu always ends with Delete, plus “Add as Child”/“Remove as Child” when appropriate.',
       'Birth dates automatically render an “Age NN” label centered under the person (using death date if present, otherwise today), so you can scan generations without opening Properties.',

@@ -59,6 +59,7 @@ interface UseContextMenuHandlersDeps {
   openPersonSectionPopup: (person: Person, section: 'name' | 'dates' | 'format' | 'sibling' | 'foo', x: number, y: number) => void;
   openPartnershipSectionPopup: (partnership: Partnership, relationshipType: string, x: number, y: number) => void;
   addGeneralNote: (x: number, y: number) => void;
+  openAddFamilyModal: (position: { x: number; y: number }) => void;
   addEmotionalLine: (person1_id: string, person2_id: string, relationshipType: EmotionalLine['relationshipType'], lineStyle: EmotionalLine['lineStyle'], lineEnding: EmotionalLine['lineEnding']) => EmotionalLine;
   removeEmotionalLine: (emotionalLineId: string) => void;
   // Canvas geometry
@@ -107,6 +108,7 @@ export function useContextMenuHandlers({
   openPersonSectionPopup,
   openPartnershipSectionPopup,
   addGeneralNote,
+  openAddFamilyModal,
   addEmotionalLine,
   removeEmotionalLine,
   zoom,
@@ -741,6 +743,13 @@ export function useContextMenuHandlers({
             label: 'Add General Note',
             onClick: () => {
                 addGeneralNote(canvasPoint.x, canvasPoint.y);
+                setContextMenu(null);
+            }
+        },
+        {
+            label: 'Add Family',
+            onClick: () => {
+                openAddFamilyModal(canvasPoint);
                 setContextMenu(null);
             }
         },

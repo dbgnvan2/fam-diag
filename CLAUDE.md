@@ -797,7 +797,7 @@ Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been sa
 - `useAutosave` — diagram autosave logic
 - `useIndicatorHandlers` — functional indicator/symptom category CRUD
 - `useSessionNoteHandlers` — session note file management + event draft handlers
-- `usePersonOperations` — addPerson, addCoach, addParentsForPerson, createChildrenForPartnership, createAdoptedChildForPartnership, removePartnership, removePerson, removeChildFromPartnership
+- `usePersonOperations` — addPerson, addCoach, addAIAgent, addParentsForPerson, createChildrenForPartnership, createAdoptedChildForPartnership, removePartnership, removePerson, removeChildFromPartnership, createFamilyFromDraft (bulk-creates two parents + a married Partnership + N children from `AddFamilyDraft`, all sized to 45)
 - `useContextMenuHandlers` — handlePersonContextMenu, handleChildLineContextMenu, handlePartnershipContextMenu, handleStageContextMenu
 - `useSelectionHandlers` — page note handlers, handleChildLineSelect, handleEmotionalLineSelect, handleTriangleAreaSelect, handleSelect, handlePartnershipSelect
 - `useCanvasDragHandlers` — handlePersonDragStart/Drag, handleHorizontalConnectorDragEnd, note drag/resize handlers, addGeneralNote
@@ -868,6 +868,7 @@ Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been sa
 - `ClientProfileModal.tsx` — presenting issues and desired outcomes for client profile
 - `CoachThinkingModal.tsx` — coach's internal notes and conceptualization
 - `EmotionalPatternModal.tsx` — create/edit emotional pattern lines (type, persons, dates)
+- `AddFamilyModal.tsx` — bulk-create a family unit (Parent 1, Parent 2, family surname, dynamic child rows) from a single form; horizontal field layout per person with M/F sex toggle and partial-date support
 - `TimelineBoardModal.tsx` — visual timeline board of events across persons
 - `SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete with 5-level HWDID scales
 - `FunctionalFactSettingsModal.tsx` — FF category management: Create/Edit/Delete (name only)

@@ -8,7 +8,7 @@ A specialized, web-based family diagramming application designed for clinical an
 *   **Intelligent Nodes**: Square (Male), Circle (Female), and Lavender Hexagon (**AI Agent**) symbols. Nodes automatically render an **Age Badge** when birth dates are present.
 *   **Dynamic Relationships**: U-shaped Partner Relationship Lines (PRLs) with vertical drop-lines. Dragging a person automatically updates all connected relationship lines.
 *   **Group Drag**: Select multiple people and drag them together while maintaining all relationship connections.
-*   **Right-Click Shortcuts**: Quick access to "Add Parents", "Add Adopted Child", "Make Client", "Add AI Agent", and contextual event creation.
+*   **Right-Click Shortcuts**: Quick access to "Add Parents", "Add Adopted Child", "Make Client", "Add AI Agent", "Add Family" (bulk-create two parents + a marriage + N children in one form), and contextual event creation.
 *   **Contextual Editing**: Direct child-linking (Click PRL → Click Person), on-canvas size/color overrides, and draggable resizable notes on all objects.
 *   **Notes System**: Add rich text notes to individuals, relationships, emotional patterns, triangles, and families. Notes are independently toggleable via right-click menu.
 
