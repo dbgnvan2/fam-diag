@@ -732,13 +732,15 @@ const DiagramEditor = () => {
       const combined = [first, last].filter(Boolean).join(' ').trim();
       return combined || person.name?.trim() || `Person ${person.id.slice(0, 4)}`;
     };
+    const eventStart = (event: { startDate?: string; date?: string }): string | undefined =>
+      event.startDate || event.date || undefined;
     const nameMap = new Map<string, string>();
     people.forEach((person) => {
       const label = displayName(person);
       nameMap.set(person.id, label);
       addEntry(person.birthDate, `Birth – ${label}`);
       addEntry(person.deathDate, `Death – ${label}`);
-      (person.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${label}`));
+      (person.events || []).forEach((event) => addEntry(eventStart(event), `${event.category || 'Event'} – ${label}`));
     });
     partnerships.forEach((partnership) => {
       const partnerLabel = `${nameMap.get(partnership.partner1_id) || 'Partner 1'} + ${nameMap.get(partnership.partner2_id) || 'Partner 2'}`;
@@ -747,7 +749,7 @@ const DiagramEditor = () => {
       addEntry(partnership.marriedStartDate, `${base} married`);
       addEntry(partnership.separationDate, `${base} separation`);
       addEntry(partnership.divorceDate, `${base} divorce`);
-      (partnership.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${partnerLabel}`));
+      (partnership.events || []).forEach((event) => addEntry(eventStart(event), `${event.category || 'Event'} – ${partnerLabel}`));
     });
     emotionalLines.forEach((line) => {
       const person1Name = nameMap.get(line.person1_id) || 'Person 1';
@@ -755,7 +757,7 @@ const DiagramEditor = () => {
       const summary = `${person1Name} ↔ ${person2Name}`;
       addEntry(line.startDate, `EPL start – ${summary}`);
       addEntry(line.endDate, `EPL end – ${summary}`);
-      (line.events || []).forEach((event) => addEntry(event.date, `${event.category || 'Event'} – ${summary}`));
+      (line.events || []).forEach((event) => addEntry(eventStart(event), `${event.category || 'Event'} – ${summary}`));
     });
     entries.sort((a, b) => a.timestamp - b.timestamp);
     return entries;

@@ -127,10 +127,28 @@ export default function TimelineBoardModal({
 
   const selectedTimelinePeople = people.filter((person) => timelineSelectionIds.includes(person.id));
 
+  // Color the timeline box by event intensity:
+  //   0 / unset (e.g. birth, marriage) → green,  1 → blue,  2 → yellow,
+  //   3 → orange,  4 → pink,  5 → red.
+  const intensityToColor = (intensity?: number | null): string => {
+    switch (intensity) {
+      case 1: return '#cce5ff';
+      case 2: return '#fff3cd';
+      case 3: return '#ffe5cc';
+      case 4: return '#ffd1dc';
+      case 5: return '#ffcccc';
+      default: return '#cdf5cd';
+    }
+  };
+  const eventStart = (event: EmotionalProcessEvent): string | undefined =>
+    event.startDate || event.date || undefined;
+
   const timelineLanes = (() => {
     if (!selectedTimelinePeople.length) return [] as TimelineLane[];
     const lanes: TimelineLane[] = [];
     const selectedIdSet = new Set(selectedTimelinePeople.map((person) => person.id));
+
+    // FAMILY lane: partnership relationship spans + partnership-level events
     const familyItems: TimelineBlockItem[] = [];
     partnerships.forEach((partnership) => {
       if (!selectedIdSet.has(partnership.partner1_id) && !selectedIdSet.has(partnership.partner2_id)) return;
@@ -144,20 +162,22 @@ export default function TimelineBoardModal({
           notes: partnership.notes,
           startDate: partnership.relationshipStartDate,
           endDate: partnership.divorceDate || partnership.separationDate,
-          color: '#dce8ff',
+          color: intensityToColor(0),
           entityType: 'partnership',
           entityId: partnership.id,
         });
       }
       (partnership.events || []).forEach((event) => {
-        if (!event.date) return;
+        const start = eventStart(event);
+        if (!start) return;
         familyItems.push({
           id: `family-prl-event-${event.id}`,
           label: event.category || 'Relationship Event',
           detail: event.observations || '',
           notes: event.observations || '',
-          startDate: event.date,
-          color: '#dce8ff',
+          startDate: start,
+          endDate: event.endDate,
+          color: intensityToColor(event.intensity),
           entityType: 'partnership',
           entityId: partnership.id,
           eventId: event.id,
@@ -168,16 +188,24 @@ export default function TimelineBoardModal({
       lanes.push({ id: 'family', label: 'Family', items: familyItems });
     }
 
+    // PERSON lanes: own events + events from partnerships/EPLs the person
+    // is part of. The PRL itself is NOT repeated here — it lives in the
+    // Family lane to avoid showing each partnership twice.
     selectedTimelinePeople.forEach((person) => {
       const items: TimelineBlockItem[] = [];
-      if (person.birthDate) {
+      const seenEventIds = new Set<string>();
+      const personEventIds = new Set((person.events || []).map((e) => e.id));
+      const personHasBirthEvent = (person.events || []).some(
+        (ev) => /^birth$/i.test(ev.category || '') && eventStart(ev),
+      );
+      if (person.birthDate && !personHasBirthEvent) {
         items.push({
           id: `person-birth-${person.id}`,
           label: 'Birth',
           detail: person.birthDate,
           notes: person.notes,
           startDate: person.birthDate,
-          color: '#d5f0ff',
+          color: intensityToColor(0),
           entityType: 'person',
           entityId: person.id,
         });
@@ -189,59 +217,89 @@ export default function TimelineBoardModal({
           detail: person.deathDate,
           notes: person.notes,
           startDate: person.deathDate,
-          color: '#ffd9d9',
+          color: intensityToColor(0),
           entityType: 'person',
           entityId: person.id,
         });
       }
       (person.events || []).forEach((event) => {
-        if (!event.date) return;
+        const start = eventStart(event);
+        if (!start) return;
+        if (seenEventIds.has(event.id)) return;
+        seenEventIds.add(event.id);
         items.push({
           id: `person-event-${event.id}`,
           label: event.category || 'Event',
           detail: event.observations || event.otherPersonName || '',
           notes: event.observations || '',
-          startDate: event.date,
-          color: '#e8f3ff',
+          startDate: start,
+          endDate: event.endDate,
+          color: intensityToColor(event.intensity),
           entityType: 'person',
           entityId: person.id,
           eventId: event.id,
         });
       });
+      // Events from partnerships the person is part of (skip if already on
+      // person.events through the standard clone path)
       partnerships
         .filter((p) => p.partner1_id === person.id || p.partner2_id === person.id)
         .forEach((partnership) => {
-          if (partnership.relationshipStartDate) {
-            const otherId = partnership.partner1_id === person.id ? partnership.partner2_id : partnership.partner1_id;
-            const otherName = people.find((p) => p.id === otherId)?.name || 'Partner';
+          (partnership.events || []).forEach((event) => {
+            const start = eventStart(event);
+            if (!start) return;
+            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            seenEventIds.add(event.id);
             items.push({
-              id: `person-prl-${partnership.id}-${person.id}`,
-              label: `${otherName}`,
-              detail: partnership.relationshipType,
-              notes: partnership.notes,
-              startDate: partnership.relationshipStartDate,
-              endDate: partnership.divorceDate || partnership.separationDate,
-              color: '#f0efff',
+              id: `person-prl-event-${event.id}-${person.id}`,
+              label: event.category || 'Relationship Event',
+              detail: event.observations || '',
+              notes: event.observations || '',
+              startDate: start,
+              endDate: event.endDate,
+              color: intensityToColor(event.intensity),
               entityType: 'partnership',
               entityId: partnership.id,
+              eventId: event.id,
             });
-          }
+          });
         });
+      // Emotional pattern (EPL) span + EPL events
       allEmotionalLines
         .filter((line) => line.person1_id === person.id || line.person2_id === person.id)
         .forEach((line) => {
-          if (!line.startDate) return;
           const otherId = line.person1_id === person.id ? line.person2_id : line.person1_id;
           const otherName = people.find((p) => p.id === otherId)?.name || 'Other';
-          items.push({
-            id: `person-epl-${line.id}-${person.id}`,
-            label: `${line.relationshipType} · ${otherName}`,
-            detail: line.lineStyle,
-            notes: line.notes,
-            startDate: line.startDate,
-            color: '#ffe8f0',
-            entityType: 'emotional',
-            entityId: line.id,
+          if (line.startDate) {
+            items.push({
+              id: `person-epl-${line.id}-${person.id}`,
+              label: `${line.relationshipType} · ${otherName}`,
+              detail: line.lineStyle,
+              notes: line.notes,
+              startDate: line.startDate,
+              endDate: line.endDate,
+              color: intensityToColor(0),
+              entityType: 'emotional',
+              entityId: line.id,
+            });
+          }
+          (line.events || []).forEach((event) => {
+            const start = eventStart(event);
+            if (!start) return;
+            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            seenEventIds.add(event.id);
+            items.push({
+              id: `person-epl-event-${event.id}-${person.id}`,
+              label: event.category || `${line.relationshipType} Event`,
+              detail: event.observations || `with ${otherName}`,
+              notes: event.observations || '',
+              startDate: start,
+              endDate: event.endDate,
+              color: intensityToColor(event.intensity),
+              entityType: 'emotional',
+              entityId: line.id,
+              eventId: event.id,
+            });
           });
         });
       lanes.push({ id: person.id, label: person.name || 'Unnamed', items });

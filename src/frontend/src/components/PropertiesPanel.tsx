@@ -1593,6 +1593,36 @@ const PropertiesPanel = ({
     if (isPartnership) return (selectedItem as Partnership).events || [];
     return (selectedItem as EmotionalLine).events || [];
   }, [isPerson, isPartnership, selectedItem]);
+
+  // For Person view only: aggregate ALL events the person is involved in —
+  // their own person.events plus partnership.events and EPL.events from any
+  // relationship/EPL where they are a partner. Excludes triangle and family
+  // events. Older partnership events get cloned to person.events with id
+  // suffix `-p1` / `-p2`, so we dedupe by checking for that prefix.
+  const getDisplayEvents = useCallback((): EmotionalProcessEvent[] => {
+    if (!isPerson) return getEvents();
+    const person = selectedItem as Person;
+    const ownEvents = person.events || [];
+    const ownIds = new Set(ownEvents.map((e) => e.id));
+    const isAlreadyCloned = (sourceId: string) =>
+      ownIds.has(`${sourceId}-p1`) || ownIds.has(`${sourceId}-p2`);
+    const extra: EmotionalProcessEvent[] = [];
+    partnerships.forEach((p) => {
+      if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;
+      (p.events || []).forEach((event) => {
+        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        extra.push(event);
+      });
+    });
+    allEmotionalLines.forEach((line) => {
+      if (line.person1_id !== person.id && line.person2_id !== person.id) return;
+      (line.events || []).forEach((event) => {
+        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        extra.push(event);
+      });
+    });
+    return [...ownEvents, ...extra];
+  }, [isPerson, selectedItem, partnerships, allEmotionalLines, getEvents]);
   const resolveEventClass = useCallback(
     (): EventClass => (isEmotionalLine ? 'emotional-pattern' : isPartnership ? 'relationship' : 'individual'),
     [isEmotionalLine, isPartnership]
@@ -2841,7 +2871,7 @@ const PropertiesPanel = ({
       )}
       {activeTab === 'events' && (
         <EventsSection
-          allEvents={getEvents()}
+          allEvents={getDisplayEvents()}
           currentAnchorType={resolveAnchorType()}
           currentAnchorId={selectedItem.id}
           addEventButtonLabel="+ Add Event"
