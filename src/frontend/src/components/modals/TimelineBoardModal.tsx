@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../../types';
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import { nanoid } from 'nanoid';
@@ -858,22 +858,25 @@ export default function TimelineBoardModal({
                 const rowRightEdges = [-Infinity, -Infinity, -Infinity];
                 const place = sorted.map((item) => {
                   const startTs = parseTimelineDate(item.startDate) ?? timelineDisplayRange.min;
-                  const endTs = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
+                  const endTsParsed = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
+                  const endTs = Math.max(startTs, endTsParsed);
+                  const isPointEvent = !item.endDate || endTs === startTs;
                   const leftPct = ((startTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
                   const endPct = ((endTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
-                  const spanPct = Math.max(7, endPct - leftPct);
-                  const centeredLeftPct = leftPct - spanPct / 2;
-                  const clampedLeftPct = Math.max(0, Math.min(centeredLeftPct, 100 - spanPct));
+                  const spanPct = Math.max(0, endPct - leftPct);
+                  // Reserve a tiny slot for point events so they can stack
+                  // on the same row without overlapping each other.
+                  const reservedPct = isPointEvent ? 0.5 : spanPct;
                   let rowIndex = rowRightEdges.findIndex((edge) => leftPct >= edge + 0.6);
                   if (rowIndex === -1) {
                     rowIndex = rowRightEdges.indexOf(Math.min(...rowRightEdges));
                   }
-                  rowRightEdges[rowIndex] = Math.max(rowRightEdges[rowIndex], leftPct + spanPct);
+                  rowRightEdges[rowIndex] = Math.max(rowRightEdges[rowIndex], leftPct + reservedPct);
                   return {
                     ...item,
                     leftPct,
-                    clampedLeftPct,
                     spanPct,
+                    isPointEvent,
                     rowOffset: rowIndex * 34,
                   };
                 });
@@ -907,8 +910,8 @@ export default function TimelineBoardModal({
                     </div>
                     <div style={{ position: 'relative', minHeight: 112, borderLeft: '1px solid #ddd', background: '#fff' }}>
                       {place.map((item) => (
+                        <React.Fragment key={item.id}>
                         <div
-                          key={item.id}
                           title={item.notes || ''}
                           onClick={() => handleTimelineItemClick(lane.label, item)}
                           onMouseEnter={(e) => {
@@ -929,30 +932,50 @@ export default function TimelineBoardModal({
                           }}
                           onMouseLeave={() => setTimelineHoverNote(null)}
                           style={{
-                          position: 'absolute',
-                            left: `${item.spanPct <= 8 ? item.clampedLeftPct : item.leftPct}%`,
+                            position: 'absolute',
+                            left: `${item.leftPct}%`,
                             top: 10 + item.rowOffset,
-                            width: `${item.spanPct}%`,
-                            minWidth: 130,
-                            transform: 'none',
-                            padding: '6px 10px',
-                            borderRadius: 8,
+                            width: item.isPointEvent ? 8 : `${item.spanPct}%`,
+                            height: 26,
+                            padding: item.isPointEvent ? 0 : '4px 8px',
+                            borderRadius: item.isPointEvent ? 4 : 6,
                             border:
                               timelineBoardSelection?.entityId === item.entityId &&
                               timelineBoardSelection?.eventId === item.eventId
                                 ? '2px solid #2f64b8'
                                 : '1px solid #cad3e0',
                             background: item.color,
-                            fontSize: 13,
+                            fontSize: 12,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             cursor: 'pointer',
+                            boxSizing: 'border-box',
                           }}
                         >
-                          <strong>{stripSelfName(item.label, lane.label)}</strong>
-                          {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
+                          {!item.isPointEvent && (
+                            <>
+                              <strong>{stripSelfName(item.label, lane.label)}</strong>
+                              {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
+                            </>
+                          )}
                         </div>
+                        {item.isPointEvent && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: `calc(${item.leftPct}% + 12px)`,
+                              top: 10 + item.rowOffset + 4,
+                              fontSize: 11,
+                              color: '#444',
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {stripSelfName(item.label, lane.label)}
+                          </div>
+                        )}
+                        </React.Fragment>
                       ))}
                     </div>
                   </div>
