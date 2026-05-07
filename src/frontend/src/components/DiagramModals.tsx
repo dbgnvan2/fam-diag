@@ -585,6 +585,9 @@ export default function DiagramModals({
         partnerships={partnerships}
         allEmotionalLines={allEmotionalLines}
         eventCategories={eventCategories}
+        functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+        nodalCategories={nodalCategories}
+        functionalFactCategories={functionalFactCategories}
         timelineSelectionIds={timelineSelectionIds}
         onUpdatePerson={handleUpdatePerson}
         onUpdatePartnership={handleUpdatePartnership}

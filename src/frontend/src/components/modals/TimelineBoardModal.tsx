@@ -1,13 +1,25 @@
-import React, { useState, useCallback } from 'react';
-import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../../types';
+import React, { useState, useCallback, useMemo } from 'react';
+import type {
+  Person,
+  Partnership,
+  EmotionalLine,
+  EmotionalProcessEvent,
+  FunctionalIndicatorDefinition,
+  NodalCategoryDefinition,
+  FunctionalFactCategoryDefinition,
+} from '../../types';
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import { nanoid } from 'nanoid';
+import EventModal from '../EventModal';
 
 interface TimelineBoardModalProps {
   people: Person[];
   partnerships: Partnership[];
   allEmotionalLines: EmotionalLine[];
   eventCategories: string[];
+  functionalIndicatorDefinitions?: FunctionalIndicatorDefinition[];
+  nodalCategories?: NodalCategoryDefinition[];
+  functionalFactCategories?: FunctionalFactCategoryDefinition[];
   timelineSelectionIds: string[];
   onUpdatePerson: (id: string, updates: Partial<Person>) => void;
   onUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
@@ -35,6 +47,9 @@ export default function TimelineBoardModal({
   partnerships,
   allEmotionalLines,
   eventCategories,
+  functionalIndicatorDefinitions = [],
+  nodalCategories = [],
+  functionalFactCategories = [],
   timelineSelectionIds,
   onUpdatePerson,
   onUpdatePartnership,
@@ -62,6 +77,88 @@ export default function TimelineBoardModal({
     original: EmotionalProcessEvent | null;
     isNew: boolean;
   } | null>(null);
+  // EventModal state for the per-person "+ Add Event" flow on timeline lanes.
+  // Mirrors the same EventModal used in the Properties panel's Events tab.
+  const [eventModalState, setEventModalState] = useState<{
+    personId: string;
+    draft: EmotionalProcessEvent;
+  } | null>(null);
+
+  const startAddEventForPerson = (personId: string) => {
+    const person = people.find((p) => p.id === personId);
+    if (!person) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const draft: EmotionalProcessEvent = {
+      id: nanoid(),
+      eventType: 'NODAL',
+      eventClass: 'individual',
+      anchorType: 'PERSON',
+      anchorId: personId,
+      category: '',
+      subtype: '',
+      status: 'discrete',
+      intensity: 0,
+      frequency: 0,
+      impact: 0,
+      howWell: 0,
+      date: today,
+      startDate: today,
+      wwwwh: '',
+      observations: '',
+      primaryPersonName: person.name || '',
+      otherPersonName: 'None',
+      createdAt: Date.now(),
+    };
+    setEventModalState({ personId, draft });
+  };
+
+  const cancelEventModal = () => setEventModalState(null);
+
+  const saveEventModal = () => {
+    if (!eventModalState) return;
+    const person = people.find((p) => p.id === eventModalState.personId);
+    if (!person) {
+      setEventModalState(null);
+      return;
+    }
+    const events = [...(person.events || []), eventModalState.draft];
+    onUpdatePerson(eventModalState.personId, { events });
+    setEventModalState(null);
+  };
+
+  const onEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
+    setEventModalState((prev) =>
+      prev ? { ...prev, draft: { ...prev.draft, [field]: value } as EmotionalProcessEvent } : prev,
+    );
+  };
+
+  const onSetEventDraft = (draft: EmotionalProcessEvent) => {
+    setEventModalState((prev) => (prev ? { ...prev, draft } : prev));
+  };
+
+  // Compute symptom-type options for the active event (matches PropertiesPanel pattern).
+  const eventModalSymptomTypes = useMemo(() => {
+    if (!eventModalState) return [] as string[];
+    const cat = (eventModalState.draft.category || 'physical').toLowerCase().trim();
+    return Array.from(
+      new Set(
+        functionalIndicatorDefinitions
+          .filter((d) => (d.group || 'physical').toLowerCase() === cat)
+          .map((d) => d.label?.trim())
+          .filter((l): l is string => !!l),
+      ),
+    );
+  }, [eventModalState, functionalIndicatorDefinitions]);
+
+  const eventModalActivePersonName = eventModalState
+    ? people.find((p) => p.id === eventModalState.personId)?.name || ''
+    : '';
+  const eventModalPrimaryPersonOptions = eventModalActivePersonName
+    ? [eventModalActivePersonName]
+    : [];
+  const eventModalOtherPersonOptions = eventModalState
+    ? ['None', ...people.filter((p) => p.id !== eventModalState.personId).map((p) => p.name || '').filter(Boolean)]
+    : ['None'];
 
   const handleTimelineStripDragMove = useCallback(
     (clientX: number) => {
@@ -897,7 +994,7 @@ export default function TimelineBoardModal({
                 return (
                   <div key={lane.id} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', borderTop: '1px dashed #d7d7d7' }}>
                     <div
-                      style={{ background: '#f6f6f8', padding: '14px 10px', fontWeight: 700, cursor: lane.id === 'family' ? 'default' : 'pointer' }}
+                      style={{ background: '#f6f6f8', padding: '14px 10px', fontWeight: 700, cursor: lane.id === 'family' ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}
                       onClick={() => {
                         if (lane.id === 'family') return;
                         setTimelineBoardSelection({
@@ -909,7 +1006,27 @@ export default function TimelineBoardModal({
                         setTimelineBoardEventDraft(null);
                       }}
                     >
-                      {lane.label}
+                      <span>{lane.label}</span>
+                      {lane.id !== 'family' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); startAddEventForPerson(lane.id); }}
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 8px',
+                            border: '1px solid #4b68a6',
+                            background: '#e6f0ff',
+                            color: '#2f4f8a',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            alignSelf: 'flex-start',
+                          }}
+                          title={`Add event for ${lane.label}`}
+                        >
+                          + Add Event
+                        </button>
+                      )}
                     </div>
                     <div style={{ position: 'relative', minHeight: 112, borderLeft: '1px solid #ddd', background: '#fff' }}>
                       {place.map((item) => (
@@ -1075,6 +1192,27 @@ export default function TimelineBoardModal({
           </button>
         </div>
       </div>
+      {eventModalState && (
+        <EventModal
+          eventDraft={eventModalState.draft}
+          position={null}
+          popupLeft={0}
+          popupTop={0}
+          popupMaxHeight={null}
+          primaryPersonOptions={eventModalPrimaryPersonOptions}
+          otherPersonOptions={eventModalOtherPersonOptions}
+          eventCategories={eventCategories}
+          functionalFactCategoryNames={functionalFactCategories.map((c) => c.name)}
+          nodalCategoryNames={nodalCategories.map((c) => c.name)}
+          symptomTypeOptions={eventModalSymptomTypes}
+          resolvedEventClass="individual"
+          modalTitle={`Person Add Event — ${eventModalActivePersonName}`}
+          onChange={onEventDraftChange}
+          onSetDraft={onSetEventDraft}
+          onSave={saveEventModal}
+          onCancel={cancelEventModal}
+        />
+      )}
     </div>
   );
 }
