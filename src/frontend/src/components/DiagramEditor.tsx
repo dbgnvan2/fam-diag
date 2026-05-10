@@ -390,6 +390,9 @@ const DiagramEditor = () => {
   const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelineSelectionIds, setTimelineSelectionIds] = useState<string[]>([]);
+  // Partnership/Family ids to show as Family lanes on the timeline (separate
+  // from person selection so user can choose person-only, family-only, or both).
+  const [timelineFamilySelectionIds, setTimelineFamilySelectionIds] = useState<string[]>([]);
 
   const [notesLayerEnabled, setNotesLayerEnabled] = useState(true);
   const [showSiblingConflicts, setShowSiblingConflicts] = useState(false);
@@ -3829,6 +3832,17 @@ useEffect(() => {
             makeFamilyItem('Chronic Stress', 'Chronic Stress', 'Stress', 'Stressors'),
           ],
         },
+        {
+          label: 'Timeline',
+          onClick: () => {
+            // Family Timeline: add this family lane. If a person is currently
+            // selected (or several), keep their person lanes too — user gets
+            // person + family side-by-side.
+            setTimelineFamilySelectionIds([partnershipId]);
+            setTimelineSelectionIds(selectedPeopleIds.length ? [...selectedPeopleIds] : []);
+            setContextMenu(null);
+          },
+        },
       ],
     });
   };
@@ -4561,10 +4575,12 @@ useEffect(() => {
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}
             timelineSelectionIds={timelineSelectionIds}
+            timelineFamilySelectionIds={timelineFamilySelectionIds}
             handleUpdatePerson={handleUpdatePerson}
             handleUpdatePartnership={handleUpdatePartnership}
             handleUpdateEmotionalLine={handleUpdateEmotionalLine}
             setTimelineSelectionIds={setTimelineSelectionIds}
+            setTimelineFamilySelectionIds={setTimelineFamilySelectionIds}
             sessionNotesOpen={sessionNotesOpen}
             setSessionNotesOpen={setSessionNotesOpen}
             sessionNoteCoachName={sessionNoteCoachName}

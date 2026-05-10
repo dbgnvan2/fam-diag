@@ -21,6 +21,10 @@ interface TimelineBoardModalProps {
   nodalCategories?: NodalCategoryDefinition[];
   functionalFactCategories?: FunctionalFactCategoryDefinition[];
   timelineSelectionIds: string[];
+  // Partnership IDs to render as explicit Family lanes (one lane per id).
+  // Independent from `timelineSelectionIds` so the user can pick any
+  // combination of person + family lanes.
+  timelineFamilySelectionIds?: string[];
   onUpdatePerson: (id: string, updates: Partial<Person>) => void;
   onUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
@@ -54,6 +58,7 @@ export default function TimelineBoardModal({
   nodalCategories = [],
   functionalFactCategories = [],
   timelineSelectionIds,
+  timelineFamilySelectionIds = [],
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
@@ -309,7 +314,7 @@ export default function TimelineBoardModal({
     [timelineYearDrag, timelineYearPickTarget, timelineFilterEndYear, timelineFilterStartYear]
   );
 
-  if (timelineSelectionIds.length === 0) return null;
+  if (timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0) return null;
 
   const parseTimelineDate = (value?: string) => {
     if (!value) return null;
@@ -336,20 +341,23 @@ export default function TimelineBoardModal({
     event.startDate || event.date || undefined;
 
   const timelineLanes = (() => {
-    if (!selectedTimelinePeople.length) return [] as TimelineLane[];
     const lanes: TimelineLane[] = [];
-    const selectedIdSet = new Set(selectedTimelinePeople.map((person) => person.id));
+    if (!selectedTimelinePeople.length && !timelineFamilySelectionIds.length) return lanes;
 
-    // FAMILY lane: partnership relationship spans + partnership-level events
-    const familyItems: TimelineBlockItem[] = [];
-    partnerships.forEach((partnership) => {
-      if (!selectedIdSet.has(partnership.partner1_id) && !selectedIdSet.has(partnership.partner2_id)) return;
+    // FAMILY lanes: one per explicitly selected partnership in
+    // timelineFamilySelectionIds. Each lane shows the PRL relationship
+    // span + partnership.events + partnership.familyEvents (which also
+    // hold Triangle events per the data model).
+    timelineFamilySelectionIds.forEach((partnershipId) => {
+      const partnership = partnerships.find((p) => p.id === partnershipId);
+      if (!partnership) return;
+      const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name || 'Partner 1';
+      const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name || 'Partner 2';
+      const familyItems: TimelineBlockItem[] = [];
       if (partnership.relationshipStartDate) {
-        const partner1 = people.find((p) => p.id === partnership.partner1_id)?.name || 'Partner 1';
-        const partner2 = people.find((p) => p.id === partnership.partner2_id)?.name || 'Partner 2';
         familyItems.push({
           id: `family-prl-${partnership.id}`,
-          label: `${partner1} + ${partner2}`,
+          label: `${partner1Name} + ${partner2Name}`,
           detail: partnership.relationshipType,
           notes: partnership.notes,
           startDate: partnership.relationshipStartDate,
@@ -376,8 +384,6 @@ export default function TimelineBoardModal({
           partnershipTarget: 'events',
         });
       });
-      // Family-level events (and Triangle events, which also live on
-      // familyEvents per the data model) — surface them in the Family lane.
       (partnership.familyEvents || []).forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
@@ -396,10 +402,12 @@ export default function TimelineBoardModal({
           partnershipTarget: 'familyEvents',
         });
       });
+      lanes.push({
+        id: `family-${partnership.id}`,
+        label: `Family: ${partner1Name} + ${partner2Name}`,
+        items: familyItems,
+      });
     });
-    if (familyItems.length) {
-      lanes.push({ id: 'family', label: 'Family', items: familyItems });
-    }
 
     // PERSON lanes: own events + events from partnerships/EPLs the person
     // is part of. The PRL itself is NOT repeated here — it lives in the
@@ -739,7 +747,20 @@ export default function TimelineBoardModal({
       <div style={{ background: 'white', padding: 16, borderRadius: 8, width: '92vw', maxWidth: 1500, maxHeight: '86vh', overflow: 'auto' }}>
         <h4>Timeline Board</h4>
         <div style={{ marginBottom: 8, color: '#555', fontSize: 13 }}>
-          People: {selectedTimelinePeople.map((person) => person.name).join(', ')}
+          {selectedTimelinePeople.length > 0 && (
+            <span>People: {selectedTimelinePeople.map((person) => person.name).join(', ')}</span>
+          )}
+          {selectedTimelinePeople.length > 0 && timelineFamilySelectionIds.length > 0 && <span> · </span>}
+          {timelineFamilySelectionIds.length > 0 && (
+            <span>
+              Families: {timelineFamilySelectionIds.map((pid) => {
+                const pr = partnerships.find((p) => p.id === pid);
+                const a = people.find((p) => p.id === pr?.partner1_id)?.name || 'Partner 1';
+                const b = people.find((p) => p.id === pr?.partner2_id)?.name || 'Partner 2';
+                return `${a} + ${b}`;
+              }).join(', ')}
+            </span>
+          )}
         </div>
         {timelineYearBoundsForFilter && (
           <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 10 }}>
