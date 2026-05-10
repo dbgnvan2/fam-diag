@@ -704,18 +704,6 @@ export default function TimelineBoardModal({
     return slices;
   })();
 
-  const timelineHasVisibleItems = (() => {
-    if (!timelineDisplayRange) return false;
-    return timelineLanes.some((lane) =>
-      lane.items.some((item) => {
-        const startTs = parseTimelineDate(item.startDate);
-        const endTs = parseTimelineDate(item.endDate || item.startDate);
-        if (startTs == null || endTs == null) return false;
-        return endTs >= timelineDisplayRange.min && startTs <= timelineDisplayRange.max;
-      })
-    );
-  })();
-
   const sparseYearLabels =
     selectedStartYear != null && selectedEndYear != null
       ? selectedEndYear - selectedStartYear + 1 > 25
@@ -855,7 +843,7 @@ export default function TimelineBoardModal({
             </div>
           </div>
         )}
-        {!timelineHasVisibleItems || !timelineDisplayRange ? (
+        {!timelineDisplayRange ? (
           <div style={{ fontStyle: 'italic' }}>No timeline items.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 12 }}>
