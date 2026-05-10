@@ -3775,16 +3775,18 @@ useEffect(() => {
   };
 
   const handleFamilyClick = (partnershipId: string, shiftKey?: boolean) => {
-    // Plain click replaces selection (and clears other entity selections).
-    // Shift-click toggles this family in/out of the current family selection
-    // without touching person / EPL selections — so user can build up a
-    // mixed Person + Family selection for the Timeline.
+    // Family click works just like person click:
+    //   plain click  → replace selection with this family (no toggle off)
+    //   shift-click  → toggle this family in/out of the family selection
+    //                  WITHOUT touching person / EPL selections, so mixed
+    //                  Person + Family selections compose naturally.
+    // Deselect-all only happens on a background (stage) click, never on
+    // an object click.
     if (shiftKey) {
       setSelectedFamilyIds((prev) => {
         const next = prev.includes(partnershipId)
           ? prev.filter((id) => id !== partnershipId)
           : [...prev, partnershipId];
-        // If exactly one family ends up selected, surface it in the panel.
         if (next.length === 1) {
           const partnership = partnerships.find((p) => p.id === next[0]);
           setPropertiesPanelItem(partnership || null);
@@ -3801,17 +3803,9 @@ useEffect(() => {
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
-    setSelectedFamilyIds((prev) => {
-      const isOnlyThis = prev.length === 1 && prev[0] === partnershipId;
-      const next = isOnlyThis ? [] : [partnershipId];
-      if (next.length === 0) {
-        setPropertiesPanelItem(null);
-      } else {
-        const partnership = partnerships.find((p) => p.id === partnershipId);
-        setPropertiesPanelItem(partnership || null);
-      }
-      return next;
-    });
+    setSelectedFamilyIds([partnershipId]);
+    const partnership = partnerships.find((p) => p.id === partnershipId);
+    setPropertiesPanelItem(partnership || null);
   };
 
   const handleFamilyContextMenu = (e: KonvaEventObject<PointerEvent>, partnershipId: string) => {

@@ -344,6 +344,9 @@ export function useSelectionHandlers({
     }
 
     if (additive) {
+      // Shift-click on a person: toggle this person in/out of the people
+      // selection. Family selection is preserved so mixed Person + Family
+      // selections compose for actions like Timeline.
       const alreadySelected = selectedPeopleIds.includes(personId);
       const next = alreadySelected
         ? selectedPeopleIds.filter((id) => id !== personId)
@@ -354,11 +357,12 @@ export function useSelectionHandlers({
       setSelectedChildId(null);
       setSelectedPageNoteId(null);
       setPageNoteDraft(null);
-      setSelectedFamilyId(null);
       setPropertiesPanelItem(next.length === 1 ? selectedPerson : null);
       return;
     }
 
+    // Plain click on a person: replace selection with this person and
+    // clear other entity selections (including family).
     setSelectedEmotionalLineId(null);
     setSelectedPartnershipId(null);
     setSelectedChildId(null);
