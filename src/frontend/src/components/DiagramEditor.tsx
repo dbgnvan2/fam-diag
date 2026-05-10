@@ -164,8 +164,8 @@ const TRAINING_VIDEOS = [
     title: 'Getting Started',
     duration: '6 min',
     topic: 'Canvas basics, file workflow, and object editing',
-    embedUrl: 'https://www.youtube-nocookie.com/embed/k8ew_qIpEAU',
-    url: 'https://youtu.be/k8ew_qIpEAU',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/xnS1R7d0poU',
+    url: 'https://www.youtube.com/watch?v=xnS1R7d0poU',
   },
   {
     id: 'transcript',
