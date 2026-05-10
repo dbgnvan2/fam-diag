@@ -27,7 +27,7 @@ A specialized, web-based family diagramming application designed for clinical an
 
 ### 🔮 Hypothesis & Analysis
 *   **Prediction Sets**: Diagram-level hypothesis tracking. Create If→Then predictions linked to SIR entries, Papero changes, or custom observations, and track supporting/contradicting evidence over time.
-*   **Timeline Board**: A year-by-year slider to "play back" the growth of the diagram chronologically, visually showing how the family system evolved.
+*   **Timeline Board**: Select people and/or families on the canvas and open the Timeline Board to "play back" the growth of the system chronologically. Multi-select works with Ctrl/Cmd+click or marquee drag. View all event types (Person, Partnership, Family, Triangle, EA events) across all selected entities in parallel lanes. Add/edit events directly from the timeline.
 *   **Session Notes**: A floating, auto-saving workspace for coach notes that can be converted directly into timeline events.
 *   **Voice Commands**: Optional voice input for hands-free event recording and diagram navigation (when enabled in Settings).
 

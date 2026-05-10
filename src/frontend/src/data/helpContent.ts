@@ -124,12 +124,13 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: 'Timeline Board',
     tips: [
-      'Select two or more people on the canvas, right-click and choose Timeline to open the Timeline Board. Each selected person gets a horizontal lane plus a Family lane for shared partnership events.',
-      'Each lane has a "+ Add Event" button that opens the full Add/Edit Event modal pre-anchored to that person — same form as the Properties panel\'s Events tab. Clicking any existing event block opens the same modal in edit mode.',
+      'Select two or more people and/or families on the canvas, right-click and choose Timeline to open the Timeline Board. Family selection uses the same multi-select pattern as people (Ctrl/Cmd+click or click+drag marquee). Each selected person and family gets a horizontal lane for events.',
+      'The Timeline Board displays all event types: Person events, Partnership events, Family events, Triangle events, and Emotional Autonomy (EA) events — each in their appropriate lane.',
+      'Each lane has a "+ Add Event" button that opens the full Add/Edit Event modal pre-anchored to that person or family — same form as the Properties panel\'s Events tab. Clicking any existing event block opens the same modal in edit mode.',
       'Event boxes are sized exactly to their date span. Span events (with an end date) stretch from start to end; point events (single-date items like Birth, Marriage, Death) default to a 1-year-wide block proportional to the visible timeline.',
       'Boxes are colored by intensity: 0/unset (Birth, Marriage, Death) is green; 1 blue, 2 yellow, 3 orange, 4 pink, 5 red.',
       'Date fields on entities (person.birthDate, partnership.marriedStartDate, EPL start/end, etc.) are surfaced as synthesized events on both the timeline and the Events tab so what you see in one matches the other. Editing a synthesized event in the modal promotes it to a real event.',
-      'The Person view\'s Events tab aggregates events from the partnerships and emotional patterns the person is part of (Triangle and Family events excluded), so a single tab shows everything related to that person.',
+      'The timeline strip remains visible even when no events fall within the selected year range, so you can always see the timeline controls and date context.',
     ],
   },
 ];
