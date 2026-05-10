@@ -38,6 +38,9 @@ type TimelineBlockItem = {
   entityType: 'person' | 'partnership' | 'emotional';
   entityId: string;
   eventId?: string;
+  // For partnership entities: which array holds the event. Defaults to 'events'
+  // (PRL relationship events). Family / Triangle events live on familyEvents[].
+  partnershipTarget?: 'events' | 'familyEvents';
 };
 
 type TimelineLane = { id: string; label: string; items: TimelineBlockItem[] };
@@ -80,6 +83,8 @@ export default function TimelineBoardModal({
     entityType: 'person' | 'partnership' | 'emotional';
     entityId: string;
     isNew: boolean;
+    // For partnership: which array on the partnership owns the event.
+    partnershipTarget?: 'events' | 'familyEvents';
   } | null>(null);
 
   const startAddEventForPerson = (personId: string) => {
@@ -114,6 +119,7 @@ export default function TimelineBoardModal({
     entityType: 'person' | 'partnership' | 'emotional',
     entityId: string,
     event: EmotionalProcessEvent,
+    partnershipTarget?: 'events' | 'familyEvents',
   ) => {
     // For synthesized events (id starts with "synth-"), they aren't in
     // events[] yet — saving will append them, effectively promoting them.
@@ -122,6 +128,7 @@ export default function TimelineBoardModal({
       entityType,
       entityId,
       isNew: !event.id || event.id.startsWith('synth-'),
+      partnershipTarget,
     });
   };
 
@@ -129,7 +136,7 @@ export default function TimelineBoardModal({
 
   const saveEventModal = () => {
     if (!eventModalState) return;
-    const { draft, entityType, entityId } = eventModalState;
+    const { draft, entityType, entityId, partnershipTarget } = eventModalState;
     if (entityType === 'person') {
       const person = people.find((p) => p.id === entityId);
       if (!person) { setEventModalState(null); return; }
@@ -140,10 +147,17 @@ export default function TimelineBoardModal({
     } else if (entityType === 'partnership') {
       const partnership = partnerships.find((p) => p.id === entityId);
       if (!partnership) { setEventModalState(null); return; }
-      const events = partnership.events || [];
-      const idx = events.findIndex((e) => e.id === draft.id);
-      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
-      onUpdatePartnership(entityId, { events: nextEvents });
+      if (partnershipTarget === 'familyEvents') {
+        const events = partnership.familyEvents || [];
+        const idx = events.findIndex((e) => e.id === draft.id);
+        const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
+        onUpdatePartnership(entityId, { familyEvents: nextEvents });
+      } else {
+        const events = partnership.events || [];
+        const idx = events.findIndex((e) => e.id === draft.id);
+        const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
+        onUpdatePartnership(entityId, { events: nextEvents });
+      }
     } else {
       const line = allEmotionalLines.find((l) => l.id === entityId);
       if (!line) { setEventModalState(null); return; }
@@ -359,6 +373,27 @@ export default function TimelineBoardModal({
           entityType: 'partnership',
           entityId: partnership.id,
           eventId: event.id,
+          partnershipTarget: 'events',
+        });
+      });
+      // Family-level events (and Triangle events, which also live on
+      // familyEvents per the data model) — surface them in the Family lane.
+      (partnership.familyEvents || []).forEach((event) => {
+        const start = eventStart(event);
+        if (!start) return;
+        const labelPrefix = event.eventType === 'TRIANGLE' ? 'Triangle' : 'Family';
+        familyItems.push({
+          id: `family-fam-event-${event.id}`,
+          label: event.category || `${labelPrefix} Event`,
+          detail: event.subtype || event.observations || '',
+          notes: event.observations || '',
+          startDate: start,
+          endDate: event.endDate,
+          color: intensityToColor(event.intensity),
+          entityType: 'partnership',
+          entityId: partnership.id,
+          eventId: event.id,
+          partnershipTarget: 'familyEvents',
         });
       });
     });
@@ -508,12 +543,14 @@ export default function TimelineBoardModal({
     if (item.entityType === 'person') {
       existingEvent = people.find((p) => p.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
     } else if (item.entityType === 'partnership') {
-      existingEvent = partnerships.find((p) => p.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
+      const pr = partnerships.find((p) => p.id === item.entityId);
+      const arr = item.partnershipTarget === 'familyEvents' ? pr?.familyEvents : pr?.events;
+      existingEvent = arr?.find((e) => e.id === item.eventId);
     } else {
       existingEvent = allEmotionalLines.find((l) => l.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
     }
     if (existingEvent) {
-      startEditEvent(item.entityType, item.entityId, existingEvent);
+      startEditEvent(item.entityType, item.entityId, existingEvent, item.partnershipTarget);
       return;
     }
     // Synthesized event — fabricate a draft from the timeline item itself.
