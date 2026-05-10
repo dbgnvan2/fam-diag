@@ -72,16 +72,14 @@ export default function TimelineBoardModal({
   } | null>(null);
   const [timelineHoverNote, setTimelineHoverNote] = useState<{ text: string; x: number; y: number } | null>(null);
   const [timelineBoardSelection, setTimelineBoardSelection] = useState<TimelineBoardSelection | null>(null);
-  const [timelineBoardEventDraft, setTimelineBoardEventDraft] = useState<{
-    event: EmotionalProcessEvent;
-    original: EmotionalProcessEvent | null;
-    isNew: boolean;
-  } | null>(null);
-  // EventModal state for the per-person "+ Add Event" flow on timeline lanes.
+  // EventModal state — handles add and edit flows for any entity type
+  // (person / partnership / EPL). Replaces the prior simplified inline editor.
   // Mirrors the same EventModal used in the Properties panel's Events tab.
   const [eventModalState, setEventModalState] = useState<{
-    personId: string;
     draft: EmotionalProcessEvent;
+    entityType: 'person' | 'partnership' | 'emotional';
+    entityId: string;
+    isNew: boolean;
   } | null>(null);
 
   const startAddEventForPerson = (personId: string) => {
@@ -109,20 +107,51 @@ export default function TimelineBoardModal({
       otherPersonName: 'None',
       createdAt: Date.now(),
     };
-    setEventModalState({ personId, draft });
+    setEventModalState({ draft, entityType: 'person', entityId: personId, isNew: true });
+  };
+
+  const startEditEvent = (
+    entityType: 'person' | 'partnership' | 'emotional',
+    entityId: string,
+    event: EmotionalProcessEvent,
+  ) => {
+    // For synthesized events (id starts with "synth-"), they aren't in
+    // events[] yet — saving will append them, effectively promoting them.
+    setEventModalState({
+      draft: { ...event },
+      entityType,
+      entityId,
+      isNew: !event.id || event.id.startsWith('synth-'),
+    });
   };
 
   const cancelEventModal = () => setEventModalState(null);
 
   const saveEventModal = () => {
     if (!eventModalState) return;
-    const person = people.find((p) => p.id === eventModalState.personId);
-    if (!person) {
-      setEventModalState(null);
-      return;
+    const { draft, entityType, entityId } = eventModalState;
+    if (entityType === 'person') {
+      const person = people.find((p) => p.id === entityId);
+      if (!person) { setEventModalState(null); return; }
+      const events = person.events || [];
+      const idx = events.findIndex((e) => e.id === draft.id);
+      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
+      onUpdatePerson(entityId, { events: nextEvents });
+    } else if (entityType === 'partnership') {
+      const partnership = partnerships.find((p) => p.id === entityId);
+      if (!partnership) { setEventModalState(null); return; }
+      const events = partnership.events || [];
+      const idx = events.findIndex((e) => e.id === draft.id);
+      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
+      onUpdatePartnership(entityId, { events: nextEvents });
+    } else {
+      const line = allEmotionalLines.find((l) => l.id === entityId);
+      if (!line) { setEventModalState(null); return; }
+      const events = line.events || [];
+      const idx = events.findIndex((e) => e.id === draft.id);
+      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
+      onUpdateEmotionalLine(entityId, { events: nextEvents });
     }
-    const events = [...(person.events || []), eventModalState.draft];
-    onUpdatePerson(eventModalState.personId, { events });
     setEventModalState(null);
   };
 
@@ -150,15 +179,67 @@ export default function TimelineBoardModal({
     );
   }, [eventModalState, functionalIndicatorDefinitions]);
 
-  const eventModalActivePersonName = eventModalState
-    ? people.find((p) => p.id === eventModalState.personId)?.name || ''
-    : '';
-  const eventModalPrimaryPersonOptions = eventModalActivePersonName
-    ? [eventModalActivePersonName]
-    : [];
-  const eventModalOtherPersonOptions = eventModalState
-    ? ['None', ...people.filter((p) => p.id !== eventModalState.personId).map((p) => p.name || '').filter(Boolean)]
-    : ['None'];
+  // Compute primary/other person options for the EventModal based on entity type.
+  const eventModalPrimaryPersonOptions = useMemo(() => {
+    if (!eventModalState) return [] as string[];
+    const { entityType, entityId } = eventModalState;
+    if (entityType === 'person') {
+      const name = people.find((p) => p.id === entityId)?.name || '';
+      return name ? [name] : [];
+    }
+    if (entityType === 'partnership') {
+      const pr = partnerships.find((p) => p.id === entityId);
+      const a = people.find((p) => p.id === pr?.partner1_id)?.name || '';
+      const b = people.find((p) => p.id === pr?.partner2_id)?.name || '';
+      return [a, b].filter(Boolean);
+    }
+    const line = allEmotionalLines.find((l) => l.id === entityId);
+    const a = people.find((p) => p.id === line?.person1_id)?.name || '';
+    const b = people.find((p) => p.id === line?.person2_id)?.name || '';
+    return [a, b].filter(Boolean);
+  }, [eventModalState, people, partnerships, allEmotionalLines]);
+
+  const eventModalOtherPersonOptions = useMemo(() => {
+    if (!eventModalState) return ['None'];
+    const excludeIds = new Set<string>();
+    const { entityType, entityId } = eventModalState;
+    if (entityType === 'person') excludeIds.add(entityId);
+    else if (entityType === 'partnership') {
+      const pr = partnerships.find((p) => p.id === entityId);
+      if (pr) { excludeIds.add(pr.partner1_id); excludeIds.add(pr.partner2_id); }
+    } else {
+      const line = allEmotionalLines.find((l) => l.id === entityId);
+      if (line) { excludeIds.add(line.person1_id); excludeIds.add(line.person2_id); }
+    }
+    return ['None', ...people.filter((p) => !excludeIds.has(p.id)).map((p) => p.name || '').filter(Boolean)];
+  }, [eventModalState, people, partnerships, allEmotionalLines]);
+
+  const eventModalResolvedClass: 'individual' | 'relationship' | 'emotional-pattern' =
+    eventModalState?.entityType === 'partnership' ? 'relationship'
+    : eventModalState?.entityType === 'emotional' ? 'emotional-pattern'
+    : 'individual';
+
+  const eventModalTitle = useMemo(() => {
+    if (!eventModalState) return '';
+    const { entityType, entityId, isNew } = eventModalState;
+    const verb = isNew ? 'Add' : 'Edit';
+    if (entityType === 'person') {
+      const name = people.find((p) => p.id === entityId)?.name || '';
+      return `Person ${verb} Event${name ? ` — ${name}` : ''}`;
+    }
+    if (entityType === 'partnership') {
+      const pr = partnerships.find((p) => p.id === entityId);
+      const a = people.find((p) => p.id === pr?.partner1_id)?.name || '';
+      const b = people.find((p) => p.id === pr?.partner2_id)?.name || '';
+      const pair = [a, b].filter(Boolean).join(' + ');
+      return `Partnership ${verb} Event${pair ? ` — ${pair}` : ''}`;
+    }
+    const line = allEmotionalLines.find((l) => l.id === entityId);
+    const p1 = people.find((p) => p.id === line?.person1_id)?.name || '';
+    const p2 = people.find((p) => p.id === line?.person2_id)?.name || '';
+    const pair = [p1, p2].filter(Boolean).join(' ↔ ');
+    return `Emotional Pattern ${verb} Event${pair ? ` — ${pair}` : ''}`;
+  }, [eventModalState, people, partnerships, allEmotionalLines]);
 
   const handleTimelineStripDragMove = useCallback(
     (clientX: number) => {
@@ -406,20 +487,6 @@ export default function TimelineBoardModal({
 
   const handleTimelineItemClick = (laneLabel: string, item: TimelineBlockItem) => {
     setTimelineHoverNote(null);
-    const existingEvent =
-      item.eventId && item.entityType === 'person'
-        ? people
-            .find((entry) => entry.id === item.entityId)
-            ?.events?.find((entry) => entry.id === item.eventId)
-        : item.eventId && item.entityType === 'partnership'
-        ? partnerships
-            .find((entry) => entry.id === item.entityId)
-            ?.events?.find((entry) => entry.id === item.eventId)
-        : item.eventId
-        ? allEmotionalLines
-            .find((entry) => entry.id === item.entityId)
-            ?.events?.find((entry) => entry.id === item.eventId)
-        : undefined;
     setTimelineBoardSelection({
       laneLabel,
       entityType: item.entityType,
@@ -429,106 +496,58 @@ export default function TimelineBoardModal({
       startDate: item.startDate,
       endDate: item.endDate,
     });
-    if (existingEvent) {
-      setTimelineBoardEventDraft({
-        event: { ...existingEvent },
-        original: { ...existingEvent },
-        isNew: false,
-      });
-    } else {
-      setTimelineBoardEventDraft(null);
-    }
-  };
-
-  const setTimelineEventDraftField = (
-    field: 'date' | 'category' | 'observations',
-    value: string
-  ) => {
-    setTimelineBoardEventDraft((prev) =>
-      prev
-        ? {
-            ...prev,
-            event: {
-              ...prev.event,
-              date: field === 'date' ? value : prev.event.date,
-              category: field === 'category' ? value : prev.event.category,
-              observations: field === 'observations' ? value : prev.event.observations,
-            },
-          }
-        : prev
-    );
-  };
-
-  const saveTimelineEventDraft = () => {
-    if (!timelineBoardSelection || !timelineBoardEventDraft) return;
-    const draft: EmotionalProcessEvent = {
-      ...timelineBoardEventDraft.event,
-      date: timelineBoardEventDraft.event.date || new Date().toISOString().slice(0, 10),
-    };
-    if (timelineBoardSelection.entityType === 'person') {
-      const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
-      if (!person) return;
-      const nextEvents = timelineBoardEventDraft.isNew
-        ? [...(person.events || []), draft]
-        : (person.events || []).map((event) => (event.id === draft.id ? draft : event));
-      onUpdatePerson(person.id, { events: nextEvents });
-    } else if (timelineBoardSelection.entityType === 'partnership') {
-      const partnership = partnerships.find((entry) => entry.id === timelineBoardSelection.entityId);
-      if (!partnership) return;
-      const nextEvents = timelineBoardEventDraft.isNew
-        ? [...(partnership.events || []), draft]
-        : (partnership.events || []).map((event) => (event.id === draft.id ? draft : event));
-      onUpdatePartnership(partnership.id, { events: nextEvents });
-    } else {
-      const line = allEmotionalLines.find((entry) => entry.id === timelineBoardSelection.entityId);
-      if (!line) return;
-      const nextEvents = timelineBoardEventDraft.isNew
-        ? [...(line.events || []), draft]
-        : (line.events || []).map((event) => (event.id === draft.id ? draft : event));
-      onUpdateEmotionalLine(line.id, { events: nextEvents });
-    }
-    setTimelineBoardSelection((prev) =>
-      prev
-        ? {
-            ...prev,
-            eventId: draft.id,
-            itemLabel: draft.category || prev.itemLabel,
-            startDate: draft.date || prev.startDate,
-          }
-        : prev
-    );
-    setTimelineBoardEventDraft({
-      event: { ...draft },
-      original: { ...draft },
-      isNew: false,
-    });
-    if (draft.date) {
-      const savedYear = new Date(draft.date).getUTCFullYear();
-      if (Number.isFinite(savedYear)) {
-        if (selectedStartYear != null && savedYear < selectedStartYear) {
-          setTimelineFilterStartYear(savedYear);
-        }
-        if (selectedEndYear != null && savedYear > selectedEndYear) {
-          setTimelineFilterEndYear(savedYear);
-        }
-      }
-    }
-  };
-
-  const cancelTimelineEventDraft = () => {
-    if (!timelineBoardEventDraft) return;
-    if (timelineBoardEventDraft.isNew) {
-      setTimelineBoardSelection((prev) => (prev ? { ...prev, eventId: undefined } : prev));
-      setTimelineBoardEventDraft(null);
+    if (!item.eventId) {
+      // Span items (PRL, EPL line) — let the right-side panel show their
+      // properties; no event editor opens.
       return;
     }
-    if (timelineBoardEventDraft.original) {
-      setTimelineBoardEventDraft({
-        event: { ...timelineBoardEventDraft.original },
-        original: { ...timelineBoardEventDraft.original },
-        isNew: false,
-      });
+    // Find the existing event in the source entity's events[]. If it's a
+    // synthesized id (no real event yet), build a draft from the timeline
+    // item so the EventModal opens pre-populated and saving promotes it.
+    let existingEvent: EmotionalProcessEvent | undefined;
+    if (item.entityType === 'person') {
+      existingEvent = people.find((p) => p.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
+    } else if (item.entityType === 'partnership') {
+      existingEvent = partnerships.find((p) => p.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
+    } else {
+      existingEvent = allEmotionalLines.find((l) => l.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
     }
+    if (existingEvent) {
+      startEditEvent(item.entityType, item.entityId, existingEvent);
+      return;
+    }
+    // Synthesized event — fabricate a draft from the timeline item itself.
+    const today = new Date().toISOString().slice(0, 10);
+    const start = item.startDate || today;
+    const draft: EmotionalProcessEvent = {
+      id: item.eventId,
+      eventType: item.entityType === 'emotional' ? 'EPE' : 'NODAL',
+      eventClass:
+        item.entityType === 'partnership' ? 'relationship'
+        : item.entityType === 'emotional' ? 'emotional-pattern'
+        : 'individual',
+      anchorType:
+        item.entityType === 'partnership' ? 'RELATIONSHIP_PRL'
+        : item.entityType === 'emotional' ? 'EMOTIONAL_PROCESS_EP'
+        : 'PERSON',
+      anchorId: item.entityId,
+      category: item.label || '',
+      subtype: '',
+      status: 'discrete',
+      intensity: 0,
+      frequency: 0,
+      impact: 0,
+      howWell: 0,
+      date: start,
+      startDate: start,
+      endDate: item.endDate,
+      wwwwh: '',
+      observations: '',
+      primaryPersonName: '',
+      otherPersonName: 'None',
+      createdAt: Date.now(),
+    };
+    startEditEvent(item.entityType, item.entityId, draft);
   };
 
   const handleTimelinePersonPropertyChange = (
@@ -543,44 +562,6 @@ export default function TimelineBoardModal({
     } else {
       onUpdatePerson(person.id, { notes: value });
     }
-  };
-
-  const addTimelineEventToSelectedPerson = () => {
-    if (!timelineBoardSelection || timelineBoardSelection.entityType !== 'person') return;
-    const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
-    if (!person) return;
-    const newEvent: EmotionalProcessEvent = {
-      id: nanoid(),
-      date: new Date().toISOString().slice(0, 10),
-      category: eventCategories[0] || 'Event',
-      eventType: 'NODAL',
-      status: 'discrete',
-      intensity: 0,
-      frequency: 0,
-      impact: 0,
-      howWell: 5,
-      otherPersonName: '',
-      primaryPersonName: person.name || '',
-      wwwwh: '',
-      observations: '',
-      priorEventsNote: '',
-      reflectionsNote: '',
-      createdAt: Date.now(),
-      eventClass: 'individual',
-    };
-    setTimelineBoardSelection({
-      laneLabel: person.name || timelineBoardSelection.laneLabel,
-      entityType: 'person',
-      entityId: person.id,
-      eventId: newEvent.id,
-      itemLabel: newEvent.category,
-      startDate: newEvent.date,
-    });
-    setTimelineBoardEventDraft({
-      event: { ...newEvent },
-      original: null,
-      isNew: true,
-    });
   };
 
   const timelineSelectionResolved: {
@@ -1003,7 +984,6 @@ export default function TimelineBoardModal({
                           entityId: lane.id,
                           itemLabel: lane.label,
                         });
-                        setTimelineBoardEventDraft(null);
                       }}
                     >
                       <span>{lane.label}</span>
@@ -1123,39 +1103,17 @@ export default function TimelineBoardModal({
                           style={{ fontFamily: 'inherit' }}
                         />
                       </label>
-                      <button onClick={addTimelineEventToSelectedPerson}>Add Event</button>
-                    </>
-                  )}
-                  {timelineBoardEventDraft && (
-                    <>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        Date
-                        <input
-                          type="date"
-                          value={timelineBoardEventDraft.event.date || ''}
-                          onChange={(e) => setTimelineEventDraftField('date', e.target.value)}
-                        />
-                      </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        Category
-                        <input
-                          type="text"
-                          value={timelineBoardEventDraft.event.category || ''}
-                          onChange={(e) => setTimelineEventDraftField('category', e.target.value)}
-                        />
-                      </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        Notes
-                        <textarea
-                          rows={7}
-                          value={timelineBoardEventDraft.event.observations || ''}
-                          onChange={(e) => setTimelineEventDraftField('observations', e.target.value)}
-                          style={{ fontFamily: 'inherit' }}
-                        />
-                      </label>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                        <button onClick={cancelTimelineEventDraft}>Cancel</button>
-                        <button onClick={saveTimelineEventDraft}>Save</button>
+                      <button
+                        onClick={() => {
+                          if (timelineBoardSelection?.entityType === 'person' && timelineBoardSelection.entityId) {
+                            startAddEventForPerson(timelineBoardSelection.entityId);
+                          }
+                        }}
+                      >
+                        Add Event
+                      </button>
+                      <div style={{ fontSize: 12, color: '#7a8aaa', marginTop: 6 }}>
+                        Click any event block on the timeline to edit it.
                       </div>
                     </>
                   )}
@@ -1205,8 +1163,8 @@ export default function TimelineBoardModal({
           functionalFactCategoryNames={functionalFactCategories.map((c) => c.name)}
           nodalCategoryNames={nodalCategories.map((c) => c.name)}
           symptomTypeOptions={eventModalSymptomTypes}
-          resolvedEventClass="individual"
-          modalTitle={`Person Add Event — ${eventModalActivePersonName}`}
+          resolvedEventClass={eventModalResolvedClass}
+          modalTitle={eventModalTitle}
           onChange={onEventDraftChange}
           onSetDraft={onSetEventDraft}
           onSave={saveEventModal}
