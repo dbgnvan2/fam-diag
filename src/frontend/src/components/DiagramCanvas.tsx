@@ -154,7 +154,8 @@ interface DiagramCanvasProps {
 
   // Family object handlers
   selectedFamilyId: string | null;
-  handleFamilyClick: (partnershipId: string) => void;
+  selectedFamilyIds?: string[];
+  handleFamilyClick: (partnershipId: string, shiftKey?: boolean) => void;
   handleFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
   onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
   onOpenFamilyProperty: (partnershipId: string, category: string, subtype: string, position: { x: number; y: number }) => void;
@@ -315,6 +316,7 @@ export default function DiagramCanvas({
   handleHorizontalConnectorDragEnd,
   handlePartnershipContextMenu,
   selectedFamilyId,
+  selectedFamilyIds = [],
   handleFamilyClick,
   handleFamilyContextMenu,
   onFamilyIndicatorClick,
@@ -834,7 +836,7 @@ export default function DiagramCanvas({
                             partner1={partner1}
                             partner2={partner2}
                             isSelected={selectedPartnershipId === p.id}
-                            isFamilySelected={selectedFamilyId === p.id}
+                            isFamilySelected={selectedFamilyIds.includes(p.id) || selectedFamilyId === p.id}
                             onSelect={handlePartnershipSelect}
                             onHorizontalConnectorDragEnd={handleHorizontalConnectorDragEnd}
                             onFamilyNameOffsetChange={(id, offsetX, offsetY) => handleUpdatePartnership(id, { familyNameOffsetX: offsetX, familyNameOffsetY: offsetY })}

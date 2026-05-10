@@ -16,6 +16,7 @@ interface UseContextMenuHandlersDeps {
   partnerships: Partnership[];
   selectedPeopleIds: string[];
   selectedPartnershipId: string | null;
+  selectedFamilyIds: string[];
   relationshipTypes: string[];
   functionalFactCategories: FunctionalFactCategoryDefinition[];
   // State setters
@@ -29,6 +30,7 @@ interface UseContextMenuHandlersDeps {
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
   setTimelineSelectionIds: Dispatch<SetStateAction<string[]>>;
+  setTimelineFamilySelectionIds: Dispatch<SetStateAction<string[]>>;
   // From usePersonOperations
   addPerson: (x: number, y: number, overrides?: Partial<Person>) => Person;
   addCoach: (x: number, y: number) => Person;
@@ -74,6 +76,7 @@ export function useContextMenuHandlers({
   partnerships,
   selectedPeopleIds,
   selectedPartnershipId,
+  selectedFamilyIds,
   relationshipTypes,
   functionalFactCategories,
   setContextMenu,
@@ -86,6 +89,7 @@ export function useContextMenuHandlers({
   setPropertiesPanelItem,
   setPropertiesPanelIntent,
   setTimelineSelectionIds,
+  setTimelineFamilySelectionIds,
   addPerson,
   addCoach,
   addAIAgent,
@@ -445,6 +449,9 @@ export function useContextMenuHandlers({
                     ? selectedPeopleIds
                     : [person.id];
                 setTimelineSelectionIds(nextIds);
+                // Carry over any currently-selected families so the user
+                // gets person + family lanes in the same Timeline view.
+                setTimelineFamilySelectionIds([...selectedFamilyIds]);
                 setContextMenu(null);
             }
           },
@@ -781,6 +788,7 @@ export function useContextMenuHandlers({
         label: 'Timeline',
         onClick: () => {
           setTimelineSelectionIds(selectedPeopleIds);
+          setTimelineFamilySelectionIds([...selectedFamilyIds]);
           setContextMenu(null);
         },
       },

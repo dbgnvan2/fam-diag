@@ -286,7 +286,19 @@ const DiagramEditor = () => {
     position: { x: number; y: number };
     modalTitle?: string;
   } | null>(null);
-  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
+  const [selectedFamilyIds, setSelectedFamilyIds] = useState<string[]>([]);
+  // Convenience: the "active" single family (used by the Family Properties
+  // panel which only shows a single family at a time). null when multi-select
+  // or no selection.
+  const selectedFamilyId = selectedFamilyIds.length === 1 ? selectedFamilyIds[0] : null;
+  const setSelectedFamilyId = (
+    next: string | null | ((prev: string | null) => string | null),
+  ) =>
+    setSelectedFamilyIds((prev) => {
+      const prevSingle = prev.length === 1 ? prev[0] : null;
+      const resolved = typeof next === 'function' ? next(prevSingle) : next;
+      return resolved ? [resolved] : [];
+    });
   const [familyPropertyModal, setFamilyPropertyModal] = useState<{
     partnershipId: string;
     draft: EmotionalProcessEvent;
@@ -3598,6 +3610,7 @@ useEffect(() => {
     partnerships,
     selectedPeopleIds,
     selectedPartnershipId,
+    selectedFamilyIds,
     relationshipTypes,
     functionalFactCategories,
     setContextMenu,
@@ -3610,6 +3623,7 @@ useEffect(() => {
     setPropertiesPanelItem,
     setPropertiesPanelIntent,
     setTimelineSelectionIds,
+    setTimelineFamilySelectionIds,
     addPerson,
     addCoach,
     addAIAgent,
@@ -3760,16 +3774,37 @@ useEffect(() => {
     );
   };
 
-  const handleFamilyClick = (partnershipId: string) => {
+  const handleFamilyClick = (partnershipId: string, shiftKey?: boolean) => {
+    // Plain click replaces selection (and clears other entity selections).
+    // Shift-click toggles this family in/out of the current family selection
+    // without touching person / EPL selections — so user can build up a
+    // mixed Person + Family selection for the Timeline.
+    if (shiftKey) {
+      setSelectedFamilyIds((prev) => {
+        const next = prev.includes(partnershipId)
+          ? prev.filter((id) => id !== partnershipId)
+          : [...prev, partnershipId];
+        // If exactly one family ends up selected, surface it in the panel.
+        if (next.length === 1) {
+          const partnership = partnerships.find((p) => p.id === next[0]);
+          setPropertiesPanelItem(partnership || null);
+        } else {
+          setPropertiesPanelItem(null);
+        }
+        return next;
+      });
+      return;
+    }
     setSelectedPeopleIds([]);
     setSelectedPartnershipId(null);
     setSelectedEmotionalLineId(null);
     setSelectedChildId(null);
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
-    setSelectedFamilyId((prev) => {
-      const next = prev === partnershipId ? null : partnershipId;
-      if (next === null) {
+    setSelectedFamilyIds((prev) => {
+      const isOnlyThis = prev.length === 1 && prev[0] === partnershipId;
+      const next = isOnlyThis ? [] : [partnershipId];
+      if (next.length === 0) {
         setPropertiesPanelItem(null);
       } else {
         const partnership = partnerships.find((p) => p.id === partnershipId);
@@ -3781,14 +3816,12 @@ useEffect(() => {
 
   const handleFamilyContextMenu = (e: KonvaEventObject<PointerEvent>, partnershipId: string) => {
     e.evt.preventDefault();
-    setSelectedFamilyId(partnershipId);
-    setSelectedPeopleIds([]);
-    setSelectedPartnershipId(null);
-    setSelectedEmotionalLineId(null);
-    setSelectedChildId(null);
-    setSelectedPageNoteId(null);
-    setPageNoteDraft(null);
-    setPropertiesPanelItem(null);
+    // If the right-clicked family isn't part of the current family selection,
+    // make it the new single-family selection. Otherwise leave the selection
+    // alone (so the user's multi-select stays intact and Timeline can use it).
+    // Person / EPL selections are NOT cleared — the user may want to combine
+    // selected people and selected families on the timeline.
+    setSelectedFamilyIds((prev) => (prev.includes(partnershipId) ? prev : [partnershipId]));
     const pos = { x: e.evt.clientX, y: e.evt.clientY };
     const makeFamilyItem = (label: string, processType: string, category: string, menuGroup: string) => ({
       label,
@@ -3835,10 +3868,13 @@ useEffect(() => {
         {
           label: 'Timeline',
           onClick: () => {
-            // Family Timeline: add this family lane. If a person is currently
-            // selected (or several), keep their person lanes too — user gets
-            // person + family side-by-side.
-            setTimelineFamilySelectionIds([partnershipId]);
+            // Timeline shows whatever is currently selected — all selected
+            // families + all selected people. The right-click already
+            // guarantees this family is part of the family selection.
+            const familyIds = selectedFamilyIds.includes(partnershipId)
+              ? selectedFamilyIds
+              : [partnershipId, ...selectedFamilyIds];
+            setTimelineFamilySelectionIds(familyIds);
             setTimelineSelectionIds(selectedPeopleIds.length ? [...selectedPeopleIds] : []);
             setContextMenu(null);
           },
@@ -4361,6 +4397,7 @@ useEffect(() => {
             handleHorizontalConnectorDragEnd={handleHorizontalConnectorDragEnd}
             handlePartnershipContextMenu={handlePartnershipContextMenu}
             selectedFamilyId={selectedFamilyId}
+            selectedFamilyIds={selectedFamilyIds}
             handleFamilyClick={handleFamilyClick}
             handleFamilyContextMenu={handleFamilyContextMenu}
             onFamilyIndicatorClick={handleFamilyIndicatorClick}

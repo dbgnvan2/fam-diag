@@ -15,7 +15,7 @@ interface PartnershipNodeProps {
   onFamilyNameOffsetChange: (partnershipId: string, offsetX: number, offsetY: number) => void;
   onFamilyNameSizeChange: (partnershipId: string, width: number, height: number) => void;
   onContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
-  onFamilyClick: (partnershipId: string) => void;
+  onFamilyClick: (partnershipId: string, shiftKey?: boolean) => void;
   onFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
   onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
 }
@@ -246,8 +246,8 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                   normalizeCoord(newY - (connectorY + 8)),
                 );
               }}
-              onClick={() => onFamilyClick(partnership.id)}
-              onTap={() => onFamilyClick(partnership.id)}
+              onClick={(e) => onFamilyClick(partnership.id, !!e.evt.shiftKey)}
+              onTap={(e) => onFamilyClick(partnership.id, !!(e.evt as TouchEvent | MouseEvent).shiftKey)}
               onContextMenu={(e) => { e.cancelBubble = true; onFamilyContextMenu(e, partnership.id); }}
               onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer'; }}
               onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }}
