@@ -598,6 +598,20 @@ EventType → getIntensityScale(type, category?, subtype?) → correct scale
 - Every EventCard MUST have both `onEdit` AND `onDelete`
 - No exceptions — even legacy indicator rows need a delete path
 
+**Settings list reordering** — every list modal must support drag-drop + ▲/▼ via `utils/listReorder.ts`:
+- `SettingsListModal.tsx` (Event Categories, Relationship Types, Relationship Statuses)
+- `IndicatorSettingsModal.tsx` (within-group reordering for Symptom Categories)
+- `SIRSettingsModal.tsx`
+- `FunctionalFactSettingsModal.tsx`
+- `NodalCategorySettingsModal.tsx`
+- The user's order is the canonical order — do NOT auto-sort. The lists feed dropdowns elsewhere in the app in the user-set order.
+
+**Date-field synthesis** — three sources of "events" the user expects to see:
+- Real records in `entity.events[]` (source of truth)
+- Cloned partnership events on `Person.events[]` with id suffix `-p1` / `-p2` (existing clone path)
+- Synthesized phantom events from raw date fields via `utils/syntheticDateEvents.ts` (id prefix `synth-`)
+- `PropertiesPanel.getDisplayEvents()` and `TimelineBoardModal` BOTH use synthesizers — they must stay in sync. If you add a new "date field that should appear as an event," update `utils/syntheticDateEvents.ts` only — both consumers pick it up automatically.
+
 ---
 
 ## Testing Policy
@@ -823,6 +837,8 @@ Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been sa
 - `dateFormatting.ts` — `expandPartialDate` (expands partial YYYY, YYYY-MM to full ISO date) + date display helpers
 - `demoTour.ts` — generates guided demo tour steps from the current diagram state
 - `voiceCommands.ts` — parses voice/text input into `VoiceCommandOperation[]` for review and apply
+- `listReorder.ts` — pure helpers (`moveItemUp`, `moveItemDown`, `reorderItem`) used by every Settings list modal for drag-and-drop and ▲/▼ arrow reordering
+- `syntheticDateEvents.ts` — synthesizes phantom `EmotionalProcessEvent` records from raw date fields (`person.birthDate` / `deathDate` / `adoptionDate`, `partnership.marriedStartDate` / `divorceDate` / etc., `emotionalLine.startDate` / `endDate`) when no matching real event exists. Used by `PropertiesPanel.getDisplayEvents()` and `TimelineBoardModal` so the Events tab and Timeline show the same set. Synth ids have prefix `synth-` so editing+saving promotes them to real events without duplication.
 
 ### Components (`src/frontend/src/components/`):
 - `AppRibbon.tsx` — full toolbar/ribbon
@@ -869,7 +885,7 @@ Sentinel value in `defaultDiagramState.ts` meaning the diagram has never been sa
 - `CoachThinkingModal.tsx` — coach's internal notes and conceptualization
 - `EmotionalPatternModal.tsx` — create/edit emotional pattern lines (type, persons, dates)
 - `AddFamilyModal.tsx` — bulk-create a family unit (Parent 1, Parent 2, family surname, dynamic child rows) from a single form; horizontal field layout per person with M/F sex toggle and partial-date support
-- `TimelineBoardModal.tsx` — visual timeline board of events across persons
+- `TimelineBoardModal.tsx` — visual timeline board of events across persons. Each person lane has a "+ Add Event" button; clicking any event block opens the full EventModal (same one used by the Properties panel Events tab) in edit mode. Boxes are sized to their date span — span events (with `endDate`) stretch start→end, point events default to 1-year width proportional to the visible range. Boxes are colored by intensity via `intensityToColor()` (0/unset=green, 1=blue, 2=yellow, 3=orange, 4=pink, 5=red). The board aggregates partnership and EPL events for each person and uses the synthesizers in `utils/syntheticDateEvents.ts` to surface raw date fields as virtual events.
 - `SIRSettingsModal.tsx` — SIR category management: Create/Edit/Delete with 5-level HWDID scales
 - `FunctionalFactSettingsModal.tsx` — FF category management: Create/Edit/Delete (name only)
 - `NodalCategorySettingsModal.tsx` — Nodal Event category management: Create/Edit/Delete custom Nodal categories that appear alongside the built-in defaults (Birth, Death, Marriage, etc.) in person right-click "Add > Nodal Event" submenus

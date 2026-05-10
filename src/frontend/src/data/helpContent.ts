@@ -115,11 +115,21 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
-    title: 'Session Notes & Timelines',
+    title: 'Session Notes',
     tips: [
       'Click Session Notes to open a floating editor with coach/client names, presenting issue, and timestamped notes. Use New/Open/Save/Save As/Location to manage note files separately from diagram JSON.',
       'Highlight the last line (or rely on the last entered line) and press “Make Event” to populate a new Emotional Pattern event draft for a person, partnership, or EPL.',
-      'Use the Timeline popover (right-click → Timeline) to review nodal events, EPL milestones, and tracked events sorted ascending or descending; click any block to open that item in the right-side Events properties panel.',
+    ],
+  },
+  {
+    title: 'Timeline Board',
+    tips: [
+      'Select two or more people on the canvas, right-click and choose Timeline to open the Timeline Board. Each selected person gets a horizontal lane plus a Family lane for shared partnership events.',
+      'Each lane has a "+ Add Event" button that opens the full Add/Edit Event modal pre-anchored to that person — same form as the Properties panel\'s Events tab. Clicking any existing event block opens the same modal in edit mode.',
+      'Event boxes are sized exactly to their date span. Span events (with an end date) stretch from start to end; point events (single-date items like Birth, Marriage, Death) default to a 1-year-wide block proportional to the visible timeline.',
+      'Boxes are colored by intensity: 0/unset (Birth, Marriage, Death) is green; 1 blue, 2 yellow, 3 orange, 4 pink, 5 red.',
+      'Date fields on entities (person.birthDate, partnership.marriedStartDate, EPL start/end, etc.) are surfaced as synthesized events on both the timeline and the Events tab so what you see in one matches the other. Editing a synthesized event in the modal promotes it to a real event.',
+      'The Person view\'s Events tab aggregates events from the partnerships and emotional patterns the person is part of (Triangle and Family events excluded), so a single tab shows everything related to that person.',
     ],
   },
 ];
