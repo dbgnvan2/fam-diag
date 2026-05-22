@@ -1,0 +1,142 @@
+{
+  "people": [
+    {
+      "id": "baXGqkQd3GC6RpVt_bUAb",
+      "name": "John Doe",
+      "x": 50,
+      "y": 50,
+      "gender": "male",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1970-01-01"
+    },
+    {
+      "id": "QE8IhtdAb4dCVPryQU0uq",
+      "name": "Jane Doe",
+      "x": 402,
+      "y": 84,
+      "gender": "female",
+      "partnerships": [
+        "p1"
+      ],
+      "birthDate": "1972-03-15"
+    },
+    {
+      "id": "sNMoka4jHkknCbVTzFdDy",
+      "name": "Junior Doe",
+      "x": 143,
+      "y": 248,
+      "gender": "male",
+      "parentPartnership": "p1",
+      "partnerships": [],
+      "birthDate": "2000-05-20"
+    },
+    {
+      "id": "s71QCmsCx5AISYbxjYIWJ",
+      "name": "New Person",
+      "x": 324,
+      "y": 278.8984375,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "p1"
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "p1",
+      "partner1_id": "baXGqkQd3GC6RpVt_bUAb",
+      "partner2_id": "QE8IhtdAb4dCVPryQU0uq",
+      "horizontalConnectorY": 150,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "relationshipStartDate": "1995-06-01",
+      "children": [
+        "sNMoka4jHkknCbVTzFdDy",
+        "s71QCmsCx5AISYbxjYIWJ"
+      ]
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "y_895eIGLn4fR8ZZWvnOG",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "sNMoka4jHkknCbVTzFdDy",
+      "relationshipType": "cutoff",
+      "lineStyle": "double-angular",
+      "lineEnding": "arrow-p1-to-p2"
+    },
+    {
+      "id": "PR_K6tXdDDoqNIm8sss20",
+      "person1_id": "s71QCmsCx5AISYbxjYIWJ",
+      "person2_id": "sNMoka4jHkknCbVTzFdDy",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "double-perpendicular-p1"
+    },
+    {
+      "id": "BNdI6LQL6YTAoxHkHbUy8",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "double-perpendicular-p2"
+    },
+    {
+      "id": "sLJKG5ztSG-JP5e74H15F",
+      "person1_id": "sNMoka4jHkknCbVTzFdDy",
+      "person2_id": "QE8IhtdAb4dCVPryQU0uq",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "-LWpWE3IwDLhYC5tCz_gW",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "q5c3SUxOT3rc7SevQFMPL",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "DDlx2b3fBnqobB1BstD_r",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "7tjwmz8O1qbXI8Bxnl0ga",
+      "person1_id": "sNMoka4jHkknCbVTzFdDy",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "hAHUnlBOQ_WLyoOggabQ3",
+      "person1_id": "s71QCmsCx5AISYbxjYIWJ",
+      "person2_id": "sNMoka4jHkknCbVTzFdDy",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    },
+    {
+      "id": "Zv3J77N760lCCLgC886KK",
+      "person1_id": "QE8IhtdAb4dCVPryQU0uq",
+      "person2_id": "s71QCmsCx5AISYbxjYIWJ",
+      "relationshipType": "fusion",
+      "lineStyle": "single",
+      "lineEnding": "none"
+    }
+  ]
+}

@@ -1,0 +1,326 @@
+{
+  "fileMeta": {
+    "fileName": "test2.json",
+    "displayName": "test2.json",
+    "exportedAt": "2026-04-13T00:31:29.047Z"
+  },
+  "people": [
+    {
+      "id": "hgeY26j9Cjhucu09OzJli",
+      "name": "New Person",
+      "x": 520,
+      "y": 196,
+      "gender": "female",
+      "partnerships": [
+        "90pq5T4KcocedVqCkvYJc"
+      ],
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": [
+        {
+          "id": "1776040249808-3fcd4593ce5f18-p1",
+          "date": "2026-04-13",
+          "startDate": "2026-04-13",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        },
+        {
+          "id": "1776040249808-e5a88b2b25de78-p1",
+          "date": "2000-01-01",
+          "startDate": "2000-01-01",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        }
+      ]
+    },
+    {
+      "id": "rWf_tFYyspKrhcz3KPlle",
+      "name": "New Partner",
+      "x": 273,
+      "y": 202,
+      "gender": "male",
+      "partnerships": [
+        "90pq5T4KcocedVqCkvYJc"
+      ],
+      "events": [
+        {
+          "id": "1776040249808-3fcd4593ce5f18-p2",
+          "date": "2026-04-13",
+          "startDate": "2026-04-13",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Person",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        },
+        {
+          "id": "1776040249808-e5a88b2b25de78-p2",
+          "date": "2000-01-01",
+          "startDate": "2000-01-01",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Person",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        }
+      ]
+    },
+    {
+      "id": "GbBrUMBiRr_sA9-gZVl_S",
+      "name": "Son",
+      "x": 377,
+      "y": 430,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "90pq5T4KcocedVqCkvYJc",
+      "lifeStatus": "alive",
+      "events": []
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "90pq5T4KcocedVqCkvYJc",
+      "partner1_id": "hgeY26j9Cjhucu09OzJli",
+      "partner2_id": "rWf_tFYyspKrhcz3KPlle",
+      "horizontalConnectorY": 310,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "GbBrUMBiRr_sA9-gZVl_S"
+      ],
+      "events": [
+        {
+          "id": "1776040249808-3fcd4593ce5f18",
+          "date": "2026-04-13",
+          "startDate": "2026-04-13",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        },
+        {
+          "id": "1776040249808-e5a88b2b25de78",
+          "date": "2000-01-01",
+          "startDate": "2000-01-01",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "90pq5T4KcocedVqCkvYJc",
+          "status": "discrete",
+          "subtype": "Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1776040249808
+        }
+      ],
+      "marriedStartDate": "2000-01-01",
+      "statusDates": {
+        "married": "2000-01-01"
+      },
+      "color": "#FF1744"
+    }
+  ],
+  "emotionalLines": [],
+  "pageNotes": [],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "affair",
+    "common-law",
+    "dating",
+    "Engaged",
+    "friendship",
+    "living-together",
+    "married"
+  ],
+  "relationshipStatuses": [
+    "divorced",
+    "ended",
+    "married",
+    "ongoing",
+    "separated",
+    "started",
+    "Time Out",
+    "Widowed"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [
+    {
+      "id": "hJpxhubmeb0Ga2b-en8Z7",
+      "name": "Migrated Predictions",
+      "createdDate": "2026-03-23",
+      "predictions": [
+        {
+          "id": "5NxgEC45P3Eb9aTHs_Y0p",
+          "title": "First Predtion",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "hA0Sm9jhbflciAAOOruu4",
+              "type": "sir",
+              "description": "Be less reactive on topics",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedSIRCategory": "Managing Reactivity"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "4RFm9LTkuUAN4UM_8ShJ2",
+              "description": "other will be less reactive to me",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            }
+          ],
+          "notes": ""
+        },
+        {
+          "id": "8IDxY_jPIuWwMQA2Bm0Ow",
+          "title": "My Second Predition ",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "D-_aMixVErTI61qsZ_sRz",
+              "type": "papero",
+              "description": "Improve Family Awareness of Role",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedPaperoKey": "resourceful_familyAwareness"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "tsDkII_zIaEplo5tYob45",
+              "description": "other person symptom goes down",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            },
+            {
+              "id": "1bNHFlPX6kU245EqLwZAr",
+              "description": "symptom decreases",
+              "personIds": [],
+              "evidence": []
+            }
+          ],
+          "notes": ""
+        }
+      ]
+    }
+  ],
+  "functionalFactCategories": [
+    {
+      "id": "ff-cdgd9Ilq",
+      "name": "Anxiety Level"
+    }
+  ]
+}

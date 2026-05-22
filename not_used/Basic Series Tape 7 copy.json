@@ -1,0 +1,635 @@
+{
+  "fileMeta": {
+    "fileName": "Basic Series Tape 7 copy.json",
+    "displayName": "Basic Series Tape 7 copy.json",
+    "exportedAt": "2026-03-11T19:37:58.711Z"
+  },
+  "people": [
+    {
+      "id": "r5juDWjUzotDTdR1VAuuC",
+      "name": "Dad",
+      "x": 375,
+      "y": 467.171875,
+      "gender": "male",
+      "partnerships": [
+        "3ZOwU7mi0IozrYpwRTOih"
+      ],
+      "parentPartnership": "1CpHKJJNW_tswMEJK7tHn",
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": [
+        {
+          "id": "1773101136523-b63e9992b51d5-p1",
+          "date": "1974-06-04",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101136523
+        }
+      ],
+      "birthSex": "male",
+      "genderIdentity": "masculine",
+      "genderSymbol": "male_cis",
+      "firstName": "Dad"
+    },
+    {
+      "id": "eAbZFC_8deFORo8EZvnfP",
+      "name": "Mom Partner",
+      "x": 1095,
+      "y": 473.171875,
+      "gender": "female",
+      "partnerships": [
+        "3ZOwU7mi0IozrYpwRTOih"
+      ],
+      "events": [
+        {
+          "id": "1773101136523-b63e9992b51d5-p2",
+          "date": "1974-06-04",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Person",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101136523
+        }
+      ],
+      "parentPartnership": "cqmBGLmHXKnPW6347GB9b",
+      "firstName": "Mom"
+    },
+    {
+      "id": "jRvsKguqD2N-Sb8YsuErb",
+      "name": "Child",
+      "x": 533,
+      "y": 661.171875,
+      "gender": "male",
+      "partnerships": [
+        "JwPvPQnrKm9oX5raiFRNT"
+      ],
+      "parentPartnership": "3ZOwU7mi0IozrYpwRTOih",
+      "lifeStatus": "alive",
+      "events": [],
+      "birthSex": "male",
+      "genderIdentity": "masculine",
+      "genderSymbol": "male_cis"
+    },
+    {
+      "id": "GKaZyhy0Le7VNad8tD3_w",
+      "name": "Child",
+      "x": 395,
+      "y": 666.171875,
+      "gender": "female",
+      "partnerships": [
+        "rDltUf91O-L-V0jbR8u14"
+      ],
+      "parentPartnership": "3ZOwU7mi0IozrYpwRTOih",
+      "lifeStatus": "alive",
+      "events": [
+        {
+          "id": "1773101252150-518fa946982288-p1",
+          "date": "1930-01-01",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "Child",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101252150
+        }
+      ]
+    },
+    {
+      "id": "bypUzU3x0EQTh6qgmru9y",
+      "name": "Child",
+      "x": 654,
+      "y": 661.171875,
+      "gender": "male",
+      "partnerships": [
+        "Z2dN2EE4avPvNb4Vg2FsX"
+      ],
+      "parentPartnership": "3ZOwU7mi0IozrYpwRTOih",
+      "lifeStatus": "alive",
+      "events": [
+        {
+          "id": "1773257778782-3d51c39d377308",
+          "date": "1960-01-01",
+          "category": "Individual",
+          "statusLabel": "Death Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "Child",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1773257778782
+        }
+      ],
+      "birthSex": "male",
+      "genderIdentity": "masculine",
+      "genderSymbol": "male_cis",
+      "deathDate": "1960-01-01"
+    },
+    {
+      "id": "cNUhOWUN3PGsD_C7DbAD0",
+      "name": "Mary",
+      "x": 994,
+      "y": 690.171875,
+      "gender": "female",
+      "partnerships": [
+        "Rm1ohsh08v_0jEcVf2NXm"
+      ],
+      "parentPartnership": "3ZOwU7mi0IozrYpwRTOih",
+      "lifeStatus": "alive",
+      "events": [],
+      "firstName": "Mary",
+      "parentConnectionPattern": "family-cutoff"
+    },
+    {
+      "id": "jhvo816Yn02YH7nKQ6scT",
+      "name": "New Partner",
+      "x": 255,
+      "y": 666.171875,
+      "gender": "male",
+      "partnerships": [
+        "rDltUf91O-L-V0jbR8u14"
+      ],
+      "events": [
+        {
+          "id": "1773101234402-582651a37d33a8",
+          "date": "1930-01-01",
+          "category": "Individual",
+          "statusLabel": "Death Date",
+          "intensity": 0,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "individual",
+          "createdAt": 1773101234402
+        },
+        {
+          "id": "1773101252150-518fa946982288-p2",
+          "date": "1930-01-01",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Child",
+          "primaryPersonName": "New Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101252150
+        }
+      ],
+      "deathDate": "1930-01-01"
+    },
+    {
+      "id": "TKAL_2QPRMPkZHIGV6juF",
+      "name": "New Partner",
+      "x": 585,
+      "y": 726.171875,
+      "gender": "female",
+      "partnerships": [
+        "JwPvPQnrKm9oX5raiFRNT"
+      ],
+      "events": []
+    },
+    {
+      "id": "vSS9XAg9piKi4_6q5W1WT",
+      "name": "New Partner",
+      "x": 738,
+      "y": 714.171875,
+      "gender": "female",
+      "partnerships": [
+        "Z2dN2EE4avPvNb4Vg2FsX"
+      ],
+      "events": []
+    },
+    {
+      "id": "VsVjnJQHOEKjbtEluqL4r",
+      "name": "New Partner",
+      "x": 869,
+      "y": 717.171875,
+      "gender": "male",
+      "partnerships": [
+        "Rm1ohsh08v_0jEcVf2NXm"
+      ],
+      "events": []
+    },
+    {
+      "id": "BQ7Irq4ne-gTJqB-Nobnv",
+      "name": "Birth Father",
+      "x": 1005,
+      "y": 303.171875,
+      "gender": "male",
+      "partnerships": [
+        "cqmBGLmHXKnPW6347GB9b"
+      ],
+      "events": []
+    },
+    {
+      "id": "5GrvALDs8_RWF_eGrQ8RW",
+      "name": "Birth Mother",
+      "x": 1185,
+      "y": 303.171875,
+      "gender": "female",
+      "partnerships": [
+        "cqmBGLmHXKnPW6347GB9b"
+      ],
+      "events": []
+    },
+    {
+      "id": "Vqd5Zi7id--fVhcgB4pKX",
+      "name": "Birth Father",
+      "x": 285,
+      "y": 297.171875,
+      "gender": "male",
+      "partnerships": [
+        "1CpHKJJNW_tswMEJK7tHn"
+      ],
+      "events": []
+    },
+    {
+      "id": "NmLNkaYXT9nBdd-fS-DXo",
+      "name": "Birth Mother",
+      "x": 465,
+      "y": 297.171875,
+      "gender": "female",
+      "partnerships": [
+        "1CpHKJJNW_tswMEJK7tHn"
+      ],
+      "events": []
+    },
+    {
+      "id": "Lls7Ic3xuiwk5ya7PrI4Y",
+      "name": "Adopted Child",
+      "x": 931.5,
+      "y": 910.171875,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "Rm1ohsh08v_0jEcVf2NXm",
+      "adoptionStatus": "adopted",
+      "events": [],
+      "birthParentPartnership": "5GAYn_pg6S9xZhyy-PWhv"
+    },
+    {
+      "id": "wgmjPdUB2osI1fjsTWkqr",
+      "name": "Birth Father",
+      "x": 899.786080127796,
+      "y": 845.171875,
+      "gender": "male",
+      "size": 30,
+      "partnerships": [
+        "5GAYn_pg6S9xZhyy-PWhv"
+      ],
+      "events": []
+    },
+    {
+      "id": "YnYVcWf9cF3UTMO2xMnvJ",
+      "name": "Birth Mother",
+      "x": 979.7112971421114,
+      "y": 845.171875,
+      "gender": "female",
+      "size": 30,
+      "partnerships": [
+        "5GAYn_pg6S9xZhyy-PWhv"
+      ],
+      "events": []
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "3ZOwU7mi0IozrYpwRTOih",
+      "partner1_id": "r5juDWjUzotDTdR1VAuuC",
+      "partner2_id": "eAbZFC_8deFORo8EZvnfP",
+      "horizontalConnectorY": 567.171875,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "jRvsKguqD2N-Sb8YsuErb",
+        "GKaZyhy0Le7VNad8tD3_w",
+        "bypUzU3x0EQTh6qgmru9y",
+        "cNUhOWUN3PGsD_C7DbAD0"
+      ],
+      "events": [
+        {
+          "id": "1773101136523-b63e9992b51d5",
+          "date": "1974-06-04",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "New Person",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101136523
+        }
+      ],
+      "relationshipStartDate": "1974-06-04"
+    },
+    {
+      "id": "rDltUf91O-L-V0jbR8u14",
+      "partner1_id": "GKaZyhy0Le7VNad8tD3_w",
+      "partner2_id": "jhvo816Yn02YH7nKQ6scT",
+      "horizontalConnectorY": 766.171875,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [],
+      "events": [
+        {
+          "id": "1773101252150-518fa946982288",
+          "date": "1930-01-01",
+          "category": "Married",
+          "statusLabel": "Married – Relationship Start",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "New Partner",
+          "primaryPersonName": "Child",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "isNodalEvent": true,
+          "eventClass": "relationship",
+          "createdAt": 1773101252150
+        }
+      ],
+      "relationshipStartDate": "1930-01-01"
+    },
+    {
+      "id": "JwPvPQnrKm9oX5raiFRNT",
+      "partner1_id": "jRvsKguqD2N-Sb8YsuErb",
+      "partner2_id": "TKAL_2QPRMPkZHIGV6juF",
+      "horizontalConnectorY": 773.171875,
+      "relationshipType": "dating",
+      "relationshipStatus": "married",
+      "children": [],
+      "events": []
+    },
+    {
+      "id": "Z2dN2EE4avPvNb4Vg2FsX",
+      "partner1_id": "bypUzU3x0EQTh6qgmru9y",
+      "partner2_id": "vSS9XAg9piKi4_6q5W1WT",
+      "horizontalConnectorY": 765.171875,
+      "relationshipType": "dating",
+      "relationshipStatus": "married",
+      "children": [],
+      "events": []
+    },
+    {
+      "id": "Rm1ohsh08v_0jEcVf2NXm",
+      "partner1_id": "cNUhOWUN3PGsD_C7DbAD0",
+      "partner2_id": "VsVjnJQHOEKjbtEluqL4r",
+      "horizontalConnectorY": 790.171875,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "Lls7Ic3xuiwk5ya7PrI4Y"
+      ],
+      "events": []
+    },
+    {
+      "id": "cqmBGLmHXKnPW6347GB9b",
+      "partner1_id": "BQ7Irq4ne-gTJqB-Nobnv",
+      "partner2_id": "5GrvALDs8_RWF_eGrQ8RW",
+      "horizontalConnectorY": 373.171875,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "children": [
+        "eAbZFC_8deFORo8EZvnfP"
+      ],
+      "events": []
+    },
+    {
+      "id": "1CpHKJJNW_tswMEJK7tHn",
+      "partner1_id": "Vqd5Zi7id--fVhcgB4pKX",
+      "partner2_id": "NmLNkaYXT9nBdd-fS-DXo",
+      "horizontalConnectorY": 367.171875,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "children": [
+        "r5juDWjUzotDTdR1VAuuC"
+      ],
+      "events": []
+    },
+    {
+      "id": "5GAYn_pg6S9xZhyy-PWhv",
+      "partner1_id": "wgmjPdUB2osI1fjsTWkqr",
+      "partner2_id": "YnYVcWf9cF3UTMO2xMnvJ",
+      "horizontalConnectorY": 868.839,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "children": [
+        "Lls7Ic3xuiwk5ya7PrI4Y"
+      ],
+      "events": []
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "YM-dfXsuRTlpoj5LYSnwc",
+      "person1_id": "jRvsKguqD2N-Sb8YsuErb",
+      "person2_id": "GKaZyhy0Le7VNad8tD3_w",
+      "status": "ongoing",
+      "relationshipType": "cutoff",
+      "lineStyle": "cutoff",
+      "lineEnding": "none",
+      "startDate": "2026-03-11",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "7s9rwJSqFNaw0gsh2sGVc",
+          "date": "2026-03-11",
+          "startDate": "2026-03-11",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "emotionalProcessType": "cutoff",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "YM-dfXsuRTlpoj5LYSnwc",
+          "statusLabel": "ongoing",
+          "intensity": 1,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Child",
+          "primaryPersonName": "Child",
+          "wwwwh": "",
+          "observations": "",
+          "isNodalEvent": false,
+          "eventClass": "emotional-pattern",
+          "createdAt": 1773257804104
+        }
+      ]
+    }
+  ],
+  "pageNotes": [],
+  "triangles": [
+    {
+      "id": "_w7--ivAVYLQTTK5XUFvC",
+      "person1_id": "eAbZFC_8deFORo8EZvnfP",
+      "person2_id": "cNUhOWUN3PGsD_C7DbAD0",
+      "person3_id": "r5juDWjUzotDTdR1VAuuC",
+      "color": "#8a5a00",
+      "intensity": "medium",
+      "tpls": [
+        {
+          "id": "X5hL64jjp9KrZ819ybjLP",
+          "person1_id": "eAbZFC_8deFORo8EZvnfP",
+          "person2_id": "cNUhOWUN3PGsD_C7DbAD0",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "low",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        },
+        {
+          "id": "cVpeoh8IBc_Syv0przUAM",
+          "person1_id": "cNUhOWUN3PGsD_C7DbAD0",
+          "person2_id": "r5juDWjUzotDTdR1VAuuC",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "low",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        },
+        {
+          "id": "IxeomrtRfaLYSLhWb0AJ2",
+          "person1_id": "r5juDWjUzotDTdR1VAuuC",
+          "person2_id": "eAbZFC_8deFORo8EZvnfP",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "low",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "yk-cfK1pfMqcXq3NBaKte",
+      "person1_id": "eAbZFC_8deFORo8EZvnfP",
+      "person2_id": "cNUhOWUN3PGsD_C7DbAD0",
+      "person3_id": "GKaZyhy0Le7VNad8tD3_w",
+      "color": "#8a5a00",
+      "intensity": "medium",
+      "tpls": [
+        {
+          "id": "uIwsZSkwIJrgrR2Hh-10k",
+          "person1_id": "eAbZFC_8deFORo8EZvnfP",
+          "person2_id": "cNUhOWUN3PGsD_C7DbAD0",
+          "status": "ongoing",
+          "relationshipType": "conflict",
+          "lineStyle": "solid-saw-tooth",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        },
+        {
+          "id": "0JdHT1rBFPEj3BWk5BE1i",
+          "person1_id": "cNUhOWUN3PGsD_C7DbAD0",
+          "person2_id": "GKaZyhy0Le7VNad8tD3_w",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "low",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        },
+        {
+          "id": "zLeQw6UWqveaVKY1b1h6O",
+          "person1_id": "GKaZyhy0Le7VNad8tD3_w",
+          "person2_id": "eAbZFC_8deFORo8EZvnfP",
+          "status": "ongoing",
+          "relationshipType": "fusion",
+          "lineStyle": "low",
+          "lineEnding": "none",
+          "startDate": "2026-03-11",
+          "color": "#8a5a00",
+          "events": []
+        }
+      ]
+    }
+  ],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": ""
+}

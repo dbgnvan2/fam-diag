@@ -1,0 +1,155 @@
+{
+  "fileMeta": {
+    "fileName": "test2.json",
+    "displayName": "test2.json",
+    "exportedAt": "2026-04-13T00:29:44.671Z"
+  },
+  "people": [
+    {
+      "id": "hgeY26j9Cjhucu09OzJli",
+      "name": "New Person",
+      "x": 447,
+      "y": 210,
+      "gender": "female",
+      "partnerships": [],
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": []
+    }
+  ],
+  "partnerships": [],
+  "emotionalLines": [],
+  "pageNotes": [],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "affair",
+    "common-law",
+    "dating",
+    "Engaged",
+    "friendship",
+    "living-together",
+    "married"
+  ],
+  "relationshipStatuses": [
+    "divorced",
+    "ended",
+    "married",
+    "ongoing",
+    "separated",
+    "started",
+    "Time Out",
+    "Widowed"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [
+    {
+      "id": "hJpxhubmeb0Ga2b-en8Z7",
+      "name": "Migrated Predictions",
+      "createdDate": "2026-03-23",
+      "predictions": [
+        {
+          "id": "5NxgEC45P3Eb9aTHs_Y0p",
+          "title": "First Predtion",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "hA0Sm9jhbflciAAOOruu4",
+              "type": "sir",
+              "description": "Be less reactive on topics",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedSIRCategory": "Managing Reactivity"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "4RFm9LTkuUAN4UM_8ShJ2",
+              "description": "other will be less reactive to me",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            }
+          ],
+          "notes": ""
+        },
+        {
+          "id": "8IDxY_jPIuWwMQA2Bm0Ow",
+          "title": "My Second Predition ",
+          "status": "active",
+          "createdDate": "2026-03-23",
+          "conditions": [
+            {
+              "id": "D-_aMixVErTI61qsZ_sRz",
+              "type": "papero",
+              "description": "Improve Family Awareness of Role",
+              "evidence": [],
+              "personId": "demo-dad",
+              "linkedPaperoKey": "resourceful_familyAwareness"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "tsDkII_zIaEplo5tYob45",
+              "description": "other person symptom goes down",
+              "personIds": [
+                "demo-mom"
+              ],
+              "evidence": []
+            },
+            {
+              "id": "1bNHFlPX6kU245EqLwZAr",
+              "description": "symptom decreases",
+              "personIds": [],
+              "evidence": []
+            }
+          ],
+          "notes": ""
+        }
+      ]
+    }
+  ],
+  "functionalFactCategories": [
+    {
+      "id": "ff-cdgd9Ilq",
+      "name": "Anxiety Level"
+    }
+  ]
+}

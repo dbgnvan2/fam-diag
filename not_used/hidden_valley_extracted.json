@@ -1,0 +1,413 @@
+{
+  "fileMeta": {
+    "fileName": "HiddenValleyRoad_extracted_from_transcript.json",
+    "exportedAt": "2026-02-25T00:00:00.000Z"
+  },
+  "sourceInfo": {
+    "sourceFile": "/Users/davemini2/ObsidianSyncVault/Attachments Text Files/Hidden Valley Road GMT20200619-173250_BTA-webcas_otter_ai.pdf",
+    "extractionDate": "2026-02-25",
+    "method": "Manual extraction from Otter transcript text",
+    "confidence": "medium"
+  },
+  "people": [
+    {
+      "id": "don_galvin",
+      "name": "Don Galvin",
+      "firstName": "Don",
+      "lastName": "Galvin",
+      "x": 520,
+      "y": 120,
+      "gender": "male",
+      "birthDate": "1924-01-01",
+      "deathDate": "2003-01-01",
+      "notes": "Married Mimi in 1944. Air Force career; later stroke (1975 in transcript) with lasting disability. Transcript includes conflicting death-year statements; later section says died in 2003.",
+      "partnerships": [
+        "prl_don_mimi"
+      ]
+    },
+    {
+      "id": "mimi_galvin",
+      "name": "Mimi Galvin",
+      "firstName": "Mimi",
+      "lastName": "Galvin",
+      "x": 700,
+      "y": 120,
+      "gender": "female",
+      "notes": "Originally from Houston; later Queens, NY. Parents divorced and mother remarried/divorced again. Married Don in 1944.",
+      "partnerships": [
+        "prl_don_mimi"
+      ]
+    },
+    {
+      "id": "donald_galvin",
+      "name": "Donald Galvin",
+      "firstName": "Donald",
+      "lastName": "Galvin",
+      "x": 120,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [
+        "prl_donald_jean"
+      ],
+      "notes": "Firstborn. Diagnosed paranoid schizophrenia in transcript. Multiple psychiatric hospitalizations (including Pueblo State Hospital).",
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-schizophrenia-spectrum",
+          "status": "past",
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
+        }
+      ]
+    },
+    {
+      "id": "jim_galvin",
+      "name": "Jim Galvin",
+      "firstName": "Jim",
+      "lastName": "Galvin",
+      "x": 220,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [
+        "prl_jim_kathy"
+      ],
+      "notes": "Married Kathy (problematic marriage per transcript). Mentioned in severe conflict with Donald. Transcript implies serious psychiatric impairment but does not cleanly state a schizophrenia diagnosis in quoted sections."
+    },
+    {
+      "id": "john_galvin",
+      "name": "John Galvin",
+      "firstName": "John",
+      "lastName": "Galvin",
+      "x": 320,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [
+        "prl_john_nancy"
+      ],
+      "notes": "Described as not diagnosed with schizophrenia and distant from family system.",
+      "events": [
+        {
+          "id": "evt_john_no_psychosis",
+          "date": "1970-01-01",
+          "category": "Mental Health",
+          "statusLabel": "No psychotic diagnosis reported",
+          "intensity": 0,
+          "howWell": 5,
+          "otherPersonName": "",
+          "wwwwh": "Transcript statement",
+          "observations": "Transcript says John was free of symptoms close to psychosis.",
+          "eventClass": "individual"
+        }
+      ]
+    },
+    {
+      "id": "brian_galvin",
+      "name": "Brian Galvin",
+      "firstName": "Brian",
+      "lastName": "Galvin",
+      "x": 420,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [
+        "prl_brian_noni"
+      ],
+      "deathDate": "1973-09-01",
+      "lifeStatus": "alive",
+      "notes": "Shot and killed girlfriend Noni, then killed himself (transcript: Sept 1973)."
+    },
+    {
+      "id": "michael_galvin",
+      "name": "Michael Galvin",
+      "firstName": "Michael",
+      "lastName": "Galvin",
+      "x": 520,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript says he had two marriages and children; also says he was never diagnosed with schizophrenia."
+    },
+    {
+      "id": "richard_galvin",
+      "name": "Richard Galvin",
+      "firstName": "Richard",
+      "lastName": "Galvin",
+      "x": 620,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript says marriage and divorce, one child."
+    },
+    {
+      "id": "joseph_galvin",
+      "name": "Joseph Galvin",
+      "firstName": "Joseph",
+      "lastName": "Galvin",
+      "x": 720,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript: described as the fourth brother to receive a schizophrenia diagnosis.",
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-schizophrenia-spectrum",
+          "status": "past",
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
+        }
+      ]
+    },
+    {
+      "id": "mark_galvin",
+      "name": "Mark Galvin",
+      "firstName": "Mark",
+      "lastName": "Galvin",
+      "x": 820,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript: no schizophrenia diagnosis, divorce, then successful second marriage."
+    },
+    {
+      "id": "matthew_galvin",
+      "name": "Matthew Galvin",
+      "firstName": "Matthew",
+      "lastName": "Galvin",
+      "x": 920,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript: one of the last two boys; received schizophrenia diagnosis.",
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-schizophrenia-spectrum",
+          "status": "past",
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
+        }
+      ]
+    },
+    {
+      "id": "peter_galvin",
+      "name": "Peter Galvin",
+      "firstName": "Peter",
+      "lastName": "Galvin",
+      "x": 1020,
+      "y": 330,
+      "gender": "male",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript: one of the last two boys; received schizophrenia diagnosis and psychiatric hospitalization.",
+      "functionalIndicators": [
+        {
+          "definitionId": "indicator-schizophrenia-spectrum",
+          "status": "past",
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 5
+        }
+      ]
+    },
+    {
+      "id": "margaret_galvin",
+      "name": "Margaret Galvin",
+      "firstName": "Margaret",
+      "lastName": "Galvin",
+      "x": 1120,
+      "y": 330,
+      "gender": "female",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [],
+      "notes": "Transcript: not diagnosed with schizophrenia; first marriage ended, second marriage successful."
+    },
+    {
+      "id": "mary_lindsay_galvin",
+      "name": "Mary Lindsay Galvin",
+      "firstName": "Mary Lindsay",
+      "lastName": "Galvin",
+      "x": 1220,
+      "y": 330,
+      "gender": "female",
+      "parentPartnership": "prl_don_mimi",
+      "partnerships": [
+        "prl_mary_rick"
+      ],
+      "notes": "Also referred to as Lindsay in transcript. Described as high-functioning in family, married Rick, two children.",
+      "events": [
+        {
+          "id": "evt_mary_high_function",
+          "date": "2016-01-01",
+          "category": "Functioning",
+          "statusLabel": "High functioning",
+          "intensity": 1,
+          "howWell": 5,
+          "otherPersonName": "",
+          "wwwwh": "Transcript statement",
+          "observations": "Presenter described Mary/Lindsay as the best functioning sibling.",
+          "eventClass": "individual"
+        }
+      ]
+    },
+    {
+      "id": "jean_spouse",
+      "name": "Jean",
+      "x": 120,
+      "y": 520,
+      "gender": "female",
+      "partnerships": [
+        "prl_donald_jean"
+      ],
+      "notes": "Married Donald in 1967 and divorced within a few years according to transcript."
+    },
+    {
+      "id": "kathy_spouse",
+      "name": "Kathy",
+      "x": 220,
+      "y": 520,
+      "gender": "female",
+      "partnerships": [
+        "prl_jim_kathy"
+      ],
+      "notes": "Married Jim; marriage described as long but problematic."
+    },
+    {
+      "id": "nancy_spouse",
+      "name": "Nancy",
+      "x": 320,
+      "y": 520,
+      "gender": "female",
+      "partnerships": [
+        "prl_john_nancy"
+      ],
+      "notes": "Married John; transcript describes the couple keeping distance from family."
+    },
+    {
+      "id": "noni_partner",
+      "name": "Noni",
+      "x": 420,
+      "y": 520,
+      "gender": "female",
+      "partnerships": [
+        "prl_brian_noni"
+      ],
+      "deathDate": "1973-09-01",
+      "lifeStatus": "alive",
+      "notes": "Brian's girlfriend; killed by Brian in 1973 per transcript."
+    },
+    {
+      "id": "rick_spouse",
+      "name": "Rick",
+      "x": 1220,
+      "y": 520,
+      "gender": "male",
+      "partnerships": [
+        "prl_mary_rick"
+      ],
+      "notes": "Married to Mary Lindsay; transcript says they have two children."
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "prl_don_mimi",
+      "partner1_id": "don_galvin",
+      "partner2_id": "mimi_galvin",
+      "horizontalConnectorY": 220,
+      "relationshipType": "married",
+      "relationshipStatus": "ended",
+      "relationshipStartDate": "1944-01-01",
+      "children": [
+        "donald_galvin",
+        "jim_galvin",
+        "john_galvin",
+        "brian_galvin",
+        "michael_galvin",
+        "richard_galvin",
+        "joseph_galvin",
+        "mark_galvin",
+        "matthew_galvin",
+        "peter_galvin",
+        "margaret_galvin",
+        "mary_lindsay_galvin"
+      ],
+      "notes": "Transcript says Don and Mimi had 12 children (10 boys then 2 girls)."
+    },
+    {
+      "id": "prl_donald_jean",
+      "partner1_id": "donald_galvin",
+      "partner2_id": "jean_spouse",
+      "horizontalConnectorY": 430,
+      "relationshipType": "married",
+      "relationshipStatus": "divorced",
+      "relationshipStartDate": "1967-01-01",
+      "children": [],
+      "notes": "Transcript: marriage deteriorated rapidly; divorce filed while Donald was hospitalized."
+    },
+    {
+      "id": "prl_jim_kathy",
+      "partner1_id": "jim_galvin",
+      "partner2_id": "kathy_spouse",
+      "horizontalConnectorY": 430,
+      "relationshipType": "married",
+      "relationshipStatus": "ended",
+      "children": [],
+      "notes": "Marriage lasted longer but was described as problematic."
+    },
+    {
+      "id": "prl_john_nancy",
+      "partner1_id": "john_galvin",
+      "partner2_id": "nancy_spouse",
+      "horizontalConnectorY": 430,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [],
+      "notes": "Transcript mentions they have two children and keep distance from family."
+    },
+    {
+      "id": "prl_brian_noni",
+      "partner1_id": "brian_galvin",
+      "partner2_id": "noni_partner",
+      "horizontalConnectorY": 430,
+      "relationshipType": "dating",
+      "relationshipStatus": "ended",
+      "children": [],
+      "notes": "Transcript: breakup preceded homicide-suicide in 1973."
+    },
+    {
+      "id": "prl_mary_rick",
+      "partner1_id": "mary_lindsay_galvin",
+      "partner2_id": "rick_spouse",
+      "horizontalConnectorY": 430,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [],
+      "notes": "Transcript says they have two children (not named in transcript segment)."
+    }
+  ],
+  "emotionalLines": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "indicator-schizophrenia-spectrum",
+      "label": "Schizophrenia Spectrum"
+    }
+  ],
+  "eventCategories": [
+    "Mental Health",
+    "Relationship",
+    "Hospitalization",
+    "Functioning",
+    "Loss/Death",
+    "Other"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "Extraction seed from Hidden Valley Road transcript. Some details are explicitly uncertain and stored in notes for manual verification."
+}

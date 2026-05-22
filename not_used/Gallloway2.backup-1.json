@@ -1,0 +1,693 @@
+{
+  "fileMeta": {
+    "fileName": "Gallloway2.json",
+    "displayName": "Gallloway2.json",
+    "exportedAt": "2026-04-05T00:28:35.592Z"
+  },
+  "people": [
+    {
+      "id": "FSQj4A4GX_LrToYbo9hsc",
+      "name": "Maria",
+      "x": 1273.909090909091,
+      "y": 484.45454545454544,
+      "gender": "female",
+      "partnerships": [
+        "8c-gRcao3VeB1I1cPPdWg"
+      ],
+      "parentPartnership": "MacWny45UXYn8oPyugnxg",
+      "lifeStatus": "alive",
+      "isCoach": false,
+      "events": [],
+      "firstName": "Maria"
+    },
+    {
+      "id": "0TKmGA1OPQJy3-L18Fyo9",
+      "name": "Dave Partner",
+      "x": 556,
+      "y": 478,
+      "gender": "male",
+      "partnerships": [
+        "8c-gRcao3VeB1I1cPPdWg"
+      ],
+      "events": [
+        {
+          "id": "1774657707914-6c6382fc0e4f58",
+          "date": "2026-03-28",
+          "startDate": "2026-03-28",
+          "endDate": "",
+          "category": "Birth",
+          "eventType": "FF",
+          "subtype": "",
+          "anchorType": "PERSON",
+          "anchorId": "0TKmGA1OPQJy3-L18Fyo9",
+          "status": "discrete",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774657707914,
+          "eventClass": "individual"
+        }
+      ],
+      "parentPartnership": "7Wx_I22Gy-JOyztuInDoq",
+      "firstName": "Dave",
+      "isClient": true,
+      "backgroundEnabled": true,
+      "backgroundColor": "#FFF7C2",
+      "clientProfile": {
+        "presentingIssue1": "",
+        "presentingIssue2": "",
+        "presentingIssue3": "",
+        "desiredOutcome1": "",
+        "desiredOutcome2": "",
+        "desiredOutcome3": "",
+        "conceptualization": ""
+      },
+      "foregroundEnabled": true,
+      "foregroundColor": "#f2b531"
+    },
+    {
+      "id": "-u4LjKcB3K12kTR6rWxaQ",
+      "name": "Allixe",
+      "x": 849,
+      "y": 651,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "8c-gRcao3VeB1I1cPPdWg",
+      "lifeStatus": "alive",
+      "events": [],
+      "firstName": "Allixe"
+    },
+    {
+      "id": "lgYWaM-nPboiPAWXcm2Y9",
+      "name": "Bill Galloway",
+      "x": 294,
+      "y": 214,
+      "gender": "male",
+      "partnerships": [
+        "7Wx_I22Gy-JOyztuInDoq"
+      ],
+      "events": [],
+      "lastName": "Galloway",
+      "firstName": "Bill"
+    },
+    {
+      "id": "kESvMddEDlGcnz_j9CRrv",
+      "name": "Anne Harvell",
+      "x": 960,
+      "y": 208,
+      "gender": "female",
+      "partnerships": [
+        "7Wx_I22Gy-JOyztuInDoq"
+      ],
+      "events": [],
+      "firstName": "Anne",
+      "lastName": "Harvell"
+    },
+    {
+      "id": "0n495In88poLTlflJweKb",
+      "name": "Slavko",
+      "x": 1182,
+      "y": 260,
+      "gender": "male",
+      "partnerships": [
+        "MacWny45UXYn8oPyugnxg"
+      ],
+      "events": [],
+      "firstName": "Slavko",
+      "lastName": ""
+    },
+    {
+      "id": "Vp368i6yRelnzu5cUKyPt",
+      "name": "Ivana",
+      "x": 1404,
+      "y": 260,
+      "gender": "female",
+      "partnerships": [
+        "MacWny45UXYn8oPyugnxg"
+      ],
+      "events": [],
+      "firstName": "Ivana",
+      "lastName": ""
+    },
+    {
+      "id": "V3o0QMGVPDp1MgrARZCDq",
+      "name": "Lynn",
+      "x": 401,
+      "y": 373,
+      "gender": "female",
+      "partnerships": [
+        "BXlgXEiBlgLA1XZd4Fv5C"
+      ],
+      "parentPartnership": "7Wx_I22Gy-JOyztuInDoq",
+      "lifeStatus": "alive",
+      "events": [
+        {
+          "id": "1775273067971-4542ddd3db1f-p1",
+          "date": "2026-04-04",
+          "startDate": "2026-04-04",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "BXlgXEiBlgLA1XZd4Fv5C",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Terry Partner",
+          "primaryPersonName": "Lynn",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1775273067971
+        }
+      ],
+      "size": 50,
+      "firstName": "Lynn"
+    },
+    {
+      "id": "sYSydQjyEaIsTj-_8-NxC",
+      "name": "Karen",
+      "x": 718,
+      "y": 367,
+      "gender": "female",
+      "partnerships": [
+        "JeWFVqnTbvxWY8o-m62pF"
+      ],
+      "parentPartnership": "7Wx_I22Gy-JOyztuInDoq",
+      "lifeStatus": "alive",
+      "events": [
+        {
+          "id": "1774634152265-e0e0d69d73ef4",
+          "date": "2026-03-27",
+          "startDate": "2026-03-27",
+          "endDate": "",
+          "category": "Physical",
+          "eventType": "SYMPTOM",
+          "subtype": "Pulonary",
+          "anchorType": "PERSON",
+          "anchorId": "sYSydQjyEaIsTj-_8-NxC",
+          "status": "discrete",
+          "intensity": 4,
+          "frequency": 5,
+          "impact": 5,
+          "howWell": 5,
+          "otherPersonName": "None",
+          "primaryPersonName": "Karen",
+          "wwwwh": "",
+          "observations": "",
+          "priorEventsNote": "",
+          "reflectionsNote": "",
+          "createdAt": 1774634152265,
+          "symptomType": "",
+          "eventClass": "individual",
+          "sourceIndicatorId": "symptom-physical-default"
+        }
+      ],
+      "size": 46,
+      "firstName": "Karen",
+      "functionalIndicators": [
+        {
+          "definitionId": "symptom-physical-default",
+          "status": "current",
+          "impact": 5,
+          "frequency": 5,
+          "intensity": 4,
+          "date": "2026-03-27",
+          "lastUpdatedAt": 1774634152265
+        }
+      ]
+    },
+    {
+      "id": "qwPGws8P5DDwqzl_QjBtQ",
+      "name": "Terry Partner",
+      "x": 129,
+      "y": 379,
+      "gender": "male",
+      "partnerships": [
+        "BXlgXEiBlgLA1XZd4Fv5C"
+      ],
+      "events": [
+        {
+          "id": "1775273067971-4542ddd3db1f-p2",
+          "date": "2026-04-04",
+          "startDate": "2026-04-04",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "BXlgXEiBlgLA1XZd4Fv5C",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Lynn",
+          "primaryPersonName": "Terry Partner",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1775273067971
+        }
+      ],
+      "size": 50,
+      "firstName": "Terry"
+    },
+    {
+      "id": "GD0rSQ6ir-Lh9DiGlMO2W",
+      "name": "Son",
+      "x": 166,
+      "y": 555,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "BXlgXEiBlgLA1XZd4Fv5C",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 44
+    },
+    {
+      "id": "A7Bkvu2UIH7wRegkojrbA",
+      "name": "Daughter",
+      "x": 270,
+      "y": 558,
+      "gender": "female",
+      "partnerships": [],
+      "parentPartnership": "BXlgXEiBlgLA1XZd4Fv5C",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 44
+    },
+    {
+      "id": "An1RabRqz3wKKeY3OdMI5",
+      "name": "Son",
+      "x": 364,
+      "y": 571,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "BXlgXEiBlgLA1XZd4Fv5C",
+      "lifeStatus": "alive",
+      "events": [],
+      "size": 44
+    },
+    {
+      "id": "uqaOlnK0NJMihDDX1JvgG",
+      "name": "New Partner",
+      "x": 962,
+      "y": 359,
+      "gender": "male",
+      "partnerships": [
+        "JeWFVqnTbvxWY8o-m62pF"
+      ],
+      "events": [],
+      "size": 40
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "8c-gRcao3VeB1I1cPPdWg",
+      "partner1_id": "FSQj4A4GX_LrToYbo9hsc",
+      "partner2_id": "0TKmGA1OPQJy3-L18Fyo9",
+      "horizontalConnectorY": 545,
+      "relationshipType": "dating",
+      "relationshipStatus": "married",
+      "children": [
+        "-u4LjKcB3K12kTR6rWxaQ"
+      ],
+      "events": [],
+      "familyNameWidth": 68,
+      "familyNameHeight": 20,
+      "familyNameOffsetX": 69,
+      "familyNameOffsetY": -3
+    },
+    {
+      "id": "7Wx_I22Gy-JOyztuInDoq",
+      "partner1_id": "lgYWaM-nPboiPAWXcm2Y9",
+      "partner2_id": "kESvMddEDlGcnz_j9CRrv",
+      "horizontalConnectorY": 296,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "children": [
+        "0TKmGA1OPQJy3-L18Fyo9",
+        "V3o0QMGVPDp1MgrARZCDq",
+        "sYSydQjyEaIsTj-_8-NxC"
+      ],
+      "events": [],
+      "familyNameOffsetX": -34,
+      "familyNameOffsetY": 1,
+      "familyNameWidth": 70,
+      "familyNameHeight": 20
+    },
+    {
+      "id": "MacWny45UXYn8oPyugnxg",
+      "partner1_id": "0n495In88poLTlflJweKb",
+      "partner2_id": "Vp368i6yRelnzu5cUKyPt",
+      "horizontalConnectorY": 329,
+      "relationshipType": "dating",
+      "relationshipStatus": "ongoing",
+      "children": [
+        "FSQj4A4GX_LrToYbo9hsc"
+      ],
+      "events": [],
+      "familyNameWidth": 58,
+      "familyNameHeight": 20
+    },
+    {
+      "id": "BXlgXEiBlgLA1XZd4Fv5C",
+      "partner1_id": "V3o0QMGVPDp1MgrARZCDq",
+      "partner2_id": "qwPGws8P5DDwqzl_QjBtQ",
+      "horizontalConnectorY": 498,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "GD0rSQ6ir-Lh9DiGlMO2W",
+        "A7Bkvu2UIH7wRegkojrbA",
+        "An1RabRqz3wKKeY3OdMI5"
+      ],
+      "events": [
+        {
+          "id": "1775273067971-4542ddd3db1f",
+          "date": "2026-04-04",
+          "startDate": "2026-04-04",
+          "category": "Married",
+          "eventType": "NODAL",
+          "anchorType": "RELATIONSHIP_PRL",
+          "anchorId": "BXlgXEiBlgLA1XZd4Fv5C",
+          "status": "discrete",
+          "subtype": "Type changed to Married",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 1,
+          "otherPersonName": "Terry Partner",
+          "primaryPersonName": "Lynn",
+          "wwwwh": "Not recorded - ask client",
+          "observations": "Not recorded - ask client",
+          "eventClass": "relationship",
+          "createdAt": 1775273067971
+        }
+      ],
+      "familyNameOffsetX": 0,
+      "familyNameOffsetY": -8,
+      "familyNameWidth": 92.08,
+      "familyNameHeight": 21
+    },
+    {
+      "id": "JeWFVqnTbvxWY8o-m62pF",
+      "partner1_id": "sYSydQjyEaIsTj-_8-NxC",
+      "partner2_id": "uqaOlnK0NJMihDDX1JvgG",
+      "horizontalConnectorY": 423,
+      "relationshipType": "dating",
+      "relationshipStatus": "married",
+      "children": [],
+      "events": [],
+      "familyNameWidth": 92.08,
+      "familyNameHeight": 20,
+      "familyNameOffsetX": 2.727,
+      "familyNameOffsetY": -6.364
+    }
+  ],
+  "emotionalLines": [
+    {
+      "id": "EHE2YjXgQ1PwDPHos6jmE",
+      "person1_id": "0TKmGA1OPQJy3-L18Fyo9",
+      "person2_id": "-u4LjKcB3K12kTR6rWxaQ",
+      "status": "ongoing",
+      "relationshipType": "projection",
+      "lineStyle": "projection-3",
+      "lineEnding": "none",
+      "startDate": "2026-03-27",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "2rcImL4n7hC4YoFxcN9te",
+          "date": "2026-03-27",
+          "startDate": "2026-03-27",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "EHE2YjXgQ1PwDPHos6jmE",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Allixe",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774634043871
+        }
+      ],
+      "adequatePersonId": "0TKmGA1OPQJy3-L18Fyo9"
+    },
+    {
+      "id": "wzeg6saVmNnPCGoOBlDf5",
+      "person1_id": "0TKmGA1OPQJy3-L18Fyo9",
+      "person2_id": "FSQj4A4GX_LrToYbo9hsc",
+      "status": "ongoing",
+      "relationshipType": "fusion",
+      "lineStyle": "fusion-solid-wide",
+      "lineEnding": "none",
+      "startDate": "2026-03-27",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "kk--4NEiNOLagsOEBDr56",
+          "date": "2026-03-27",
+          "startDate": "2026-03-27",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "wzeg6saVmNnPCGoOBlDf5",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Maria",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774634073178
+        }
+      ],
+      "adequatePersonId": "0TKmGA1OPQJy3-L18Fyo9"
+    },
+    {
+      "id": "XPDA2HqIbsChqPhqh0NEa",
+      "person1_id": "FSQj4A4GX_LrToYbo9hsc",
+      "person2_id": "-u4LjKcB3K12kTR6rWxaQ",
+      "status": "ongoing",
+      "relationshipType": "fusion",
+      "lineStyle": "fusion-solid-wide",
+      "lineEnding": "none",
+      "startDate": "2026-03-27",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "Jhue0tyLOKEbtaSdZs1XX",
+          "date": "2026-03-27",
+          "startDate": "2026-03-27",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "XPDA2HqIbsChqPhqh0NEa",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Allixe",
+          "primaryPersonName": "Maria",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774634122642
+        }
+      ],
+      "adequatePersonId": "FSQj4A4GX_LrToYbo9hsc"
+    },
+    {
+      "id": "i9rpi4BNfWO7cIKazoVjs",
+      "person1_id": "V3o0QMGVPDp1MgrARZCDq",
+      "person2_id": "sYSydQjyEaIsTj-_8-NxC",
+      "status": "ongoing",
+      "relationshipType": "open-connection",
+      "lineStyle": "open-connection-3",
+      "lineEnding": "none",
+      "startDate": "2026-03-28",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "6RQLW3BPD6H2Cth0Q3haM",
+          "date": "2026-03-28",
+          "startDate": "2026-03-28",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "i9rpi4BNfWO7cIKazoVjs",
+          "status": "ongoing",
+          "intensity": 3,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Karen",
+          "primaryPersonName": "Lynn",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774657920616
+        }
+      ]
+    },
+    {
+      "id": "HVWZrCkLO7UaKVmrvKEd-",
+      "person1_id": "0TKmGA1OPQJy3-L18Fyo9",
+      "person2_id": "V3o0QMGVPDp1MgrARZCDq",
+      "status": "ongoing",
+      "relationshipType": "open-connection",
+      "lineStyle": "open-connection-2",
+      "lineEnding": "none",
+      "startDate": "2026-03-28",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "oEpZnJdl3mHz6WoDbtxpS",
+          "date": "2026-03-28",
+          "startDate": "2026-03-28",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "HVWZrCkLO7UaKVmrvKEd-",
+          "status": "ongoing",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Lynn",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774657975605
+        }
+      ]
+    },
+    {
+      "id": "tOZNpAwRxmapKlB3fnxV6",
+      "person1_id": "0TKmGA1OPQJy3-L18Fyo9",
+      "person2_id": "sYSydQjyEaIsTj-_8-NxC",
+      "status": "ongoing",
+      "relationshipType": "open-connection",
+      "lineStyle": "open-connection-2",
+      "lineEnding": "none",
+      "startDate": "2026-03-28",
+      "color": "#444444",
+      "events": [
+        {
+          "id": "h2GeagpoMalSMjMsXg4lv",
+          "date": "2026-03-28",
+          "startDate": "2026-03-28",
+          "category": "Emotional Pattern",
+          "eventType": "EPE",
+          "anchorType": "EMOTIONAL_PROCESS_EP",
+          "anchorId": "tOZNpAwRxmapKlB3fnxV6",
+          "status": "ongoing",
+          "intensity": 2,
+          "frequency": 0,
+          "impact": 0,
+          "howWell": 5,
+          "otherPersonName": "Karen",
+          "primaryPersonName": "Dave Partner",
+          "wwwwh": "",
+          "observations": "",
+          "eventClass": "emotional-pattern",
+          "createdAt": 1774657993841
+        }
+      ]
+    }
+  ],
+  "pageNotes": [
+    {
+      "id": "9UThrI14h5C-rr7iadBR4",
+      "x": 370.44130434782585,
+      "y": 626.2571671195653,
+      "title": "General Note",
+      "text": "Click on the Canvas to Add General Note. Click on the Note to edit it. ",
+      "width": 220,
+      "height": 140,
+      "fillColor": "#fff8c6"
+    }
+  ],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "married",
+    "common-law",
+    "living-together",
+    "dating",
+    "affair",
+    "friendship"
+  ],
+  "relationshipStatuses": [
+    "married",
+    "separated",
+    "divorced",
+    "started",
+    "ended",
+    "ongoing"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [],
+  "functionalFactCategories": [
+    {
+      "id": "ff-cdgd9Ilq",
+      "name": "Anxiety Level"
+    }
+  ]
+}

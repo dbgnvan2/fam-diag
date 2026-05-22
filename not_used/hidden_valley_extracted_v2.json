@@ -1,0 +1,54 @@
+{
+  "fileMeta": {
+    "fileName": "HiddenValleyRoad_extracted_v2.json",
+    "exportedAt": "2026-02-25T00:00:00.000Z"
+  },
+  "extractionNotes": {
+    "source": "/Users/davemini2/ObsidianSyncVault/Attachments Text Files/Hidden Valley Road GMT20200619-173250_BTA-webcas_otter_ai.pdf",
+    "method": "Second-pass manual extraction from transcript text",
+    "confidence": "medium",
+    "knownUncertainties": [
+      "Only part of the full narrative appears in this transcript excerpt.",
+      "Six affected siblings are mentioned globally, but only four are directly named in diagnosis statements in this excerpt.",
+      "Some spouse/child identities are not named in excerpt and are left as notes."
+    ]
+  },
+  "people": [
+    { "id": "don_galvin", "name": "Don Galvin", "firstName": "Don", "lastName": "Galvin", "x": 520, "y": 120, "gender": "male", "birthDate": "1924-01-01", "deathDate": "2003-01-01", "partnerships": ["p_don_mimi"], "notes": "Transcript includes a conflicting early death-year mention (1975), but later cancer timeline states death in 2003." },
+    { "id": "mimi_galvin", "name": "Mimi Galvin", "firstName": "Mimi", "lastName": "Galvin", "x": 700, "y": 120, "gender": "female", "partnerships": ["p_don_mimi"], "notes": "Origin mentions Houston then Queens, NY; married Don in 1944." },
+
+    { "id": "donald", "name": "Donald Galvin", "x": 120, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": ["p_donald_jean"], "notes": "Explicit paranoid schizophrenia diagnosis in transcript; multiple psychiatric hospitalizations.", "functionalIndicators": [{ "definitionId": "indicator-schizophrenia-spectrum", "status": "past", "impact": 5, "frequency": 5, "intensity": 5 }] },
+    { "id": "jim", "name": "Jim Galvin", "x": 220, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": ["p_jim_kathy"], "notes": "Marriage to Kathy described as long but problematic." },
+    { "id": "john", "name": "John Galvin", "x": 320, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": ["p_john_nancy"], "notes": "Explicitly described as not diagnosed with schizophrenia in transcript." },
+    { "id": "brian", "name": "Brian Galvin", "x": 420, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": ["p_brian_noni"], "deathDate": "1973-09-01", "notes": "Killed girlfriend Noni and then himself (transcript)." },
+    { "id": "michael", "name": "Michael Galvin", "x": 520, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Transcript: two marriages, children; explicitly noted as never diagnosed with schizophrenia." },
+    { "id": "richard", "name": "Richard Galvin", "x": 620, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Transcript: marriage and divorce; one child." },
+    { "id": "joseph", "name": "Joseph Galvin", "x": 720, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Transcript: fourth brother to receive schizophrenia diagnosis.", "functionalIndicators": [{ "definitionId": "indicator-schizophrenia-spectrum", "status": "past", "impact": 5, "frequency": 5, "intensity": 5 }] },
+    { "id": "mark", "name": "Mark Galvin", "x": 820, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "No schizophrenia diagnosis in transcript; divorce then second successful marriage." },
+    { "id": "matthew", "name": "Matthew Galvin", "x": 920, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Transcript: among last two boys diagnosed in psychotic range.", "functionalIndicators": [{ "definitionId": "indicator-schizophrenia-spectrum", "status": "past", "impact": 5, "frequency": 5, "intensity": 5 }] },
+    { "id": "peter", "name": "Peter Galvin", "x": 1020, "y": 320, "gender": "male", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Transcript: among last two boys diagnosed in psychotic range; psychiatric hospitalizations.", "functionalIndicators": [{ "definitionId": "indicator-schizophrenia-spectrum", "status": "past", "impact": 5, "frequency": 5, "intensity": 5 }] },
+    { "id": "margaret", "name": "Margaret Galvin", "x": 1120, "y": 320, "gender": "female", "parentPartnership": "p_don_mimi", "partnerships": [], "notes": "Not diagnosed in transcript; first marriage ended, second marriage successful." },
+    { "id": "mary_lindsay", "name": "Mary Lindsay Galvin", "x": 1220, "y": 320, "gender": "female", "parentPartnership": "p_don_mimi", "partnerships": ["p_mary_rick"], "notes": "Also called Lindsay; married Rick with two children; described as highest functioning sibling." },
+
+    { "id": "jean", "name": "Jean", "x": 120, "y": 520, "gender": "female", "partnerships": ["p_donald_jean"] },
+    { "id": "kathy", "name": "Kathy", "x": 220, "y": 520, "gender": "female", "partnerships": ["p_jim_kathy"] },
+    { "id": "nancy", "name": "Nancy", "x": 320, "y": 520, "gender": "female", "partnerships": ["p_john_nancy"] },
+    { "id": "noni", "name": "Noni", "x": 420, "y": 520, "gender": "female", "partnerships": ["p_brian_noni"], "deathDate": "1973-09-01" },
+    { "id": "rick", "name": "Rick", "x": 1220, "y": 520, "gender": "male", "partnerships": ["p_mary_rick"] }
+  ],
+  "partnerships": [
+    { "id": "p_don_mimi", "partner1_id": "don_galvin", "partner2_id": "mimi_galvin", "horizontalConnectorY": 220, "relationshipType": "married", "relationshipStatus": "ended", "relationshipStartDate": "1944-01-01", "children": ["donald", "jim", "john", "brian", "michael", "richard", "joseph", "mark", "matthew", "peter", "margaret", "mary_lindsay"] },
+    { "id": "p_donald_jean", "partner1_id": "donald", "partner2_id": "jean", "horizontalConnectorY": 430, "relationshipType": "married", "relationshipStatus": "divorced", "relationshipStartDate": "1967-01-01", "children": [] },
+    { "id": "p_jim_kathy", "partner1_id": "jim", "partner2_id": "kathy", "horizontalConnectorY": 430, "relationshipType": "married", "relationshipStatus": "ended", "children": [] },
+    { "id": "p_john_nancy", "partner1_id": "john", "partner2_id": "nancy", "horizontalConnectorY": 430, "relationshipType": "married", "relationshipStatus": "married", "children": [] },
+    { "id": "p_brian_noni", "partner1_id": "brian", "partner2_id": "noni", "horizontalConnectorY": 430, "relationshipType": "dating", "relationshipStatus": "ended", "children": [] },
+    { "id": "p_mary_rick", "partner1_id": "mary_lindsay", "partner2_id": "rick", "horizontalConnectorY": 430, "relationshipType": "married", "relationshipStatus": "married", "children": [] }
+  ],
+  "emotionalLines": [],
+  "functionalIndicatorDefinitions": [
+    { "id": "indicator-schizophrenia-spectrum", "label": "Schizophrenia Spectrum" }
+  ],
+  "eventCategories": ["Mental Health", "Relationship", "Hospitalization", "Functioning", "Loss/Death", "Other"],
+  "autoSaveMinutes": 1,
+  "ideasText": "Second-pass extraction. Use notes fields to resolve remaining uncertainties before clinical interpretation."
+}
