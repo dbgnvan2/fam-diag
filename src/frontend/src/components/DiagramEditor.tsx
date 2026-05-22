@@ -16,6 +16,8 @@ import type {
   SymptomGroup,
   PageNote,
 } from '../types';
+import type { ExtractedDiagramData } from '../types/imageAnalysis';
+import type { PersonInventoryItem } from '../utils/personInventory';
 import { nanoid } from 'nanoid';
 import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
@@ -42,6 +44,18 @@ import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
+import {
+  analyzeImageToDiagramData,
+} from '../utils/imageAnalysis';
+import {
+  generatePersonInventory,
+} from '../utils/personInventory';
+import {
+  convertExtractedToDiagram,
+} from '../utils/extractedDataToDiagram';
+import {
+  autoLayoutExtractedDiagram,
+} from '../utils/diagramLayout';
 import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
@@ -328,6 +342,10 @@ const DiagramEditor = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [predictionsOpen, setPredictionsOpen] = useState(false);
+  const [imageDiagramModalOpen, setImageDiagramModalOpen] = useState(false);
+  const [imageDiagramAnalyzing, setImageDiagramAnalyzing] = useState(false);
+  const [extractedDiagramData, setExtractedDiagramData] = useState<ExtractedDiagramData | null>(null);
+  const [personInventory, setPersonInventory] = useState<PersonInventoryItem[]>([]);
   const [predictionSets, setPredictionSets] = useState<PredictionSet[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictionSets;
     const stored = getStoredValue('predictions');
@@ -522,6 +540,7 @@ const DiagramEditor = () => {
   const importInputRef = useRef<HTMLInputElement>(null);
   const importPersonEventsInputRef = useRef<HTMLInputElement>(null);
   const transcriptInputRef = useRef<HTMLInputElement>(null);
+  const imageDiagramInputRef = useRef<HTMLInputElement>(null);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
   const [, forceTimeRefresh] = useState(0);
@@ -3120,6 +3139,90 @@ useEffect(() => {
     });
   }, [openSaveAsDialog, setDiagramFileHandle]);
 
+  const handleImageDiagramPicker = useCallback(() => {
+    imageDiagramInputRef.current?.click();
+  }, []);
+
+  const handleImageDiagramLoad = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setImageDiagramModalOpen(true);
+      setImageDiagramAnalyzing(false);
+      e.target.value = '';
+    },
+    []
+  );
+
+  const handleImageDiagramAnalyze = useCallback(
+    async (imageBlob: Blob) => {
+      if (setImageDiagramAnalyzing) {
+        setImageDiagramAnalyzing(true);
+      }
+      try {
+        const apiKey = localStorage.getItem('anthropic_api_key') || '';
+        if (!apiKey) {
+          alert('Please set your Anthropic API key in settings');
+          setImageDiagramAnalyzing(false);
+          return;
+        }
+        const extracted = await analyzeImageToDiagramData(imageBlob, apiKey);
+        setExtractedDiagramData(extracted);
+        const inventory = generatePersonInventory(extracted);
+        setPersonInventory(inventory);
+      } catch (error) {
+        alert(`Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setImageDiagramAnalyzing(false);
+      }
+    },
+    []
+  );
+
+  const handleImageDiagramCreateDiagram = useCallback(
+    async (reviewedInventory: PersonInventoryItem[]) => {
+      if (!extractedDiagramData) return;
+
+      // Convert reviewed inventory back to ReviewedDiagramData
+      const reviewed = {
+        persons: extractedDiagramData.persons.map((p) => {
+          const item = reviewedInventory.find((inv) => inv.id === p.id);
+          return {
+            id: p.id,
+            name: item?.name || p.extractedName,
+            gender: (item?.gender || p.gender) as 'male' | 'female' | 'unknown',
+            notes: item?.notes,
+            removed: false,
+          };
+        }),
+        relationships: extractedDiagramData.relationships,
+      };
+
+      // Convert to Person and Partnership objects
+      const { people: newPeople, partnerships: newPartnerships } = convertExtractedToDiagram(reviewed);
+
+      // Auto-layout the extracted diagram
+      const positions = autoLayoutExtractedDiagram(newPeople, newPartnerships);
+
+      // Apply positions to people
+      const positionedPeople = newPeople.map((p) => ({
+        ...p,
+        ...positions[p.id],
+      }));
+
+      // Add to current diagram
+      setPeople((prev) => [...prev, ...positionedPeople]);
+      setPartnerships((prev) => [...prev, ...newPartnerships]);
+
+      // Close modal and reset state
+      setImageDiagramModalOpen(false);
+      setExtractedDiagramData(null);
+      setPersonInventory([]);
+    },
+    [extractedDiagramData]
+  );
+
   const {
     handleSave,
     handleSaveAs,
@@ -4219,6 +4322,7 @@ useEffect(() => {
             importInputRef={importInputRef}
             importPersonEventsInputRef={importPersonEventsInputRef}
             transcriptInputRef={transcriptInputRef}
+            imageDiagramInputRef={imageDiagramInputRef}
             fileMenuOpen={fileMenuOpen}
             settingsMenuOpen={settingsMenuOpen}
             optionsMenuOpen={optionsMenuOpen}
@@ -4241,6 +4345,8 @@ useEffect(() => {
             demoTourOpen={demoTourOpen}
             demoTourStepIndex={demoTourStepIndex}
             demoTourSteps={demoTourSteps}
+            imageDiagramModalOpen={imageDiagramModalOpen}
+            imageDiagramAnalyzing={imageDiagramAnalyzing}
             setFileMenuOpen={setFileMenuOpen}
             setSettingsMenuOpen={setSettingsMenuOpen}
             setOptionsMenuOpen={setOptionsMenuOpen}
@@ -4295,6 +4401,8 @@ useEffect(() => {
             handleSetBackupFolder={handleSetBackupFolder}
             handleOpenFileBackupRestore={handleOpenFileBackupRestore}
             handleCenterDiagramView={handleCenterDiagramView}
+            handleImageDiagramPicker={handleImageDiagramPicker}
+            handleImageDiagramLoad={handleImageDiagramLoad}
           />
           <VoiceInputModal
             open={voiceInputOpen}
@@ -4677,6 +4785,20 @@ useEffect(() => {
             onSaveAsClose={() => {
               setSaveAsDialogOpen(false);
               saveAsOnConfirmRef.current = null;
+            }}
+            imageDiagramModalOpen={imageDiagramModalOpen}
+            imageDiagramAnalyzing={imageDiagramAnalyzing}
+            onImageDiagramClose={() => {
+              setImageDiagramModalOpen(false);
+            }}
+            onImageDiagramAnalyze={handleImageDiagramAnalyze}
+            imageDiagramReviewOpen={imageDiagramModalOpen && extractedDiagramData !== null}
+            personInventory={personInventory}
+            onImageDiagramCreateDiagram={handleImageDiagramCreateDiagram}
+            onImageDiagramReviewClose={() => {
+              setImageDiagramModalOpen(false);
+              setExtractedDiagramData(null);
+              setPersonInventory([]);
             }}
           />
         <PredictionsPanel

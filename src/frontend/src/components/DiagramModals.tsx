@@ -20,6 +20,7 @@ import type {
   DemoTourStep,
   BuildDemoStep,
 } from '../types/diagramEditor';
+import type { PersonInventoryItem } from '../utils/personInventory';
 import type { RibbonHelpKey } from '../data/helpContent';
 import ImportModeDialog from './modals/ImportModeDialog';
 import SessionCaptureDialog from './modals/SessionCaptureDialog';
@@ -43,6 +44,8 @@ import ReadmeViewerModal from './modals/ReadmeViewerModal';
 import SessionEventModal from './modals/SessionEventModal';
 import IdeasPanel from './IdeasPanel';
 import SaveAsDialog from './modals/SaveAsDialog';
+import ImageDiagramModal from './modals/ImageDiagramModal';
+import ImageDiagramReviewModal from './modals/ImageDiagramReviewModal';
 import readmeContent from '../../../../README.md?raw';
 
 type TrainingVideo = { id: string; title: string; duration: string; topic: string; embedUrl: string; url: string };
@@ -254,6 +257,16 @@ interface DiagramModalsProps {
   saveAsCurrentFileName: string;
   onSaveAsConfirm: (fileName: string) => void;
   onSaveAsClose: () => void;
+
+  // ImageDiagramModal
+  imageDiagramModalOpen: boolean;
+  imageDiagramAnalyzing: boolean;
+  onImageDiagramClose: () => void;
+  onImageDiagramAnalyze: (imageBlob: Blob) => Promise<void>;
+  imageDiagramReviewOpen: boolean;
+  personInventory: PersonInventoryItem[];
+  onImageDiagramCreateDiagram: (reviewedInventory: PersonInventoryItem[]) => Promise<void>;
+  onImageDiagramReviewClose: () => void;
 }
 
 export default function DiagramModals({
@@ -416,6 +429,14 @@ export default function DiagramModals({
   saveAsCurrentFileName,
   onSaveAsConfirm,
   onSaveAsClose,
+  imageDiagramModalOpen,
+  imageDiagramAnalyzing,
+  onImageDiagramClose,
+  onImageDiagramAnalyze,
+  imageDiagramReviewOpen,
+  personInventory,
+  onImageDiagramCreateDiagram,
+  onImageDiagramReviewClose,
 }: DiagramModalsProps) {
   return (
     <>
@@ -690,6 +711,19 @@ export default function DiagramModals({
         currentFileName={saveAsCurrentFileName}
         onSave={onSaveAsConfirm}
         onClose={onSaveAsClose}
+      />
+      <ImageDiagramModal
+        open={imageDiagramModalOpen && !imageDiagramReviewOpen}
+        onClose={onImageDiagramClose}
+        onAnalyze={onImageDiagramAnalyze}
+        isLoading={imageDiagramAnalyzing}
+      />
+      <ImageDiagramReviewModal
+        open={imageDiagramReviewOpen}
+        onClose={onImageDiagramReviewClose}
+        inventory={personInventory}
+        onCreateDiagram={onImageDiagramCreateDiagram}
+        isLoading={imageDiagramAnalyzing}
       />
     </>
   );

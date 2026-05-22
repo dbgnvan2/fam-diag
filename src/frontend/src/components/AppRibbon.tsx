@@ -15,6 +15,7 @@ export interface AppRibbonProps {
   importInputRef: React.RefObject<HTMLInputElement>;
   importPersonEventsInputRef: React.RefObject<HTMLInputElement>;
   transcriptInputRef: React.RefObject<HTMLInputElement>;
+  imageDiagramInputRef: React.RefObject<HTMLInputElement>;
 
   // State values
   fileMenuOpen: boolean;
@@ -39,6 +40,8 @@ export interface AppRibbonProps {
   demoTourOpen: boolean;
   demoTourStepIndex: number;
   demoTourSteps: DemoTourStep[];
+  imageDiagramModalOpen: boolean;
+  imageDiagramAnalyzing: boolean;
 
   // Setters
   setFileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -97,6 +100,8 @@ export interface AppRibbonProps {
   handleSetBackupFolder: () => void;
   handleOpenFileBackupRestore: () => void;
   handleCenterDiagramView: () => void;
+  handleImageDiagramPicker: () => void;
+  handleImageDiagramLoad: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const AppRibbon: React.FC<AppRibbonProps> = ({
@@ -109,6 +114,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   importInputRef,
   importPersonEventsInputRef,
   transcriptInputRef,
+  imageDiagramInputRef,
   fileMenuOpen,
   settingsMenuOpen,
   optionsMenuOpen,
@@ -183,6 +189,8 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   handleSetBackupFolder,
   handleOpenFileBackupRestore,
   handleCenterDiagramView,
+  handleImageDiagramPicker,
+  handleImageDiagramLoad,
 }) => {
   const now = Date.now();
   const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now);
@@ -222,6 +230,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Open', action: handleOpenFilePicker },
     { label: 'Import Data', action: handleImportDataPicker },
     { label: 'Import Person Events', action: handleImportPersonEventsPicker },
+    { label: 'Image Diagram', action: handleImageDiagramPicker },
     { label: 'Save', action: () => handleSave(false) },
     { label: 'Save As', action: handleSaveAs },
     { label: 'Restore Backup (Browser)', action: () => void handleOpenBackupRestore() },
@@ -805,6 +814,13 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
         accept=".txt,.md,.rtf,.pdf"
         style={{ display: 'none' }}
         onChange={handleProcessTranscriptLoad}
+      />
+      <input
+        ref={imageDiagramInputRef}
+        type="file"
+        accept="image/png,image/jpeg"
+        style={{ display: 'none' }}
+        onChange={handleImageDiagramLoad}
       />
     </div>
   );
