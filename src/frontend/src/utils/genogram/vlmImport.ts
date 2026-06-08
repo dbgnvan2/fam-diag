@@ -190,7 +190,7 @@ SYMBOL KEY (standard genogram notation — apply strictly, by shape):
 - A plain X with NO enclosing square or circle = a person of UNKNOWN sex. (sex: "unknown")
 - A triangle = a pregnancy. This is NOT a born person — do NOT add it to people[].
 - A small star or asterisk (*) = a miscarriage / pregnancy loss. NOT a person — do NOT add it to people[].
-- A small circle containing the letter "c" = a current pregnancy. Treat as a pregnancy marker (note it), not a fully born person.
+- A small circle containing the letter "c" = a current pregnancy marker — BUT if this small "c" circle appears next to a person who is in a relationship and has a child below them, treat the "c" circle as a separate person (likely the partner/spouse). In that case, extract it as a person named "C (spouse of [partner name])".
 - A horizontal line connecting two people = a couple/partnership.
 - "m.YYYY" near a couple line = marriage year. "div. YYYY" or a double slash = divorce.
 - Text like "b.1968" or "b.1940 d.2014" next to a symbol = birth / death years.
@@ -237,6 +237,8 @@ RULES:
 - If unsure about a shape, X, letter, or relationship, list it in uncertainties and set confidence to "med" or "low".
 - ALWAYS include x and y position (0-100 %) for every person, measured to the center of the symbol.
 - CRITICAL: Do not skip people on the edges of the diagram (left, right, top, bottom edges). Extract ALL visible symbols.
+- CRITICAL: For every couple/partnership with children, make sure BOTH partners exist as separate persons in people[] — even if one is labeled with just a "c" symbol or unclear letter. If a child exists, the parents must both exist as named people.
+- CRITICAL: Children (sibship rows) connected to a parental couple by vertical lines — extract EVERY symbol in the sibship row, including isolated/labeled-only children that may not appear in any other relationship.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
   const userMessage = 'Extract all people and relationships from this genogram image.';

@@ -469,6 +469,11 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   (facts.clinical?.events || []).forEach((evt) => {
     if (evt.person) getPerson(evt.person);
   });
+  // Genogram image import: create people for ALL VLM-extracted people
+  // (catches people not mentioned in any relationship, like edge siblings)
+  (facts.people || []).forEach((p) => {
+    if (p.name) getPerson(p.name);
+  });
 
   const people = [...peopleByName.values()];
   people.forEach((person, idx) => {
