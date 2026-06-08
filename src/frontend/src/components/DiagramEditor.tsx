@@ -44,17 +44,17 @@ import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
-import {
-  analyzeImageToDiagramData,
-} from '../utils/imageAnalysis';
-import {
-  generatePersonInventory,
-} from '../utils/personInventory';
+import { testApiConnection } from '../utils/testApiConnection';
+import { lookupModel } from '../utils/lookupModel';
+import { ImportLog } from '../utils/importLog';
+import { runGenogramPipeline } from '../utils/genogram/pipeline';
 import {
   convertExtractedToDiagram,
+  applyNotesPositions,
 } from '../utils/extractedDataToDiagram';
 import {
   autoLayoutExtractedDiagram,
+  applyHorizontalConnectorY,
 } from '../utils/diagramLayout';
 import {
   DEFAULT_DIAGRAM_STATE,
@@ -344,6 +344,7 @@ const DiagramEditor = () => {
   const [predictionsOpen, setPredictionsOpen] = useState(false);
   const [imageDiagramModalOpen, setImageDiagramModalOpen] = useState(false);
   const [imageDiagramAnalyzing, setImageDiagramAnalyzing] = useState(false);
+  const [imageDiagramProgress, setImageDiagramProgress] = useState<string>('');
   const [extractedDiagramData, setExtractedDiagramData] = useState<ExtractedDiagramData | null>(null);
   const [personInventory, setPersonInventory] = useState<PersonInventoryItem[]>([]);
   const [predictionSets, setPredictionSets] = useState<PredictionSet[]>(() => {
@@ -406,6 +407,19 @@ const DiagramEditor = () => {
   });
   const [ffSettingsOpen, setFfSettingsOpen] = useState(false);
   const [nodalSettingsOpen, setNodalSettingsOpen] = useState(false);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [aiSettingsAnthropicApiKey, setAiSettingsAnthropicApiKey] = useState<string>(
+    () => localStorage.getItem('anthropic_api_key') || ''
+  );
+  const [aiSettingsDeepseekApiKey, setAiSettingsDeepseekApiKey] = useState<string>(
+    () => localStorage.getItem('deepseek_api_key') || ''
+  );
+  const [aiSettingsModelId, setAiSettingsModelId] = useState<string>(
+    () =>
+      localStorage.getItem('selected_model_id') ||
+      localStorage.getItem('anthropic_model') ||
+      'claude-sonnet-4-6'
+  );
   const [sirSettingsOpen, setSirSettingsOpen] = useState(false);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
@@ -467,6 +481,9 @@ const DiagramEditor = () => {
   const [backupRestoreVersions, setBackupRestoreVersions] = useState<BackupVersions | null>(null);
   const [fileBackupListOpen, setFileBackupListOpen] = useState(false);
   const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false);
+  const [importLogOpen, setImportLogOpen] = useState(false);
+  const [importLogText, setImportLogText] = useState('');
+  const [importLogFilename, setImportLogFilename] = useState('image-import-log.txt');
   const saveAsOnConfirmRef = useRef<((name: string) => void) | null>(null);
   const [fileBackupEntries, setFileBackupEntries] = useState<FileBackupEntry[]>([]);
   const [pendingReopenHandle, setPendingReopenHandle] = useState<any>(null);
@@ -3140,8 +3157,26 @@ useEffect(() => {
   }, [openSaveAsDialog, setDiagramFileHandle]);
 
   const handleImageDiagramPicker = useCallback(() => {
-    imageDiagramInputRef.current?.click();
+    // Open the modal directly. The modal owns its own file input + drag-drop,
+    // so we don't pre-prompt the user with an OS picker first.
+    setImageDiagramModalOpen(true);
+    setImageDiagramAnalyzing(false);
   }, []);
+
+  const handleAiSettingsSave = useCallback(
+    (values: { anthropicApiKey: string; deepseekApiKey: string; modelId: string }) => {
+      localStorage.setItem('anthropic_api_key', values.anthropicApiKey);
+      localStorage.setItem('deepseek_api_key', values.deepseekApiKey);
+      localStorage.setItem('selected_model_id', values.modelId);
+      // Keep the legacy key in sync for any reader that hasn't migrated yet.
+      localStorage.setItem('anthropic_model', values.modelId);
+      setAiSettingsAnthropicApiKey(values.anthropicApiKey);
+      setAiSettingsDeepseekApiKey(values.deepseekApiKey);
+      setAiSettingsModelId(values.modelId);
+      setAiSettingsOpen(false);
+    },
+    []
+  );
 
   const handleImageDiagramLoad = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3156,25 +3191,85 @@ useEffect(() => {
   );
 
   const handleImageDiagramAnalyze = useCallback(
-    async (imageBlob: Blob) => {
+    async (
+      imageBlob: Blob,
+      hints?: {
+        generationCount: number;
+        expectedPersonCount: number;
+        handDrawn: boolean;
+        hasNotes: boolean;
+      }
+    ) => {
       if (setImageDiagramAnalyzing) {
         setImageDiagramAnalyzing(true);
       }
+      setImageDiagramProgress('Preparing…');
+      const log = new ImportLog();
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const logFilename = `image-import-log-${ts}.txt`;
+      log.info(`Image import started at ${new Date().toISOString()}`);
+      if (hints) {
+        log.info(
+          `User hints: generations=${hints.generationCount || 'auto'} ` +
+            `people~${hints.expectedPersonCount || 'auto'} ` +
+            `handDrawn=${hints.handDrawn} hasNotes=${hints.hasNotes}`
+        );
+      }
+
+      const showLog = (summary: string) => {
+        log.info(`Final summary: ${summary}`);
+        setImportLogText(log.serialize());
+        setImportLogFilename(logFilename);
+        setImportLogOpen(true);
+      };
+
       try {
+        // The new CV+OCR pipeline runs entirely in the browser. VLM
+        // credentials are only used as the per-symbol letter-OCR fallback.
+        const modelId =
+          localStorage.getItem('selected_model_id') ||
+          localStorage.getItem('anthropic_model') ||
+          'claude-sonnet-4-6';
         const apiKey = localStorage.getItem('anthropic_api_key') || '';
-        if (!apiKey) {
-          alert('Please set your Anthropic API key in settings');
-          setImageDiagramAnalyzing(false);
+        const activeModel = lookupModel(modelId);
+
+        let vlm: { apiKey: string; model: string } | undefined;
+        if (apiKey && activeModel && activeModel.provider === 'anthropic' && activeModel.supportsVision) {
+          vlm = { apiKey, model: activeModel.id };
+          log.info(`VLM fallback enabled: ${activeModel.label}`);
+        } else {
+          log.info('VLM fallback disabled (no Anthropic key + vision model configured)');
+        }
+
+        const result = await runGenogramPipeline(imageBlob, {
+          vlm,
+          log,
+          onProgress: (p) => setImageDiagramProgress(p.message),
+          hints,
+        });
+        const people = result.data.people ?? [];
+        const partnerships = result.data.partnerships ?? [];
+
+        if (people.length === 0) {
+          showLog(
+            `0 people detected. Common causes: low contrast photo, glare, or shadows. Try a clearer image. Symbols found: ${result.symbols.length}.`
+          );
           return;
         }
-        const extracted = await analyzeImageToDiagramData(imageBlob, apiKey);
-        setExtractedDiagramData(extracted);
-        const inventory = generatePersonInventory(extracted);
-        setPersonInventory(inventory);
+
+        setPeople((prev) => [...prev, ...people]);
+        setPartnerships((prev) => [...prev, ...partnerships]);
+        setImageDiagramModalOpen(false);
+        setExtractedDiagramData(null);
+        setPersonInventory([]);
+        log.info(`Imported ${people.length} people and ${partnerships.length} partnerships.`);
       } catch (error) {
-        alert(`Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        log.error(`Caught exception: ${message}`);
+        showLog(`Analysis failed: ${message}`);
       } finally {
         setImageDiagramAnalyzing(false);
+        setImageDiagramProgress('');
       }
     },
     []
@@ -3205,15 +3300,17 @@ useEffect(() => {
       // Auto-layout the extracted diagram
       const positions = autoLayoutExtractedDiagram(newPeople, newPartnerships);
 
-      // Apply positions to people
-      const positionedPeople = newPeople.map((p) => ({
-        ...p,
-        ...positions[p.id],
-      }));
+      // Apply positions to people, then derive notesPosition from final x/y.
+      const positionedPeople = applyNotesPositions(
+        newPeople.map((p) => ({ ...p, ...positions[p.id] }))
+      );
+
+      // Now that people have final y values, compute horizontalConnectorY per partnership.
+      const connectedPartnerships = applyHorizontalConnectorY(positionedPeople, newPartnerships);
 
       // Add to current diagram
       setPeople((prev) => [...prev, ...positionedPeople]);
-      setPartnerships((prev) => [...prev, ...newPartnerships]);
+      setPartnerships((prev) => [...prev, ...connectedPartnerships]);
 
       // Close modal and reset state
       setImageDiagramModalOpen(false);
@@ -4362,6 +4459,7 @@ useEffect(() => {
             setSirSettingsOpen={setSirSettingsOpen}
             setFfSettingsOpen={setFfSettingsOpen}
             setNodalSettingsOpen={setNodalSettingsOpen}
+            setAiSettingsOpen={setAiSettingsOpen}
             setIdeasOpen={setIdeasOpen}
             setPredictionsOpen={setPredictionsOpen}
             setSessionNotesOpen={setSessionNotesOpen}
@@ -4788,6 +4886,7 @@ useEffect(() => {
             }}
             imageDiagramModalOpen={imageDiagramModalOpen}
             imageDiagramAnalyzing={imageDiagramAnalyzing}
+            imageDiagramProgress={imageDiagramProgress}
             onImageDiagramClose={() => {
               setImageDiagramModalOpen(false);
             }}
@@ -4800,6 +4899,17 @@ useEffect(() => {
               setExtractedDiagramData(null);
               setPersonInventory([]);
             }}
+            aiSettingsOpen={aiSettingsOpen}
+            aiSettingsAnthropicApiKey={aiSettingsAnthropicApiKey}
+            aiSettingsDeepseekApiKey={aiSettingsDeepseekApiKey}
+            aiSettingsModelId={aiSettingsModelId}
+            onAiSettingsSave={handleAiSettingsSave}
+            onAiSettingsClose={() => setAiSettingsOpen(false)}
+            onAiSettingsTest={testApiConnection}
+            importLogOpen={importLogOpen}
+            importLogText={importLogText}
+            importLogFilename={importLogFilename}
+            onImportLogClose={() => setImportLogOpen(false)}
           />
         <PredictionsPanel
           isOpen={predictionsOpen}

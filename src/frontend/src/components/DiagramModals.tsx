@@ -46,6 +46,8 @@ import IdeasPanel from './IdeasPanel';
 import SaveAsDialog from './modals/SaveAsDialog';
 import ImageDiagramModal from './modals/ImageDiagramModal';
 import ImageDiagramReviewModal from './modals/ImageDiagramReviewModal';
+import AISettingsModal from './modals/AISettingsModal';
+import ImportLogModal from './modals/ImportLogModal';
 import readmeContent from '../../../../README.md?raw';
 
 type TrainingVideo = { id: string; title: string; duration: string; topic: string; embedUrl: string; url: string };
@@ -261,12 +263,36 @@ interface DiagramModalsProps {
   // ImageDiagramModal
   imageDiagramModalOpen: boolean;
   imageDiagramAnalyzing: boolean;
+  imageDiagramProgress: string;
   onImageDiagramClose: () => void;
   onImageDiagramAnalyze: (imageBlob: Blob) => Promise<void>;
   imageDiagramReviewOpen: boolean;
   personInventory: PersonInventoryItem[];
   onImageDiagramCreateDiagram: (reviewedInventory: PersonInventoryItem[]) => Promise<void>;
   onImageDiagramReviewClose: () => void;
+
+  // AISettingsModal
+  aiSettingsOpen: boolean;
+  aiSettingsAnthropicApiKey: string;
+  aiSettingsDeepseekApiKey: string;
+  aiSettingsModelId: string;
+  onAiSettingsSave: (values: {
+    anthropicApiKey: string;
+    deepseekApiKey: string;
+    modelId: string;
+  }) => void;
+  onAiSettingsClose: () => void;
+  onAiSettingsTest: (
+    provider: 'anthropic' | 'deepseek' | 'custom',
+    apiKey: string,
+    model: string
+  ) => Promise<{ ok: boolean; message: string }>;
+
+  // ImportLogModal
+  importLogOpen: boolean;
+  importLogText: string;
+  importLogFilename: string;
+  onImportLogClose: () => void;
 }
 
 export default function DiagramModals({
@@ -431,12 +457,24 @@ export default function DiagramModals({
   onSaveAsClose,
   imageDiagramModalOpen,
   imageDiagramAnalyzing,
+  imageDiagramProgress,
   onImageDiagramClose,
   onImageDiagramAnalyze,
   imageDiagramReviewOpen,
   personInventory,
   onImageDiagramCreateDiagram,
   onImageDiagramReviewClose,
+  aiSettingsOpen,
+  aiSettingsAnthropicApiKey,
+  aiSettingsDeepseekApiKey,
+  aiSettingsModelId,
+  onAiSettingsSave,
+  onAiSettingsClose,
+  onAiSettingsTest,
+  importLogOpen,
+  importLogText,
+  importLogFilename,
+  onImportLogClose,
 }: DiagramModalsProps) {
   return (
     <>
@@ -717,6 +755,7 @@ export default function DiagramModals({
         onClose={onImageDiagramClose}
         onAnalyze={onImageDiagramAnalyze}
         isLoading={imageDiagramAnalyzing}
+        progressMessage={imageDiagramProgress}
       />
       <ImageDiagramReviewModal
         open={imageDiagramReviewOpen}
@@ -724,6 +763,21 @@ export default function DiagramModals({
         inventory={personInventory}
         onCreateDiagram={onImageDiagramCreateDiagram}
         isLoading={imageDiagramAnalyzing}
+      />
+      <AISettingsModal
+        open={aiSettingsOpen}
+        initialAnthropicApiKey={aiSettingsAnthropicApiKey}
+        initialDeepseekApiKey={aiSettingsDeepseekApiKey}
+        initialModelId={aiSettingsModelId}
+        onSave={onAiSettingsSave}
+        onClose={onAiSettingsClose}
+        onTestConnection={onAiSettingsTest}
+      />
+      <ImportLogModal
+        open={importLogOpen}
+        filename={importLogFilename}
+        logText={importLogText}
+        onClose={onImportLogClose}
       />
     </>
   );

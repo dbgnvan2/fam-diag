@@ -218,17 +218,15 @@ describe('DiagramEditor', () => {
         expect(screen.getByText('newDiagram')).toBeInTheDocument();
     });
 
-    it('File New opens SaveAsDialog to name the new diagram', async () => {
+    it('File New just clears the diagram — does not prompt for a filename', async () => {
         render(<DiagramEditor />);
         fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
         await act(async () => {
             fireEvent.click(screen.getByRole('button', { name: 'New' }));
         });
-        const dialog = screen.getByRole('dialog', { name: /save as/i });
-        expect(dialog).toBeInTheDocument();
-        expect(within(dialog).getByPlaceholderText('family-diagram')).toBeInTheDocument();
-        expect(within(dialog).getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-        expect(within(dialog).getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
+        // The Save As dialog must NOT appear — the user gets a blank canvas
+        // and only sees the dialog later when they choose to Save.
+        expect(screen.queryByRole('dialog', { name: /save as/i })).not.toBeInTheDocument();
     });
 
     it('adds and opens an editable general note from the canvas menu', () => {

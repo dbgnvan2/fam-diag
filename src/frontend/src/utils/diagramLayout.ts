@@ -1,5 +1,7 @@
 /**
  * Auto-layout for extracted diagrams — arranges persons in hierarchical generations.
+ *
+ * Spec: docs/implementation_plan_2026-06-06.md (M1.A.2, M3.A.1, M3.A.2)
  */
 
 import type { Person, Partnership } from '../types';
@@ -8,94 +10,121 @@ export type LayoutPositions = {
   [personId: string]: { x: number; y: number };
 };
 
+const GENERATION_SPACING = 200;
+const HORIZONTAL_SPACING = 180;
+const PARTNER_OFFSET = 220; // each partner is positioned this far from the children's centroid x
+const CONNECTOR_Y_OFFSET = 30;
+
 export function autoLayoutExtractedDiagram(
   people: Person[],
   partnerships: Partnership[]
 ): LayoutPositions {
   const result: LayoutPositions = {};
-
   if (people.length === 0) return result;
 
-  // Build adjacency: who are the parents of each person
+  // Build adjacency: parent → children and child → parents.
   const parentsByChild = new Map<string, string[]>();
   const childrenByParent = new Map<string, string[]>();
-
   partnerships.forEach((p) => {
-    p.children.forEach((childId: string) => {
-      if (!parentsByChild.has(childId)) {
-        parentsByChild.set(childId, []);
-      }
-      parentsByChild.get(childId)!.push(p.partner1_id, p.partner2_id);
+    p.children.forEach((childId) => {
+      const existing = parentsByChild.get(childId) || [];
+      existing.push(p.partner1_id, p.partner2_id);
+      parentsByChild.set(childId, existing);
 
-      if (!childrenByParent.has(p.partner1_id)) {
-        childrenByParent.set(p.partner1_id, []);
-      }
-      childrenByParent.get(p.partner1_id)!.push(childId);
+      const c1 = childrenByParent.get(p.partner1_id) || [];
+      c1.push(childId);
+      childrenByParent.set(p.partner1_id, c1);
 
-      if (!childrenByParent.has(p.partner2_id)) {
-        childrenByParent.set(p.partner2_id, []);
-      }
-      childrenByParent.get(p.partner2_id)!.push(childId);
+      const c2 = childrenByParent.get(p.partner2_id) || [];
+      c2.push(childId);
+      childrenByParent.set(p.partner2_id, c2);
     });
   });
 
-  // Assign generations: work from roots (people with no parents) down
+  // Generation assignment: BFS from roots (people with no parents).
   const generation = new Map<string, number>();
-  const unvisited = new Set(people.map((p) => p.id));
-
-  // Find roots (people with no parents)
-  const roots = people.filter((p) => !parentsByChild.has(p.id));
-
-  // BFS to assign generations
-  const queue: string[] = roots.map((p) => p.id);
-  roots.forEach((p) => {
-    generation.set(p.id, 0);
-    unvisited.delete(p.id);
+  const queue: string[] = [];
+  people.forEach((p) => {
+    if (!parentsByChild.has(p.id)) {
+      generation.set(p.id, 0);
+      queue.push(p.id);
+    }
   });
 
   while (queue.length > 0) {
     const personId = queue.shift()!;
-    const currentGen = generation.get(personId) || 0;
-    const children = childrenByParent.get(personId) || [];
-
-    children.forEach((childId) => {
+    const currentGen = generation.get(personId) ?? 0;
+    (childrenByParent.get(personId) || []).forEach((childId) => {
       if (!generation.has(childId)) {
         generation.set(childId, currentGen + 1);
         queue.push(childId);
-        unvisited.delete(childId);
       }
     });
   }
-
-  // Assign any remaining unvisited to generation 0 (isolated nodes)
-  unvisited.forEach((personId) => {
-    generation.set(personId, 0);
+  // Isolated nodes fall to generation 0.
+  people.forEach((p) => {
+    if (!generation.has(p.id)) generation.set(p.id, 0);
   });
 
-  // Group by generation
+  // Group by generation and assign initial x along the generation row.
   const generationGroups = new Map<number, string[]>();
   generation.forEach((gen, personId) => {
-    if (!generationGroups.has(gen)) {
-      generationGroups.set(gen, []);
-    }
-    generationGroups.get(gen)!.push(personId);
+    const list = generationGroups.get(gen) || [];
+    list.push(personId);
+    generationGroups.set(gen, list);
   });
 
-  // Layout parameters
-  const GENERATION_SPACING = 150;
-  const HORIZONTAL_SPACING = 100;
-
-  // Position each person
   generationGroups.forEach((personIds, gen) => {
     const y = gen * GENERATION_SPACING + 100;
-    const totalWidth = personIds.length * HORIZONTAL_SPACING;
-    const startX = Math.max(50, -totalWidth / 2 + 200);
-
     personIds.forEach((personId, index) => {
-      const x = startX + index * HORIZONTAL_SPACING;
-      result[personId] = { x, y };
+      result[personId] = { x: 100 + index * HORIZONTAL_SPACING, y };
     });
   });
 
+  // Parent-centering pass: when a partnership has children, position the two
+  // partners flanking the centroid x of their children's positions. This
+  // overrides the initial uniform-row x assigned above.
+  partnerships.forEach((p) => {
+    if (p.children.length === 0) return;
+    const childXs = p.children
+      .map((cid) => result[cid]?.x)
+      .filter((x): x is number => typeof x === 'number');
+    if (childXs.length === 0) return;
+    const centroid = (Math.min(...childXs) + Math.max(...childXs)) / 2;
+    const partner1Pos = result[p.partner1_id];
+    const partner2Pos = result[p.partner2_id];
+    if (partner1Pos) {
+      result[p.partner1_id] = { x: centroid - PARTNER_OFFSET, y: partner1Pos.y };
+    }
+    if (partner2Pos) {
+      result[p.partner2_id] = { x: centroid + PARTNER_OFFSET, y: partner2Pos.y };
+    }
+  });
+
   return result;
+}
+
+/**
+ * Compute horizontalConnectorY for each partnership based on the two partners'
+ * post-layout y values. Returns a new partnership list — does not mutate.
+ *
+ * Spec: M1.A.2
+ */
+export function applyHorizontalConnectorY(
+  people: Person[],
+  partnerships: Partnership[]
+): Partnership[] {
+  const yById = new Map<string, number>();
+  people.forEach((p) => {
+    if (typeof p.y === 'number') yById.set(p.id, p.y);
+  });
+  return partnerships.map((partnership) => {
+    const y1 = yById.get(partnership.partner1_id);
+    const y2 = yById.get(partnership.partner2_id);
+    if (typeof y1 !== 'number' || typeof y2 !== 'number') return partnership;
+    return {
+      ...partnership,
+      horizontalConnectorY: (y1 + y2) / 2 + CONNECTOR_Y_OFFSET,
+    };
+  });
 }

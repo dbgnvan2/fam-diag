@@ -4,11 +4,24 @@
 
 import React, { useState, useRef } from 'react';
 
+export type ImageImportHints = {
+  /** Number of generations the user expects (0 = unknown). */
+  generationCount: number;
+  /** Approximate number of people (0 = unknown). */
+  expectedPersonCount: number;
+  /** Whether the diagram was hand-drawn (vs printed/digital). */
+  handDrawn: boolean;
+  /** Whether there are descriptive notes/text alongside symbols. */
+  hasNotes: boolean;
+};
+
 interface ImageDiagramModalProps {
   open: boolean;
   onClose: () => void;
-  onAnalyze: (imageBlob: Blob) => Promise<void>;
+  onAnalyze: (imageBlob: Blob, hints: ImageImportHints) => Promise<void>;
   isLoading?: boolean;
+  /** Live progress message rendered while isLoading is true. */
+  progressMessage?: string;
 }
 
 export default function ImageDiagramModal({
@@ -16,10 +29,16 @@ export default function ImageDiagramModal({
   onClose,
   onAnalyze,
   isLoading = false,
+  progressMessage = '',
 }: ImageDiagramModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [generationCount, setGenerationCount] = useState<number>(0);
+  const [expectedPersonCount, setExpectedPersonCount] = useState<number>(0);
+  const [handDrawn, setHandDrawn] = useState<boolean>(true);
+  const [hasNotes, setHasNotes] = useState<boolean>(true);
 
   if (!open) return null;
 
@@ -50,7 +69,12 @@ export default function ImageDiagramModal({
 
     try {
       setError(null);
-      await onAnalyze(selectedFile);
+      await onAnalyze(selectedFile, {
+        generationCount,
+        expectedPersonCount,
+        handDrawn,
+        hasNotes,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze image');
     }
@@ -143,6 +167,81 @@ export default function ImageDiagramModal({
           )}
         </div>
 
+        {/* About-the-diagram hint form. All optional — the pipeline runs
+            with defaults if the user leaves everything blank. */}
+        <div
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 16,
+            background: '#fafafa',
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 10 }}>
+            About this diagram <span style={{ fontWeight: 400, color: '#666' }}>(optional, helps accuracy)</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center', fontSize: 13 }}>
+            <label htmlFor="hint-gens">Generations:</label>
+            <input
+              id="hint-gens"
+              type="number"
+              min={0}
+              max={10}
+              value={generationCount || ''}
+              placeholder="auto-detect"
+              onChange={(e) => setGenerationCount(parseInt(e.target.value, 10) || 0)}
+              disabled={isLoading}
+              style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4, width: 120 }}
+            />
+            <label htmlFor="hint-people">Approx. people:</label>
+            <input
+              id="hint-people"
+              type="number"
+              min={0}
+              max={100}
+              value={expectedPersonCount || ''}
+              placeholder="auto-detect"
+              onChange={(e) => setExpectedPersonCount(parseInt(e.target.value, 10) || 0)}
+              disabled={isLoading}
+              style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: 4, width: 120 }}
+            />
+            <label htmlFor="hint-drawn">Type:</label>
+            <div>
+              <label style={{ marginRight: 12 }}>
+                <input
+                  id="hint-drawn"
+                  type="radio"
+                  checked={handDrawn}
+                  onChange={() => setHandDrawn(true)}
+                  disabled={isLoading}
+                />{' '}
+                Hand-drawn
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={!handDrawn}
+                  onChange={() => setHandDrawn(false)}
+                  disabled={isLoading}
+                />{' '}
+                Printed / digital
+              </label>
+            </div>
+            <label htmlFor="hint-notes">Notes present:</label>
+            <label>
+              <input
+                id="hint-notes"
+                type="checkbox"
+                checked={hasNotes}
+                onChange={(e) => setHasNotes(e.target.checked)}
+                disabled={isLoading}
+              />{' '}
+              Text labels or notes alongside symbols
+            </label>
+          </div>
+        </div>
+
         {error && (
           <div
             style={{
@@ -155,6 +254,27 @@ export default function ImageDiagramModal({
             }}
           >
             {error}
+          </div>
+        )}
+
+        {isLoading && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              background: '#e3f2fd',
+              color: '#0d47a1',
+              padding: '10px 12px',
+              borderRadius: 6,
+              marginBottom: 16,
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <Spinner />
+            <span>{progressMessage || 'Working…'}</span>
           </div>
         )}
 
@@ -192,6 +312,24 @@ export default function ImageDiagramModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 16,
+        height: 16,
+        border: '2px solid #bbdefb',
+        borderTopColor: '#1976d2',
+        borderRadius: '50%',
+        animation: 'image-import-spin 0.8s linear infinite',
+      }}
+    >
+      <style>{`@keyframes image-import-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

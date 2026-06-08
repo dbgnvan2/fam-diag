@@ -315,7 +315,7 @@ export function useFileOperations({
     e.target.value = '';
   };
 
-  const handleNewFile = async () => {
+  const handleNewFile = () => {
     if (isDirty) {
       const confirmReset = window.confirm(
         'Start a new family diagram? Unsaved changes will be lost.'
@@ -324,8 +324,9 @@ export function useFileOperations({
         return;
       }
     }
+    // Just clear the canvas. The filename stays as the FALLBACK_FILE_NAME
+    // sentinel so the first Save will route through Save As naturally.
     resetDiagramToBlankState();
-    await triggerSaveAs('family-diagram.json');
   };
 
   const handleOpenFilePicker = () => {

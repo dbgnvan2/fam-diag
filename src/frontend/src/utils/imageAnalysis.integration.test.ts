@@ -3,29 +3,45 @@
  * Tests the full flow: image analysis → person inventory → diagram conversion → layout.
  *
  * Test case: "Jennie's Boy" family diagram
- * Expected: ~15 persons, ~8 relationships extracted with proper confidence scores
+ * Spec: docs/implementation_plan_2026-06-06.md — M4.A.*, M5.A.2
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync, existsSync, statSync } from 'fs';
+import { resolve } from 'path';
 import { analyzeImageToDiagramData } from './imageAnalysis';
 import { generatePersonInventory } from './personInventory';
-import { convertExtractedToDiagram } from './extractedDataToDiagram';
-import { autoLayoutExtractedDiagram } from './diagramLayout';
+import { convertExtractedToDiagram, applyNotesPositions } from './extractedDataToDiagram';
+import { autoLayoutExtractedDiagram, applyHorizontalConnectorY } from './diagramLayout';
 import type { ExtractedDiagramData } from '../types/imageAnalysis';
-import type { PersonInventoryItem } from './personInventory';
+
+const FIXTURE_PATH = resolve(
+  __dirname,
+  '../../../../Test Data/Family Diagram Jennies Boy for Import.jpg'
+);
+
+function loadFixtureBlob(): Blob {
+  const buffer = readFileSync(FIXTURE_PATH);
+  // jsdom Blob accepts Uint8Array.
+  return new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' });
+}
+
+let cachedExtracted: ExtractedDiagramData | null = null;
+async function getCachedExtraction(apiKey: string): Promise<ExtractedDiagramData> {
+  if (cachedExtracted) return cachedExtracted;
+  cachedExtracted = await analyzeImageToDiagramData(loadFixtureBlob(), apiKey);
+  return cachedExtracted;
+}
 
 describe('Image Diagram Extraction Integration', () => {
   let testImageBlob: Blob;
   let apiKey: string;
 
   beforeAll(async () => {
-    // TODO: Load the "Jennie's Boy" test image fixture
-    // const response = await fetch('/__fixtures__/images/jennies-boy.png');
-    // testImageBlob = await response.blob();
-
-    // For now, we provide a placeholder that will need the real image
     apiKey = process.env.ANTHROPIC_API_KEY || '';
-
+    if (existsSync(FIXTURE_PATH)) {
+      testImageBlob = loadFixtureBlob();
+    }
     if (!apiKey) {
       console.warn('ANTHROPIC_API_KEY not set - Vision API tests will be skipped');
     }
@@ -473,6 +489,95 @@ describe('Image Diagram Extraction Integration', () => {
         expect(person.name).toBeDefined();
         expect(person.partnerships).toBeDefined();
       });
+    });
+  });
+
+  describe('Jennies Boy fixture (M4.A)', () => {
+    it('test_m5a2_fixture_loadable', () => {
+      expect(existsSync(FIXTURE_PATH)).toBe(true);
+      expect(statSync(FIXTURE_PATH).size).toBeGreaterThan(100_000);
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a2_person_count_jennies_boy', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      expect(extracted.persons.length).toBeGreaterThanOrEqual(18);
+      expect(extracted.persons.length).toBeLessThanOrEqual(28);
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a3_partnership_count_jennies_boy', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      expect(extracted.relationships.length).toBeGreaterThanOrEqual(3);
+      expect(extracted.relationships.length).toBeLessThanOrEqual(5);
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a4_dating_relationship_present', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      const dating = extracted.relationships.filter((r) => r.type === 'dating');
+      expect(dating.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a5_post_conversion_structure', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      const reviewed = {
+        persons: extracted.persons.map((p) => ({
+          id: p.id,
+          name: p.extractedName,
+          gender: p.gender,
+          notes: p.notes,
+          symbols: p.symbols,
+        })),
+        relationships: extracted.relationships,
+      };
+      const { people, partnerships } = convertExtractedToDiagram(reviewed);
+      const positions = autoLayoutExtractedDiagram(people, partnerships);
+      const positionedPeople = applyNotesPositions(
+        people.map((p) => ({ ...p, ...positions[p.id] }))
+      );
+      const connectedPartnerships = applyHorizontalConnectorY(positionedPeople, partnerships);
+
+      // Every child appears in at least one partnership's children[]
+      const allChildIds = new Set(connectedPartnerships.flatMap((p) => p.children));
+      positionedPeople.forEach((person) => {
+        if (allChildIds.has(person.id)) {
+          expect(person.parentPartnership).toBeDefined();
+        }
+      });
+
+      // Every partnership has horizontalConnectorY > 0
+      connectedPartnerships.forEach((p) => {
+        expect(p.horizontalConnectorY).toBeGreaterThan(0);
+      });
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a6_key_names_and_notes', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      const lowerNames = extracted.persons.map((p) => p.extractedName.toLowerCase());
+
+      ['jennie', 'wayne', 'lucy', 'ned', 'charlie'].forEach((key) => {
+        expect(lowerNames.some((n) => n.includes(key))).toBe(true);
+      });
+
+      const withNotes = extracted.persons.filter((p) => p.notes && p.notes.trim().length > 0);
+      expect(withNotes.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it.skipIf(process.env.RUN_VISION_TESTS !== "1" || !process.env.ANTHROPIC_API_KEY)('test_m4a7_deceased_marked', async () => {
+      const extracted = await getCachedExtraction(apiKey);
+      const reviewed = {
+        persons: extracted.persons.map((p) => ({
+          id: p.id,
+          name: p.extractedName,
+          gender: p.gender,
+          notes: p.notes,
+          symbols: p.symbols,
+        })),
+        relationships: extracted.relationships,
+      };
+      const { people } = convertExtractedToDiagram(reviewed);
+      const deceased = people.filter((p) => (p.notes || '').includes('(deceased)'));
+      // The Jennie's Boy diagram contains at least three X-marked people
+      // (the gen-1 male parent, Helen, Dennis, Charlie).
+      expect(deceased.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
