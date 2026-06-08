@@ -681,10 +681,48 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     }
   });
 
-  // Compress X spacing among TRUE siblings (people sharing parentPartnership)
-  // Per data-model definition: siblings = same parents. Couples are NOT siblings.
-  // This runs AFTER partnerships are built (so parentPartnership is set on children).
-  if (facts.people && facts.people.length > 0) {
+  // VLM image import layout rules (per user spec):
+  // 1. Preserve X sequence (don't reorder)
+  // 2. Snap Y to generation levels (consistent gap)
+  // 3. Compress sibling X spacing slightly (siblings share parentPartnership)
+  // 4. SKIP normalizeImportedChildLayout (it auto-reorders/repositions too aggressively)
+  const isImageImport = Boolean(facts.people && facts.people.length > 0);
+
+  if (isImageImport) {
+    // Step 1: Snap Y to generation levels
+    const GENERATION_Y_GAP = 200; // Pixels between generations
+    const FIRST_GEN_Y = 140;
+    const Y_TOLERANCE = 70; // People within this Y range = same generation
+
+    // Group people by Y into generations
+    const peopleWithY = people.filter((p) => typeof p.y === 'number');
+    const sortedByY = [...peopleWithY].sort((a, b) => a.y - b.y);
+
+    const generations: Person[][] = [];
+    let currentGen: Person[] = [];
+    let lastY = -Infinity;
+
+    for (const person of sortedByY) {
+      if (currentGen.length === 0 || person.y - lastY <= Y_TOLERANCE) {
+        currentGen.push(person);
+      } else {
+        generations.push(currentGen);
+        currentGen = [person];
+      }
+      lastY = person.y;
+    }
+    if (currentGen.length > 0) generations.push(currentGen);
+
+    // Snap each generation to a consistent Y level
+    generations.forEach((gen, idx) => {
+      const targetY = FIRST_GEN_Y + idx * GENERATION_Y_GAP;
+      gen.forEach((p) => {
+        p.y = targetY;
+      });
+    });
+
+    // Step 2: Compress sibling X spacing (true siblings share parentPartnership)
+    // Preserves order: siblings stay in their original X sequence
     const siblingGroups = new Map<string, Person[]>();
     for (const person of people) {
       if (!person.parentPartnership) continue;
@@ -697,13 +735,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     for (const siblings of siblingGroups.values()) {
       if (siblings.length < 2) continue;
 
-      // Align Y so siblings are on the same horizontal line
-      const avgY = siblings.reduce((sum, s) => sum + s.y, 0) / siblings.length;
-      siblings.forEach((s) => {
-        s.y = avgY;
-      });
-
-      // Compress X spacing to 1/3, preserving order
+      // Compress X spacing to 1/3 while preserving relative order
       const sortedByX = [...siblings].sort((a, b) => a.x - b.x);
       const minX = sortedByX[0].x;
       const maxX = sortedByX[sortedByX.length - 1].x;
@@ -721,10 +753,14 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     }
   }
 
-  const normalizedPeople = normalizeImportedChildLayout(people, partnerships, {
-    expandParentSpan: true,
-    autoResizeDenseFamilies: true,
-  });
+  // Skip normalizeImportedChildLayout for VLM imports — it auto-repositions too aggressively
+  // and would override the carefully-extracted VLM coordinates and sequence.
+  const normalizedPeople = isImageImport
+    ? people
+    : normalizeImportedChildLayout(people, partnerships, {
+        expandParentSpan: true,
+        autoResizeDenseFamilies: true,
+      });
 
   return {
     fileMeta: { fileName: `facts-import-${facts.processedAt || 'processed'}.json` },
