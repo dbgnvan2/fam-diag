@@ -97,7 +97,7 @@ export class Mat {
   data: Uint8ClampedArray | Float32Array;
   private elemSize_: number;
 
-  constructor(rows?: number, cols?: number, type?: number, data?: Uint8ClampedArray | Float32Array) {
+  constructor(rows?: number, cols?: number, type?: number, data?: Uint8ClampedArray | Float32Array | any) {
     // Support no-arg constructor (opencv.js compatibility)
     if (rows === undefined) {
       this.rows = 0;
@@ -111,6 +111,12 @@ export class Mat {
 
     if (cols === undefined || type === undefined) {
       throw new Error('Mat constructor requires rows, cols, and type arguments (or no arguments)');
+    }
+
+    // Support Scalar as 4th argument (opencv.js compatibility) - just ignore it
+    // If data looks like a Scalar object (has 'val' property), treat as no data
+    if (data && typeof data === 'object' && 'val' in data) {
+      data = undefined;
     }
 
     this.rows = rows;

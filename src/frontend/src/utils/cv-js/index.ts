@@ -48,8 +48,9 @@ export { inpaint } from './inpaint';
 export const cv = {
   // Constants
   CV_8U: 0,
-  CV_8UC4: 24,
-  CV_32F: 5,
+  CV_8UC1: 0,  // Single-channel 8-bit
+  CV_8UC4: 24, // 4-channel 8-bit
+  CV_32F: 5,   // 32-bit float
   COLOR_RGBA2GRAY: 7,
   THRESH_BINARY: 0,
   THRESH_BINARY_INV: 1,
