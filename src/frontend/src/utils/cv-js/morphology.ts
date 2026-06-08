@@ -146,6 +146,16 @@ export function morphologyEx(src: Mat, dst: Mat, op: number, kernel: Mat): void 
     throw new Error('morphologyEx expects single-channel input/output');
   }
 
+  // Allocate dst if empty
+  if (dst.rows === 0 || dst.cols === 0) {
+    dst.rows = src.rows;
+    dst.cols = src.cols;
+    dst.type = src.type;
+    dst.channels_ = 1;
+    (dst as any).elemSize_ = 1;
+    dst.data = new Uint8ClampedArray(src.rows * src.cols);
+  }
+
   // MORPH_OPEN = erode + dilate
   // Use temporary Mat for intermediate result
   const temp = new Mat(src.rows, src.cols, src.type);
