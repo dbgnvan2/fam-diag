@@ -477,9 +477,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     person.gender = inferGenderFromName(person.name) || person.gender || 'female';
   });
 
-  // Apply genogram image import metadata (sex, dates, confidence, notes, coordinates)
-  const lowConfidencePeople: string[] = [];
-
+  // Apply genogram image import metadata (sex, dates, coordinates)
   // Canvas dimensions for coordinate conversion (image % → canvas px)
   // These are scaled to reasonable defaults; can be adjusted based on actual canvas size
   const CANVAS_WIDTH = 1200;
@@ -517,38 +515,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         matchedPerson.deathDate = '1900-01-01'; // Placeholder, user can edit
       }
 
-      // Only append meaningful notes (dates, letters, relationships)
-      // Filter out: "Image:", location info ("top-left", etc.), uncertainty info ("unclear", "possibly")
-      if (importedPerson.notes) {
-        // Remove image-specific metadata
-        let cleanedNotes = importedPerson.notes
-          .replace(/^Image:\s+/, '') // Remove "Image:" prefix
-          .replace(/\b(top-left|top-right|bottom-left|bottom-right|center|left|right|upper|lower)\b/gi, '') // Remove location
-          .replace(/\b(unclear|possibly|may be|might be|uncertain)\b/gi, '') // Remove uncertainty
-          .replace(/\b(square|circle|triangle|symbol|shape|X through|mark|with|inside)\b/gi, '') // Remove shape descriptions
-          .trim()
-          .replace(/\s+/g, ' '); // Collapse multiple spaces
-
-        if (cleanedNotes) {
-          matchedPerson.notes = matchedPerson.notes
-            ? `${matchedPerson.notes}; ${cleanedNotes}`
-            : cleanedNotes;
-          matchedPerson.notesEnabled = true;
-        }
-      }
-
-      // Track low-confidence people for review
-      if (importedPerson.confidence === 'low') {
-        lowConfidencePeople.push(`"${importedPerson.name}" (low confidence from image)`);
-      }
-    }
-  }
-  if (lowConfidencePeople.length > 0) {
-    const lowConfidenceNote = `Low-confidence extractions from image: ${lowConfidencePeople.join(', ')}. Review and correct.`;
-    if (facts.uncertainties) {
-      facts.uncertainties.push(lowConfidenceNote);
-    } else {
-      facts.uncertainties = [lowConfidenceNote];
+      // NOTE: Not processing notes from image import at this time
+      // Focus is on coordinates and basic person metadata only
     }
   }
 
