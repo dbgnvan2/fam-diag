@@ -518,6 +518,55 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       // NOTE: Not processing notes from image import at this time
       // Focus is on coordinates and basic person metadata only
     }
+
+    // Post-process: compress sibling X spacing (siblings have similar Y coords)
+    // Group people by Y coordinate (within threshold) and compress their X spacing to 1/3
+    if (facts.people && facts.people.length > 0) {
+      const Y_THRESHOLD = 30; // People within 30 units Y are considered same level
+      const peopleWithCoords = people.filter(p => typeof p.x === 'number' && typeof p.y === 'number');
+
+      // Group by Y coordinate
+      const yGroups = new Map<number, typeof peopleWithCoords>();
+      for (const person of peopleWithCoords) {
+        let groupY = null;
+        // Find existing group within threshold
+        for (const existingY of yGroups.keys()) {
+          if (Math.abs((person.y as number) - existingY) <= Y_THRESHOLD) {
+            groupY = existingY;
+            break;
+          }
+        }
+        if (groupY === null) {
+          groupY = person.y as number;
+          yGroups.set(groupY, []);
+        }
+        yGroups.get(groupY)!.push(person);
+      }
+
+      // For each group with 2+ people (likely siblings), compress X spacing to 1/3
+      for (const group of yGroups.values()) {
+        if (group.length >= 2) {
+          const sortedByX = [...group].sort((a, b) => (a.x as number) - (b.x as number));
+          const minX = Math.min(...sortedByX.map(p => p.x as number));
+          const maxX = Math.max(...sortedByX.map(p => p.x as number));
+          const span = maxX - minX;
+
+          if (span > 0) {
+            // Compress to 1/3 width, centered around original center
+            const centerX = (minX + maxX) / 2;
+            const newSpan = span / 3;
+            const newMinX = centerX - newSpan / 2;
+
+            // Reposition people in this group
+            for (let i = 0; i < sortedByX.length; i++) {
+              const person = sortedByX[i];
+              const ratio = span > 0 ? (person.x as number - minX) / span : 0;
+              person.x = newMinX + ratio * newSpan;
+            }
+          }
+        }
+      }
+    }
   }
 
   const partnerships: Partnership[] = [];

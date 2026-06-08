@@ -103,12 +103,17 @@ export async function vlmImport(
       deathYear: p.deathYear,
     })),
     relationshipCount: facts.relationships?.length ?? 0,
+    relationships: facts.relationships?.map(r => ({
+      a: r.a,
+      b: r.b,
+      type: r.type,
+    })),
   };
   console.log('[vlmImport] Extracted facts:', debugData);
 
   // Also display on page so we can see it in screenshots
   const debugDiv = document.createElement('div');
-  debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:white;border:2px solid red;padding:10px;max-height:300px;overflow-y:auto;z-index:9999;font-size:11px;font-family:monospace;';
+  debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:white;border:2px solid red;padding:10px;max-height:400px;overflow-y:auto;z-index:9999;font-size:10px;font-family:monospace;max-width:400px;';
   debugDiv.innerHTML = `<strong style="color:red">[VLM Debug]</strong><pre>${JSON.stringify(debugData, null, 2)}</pre>`;
   document.body.appendChild(debugDiv);
 
@@ -231,6 +236,7 @@ RULES:
 - If a birth or death year is not written, use null — never guess a year.
 - If unsure about a shape, X, letter, or relationship, list it in uncertainties and set confidence to "med" or "low".
 - ALWAYS include x and y position (0-100 %) for every person, measured to the center of the symbol.
+- CRITICAL: Do not skip people on the edges of the diagram (left, right, top, bottom edges). Extract ALL visible symbols.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
   const userMessage = 'Extract all people and relationships from this genogram image.';
