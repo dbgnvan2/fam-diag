@@ -7,7 +7,8 @@
  * Spec: docs/implementation_plan_2026-06-08-opencv-js.md (Phase 3)
  */
 
-import { Mat, MatVector, CV_8U, Point, Circle } from './types';
+import type { Point, Circle } from './types';
+import { Mat, MatVector, CV_8U } from './types';
 
 /**
  * Find contours in a binary image.

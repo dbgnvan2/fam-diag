@@ -6,7 +6,8 @@
  * Spec: docs/implementation_plan_2026-06-08-opencv-js.md (Phase 2)
  */
 
-import { Mat, Size, MORPH_RECT, CV_8U } from './types';
+import type { Size } from './types';
+import { Mat, MORPH_RECT, CV_8U } from './types';
 
 /**
  * Create a structuring element (kernel).

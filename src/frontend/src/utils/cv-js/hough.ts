@@ -7,7 +7,8 @@
  * Spec: docs/implementation_plan_2026-06-08-opencv-js.md (Phase 4)
  */
 
-import { Mat, LineSegment } from './types';
+import type { LineSegment } from './types';
+import { Mat } from './types';
 
 /**
  * Probabilistic Hough Line Transform.
