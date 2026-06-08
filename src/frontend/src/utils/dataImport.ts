@@ -681,16 +681,26 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     }
   });
 
-  // VLM image import layout rules (per user spec):
-  // 1. Preserve X sequence (don't reorder)
-  // 2. Snap Y to generation levels using partnership graph (BFS depth)
-  // 3. Siblings spaced exactly N pixels apart (preserve order)
-  // 4. SKIP normalizeImportedChildLayout (it auto-reorders/repositions too aggressively)
+  // ===========================================================================
+  // PHASE 2 LAYOUT RULES — applied after partnerships are built.
+  // See: utils/genogram/genogramRules.ts for full rule documentation.
+  //
+  //   R7  Each generation has same Y                  → snap via BFS depth
+  //   R8  Partners have same Y (same generation)      → iterate until consistent
+  //   R9  Siblings have same Y                        → share parentPartnership → same gen
+  //   R10 Generations separated by N px on Y axis     → GENERATION_Y_GAP
+  //   R11 Siblings spaced N px apart on X axis        → SIBLING_SPACING
+  //   R12 Preserve X sequence — never reorder         → ratio-based positioning
+  //   R13 Children X within parents' X range          → via spatial inference
+  //   R14 Process top-left to bottom-right            → spatial inference for orphans
+  //
+  // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
+  // ===========================================================================
   const isImageImport = Boolean(facts.people && facts.people.length > 0);
 
   if (isImageImport) {
-    // === Step 0: Spatial inference for unattached people ===
-    // Reading-order rule: process top-left to bottom-right.
+    // === Step 0: R14 — Top-left to bottom-right reading order ===
+    // Spatial inference for unattached people:
     // If a person has no parentPartnership AND is positioned below a partnership
     // AND within (or near) the partners' X range, infer they're a child of that partnership.
     // This catches people the VLM extracted but didn't explicitly link as children.
@@ -731,7 +741,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       }
     }
 
-    // === Step 1: Compute generation depth via partnership graph BFS ===
+    // === Step 1: R7+R9 — Compute generation depth via partnership graph BFS ===
+    // (R7 each generation has same Y, R9 siblings share parentPartnership → share gen)
     // This is more robust than Y clustering because the VLM Y values aren't precise.
     const personGeneration = new Map<string, number>();
 
@@ -786,7 +797,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       console.warn('[vlmImport] BFS hit iteration cap — possible cycle in partnership graph');
     }
 
-    // Step 1.5: Enforce partner Y alignment
+    // === Step 1.5: R8 — Partners have same Y (same generation) ===
     // Rule: Partners must have same generation (Y axis).
     // Iterate until all partners share the MAX of their generations
     // (so if one is a child of grandparents, spouse joins them at that level).
@@ -811,7 +822,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       }
     }
 
-    // Step 2: Snap Y to generation levels
+    // === Step 2: R10 — Generations separated by N px on Y axis ===
     const GENERATION_Y_GAP = 200; // Pixels between generations
     const FIRST_GEN_Y = 140;
     for (const person of people) {
@@ -821,9 +832,11 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       }
     }
 
-    // === Step 3: Sibling spacing — fixed 80px center-to-center (= ~40px between edges) ===
+    // === Step 3: R11+R12 — Sibling X spacing + preserve sequence ===
+    // R11: Fixed 80px center-to-center (≈40px between symbol edges)
+    // R12: Order preserved by sorting siblings by X then placing in sequence
     // Siblings = people who share the same parentPartnership (data-model rule)
-    // Order is preserved; siblings are centered around their original X midpoint.
+    // Siblings are centered around their original X midpoint.
     const SIBLING_SPACING = 80; // pixels between sibling centers
     const siblingGroups = new Map<string, Person[]>();
     for (const person of people) {
