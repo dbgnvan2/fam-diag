@@ -683,46 +683,76 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
 
   // VLM image import layout rules (per user spec):
   // 1. Preserve X sequence (don't reorder)
-  // 2. Snap Y to generation levels (consistent gap)
-  // 3. Compress sibling X spacing slightly (siblings share parentPartnership)
+  // 2. Snap Y to generation levels using partnership graph (BFS depth)
+  // 3. Siblings spaced exactly N pixels apart (preserve order)
   // 4. SKIP normalizeImportedChildLayout (it auto-reorders/repositions too aggressively)
   const isImageImport = Boolean(facts.people && facts.people.length > 0);
 
   if (isImageImport) {
-    // Step 1: Snap Y to generation levels
-    const GENERATION_Y_GAP = 200; // Pixels between generations
-    const FIRST_GEN_Y = 140;
-    const Y_TOLERANCE = 70; // People within this Y range = same generation
+    // === Step 1: Compute generation depth via partnership graph BFS ===
+    // This is more robust than Y clustering because the VLM Y values aren't precise.
+    const personGeneration = new Map<string, number>();
 
-    // Group people by Y into generations
-    const peopleWithY = people.filter((p) => typeof p.y === 'number');
-    const sortedByY = [...peopleWithY].sort((a, b) => a.y - b.y);
-
-    const generations: Person[][] = [];
-    let currentGen: Person[] = [];
-    let lastY = -Infinity;
-
-    for (const person of sortedByY) {
-      if (currentGen.length === 0 || person.y - lastY <= Y_TOLERANCE) {
-        currentGen.push(person);
-      } else {
-        generations.push(currentGen);
-        currentGen = [person];
-      }
-      lastY = person.y;
-    }
-    if (currentGen.length > 0) generations.push(currentGen);
-
-    // Snap each generation to a consistent Y level
-    generations.forEach((gen, idx) => {
-      const targetY = FIRST_GEN_Y + idx * GENERATION_Y_GAP;
-      gen.forEach((p) => {
-        p.y = targetY;
-      });
+    // Find people who are children of some partnership
+    const childIds = new Set<string>();
+    partnerships.forEach((p) => {
+      (p.children || []).forEach((cid) => childIds.add(cid));
     });
 
-    // Step 2: Compress sibling X spacing (true siblings share parentPartnership)
-    // Preserves order: siblings stay in their original X sequence
+    // Roots = people who are NOT children of any partnership
+    const queue: Array<{ personId: string; gen: number }> = [];
+    for (const person of people) {
+      if (!childIds.has(person.id)) {
+        personGeneration.set(person.id, 0);
+        queue.push({ personId: person.id, gen: 0 });
+      }
+    }
+
+    // BFS: spouses get same generation, children get gen+1
+    while (queue.length > 0) {
+      const { personId, gen } = queue.shift()!;
+      const person = people.find((p) => p.id === personId);
+      if (!person) continue;
+
+      for (const partnershipId of person.partnerships || []) {
+        const partnership = partnerships.find((p) => p.id === partnershipId);
+        if (!partnership) continue;
+
+        // Set partner to same generation
+        const partnerId =
+          partnership.partner1_id === personId
+            ? partnership.partner2_id
+            : partnership.partner1_id;
+        if (!personGeneration.has(partnerId)) {
+          personGeneration.set(partnerId, gen);
+          queue.push({ personId: partnerId, gen });
+        }
+
+        // Children of this partnership are gen + 1
+        for (const childId of partnership.children || []) {
+          const existing = personGeneration.get(childId);
+          if (existing === undefined || existing < gen + 1) {
+            personGeneration.set(childId, gen + 1);
+            queue.push({ personId: childId, gen: gen + 1 });
+          }
+        }
+      }
+    }
+
+    // Step 2: Snap Y to generation levels
+    const GENERATION_Y_GAP = 200; // Pixels between generations
+    const FIRST_GEN_Y = 140;
+    for (const person of people) {
+      const gen = personGeneration.get(person.id);
+      if (gen !== undefined) {
+        person.y = FIRST_GEN_Y + gen * GENERATION_Y_GAP;
+      }
+    }
+
+    // === Step 3: Sibling spacing — fixed 80px center-to-center (= ~40px between edges) ===
+    // Siblings = people who share the same parentPartnership (data-model rule)
+    // Order is preserved; siblings are centered around their original X midpoint.
+    const SIBLING_SPACING = 80; // pixels between sibling centers
     const siblingGroups = new Map<string, Person[]>();
     for (const person of people) {
       if (!person.parentPartnership) continue;
@@ -735,21 +765,15 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     for (const siblings of siblingGroups.values()) {
       if (siblings.length < 2) continue;
 
-      // Compress X spacing to 1/3 while preserving relative order
       const sortedByX = [...siblings].sort((a, b) => a.x - b.x);
-      const minX = sortedByX[0].x;
-      const maxX = sortedByX[sortedByX.length - 1].x;
-      const span = maxX - minX;
-      if (span <= 0) continue;
+      const originalCenter =
+        (sortedByX[0].x + sortedByX[sortedByX.length - 1].x) / 2;
+      const totalWidth = (sortedByX.length - 1) * SIBLING_SPACING;
+      const startX = originalCenter - totalWidth / 2;
 
-      const centerX = (minX + maxX) / 2;
-      const newSpan = span / 3;
-      const newMinX = centerX - newSpan / 2;
-
-      for (const person of sortedByX) {
-        const ratio = (person.x - minX) / span;
-        person.x = newMinX + ratio * newSpan;
-      }
+      sortedByX.forEach((person, i) => {
+        person.x = startX + i * SIBLING_SPACING;
+      });
     }
   }
 
