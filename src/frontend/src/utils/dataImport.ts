@@ -502,12 +502,24 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         matchedPerson.deathDate = '1900-01-01'; // Placeholder, user can edit
       }
 
-      // Append notes from import
+      // Only append meaningful notes (dates, letters, relationships)
+      // Filter out: "Image:", location info ("top-left", etc.), uncertainty info ("unclear", "possibly")
       if (importedPerson.notes) {
-        matchedPerson.notes = matchedPerson.notes
-          ? `${matchedPerson.notes}\nImage: ${importedPerson.notes}`
-          : `Image: ${importedPerson.notes}`;
-        matchedPerson.notesEnabled = true;
+        // Remove image-specific metadata
+        let cleanedNotes = importedPerson.notes
+          .replace(/^Image:\s+/, '') // Remove "Image:" prefix
+          .replace(/\b(top-left|top-right|bottom-left|bottom-right|center|left|right|upper|lower)\b/gi, '') // Remove location
+          .replace(/\b(unclear|possibly|may be|might be|uncertain)\b/gi, '') // Remove uncertainty
+          .replace(/\b(square|circle|triangle|symbol|shape|X through|mark|with|inside)\b/gi, '') // Remove shape descriptions
+          .trim()
+          .replace(/\s+/g, ' '); // Collapse multiple spaces
+
+        if (cleanedNotes) {
+          matchedPerson.notes = matchedPerson.notes
+            ? `${matchedPerson.notes}; ${cleanedNotes}`
+            : cleanedNotes;
+          matchedPerson.notesEnabled = true;
+        }
       }
 
       // Track low-confidence people for review
