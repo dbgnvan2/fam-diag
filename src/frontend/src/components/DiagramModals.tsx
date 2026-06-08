@@ -265,6 +265,7 @@ interface DiagramModalsProps {
   imageDiagramAnalyzing: boolean;
   imageDiagramProgress: string;
   onImageDiagramClose: () => void;
+  onImageDiagramCancel?: () => void;
   onImageDiagramAnalyze: (imageBlob: Blob) => Promise<void>;
   imageDiagramReviewOpen: boolean;
   personInventory: PersonInventoryItem[];
@@ -459,6 +460,7 @@ export default function DiagramModals({
   imageDiagramAnalyzing,
   imageDiagramProgress,
   onImageDiagramClose,
+  onImageDiagramCancel,
   onImageDiagramAnalyze,
   imageDiagramReviewOpen,
   personInventory,
@@ -753,6 +755,7 @@ export default function DiagramModals({
       <ImageDiagramModal
         open={imageDiagramModalOpen && !imageDiagramReviewOpen}
         onClose={onImageDiagramClose}
+        onCancel={onImageDiagramCancel}
         onAnalyze={onImageDiagramAnalyze}
         isLoading={imageDiagramAnalyzing}
         progressMessage={imageDiagramProgress}

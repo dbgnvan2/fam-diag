@@ -22,6 +22,8 @@ interface ImageDiagramModalProps {
   isLoading?: boolean;
   /** Live progress message rendered while isLoading is true. */
   progressMessage?: string;
+  /** Called when user clicks Cancel during analysis (to abort the API call). */
+  onCancel?: () => void;
 }
 
 export default function ImageDiagramModal({
@@ -30,6 +32,7 @@ export default function ImageDiagramModal({
   onAnalyze,
   isLoading = false,
   progressMessage = '',
+  onCancel,
 }: ImageDiagramModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,13 +115,12 @@ export default function ImageDiagramModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Extract Diagram from Image</h2>
           <button
-            onClick={onClose}
-            disabled={isLoading}
+            onClick={isLoading ? (onCancel || onClose) : onClose}
             style={{
               border: 'none',
               background: 'transparent',
               fontSize: 24,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               lineHeight: 1,
             }}
             aria-label="Close upload dialog"
@@ -280,19 +282,19 @@ export default function ImageDiagramModal({
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button
-            onClick={onClose}
-            disabled={isLoading}
+            onClick={isLoading ? (onCancel || onClose) : onClose}
             style={{
               padding: '8px 16px',
               border: '1px solid #ccc',
               borderRadius: 6,
-              background: '#fff',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              background: isLoading ? '#ffebee' : '#fff',
+              color: isLoading ? '#c62828' : '#000',
+              cursor: 'pointer',
               fontSize: 14,
               fontWeight: 500,
             }}
           >
-            Cancel
+            {isLoading ? 'Stop' : 'Cancel'}
           </button>
           <button
             onClick={handleAnalyze}

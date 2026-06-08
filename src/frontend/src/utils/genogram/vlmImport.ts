@@ -22,6 +22,8 @@ export type VLMImportOptions = {
   maxTokens?: number; // Default: 4000
   timeoutMs?: number; // Default: 60000
   onProgress?: (message: string) => void;
+  /** Optional abort signal — if aborted, the API call is cancelled. */
+  signal?: AbortSignal;
 };
 
 /**
@@ -67,6 +69,7 @@ export async function vlmImport(
     maxTokens = 4000,
     timeoutMs = 60000,
     onProgress,
+    signal,
   } = options;
 
   // Step 1: Downscale image if needed
@@ -77,6 +80,9 @@ export async function vlmImport(
     imageQuality
   );
 
+  // Check for early abort
+  if (signal?.aborted) throw new Error('Aborted by user');
+
   // Step 2: Call Anthropic Vision API
   onProgress?.('[vlmImport] Sending to Claude Vision...');
   const response = await callClaudeVision(
@@ -84,7 +90,8 @@ export async function vlmImport(
     apiKey,
     model,
     maxTokens,
-    timeoutMs
+    timeoutMs,
+    signal
   );
 
   // Step 3: Parse and validate response
@@ -180,7 +187,8 @@ async function callClaudeVision(
   apiKey: string,
   model: string,
   maxTokens: number,
-  timeoutMs: number
+  timeoutMs: number,
+  externalSignal?: AbortSignal
 ): Promise<string> {
   const systemPrompt = `You are an expert at reading hand-drawn genograms (family-tree diagrams used in family-systems therapy), including ones that are photographed at an angle, faint, or drawn in pencil. You will be given ONE image of a genogram. Extract its content into a single JSON object and return ONLY that JSON — no prose, no markdown fences.
 
@@ -247,6 +255,11 @@ RULES:
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  // Forward external abort signal to the fetch controller
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener('abort', () => controller.abort());
+  }
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {

@@ -345,6 +345,7 @@ const DiagramEditor = () => {
   const [imageDiagramModalOpen, setImageDiagramModalOpen] = useState(false);
   const [imageDiagramAnalyzing, setImageDiagramAnalyzing] = useState(false);
   const [imageDiagramProgress, setImageDiagramProgress] = useState<string>('');
+  const imageDiagramAbortRef = useRef<AbortController | null>(null);
   const [extractedDiagramData, setExtractedDiagramData] = useState<ExtractedDiagramData | null>(null);
   const [personInventory, setPersonInventory] = useState<PersonInventoryItem[]>([]);
   const [predictionSets, setPredictionSets] = useState<PredictionSet[]>(() => {
@@ -3245,6 +3246,10 @@ useEffect(() => {
         const { vlmImport, GENOGRAM_IMPORT_COST_ESTIMATE } = await import('../utils/genogram/vlmImport');
         const { factsToDiagramImportData } = await import('../utils/dataImport');
 
+        // Create abort controller for cancellation
+        const abortController = new AbortController();
+        imageDiagramAbortRef.current = abortController;
+
         // Extract facts from image using VLM
         const facts = await vlmImport(imageBlob, {
           apiKey,
@@ -3254,6 +3259,7 @@ useEffect(() => {
           maxTokens: 4000,
           timeoutMs: 60000,
           onProgress: (msg) => setImageDiagramProgress(msg),
+          signal: abortController.signal,
         });
 
         log.info(`Extracted ${facts.people?.length ?? 0} people from image`);
@@ -3287,10 +3293,21 @@ useEffect(() => {
       } finally {
         setImageDiagramAnalyzing(false);
         setImageDiagramProgress('');
+        imageDiagramAbortRef.current = null;
       }
     },
     []
   );
+
+  const handleImageDiagramCancel = useCallback(() => {
+    if (imageDiagramAbortRef.current) {
+      imageDiagramAbortRef.current.abort();
+      imageDiagramAbortRef.current = null;
+    }
+    setImageDiagramAnalyzing(false);
+    setImageDiagramProgress('');
+    setImageDiagramModalOpen(false);
+  }, []);
 
   const handleImageDiagramCreateDiagram = useCallback(
     async (reviewedInventory: PersonInventoryItem[]) => {
@@ -4907,6 +4924,7 @@ useEffect(() => {
             onImageDiagramClose={() => {
               setImageDiagramModalOpen(false);
             }}
+            onImageDiagramCancel={handleImageDiagramCancel}
             onImageDiagramAnalyze={handleImageDiagramAnalyze}
             imageDiagramReviewOpen={imageDiagramModalOpen && extractedDiagramData !== null}
             personInventory={personInventory}
