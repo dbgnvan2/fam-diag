@@ -24,21 +24,28 @@ export type LetterReadResult = {
  * Spec: M6.A.1
  */
 export async function ocrSingleChar(cropDataUrl: string): Promise<LetterReadResult> {
-  const worker = await loadTesseractWorker();
-  const { data } = await worker.recognize(cropDataUrl);
-  const text = (data.text || '').trim();
-  const confidence = (data.confidence ?? 0) / 100;
-  if (!text || text.length === 0) {
+  try {
+    const worker = await loadTesseractWorker();
+    const { data } = await worker.recognize(cropDataUrl);
+    const text = (data.text || '').trim();
+    const confidence = (data.confidence ?? 0) / 100;
+    if (!text || text.length === 0) {
+      return { letter: null, confidence: 0, source: 'none' };
+    }
+    // Single-character mode sometimes returns multi-char strings if the crop
+    // is messy; take the first non-whitespace character.
+    const letter = text.replace(/\s/g, '').charAt(0) || null;
+    return {
+      letter,
+      confidence: Number.isFinite(confidence) ? confidence : 0,
+      source: 'tesseract',
+    };
+  } catch (error) {
+    // Tesseract failed to load (common in browser due to WASM/require issues).
+    // Return no result so VLM fallback can try.
+    console.log('[letterOcr] Tesseract unavailable, falling back to VLM:', error);
     return { letter: null, confidence: 0, source: 'none' };
   }
-  // Single-character mode sometimes returns multi-char strings if the crop
-  // is messy; take the first non-whitespace character.
-  const letter = text.replace(/\s/g, '').charAt(0) || null;
-  return {
-    letter,
-    confidence: Number.isFinite(confidence) ? confidence : 0,
-    source: 'tesseract',
-  };
 }
 
 export type ReadLetterOptions = {
