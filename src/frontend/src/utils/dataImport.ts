@@ -786,6 +786,31 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       console.warn('[vlmImport] BFS hit iteration cap — possible cycle in partnership graph');
     }
 
+    // Step 1.5: Enforce partner Y alignment
+    // Rule: Partners must have same generation (Y axis).
+    // Iterate until all partners share the MAX of their generations
+    // (so if one is a child of grandparents, spouse joins them at that level).
+    let changed = true;
+    let safety = 0;
+    while (changed && safety++ < 20) {
+      changed = false;
+      for (const partnership of partnerships) {
+        const g1 = personGeneration.get(partnership.partner1_id);
+        const g2 = personGeneration.get(partnership.partner2_id);
+        if (g1 !== undefined && g2 !== undefined && g1 !== g2) {
+          const target = Math.max(g1, g2);
+          if (g1 !== target) {
+            personGeneration.set(partnership.partner1_id, target);
+            changed = true;
+          }
+          if (g2 !== target) {
+            personGeneration.set(partnership.partner2_id, target);
+            changed = true;
+          }
+        }
+      }
+    }
+
     // Step 2: Snap Y to generation levels
     const GENERATION_Y_GAP = 200; // Pixels between generations
     const FIRST_GEN_Y = 140;

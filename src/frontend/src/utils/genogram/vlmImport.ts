@@ -98,6 +98,13 @@ export async function vlmImport(
   onProgress?.('[vlmImport] Parsing response...');
   const facts = parseVLMResponse(response);
 
+  // Step 3.5: Fact-check the VLM output (remove hallucinations, check consistency)
+  onProgress?.('[vlmImport] Fact-checking...');
+  const factCheckWarnings = factCheckVLMFacts(facts);
+  if (factCheckWarnings.length > 0) {
+    facts.uncertainties = [...(facts.uncertainties || []), ...factCheckWarnings];
+  }
+
   // Log extracted data for debugging (to console AND to page)
   const debugData = {
     peopleCount: facts.people?.length ?? 0,
@@ -245,7 +252,8 @@ Return a single JSON object with these keys:
 }
 
 RULES:
-- Put EVERY square, circle, and plain-X person in people[]. Exclude triangles and stars.
+- Put EVERY square, circle, and plain-X person in people[]. STRICTLY EXCLUDE triangles and stars (they are NOT people).
+- NEVER include the word "triangle" or "star" or "asterisk" in any person's name field — those are pregnancy/miscarriage markers, not people.
 - Mark deceased: true for any symbol with an X through it.
 - If a birth or death year is not written, use null — never guess a year.
 - If unsure about a shape, X, letter, or relationship, list it in uncertainties and set confidence to "med" or "low".
@@ -350,6 +358,78 @@ function parseVLMResponse(text: string): FactsImportData {
   if (facts.uncertainties && !Array.isArray(facts.uncertainties)) facts.uncertainties = [];
 
   return facts;
+}
+
+/**
+ * Fact-check VLM output against genogram rules.
+ * Returns warnings for the import log. Mutates facts to remove invalid entries.
+ *
+ * Rules enforced:
+ * 1. Triangles are pregnancy markers, NOT people — filter them out
+ * 2. Stars/asterisks are miscarriages, NOT people — filter them out
+ * 3. Sex/name consistency check (warn on mismatch)
+ * 4. Clean up relationships referring to filtered people
+ */
+export function factCheckVLMFacts(facts: FactsImportData): string[] {
+  const warnings: string[] = [];
+  if (!facts.people) return warnings;
+
+  // === Rule 1 & 2: Filter triangle/star/asterisk "people" ===
+  const beforeCount = facts.people.length;
+  facts.people = facts.people.filter((p) => {
+    const lower = (p.name || '').toLowerCase();
+    if (lower.includes('triangle')) {
+      warnings.push(`[fact-check] Removed triangle (pregnancy marker, not a person): "${p.name}"`);
+      return false;
+    }
+    if (lower.includes('star') || lower.includes('asterisk') || lower.includes('miscarriage')) {
+      warnings.push(`[fact-check] Removed star/miscarriage marker: "${p.name}"`);
+      return false;
+    }
+    return true;
+  });
+  if (facts.people.length < beforeCount) {
+    warnings.push(`[fact-check] Filtered ${beforeCount - facts.people.length} non-person symbols`);
+  }
+
+  // === Rule 3: Sex/name consistency ===
+  for (const person of facts.people) {
+    const lower = (person.name || '').toLowerCase();
+    // Check for explicit "female" / "male" hints in the name vs the sex field
+    const nameSaysFemale = /\bfemale\b/.test(lower);
+    const nameSaysMale = /\bmale\b/.test(lower) && !nameSaysFemale;
+    if (nameSaysFemale && person.sex === 'male') {
+      warnings.push(`[fact-check] Inconsistency: "${person.name}" name says female but sex=male`);
+    }
+    if (nameSaysMale && person.sex === 'female') {
+      warnings.push(`[fact-check] Inconsistency: "${person.name}" name says male but sex=female`);
+    }
+  }
+
+  // === Rule 4: Clean up relationships referring to removed people ===
+  const validNames = new Set(facts.people.map((p) => p.name));
+  if (facts.relationships) {
+    const beforeRelCount = facts.relationships.length;
+    facts.relationships = facts.relationships.filter((r) => {
+      if (r.a && !validNames.has(r.a)) {
+        warnings.push(`[fact-check] Removed relationship: partner "${r.a}" was filtered out`);
+        return false;
+      }
+      if (r.b && !validNames.has(r.b)) {
+        warnings.push(`[fact-check] Removed relationship: partner "${r.b}" was filtered out`);
+        return false;
+      }
+      return true;
+    });
+    // Clean children lists in remaining relationships
+    for (const rel of facts.relationships) {
+      if (rel.children) {
+        rel.children = rel.children.filter((c) => validNames.has(c));
+      }
+    }
+  }
+
+  return warnings;
 }
 
 /**
