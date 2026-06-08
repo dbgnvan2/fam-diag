@@ -65,9 +65,9 @@ export const cv = {
   // Classes and constructors
   Mat,
   MatVector,
-  Size: function(width: number, height: number) { return { width, height }; },
-  Rect: function(x: number, y: number, width: number, height: number) { return { x, y, width, height }; },
-  Scalar: function(val: number) { return { val: [val, val, val, val] }; },
+  Size: function(width: any, height: any) { return { width, height }; },
+  Rect: function(x: any, y: any, width: any, height: any) { return { x, y, width, height }; },
+  Scalar: function(val: any) { return { val: [val, val, val, val] }; },
 
   // Phase 1: Core ops
   matFromImageData,
