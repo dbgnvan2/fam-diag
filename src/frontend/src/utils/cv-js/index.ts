@@ -21,6 +21,9 @@
 import { Mat, MatVector } from './types';
 import { matFromImageData, cvtColor, threshold, subtract } from './matCore';
 import { getStructuringElement, morphologyEx } from './morphology';
+import { findContours, boundingRect, arcLength, contourArea, approxPolyDP, minEnclosingCircle } from './contours';
+import { HoughLinesP } from './hough';
+import { inpaint } from './inpaint';
 
 // Phase 1 exports
 export * from './types';
@@ -29,10 +32,14 @@ export { matFromImageData, cvtColor, threshold, subtract } from './matCore';
 // Phase 2 exports
 export { getStructuringElement, morphologyEx } from './morphology';
 
-// Placeholders for future phases (will be filled in as implemented)
-// Phase 3: contours
-// Phase 4: hough
-// Phase 5: inpaint
+// Phase 3 exports
+export { findContours, boundingRect, arcLength, contourArea, approxPolyDP, minEnclosingCircle } from './contours';
+
+// Phase 4 exports
+export { HoughLinesP } from './hough';
+
+// Phase 5 exports
+export { inpaint } from './inpaint';
 
 /**
  * Create a namespace that mimics opencv.js for compatibility.
@@ -71,9 +78,19 @@ export const cv = {
   getStructuringElement,
   morphologyEx,
 
-  // Placeholders for phases 3-5 (will be filled as implemented)
-  // findContours: (...args) => { throw new Error('Not yet implemented'); },
-  // ... etc
+  // Phase 3: Contours
+  findContours,
+  boundingRect,
+  arcLength,
+  contourArea,
+  approxPolyDP,
+  minEnclosingCircle,
+
+  // Phase 4: Line detection
+  HoughLinesP,
+
+  // Phase 5: Inpaint
+  inpaint,
 };
 
 export default cv;
