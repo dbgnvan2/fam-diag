@@ -35,7 +35,15 @@ export function findContours(
   const visited = new Uint8Array(data.length); // Mark visited pixels (0 or 1)
   const { rows, cols } = image;
 
+  // Count white pixels for debugging
+  let whitePixels = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] !== 0) whitePixels++;
+  }
+  console.log(`[findContours] Image ${rows}x${cols}, white pixels: ${whitePixels}`);
+
   // Find all contours by flood-filling each white region
+  let contoursFound = 0;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const idx = y * cols + x;
@@ -43,6 +51,7 @@ export function findContours(
         // Flood fill this connected component
         const contour = floodFillContour(image, x, y, visited);
         if (contour.length > 0) {
+          contoursFound++;
           // Store contour as a Mat (Nx1, 2 channels per point: x,y)
           const contourMat = new Mat(contour.length, 1, CV_8U);
           // Store as interleaved x,y values in the data
@@ -56,6 +65,7 @@ export function findContours(
       }
     }
   }
+  console.log(`[findContours] Found ${contoursFound} contours`);
 }
 
 /**
