@@ -32,16 +32,16 @@ export function findContours(
   }
 
   const data = image.data as Uint8ClampedArray;
-  const visited = new Set<number>();
+  const visited = new Uint8Array(data.length); // Mark visited pixels (0 or 1)
   const { rows, cols } = image;
 
-  // Find all contours by scanning top-to-bottom, left-to-right
+  // Find all contours by flood-filling each white region
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const idx = y * cols + x;
-      if (data[idx] !== 0 && !visited.has(idx)) {
-        // Start a new contour from this white pixel
-        const contour = traceContour(image, x, y, visited);
+      if (data[idx] !== 0 && !visited[idx]) {
+        // Flood fill this connected component
+        const contour = floodFillContour(image, x, y, visited);
         if (contour.length > 0) {
           // Store contour as a Mat (Nx1, 2 channels per point: x,y)
           const contourMat = new Mat(contour.length, 1, CV_8U);
@@ -59,56 +59,39 @@ export function findContours(
 }
 
 /**
- * Trace a contour starting from (x, y) using 8-connected neighbors.
- * Uses Moore-neighbor contour tracing algorithm.
+ * Flood-fill a connected component of white pixels using BFS.
+ * Returns all pixels in the component as a contour.
  */
-function traceContour(image: Mat, startX: number, startY: number, visited: Set<number>): Point[] {
+function floodFillContour(image: Mat, startX: number, startY: number, visited: Uint8Array): Point[] {
   const { rows, cols } = image;
   const data = image.data as Uint8ClampedArray;
   const contour: Point[] = [];
+  const queue: Array<[number, number]> = [[startX, startY]];
+  visited[startY * cols + startX] = 1;
 
-  // 8-connected neighbors in order (start from right, go clockwise)
-  const dx = [1, 1, 0, -1, -1, -1, 0, 1];
-  const dy = [0, 1, 1, 1, 0, -1, -1, -1];
+  // 4-connected neighbors (or 8-connected for better coverage)
+  const neighbors = [
+    [0, -1], [0, 1], [-1, 0], [1, 0],  // 4-connected
+    [-1, -1], [-1, 1], [1, -1], [1, 1] // 8-connected
+  ];
 
-  let x = startX;
-  let y = startY;
-  let direction = 0; // Start searching to the right
+  while (queue.length > 0) {
+    const [x, y] = queue.shift()!;
+    contour.push({ x, y });
 
-  const firstIdx = y * cols + x;
-  visited.add(firstIdx);
-  contour.push({ x, y });
-
-  // Trace the boundary
-  let steps = 0;
-  const maxSteps = rows * cols * 10; // Safety limit
-
-  while (steps < maxSteps) {
-    steps++;
-    let found = false;
-
-    // Search for next contour point in 8-connected neighbors
-    for (let i = 0; i < 8; i++) {
-      const dir = (direction + i) % 8;
-      const nx = x + dx[dir];
-      const ny = y + dy[dir];
+    // Check all neighbors
+    for (const [dx, dy] of neighbors) {
+      const nx = x + dx;
+      const ny = y + dy;
 
       if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
         const nidx = ny * cols + nx;
-        if (data[nidx] !== 0 && !visited.has(nidx)) {
-          visited.add(nidx);
-          contour.push({ x: nx, y: ny });
-          x = nx;
-          y = ny;
-          direction = dir;
-          found = true;
-          break;
+        if (data[nidx] !== 0 && !visited[nidx]) {
+          visited[nidx] = 1;
+          queue.push([nx, ny]);
         }
       }
     }
-
-    if (!found) break;
-    if (x === startX && y === startY && contour.length > 2) break;
   }
 
   return contour;
