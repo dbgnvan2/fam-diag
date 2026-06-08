@@ -305,6 +305,10 @@ RULES:
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
+      // Distinguish between user cancellation and timeout
+      if (externalSignal?.aborted) {
+        throw new Error('Cancelled by user');
+      }
       throw new Error(`Claude Vision request timed out after ${timeoutMs}ms`);
     }
     throw error;
