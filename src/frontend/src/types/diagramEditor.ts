@@ -214,6 +214,8 @@ export type FactsImportData = {
     type?: string;
     status?: string;
     evidence?: string;
+    /** Image import: explicit list of children of this couple (by name) */
+    children?: string[];
   }>;
   clinical?: {
     explicitSchizophreniaMentions?: string[];

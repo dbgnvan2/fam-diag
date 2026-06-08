@@ -525,16 +525,17 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     }
 
     // Post-process: compress sibling X spacing (siblings have similar Y coords)
-    // Group people by Y coordinate (within threshold) and compress their X spacing to 1/3
+    // Group people by Y coordinate, then SPLIT each group when there's a large X gap
+    // (large X gap = separate family/couple, not siblings)
     if (facts.people && facts.people.length > 0) {
       const Y_THRESHOLD = 30; // People within 30 units Y are considered same level
+      const X_GAP_THRESHOLD = 200; // X gap > 200 px = separate family
       const peopleWithCoords = people.filter(p => typeof p.x === 'number' && typeof p.y === 'number');
 
       // Group by Y coordinate
       const yGroups = new Map<number, typeof peopleWithCoords>();
       for (const person of peopleWithCoords) {
         let groupY = null;
-        // Find existing group within threshold
         for (const existingY of yGroups.keys()) {
           if (Math.abs((person.y as number) - existingY) <= Y_THRESHOLD) {
             groupY = existingY;
@@ -548,24 +549,38 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         yGroups.get(groupY)!.push(person);
       }
 
-      // For each group with 2+ people (likely siblings), compress X spacing to 1/3
+      // For each Y group, split into sub-groups based on X gaps
       for (const group of yGroups.values()) {
-        if (group.length >= 2) {
-          const sortedByX = [...group].sort((a, b) => (a.x as number) - (b.x as number));
-          const minX = Math.min(...sortedByX.map(p => p.x as number));
-          const maxX = Math.max(...sortedByX.map(p => p.x as number));
+        if (group.length < 2) continue;
+
+        const sortedByX = [...group].sort((a, b) => (a.x as number) - (b.x as number));
+
+        // Split into sub-groups when consecutive people have X gap > threshold
+        const subGroups: typeof sortedByX[] = [[sortedByX[0]]];
+        for (let i = 1; i < sortedByX.length; i++) {
+          const gap = (sortedByX[i].x as number) - (sortedByX[i - 1].x as number);
+          if (gap > X_GAP_THRESHOLD) {
+            subGroups.push([sortedByX[i]]); // Start new sub-group
+          } else {
+            subGroups[subGroups.length - 1].push(sortedByX[i]);
+          }
+        }
+
+        // For each sub-group with 2+ people (actual siblings/couple), compress X spacing to 1/3
+        for (const subGroup of subGroups) {
+          if (subGroup.length < 2) continue;
+
+          const minX = Math.min(...subGroup.map(p => p.x as number));
+          const maxX = Math.max(...subGroup.map(p => p.x as number));
           const span = maxX - minX;
 
           if (span > 0) {
-            // Compress to 1/3 width, centered around original center
             const centerX = (minX + maxX) / 2;
             const newSpan = span / 3;
             const newMinX = centerX - newSpan / 2;
 
-            // Reposition people in this group
-            for (let i = 0; i < sortedByX.length; i++) {
-              const person = sortedByX[i];
-              const ratio = span > 0 ? (person.x as number - minX) / span : 0;
+            for (const person of subGroup) {
+              const ratio = (person.x as number - minX) / span;
               person.x = newMinX + ratio * newSpan;
             }
           }
@@ -645,6 +660,19 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     const id = nanoid();
     personA.partnerships = [...new Set([...personA.partnerships, id])];
     personB.partnerships = [...new Set([...personB.partnerships, id])];
+
+    // Link explicit children (from image import: rel.children)
+    const explicitChildIds: string[] = [];
+    if (rel.children && rel.children.length > 0) {
+      for (const childName of rel.children) {
+        const child = getPerson(childName);
+        if (child) {
+          child.parentPartnership = id;
+          explicitChildIds.push(child.id);
+        }
+      }
+    }
+
     partnerships.push({
       id,
       partner1_id: personA.id,
@@ -652,7 +680,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       horizontalConnectorY: Math.max(personA.y, personB.y) + 60 + index * 6,
       relationshipType: normalizeRelationshipType(rel.type),
       relationshipStatus: normalizeRelationshipStatus(rel.status),
-      children: [],
+      children: explicitChildIds,
       notes: rel.evidence,
       events: [],
     });

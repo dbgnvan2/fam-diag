@@ -217,7 +217,7 @@ Return a single JSON object with these keys:
     "childrenMentionedByName": [label, ...]
   },
   "relationships": [
-    { "a": label, "b": label, "type": "married"|"engaged"|"dating"|..., "status": "married"|"divorce"|"widowed"|..., "evidence": "free text" }
+    { "a": label, "b": label, "type": "married"|"engaged"|"dating"|..., "status": "married"|"divorce"|"widowed"|..., "evidence": "free text", "children": [label, label, ...] }
   ],
   "clinical": {
     "explicitSchizophreniaMentions": [],
@@ -239,6 +239,7 @@ RULES:
 - CRITICAL: Do not skip people on the edges of the diagram (left, right, top, bottom edges). Extract ALL visible symbols.
 - CRITICAL: For every couple/partnership with children, make sure BOTH partners exist as separate persons in people[] — even if one is labeled with just a "c" symbol or unclear letter. If a child exists, the parents must both exist as named people.
 - CRITICAL: Children (sibship rows) connected to a parental couple by vertical lines — extract EVERY symbol in the sibship row, including isolated/labeled-only children that may not appear in any other relationship.
+- CRITICAL: For every relationship/couple, you MUST list the children of that couple in the "children" array (using the same labels). Identify children by: vertical line descending from the couple's horizontal partnership line to the child(ren). This is how parent-child connections are preserved.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
   const userMessage = 'Extract all people and relationships from this genogram image.';
