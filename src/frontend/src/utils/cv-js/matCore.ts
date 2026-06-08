@@ -96,24 +96,31 @@ function computeOtsuThreshold(data: Uint8ClampedArray): number {
     hist[data[i]]++;
   }
 
+  // Calculate total sum of all pixel values
+  let totalSum = 0;
+  for (let i = 0; i < 256; i++) {
+    totalSum += i * hist[i];
+  }
+
   const total = data.length;
-  let sum = 0;
-  let sumB = 0;
-  let wB = 0;
+  let sumB = 0;  // Sum of background pixels
+  let wB = 0;    // Count of background pixels
   let maxVariance = 0;
   let threshold = 0;
 
+  // Try each possible threshold
   for (let t = 0; t < 256; t++) {
-    wB += hist[t];
+    wB += hist[t];  // Add pixels at value t to background
     if (wB === 0) continue;
 
-    const wF = total - wB;
+    const wF = total - wB;  // Foreground count
     if (wF === 0) break;
 
-    sum += t * hist[t];
-    const sumF = sum - sumB;
-    const muB = sumB / wB;
-    const muF = sumF / wF;
+    sumB += t * hist[t];  // Add t * count[t] to background sum
+    const sumF = totalSum - sumB;  // Foreground sum
+
+    const muB = sumB / wB;  // Background mean
+    const muF = sumF / wF;  // Foreground mean
     const variance = wB * wF * Math.pow(muB - muF, 2);
 
     if (variance > maxVariance) {
