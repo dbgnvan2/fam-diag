@@ -120,9 +120,14 @@ export async function vlmImport(
   console.log('[vlmImport] Extracted facts:', debugData);
 
   // Also display on page so we can see it in screenshots
+  // Remove any existing debug overlay first to avoid accumulation
+  const existingDebugDiv = document.getElementById('vlm-debug-overlay');
+  if (existingDebugDiv) existingDebugDiv.remove();
+
   const debugDiv = document.createElement('div');
+  debugDiv.id = 'vlm-debug-overlay';
   debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:white;border:2px solid red;padding:10px;max-height:400px;overflow-y:auto;z-index:9999;font-size:10px;font-family:monospace;max-width:400px;';
-  debugDiv.innerHTML = `<strong style="color:red">[VLM Debug]</strong><pre>${JSON.stringify(debugData, null, 2)}</pre>`;
+  debugDiv.innerHTML = `<strong style="color:red">[VLM Debug]</strong> <button onclick="this.parentElement.remove()" style="float:right;cursor:pointer;">×</button><pre>${JSON.stringify(debugData, null, 2)}</pre>`;
   document.body.appendChild(debugDiv);
 
   // Step 4: Deduplicate people by name

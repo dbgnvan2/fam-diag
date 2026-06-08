@@ -751,7 +751,10 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     }
 
     // BFS: spouses get same generation, children get gen+1
-    while (queue.length > 0) {
+    // SAFETY: cap iterations to prevent infinite loops from cycles
+    const MAX_BFS_ITERATIONS = people.length * 10;
+    let iterations = 0;
+    while (queue.length > 0 && iterations++ < MAX_BFS_ITERATIONS) {
       const { personId, gen } = queue.shift()!;
       const person = people.find((p) => p.id === personId);
       if (!person) continue;
@@ -760,7 +763,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         const partnership = partnerships.find((p) => p.id === partnershipId);
         if (!partnership) continue;
 
-        // Set partner to same generation
+        // Set partner to same generation (only if not already assigned)
         const partnerId =
           partnership.partner1_id === personId
             ? partnership.partner2_id
@@ -770,15 +773,17 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
           queue.push({ personId: partnerId, gen });
         }
 
-        // Children of this partnership are gen + 1
+        // Children of this partnership are gen + 1 (only assign once)
         for (const childId of partnership.children || []) {
-          const existing = personGeneration.get(childId);
-          if (existing === undefined || existing < gen + 1) {
+          if (!personGeneration.has(childId)) {
             personGeneration.set(childId, gen + 1);
             queue.push({ personId: childId, gen: gen + 1 });
           }
         }
       }
+    }
+    if (iterations >= MAX_BFS_ITERATIONS) {
+      console.warn('[vlmImport] BFS hit iteration cap — possible cycle in partnership graph');
     }
 
     // Step 2: Snap Y to generation levels
