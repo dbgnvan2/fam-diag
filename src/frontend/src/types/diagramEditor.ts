@@ -231,6 +231,8 @@ export type FactsImportData = {
     deathYear?: number | null;
     confidence?: 'high' | 'med' | 'low';
     notes?: string; // Adjacent text (b.1968, div. 2021, etc.)
+    x?: number; // Position as % of image width (0-100), measured to symbol center
+    y?: number; // Position as % of image height (0-100), measured to symbol center
   }>;
 };
 

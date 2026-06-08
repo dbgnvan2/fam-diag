@@ -174,6 +174,12 @@ READING X-ED SYMBOLS: a heavy X often overlaps the letter inside. Do your best t
 UNIQUE-LABEL RULE (CRITICAL):
 Many people are labelled with a single letter, and letters REPEAT across the page (e.g. three different people marked "M"). Every person you output MUST have a globally unique, stable "name". Disambiguate using the nearest birth year, then by role/position. Examples: "M (b.1968)", "M (b.1939)", "M (grandmother, top-right)". Use the EXACT SAME label everywhere you reference that person — in people[], in family.parents, in family.childrenMentionedByName, and in relationships a/b.
 
+POSITION EXTRACTION (CRITICAL FOR LAYOUT):
+For each person symbol in the diagram, estimate its position as a percentage of the image:
+- x: 0-100 (0 = left edge, 100 = right edge) — measure to the CENTER of the symbol
+- y: 0-100 (0 = top edge, 100 = bottom edge) — measure to the CENTER of the symbol
+This preserves the spatial layout of the genogram so it can be reconstructed with correct positioning.
+
 OUTPUT:
 Return a single JSON object with these keys:
 {
@@ -194,7 +200,7 @@ Return a single JSON object with these keys:
   },
   "uncertainties": [string, ...],
   "people": [
-    { "name": label, "sex": "male"|"female"|"unknown", "deceased": boolean, "birthYear": number|null, "deathYear": number|null, "confidence": "high"|"med"|"low", "notes": "adjacent text" }
+    { "name": label, "sex": "male"|"female"|"unknown", "deceased": boolean, "birthYear": number|null, "deathYear": number|null, "confidence": "high"|"med"|"low", "notes": "adjacent text", "x": 0-100, "y": 0-100 }
   ]
 }
 
@@ -203,6 +209,7 @@ RULES:
 - Mark deceased: true for any symbol with an X through it.
 - If a birth or death year is not written, use null — never guess a year.
 - If unsure about a shape, X, letter, or relationship, list it in uncertainties and set confidence to "med" or "low".
+- ALWAYS include x and y position (0-100 %) for every person, measured to the center of the symbol.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
   const userMessage = 'Extract all people and relationships from this genogram image.';

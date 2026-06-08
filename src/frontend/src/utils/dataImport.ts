@@ -477,14 +477,29 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     person.gender = inferGenderFromName(person.name) || person.gender || 'female';
   });
 
-  // Apply genogram image import metadata (sex, dates, confidence, notes)
+  // Apply genogram image import metadata (sex, dates, confidence, notes, coordinates)
   const lowConfidencePeople: string[] = [];
+
+  // Canvas dimensions for coordinate conversion (image % → canvas px)
+  // These are scaled to reasonable defaults; can be adjusted based on actual canvas size
+  const CANVAS_WIDTH = 1200;
+  const CANVAS_HEIGHT = 800;
+  const POSITION_PADDING = 100; // Minimum margin from edges
+
   if (facts.people && facts.people.length > 0) {
     const peopleByExactName = new Map(Array.from(peopleByName.entries()).map(([k, v]) => [k.trim(), v]));
 
     for (const importedPerson of facts.people) {
       const matchedPerson = peopleByExactName.get((importedPerson.name || '').trim());
       if (!matchedPerson) continue;
+
+      // Apply coordinates from image if available (convert % to canvas coordinates)
+      if (importedPerson.x !== undefined && importedPerson.y !== undefined) {
+        // Image coordinates are 0-100 (percentage of image dimensions)
+        // Convert to canvas coordinates with padding
+        matchedPerson.x = POSITION_PADDING + (importedPerson.x / 100) * (CANVAS_WIDTH - 2 * POSITION_PADDING);
+        matchedPerson.y = POSITION_PADDING + (importedPerson.y / 100) * (CANVAS_HEIGHT - 2 * POSITION_PADDING);
+      }
 
       // Apply sex if specified and overrides default inference
       if (importedPerson.sex && importedPerson.sex !== 'unknown') {
