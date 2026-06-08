@@ -203,6 +203,37 @@ export class Mat {
   }
 
   /**
+   * Extract a region of interest (rectangular submatrix).
+   *
+   * Returns a new Mat containing pixels from [y, y+h) × [x, x+w).
+   * In OpenCV, this is implemented as a view, but we copy for simplicity.
+   */
+  roi(rect: { x: number; y: number; width: number; height: number }): Mat {
+    const { x, y, width: w, height: h } = rect;
+
+    if (x < 0 || y < 0 || x + w > this.cols || y + h > this.rows) {
+      throw new Error(`ROI out of bounds: x=${x} y=${y} w=${w} h=${h} in ${this.rows}×${this.cols}`);
+    }
+
+    // Create new Mat for the region
+    const roiMat = new Mat(h, w, this.type);
+
+    // Copy pixel data from source to ROI
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const srcIdx = (y + row) * this.cols + (x + col);
+        const dstIdx = row * w + col;
+
+        for (let c = 0; c < this.channels_; c++) {
+          roiMat.data[dstIdx * this.channels_ + c] = this.data[srcIdx * this.channels_ + c];
+        }
+      }
+    }
+
+    return roiMat;
+  }
+
+  /**
    * Delete this Mat (free memory). No-op in JS but needed for API compatibility.
    */
   delete(): void {
