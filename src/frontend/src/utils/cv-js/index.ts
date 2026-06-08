@@ -20,13 +20,16 @@
 
 import { Mat, MatVector } from './types';
 import { matFromImageData, cvtColor, threshold, subtract } from './matCore';
+import { getStructuringElement, morphologyEx } from './morphology';
 
 // Phase 1 exports
 export * from './types';
 export { matFromImageData, cvtColor, threshold, subtract } from './matCore';
 
+// Phase 2 exports
+export { getStructuringElement, morphologyEx } from './morphology';
+
 // Placeholders for future phases (will be filled in as implemented)
-// Phase 2: morphology
 // Phase 3: contours
 // Phase 4: hough
 // Phase 5: inpaint
@@ -51,9 +54,12 @@ export const cv = {
   INPAINT_NS: 0,
   INPAINT_TELEA: 1,
 
-  // Classes
+  // Classes and constructors
   Mat,
   MatVector,
+  Size: function(width: number, height: number) { return { width, height }; },
+  Rect: function(x: number, y: number, width: number, height: number) { return { x, y, width, height }; },
+  Scalar: function(val: number) { return { val: [val, val, val, val] }; },
 
   // Phase 1: Core ops
   matFromImageData,
@@ -61,8 +67,11 @@ export const cv = {
   threshold,
   subtract,
 
-  // Placeholders for phases 2-5 (will be filled as implemented)
-  // morphologyEx: (...args) => { throw new Error('Not yet implemented'); },
+  // Phase 2: Morphology
+  getStructuringElement,
+  morphologyEx,
+
+  // Placeholders for phases 3-5 (will be filled as implemented)
   // findContours: (...args) => { throw new Error('Not yet implemented'); },
   // ... etc
 };
