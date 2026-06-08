@@ -221,6 +221,17 @@ export type FactsImportData = {
     events?: Array<{ person?: string; type?: string; year?: number }>;
   };
   uncertainties?: string[];
+
+  // Genogram image import: per-person metadata extracted by VLM
+  people?: Array<{
+    name: string; // Unique label as drawn or disambiguated (e.g. "M (b.1968)")
+    sex?: 'male' | 'female' | 'unknown';
+    deceased?: boolean;
+    birthYear?: number | null;
+    deathYear?: number | null;
+    confidence?: 'high' | 'med' | 'low';
+    notes?: string; // Adjacent text (b.1968, div. 2021, etc.)
+  }>;
 };
 
 export type SessionCaptureMatchHints = {

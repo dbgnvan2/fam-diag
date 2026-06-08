@@ -2,6 +2,17 @@ import type { FunctionalIndicatorDefinition, FunctionalFactCategoryDefinition, S
 import applicationSettingsJson from './applicationSettings.json';
 import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
+export type GenogramImportSettings = {
+  /** Maximum image dimension (long side) for VLM processing. Larger images are downscaled. */
+  maxImageDimension: number;
+  /** Image quality (0-1) for JPEG encoding after downscaling. */
+  imageQuality: number;
+  /** Max tokens for VLM response. Increase for large genograms. Default: 4000 */
+  vlmMaxTokens: number;
+  /** Timeout for VLM API call in milliseconds. */
+  vlmTimeoutMs: number;
+};
+
 export type ApplicationSettings = {
   eventCategories: string[];
   relationshipTypes: string[];
@@ -11,6 +22,7 @@ export type ApplicationSettings = {
   functionalFactCategories: FunctionalFactCategoryDefinition[];
   nodalCategories: NodalCategoryDefinition[];
   autoSaveMinutes: number;
+  genogramImport?: GenogramImportSettings;
 };
 
 const sanitizeStringArray = (value: unknown, fallback: string[]) => {
@@ -32,7 +44,15 @@ const sanitizeFunctionalIndicators = (
 const toPositiveNumber = (value: unknown, fallback: number) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 
+const FALLBACK_GENOGRAM_IMPORT: GenogramImportSettings = {
+  maxImageDimension: 1600,
+  imageQuality: 0.85,
+  vlmMaxTokens: 4000,
+  vlmTimeoutMs: 60000, // 60 seconds
+};
+
 const FALLBACK_SETTINGS: ApplicationSettings = {
+  genogramImport: FALLBACK_GENOGRAM_IMPORT,
   eventCategories: [
     'Relationship',
     'Health',

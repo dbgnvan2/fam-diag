@@ -477,6 +477,54 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     person.gender = inferGenderFromName(person.name) || person.gender || 'female';
   });
 
+  // Apply genogram image import metadata (sex, dates, confidence, notes)
+  const lowConfidencePeople: string[] = [];
+  if (facts.people && facts.people.length > 0) {
+    const peopleByExactName = new Map(Array.from(peopleByName.entries()).map(([k, v]) => [k.trim(), v]));
+
+    for (const importedPerson of facts.people) {
+      const matchedPerson = peopleByExactName.get((importedPerson.name || '').trim());
+      if (!matchedPerson) continue;
+
+      // Apply sex if specified and overrides default inference
+      if (importedPerson.sex && importedPerson.sex !== 'unknown') {
+        matchedPerson.gender = importedPerson.sex === 'male' ? 'male' : 'female';
+      }
+
+      // Apply birth and death dates
+      if (importedPerson.birthYear) {
+        matchedPerson.birthDate = `${importedPerson.birthYear}-01-01`;
+      }
+      if (importedPerson.deceased && importedPerson.deathYear) {
+        matchedPerson.deathDate = `${importedPerson.deathYear}-01-01`;
+      } else if (importedPerson.deceased && !importedPerson.deathYear) {
+        // Mark as deceased with unknown death year
+        matchedPerson.deathDate = '1900-01-01'; // Placeholder, user can edit
+      }
+
+      // Append notes from import
+      if (importedPerson.notes) {
+        matchedPerson.notes = matchedPerson.notes
+          ? `${matchedPerson.notes}\nImage: ${importedPerson.notes}`
+          : `Image: ${importedPerson.notes}`;
+        matchedPerson.notesEnabled = true;
+      }
+
+      // Track low-confidence people for review
+      if (importedPerson.confidence === 'low') {
+        lowConfidencePeople.push(`"${importedPerson.name}" (low confidence from image)`);
+      }
+    }
+  }
+  if (lowConfidencePeople.length > 0) {
+    const lowConfidenceNote = `Low-confidence extractions from image: ${lowConfidencePeople.join(', ')}. Review and correct.`;
+    if (facts.uncertainties) {
+      facts.uncertainties.push(lowConfidenceNote);
+    } else {
+      facts.uncertainties = [lowConfidenceNote];
+    }
+  }
+
   const partnerships: Partnership[] = [];
   const toChildCount = (text?: string) => {
     if (!text) return 0;

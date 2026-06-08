@@ -3224,8 +3224,7 @@ useEffect(() => {
       };
 
       try {
-        // The new CV+OCR pipeline runs entirely in the browser. VLM
-        // credentials are only used as the per-symbol letter-OCR fallback.
+        // VLM-based genogram extraction: send whole image to Claude Vision for holistic reading
         const modelId =
           localStorage.getItem('selected_model_id') ||
           localStorage.getItem('anthropic_model') ||
@@ -3233,26 +3232,43 @@ useEffect(() => {
         const apiKey = localStorage.getItem('anthropic_api_key') || '';
         const activeModel = lookupModel(modelId);
 
-        let vlm: { apiKey: string; model: string } | undefined;
-        if (apiKey && activeModel && activeModel.provider === 'anthropic' && activeModel.supportsVision) {
-          vlm = { apiKey, model: activeModel.id };
-          log.info(`VLM fallback enabled: ${activeModel.label}`);
-        } else {
-          log.info('VLM fallback disabled (no Anthropic key + vision model configured)');
+        if (!apiKey || !activeModel || activeModel.provider !== 'anthropic' || !activeModel.supportsVision) {
+          throw new Error(
+            'Claude Vision is required for image import. ' +
+              'Please set your Anthropic API key and select a Vision model in AI Settings.'
+          );
         }
 
-        const result = await runGenogramPipeline(imageBlob, {
-          vlm,
-          log,
-          onProgress: (p) => setImageDiagramProgress(p.message),
-          hints,
+        log.info(`Using VLM for extraction: ${activeModel.label}`);
+
+        // Import vlmImport at the top if not already imported
+        const { vlmImport, GENOGRAM_IMPORT_COST_ESTIMATE } = await import('../utils/genogram/vlmImport');
+        const { factsToDiagramImportData } = await import('../utils/dataImport');
+
+        // Extract facts from image using VLM
+        const facts = await vlmImport(imageBlob, {
+          apiKey,
+          model: activeModel.id,
+          maxImageDimension: 1600, // Can be made configurable from settings later
+          imageQuality: 0.85,
+          maxTokens: 4000,
+          timeoutMs: 60000,
+          onProgress: (msg) => setImageDiagramProgress(msg),
         });
-        const people = result.data.people ?? [];
-        const partnerships = result.data.partnerships ?? [];
+
+        log.info(`Extracted ${facts.people?.length ?? 0} people from image`);
+        if (facts.uncertainties && facts.uncertainties.length > 0) {
+          facts.uncertainties.forEach((u) => log.info(`Uncertainty: ${u}`));
+        }
+
+        // Convert FactsImportData to DiagramImportData
+        const diagramData = factsToDiagramImportData(facts);
+        const people = diagramData.people ?? [];
+        const partnerships = diagramData.partnerships ?? [];
 
         if (people.length === 0) {
           showLog(
-            `0 people detected. Common causes: low contrast photo, glare, or shadows. Try a clearer image. Symbols found: ${result.symbols.length}.`
+            `0 people extracted from image. This may indicate low contrast, heavy shadows, or an image that is not a genogram. Try a clearer image or check if the diagram uses standard genogram symbols (squares=male, circles=female).`
           );
           return;
         }
@@ -3263,6 +3279,7 @@ useEffect(() => {
         setExtractedDiagramData(null);
         setPersonInventory([]);
         log.info(`Imported ${people.length} people and ${partnerships.length} partnerships.`);
+        log.info(`Estimated cost per image: ~$${GENOGRAM_IMPORT_COST_ESTIMATE.estimatedCostPerImage.toFixed(3)} USD`);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         log.error(`Caught exception: ${message}`);
