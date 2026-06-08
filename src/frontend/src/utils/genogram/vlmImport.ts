@@ -107,6 +107,7 @@ export async function vlmImport(
       a: r.a,
       b: r.b,
       type: r.type,
+      children: r.children || [],
     })),
   };
   console.log('[vlmImport] Extracted facts:', debugData);

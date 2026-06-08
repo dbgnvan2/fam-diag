@@ -689,6 +689,48 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   const isImageImport = Boolean(facts.people && facts.people.length > 0);
 
   if (isImageImport) {
+    // === Step 0: Spatial inference for unattached people ===
+    // Reading-order rule: process top-left to bottom-right.
+    // If a person has no parentPartnership AND is positioned below a partnership
+    // AND within (or near) the partners' X range, infer they're a child of that partnership.
+    // This catches people the VLM extracted but didn't explicitly link as children.
+    for (const person of people) {
+      if (person.parentPartnership) continue; // already linked
+
+      let bestPartnership: Partnership | null = null;
+      let bestYDistance = Infinity;
+      const X_MARGIN = 100; // pixel tolerance for "within parents' range"
+      const MAX_Y_DISTANCE = 350; // ~ one generation gap + slack
+
+      for (const partnership of partnerships) {
+        const p1 = people.find((p) => p.id === partnership.partner1_id);
+        const p2 = people.find((p) => p.id === partnership.partner2_id);
+        if (!p1 || !p2) continue;
+
+        const partnershipY = (p1.y + p2.y) / 2;
+        const minPartnerX = Math.min(p1.x, p2.x);
+        const maxPartnerX = Math.max(p1.x, p2.x);
+
+        // Person must be below the partnership
+        const yDistance = person.y - partnershipY;
+        if (yDistance <= 0 || yDistance > MAX_Y_DISTANCE) continue;
+
+        // Person X must be within parents' X range (with margin)
+        if (person.x < minPartnerX - X_MARGIN || person.x > maxPartnerX + X_MARGIN) continue;
+
+        // Choose the closest partnership above (smallest Y distance)
+        if (yDistance < bestYDistance) {
+          bestYDistance = yDistance;
+          bestPartnership = partnership;
+        }
+      }
+
+      if (bestPartnership) {
+        person.parentPartnership = bestPartnership.id;
+        bestPartnership.children = [...(bestPartnership.children || []), person.id];
+      }
+    }
+
     // === Step 1: Compute generation depth via partnership graph BFS ===
     // This is more robust than Y clustering because the VLM Y values aren't precise.
     const personGeneration = new Map<string, number>();
