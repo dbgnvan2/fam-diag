@@ -524,69 +524,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       // Focus is on coordinates and basic person metadata only
     }
 
-    // Post-process: compress sibling X spacing (siblings have similar Y coords)
-    // Group people by Y coordinate, then SPLIT each group when there's a large X gap
-    // (large X gap = separate family/couple, not siblings)
-    if (facts.people && facts.people.length > 0) {
-      const Y_THRESHOLD = 30; // People within 30 units Y are considered same level
-      const X_GAP_THRESHOLD = 200; // X gap > 200 px = separate family
-      const peopleWithCoords = people.filter(p => typeof p.x === 'number' && typeof p.y === 'number');
-
-      // Group by Y coordinate
-      const yGroups = new Map<number, typeof peopleWithCoords>();
-      for (const person of peopleWithCoords) {
-        let groupY = null;
-        for (const existingY of yGroups.keys()) {
-          if (Math.abs((person.y as number) - existingY) <= Y_THRESHOLD) {
-            groupY = existingY;
-            break;
-          }
-        }
-        if (groupY === null) {
-          groupY = person.y as number;
-          yGroups.set(groupY, []);
-        }
-        yGroups.get(groupY)!.push(person);
-      }
-
-      // For each Y group, split into sub-groups based on X gaps
-      for (const group of yGroups.values()) {
-        if (group.length < 2) continue;
-
-        const sortedByX = [...group].sort((a, b) => (a.x as number) - (b.x as number));
-
-        // Split into sub-groups when consecutive people have X gap > threshold
-        const subGroups: typeof sortedByX[] = [[sortedByX[0]]];
-        for (let i = 1; i < sortedByX.length; i++) {
-          const gap = (sortedByX[i].x as number) - (sortedByX[i - 1].x as number);
-          if (gap > X_GAP_THRESHOLD) {
-            subGroups.push([sortedByX[i]]); // Start new sub-group
-          } else {
-            subGroups[subGroups.length - 1].push(sortedByX[i]);
-          }
-        }
-
-        // For each sub-group with 2+ people (actual siblings/couple), compress X spacing to 1/3
-        for (const subGroup of subGroups) {
-          if (subGroup.length < 2) continue;
-
-          const minX = Math.min(...subGroup.map(p => p.x as number));
-          const maxX = Math.max(...subGroup.map(p => p.x as number));
-          const span = maxX - minX;
-
-          if (span > 0) {
-            const centerX = (minX + maxX) / 2;
-            const newSpan = span / 3;
-            const newMinX = centerX - newSpan / 2;
-
-            for (const person of subGroup) {
-              const ratio = (person.x as number - minX) / span;
-              person.x = newMinX + ratio * newSpan;
-            }
-          }
-        }
-      }
-    }
+    // Note: sibling X compression happens later, AFTER partnerships are built,
+    // using parentPartnership (the actual data-model definition of siblings).
   }
 
   const partnerships: Partnership[] = [];
@@ -741,6 +680,46 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       person.deathDate = evt.year ? `${evt.year}-01-01` : '1973-01-01';
     }
   });
+
+  // Compress X spacing among TRUE siblings (people sharing parentPartnership)
+  // Per data-model definition: siblings = same parents. Couples are NOT siblings.
+  // This runs AFTER partnerships are built (so parentPartnership is set on children).
+  if (facts.people && facts.people.length > 0) {
+    const siblingGroups = new Map<string, Person[]>();
+    for (const person of people) {
+      if (!person.parentPartnership) continue;
+      if (!siblingGroups.has(person.parentPartnership)) {
+        siblingGroups.set(person.parentPartnership, []);
+      }
+      siblingGroups.get(person.parentPartnership)!.push(person);
+    }
+
+    for (const siblings of siblingGroups.values()) {
+      if (siblings.length < 2) continue;
+
+      // Align Y so siblings are on the same horizontal line
+      const avgY = siblings.reduce((sum, s) => sum + s.y, 0) / siblings.length;
+      siblings.forEach((s) => {
+        s.y = avgY;
+      });
+
+      // Compress X spacing to 1/3, preserving order
+      const sortedByX = [...siblings].sort((a, b) => a.x - b.x);
+      const minX = sortedByX[0].x;
+      const maxX = sortedByX[sortedByX.length - 1].x;
+      const span = maxX - minX;
+      if (span <= 0) continue;
+
+      const centerX = (minX + maxX) / 2;
+      const newSpan = span / 3;
+      const newMinX = centerX - newSpan / 2;
+
+      for (const person of sortedByX) {
+        const ratio = (person.x - minX) / span;
+        person.x = newMinX + ratio * newSpan;
+      }
+    }
+  }
 
   const normalizedPeople = normalizeImportedChildLayout(people, partnerships, {
     expandParentSpan: true,
