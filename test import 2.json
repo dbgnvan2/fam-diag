@@ -1,0 +1,118 @@
+{
+  "fileMeta": {
+    "fileName": "test import 2.json",
+    "displayName": "test import 2.json",
+    "exportedAt": "2026-06-07T17:52:47.052Z"
+  },
+  "people": [],
+  "partnerships": [],
+  "emotionalLines": [],
+  "pageNotes": [],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "married",
+    "common-law",
+    "living-together",
+    "dating",
+    "affair",
+    "friendship"
+  ],
+  "relationshipStatuses": [
+    "married",
+    "separated",
+    "divorced",
+    "started",
+    "ended",
+    "ongoing"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [],
+  "functionalFactCategories": [
+    {
+      "id": "ff-c17SkLyL",
+      "name": "Move"
+    },
+    {
+      "id": "ff-2mjcxiEV",
+      "name": "Employment"
+    },
+    {
+      "id": "ff-Zz_UI0rL",
+      "name": "Education"
+    },
+    {
+      "id": "ff-bwSaMZbO",
+      "name": "Finances"
+    }
+  ],
+  "nodalCategories": [
+    {
+      "id": "nodal-job",
+      "name": "Job Change"
+    },
+    {
+      "id": "nodal-illness",
+      "name": "Illness"
+    },
+    {
+      "id": "nodal-move",
+      "name": "House Move"
+    },
+    {
+      "id": "nodal-education",
+      "name": "Education"
+    },
+    {
+      "id": "nodal-relocation",
+      "name": "Relocation"
+    },
+    {
+      "id": "nodal-retirement",
+      "name": "Retirement"
+    },
+    {
+      "id": "nodal-hospitalization",
+      "name": "Hospitalization"
+    },
+    {
+      "id": "nodal-loss",
+      "name": "Loss"
+    }
+  ]
+}
