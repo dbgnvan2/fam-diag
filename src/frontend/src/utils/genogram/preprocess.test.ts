@@ -31,8 +31,10 @@ const cv = {
   THRESH_OTSU: 8,
 };
 
-vi.mock('@techstark/opencv-js', () => ({
+// Mock the new pure-JS cv-js module (not the old @techstark/opencv-js)
+vi.mock('../cv-js', () => ({
   default: cv,
+  ...cv,
 }));
 
 import { preprocessImage, deskewIfAngled } from './preprocess';
