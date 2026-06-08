@@ -91,8 +91,8 @@ export async function vlmImport(
   onProgress?.('[vlmImport] Parsing response...');
   const facts = parseVLMResponse(response);
 
-  // Log extracted data for debugging
-  console.log('[vlmImport] Extracted facts:', {
+  // Log extracted data for debugging (to console AND to page)
+  const debugData = {
     peopleCount: facts.people?.length ?? 0,
     people: facts.people?.map(p => ({
       name: p.name,
@@ -103,7 +103,14 @@ export async function vlmImport(
       deathYear: p.deathYear,
     })),
     relationshipCount: facts.relationships?.length ?? 0,
-  });
+  };
+  console.log('[vlmImport] Extracted facts:', debugData);
+
+  // Also display on page so we can see it in screenshots
+  const debugDiv = document.createElement('div');
+  debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:white;border:2px solid red;padding:10px;max-height:300px;overflow-y:auto;z-index:9999;font-size:11px;font-family:monospace;';
+  debugDiv.innerHTML = `<strong style="color:red">[VLM Debug]</strong><pre>${JSON.stringify(debugData, null, 2)}</pre>`;
+  document.body.appendChild(debugDiv);
 
   // Step 4: Deduplicate people by name
   deduplicatePeopleByName(facts);
