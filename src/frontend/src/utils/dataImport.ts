@@ -695,6 +695,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //   R14 Process top-left to bottom-right            → spatial inference for orphans
   //   R15 Partnership connector Y consistent per gen  → recompute after Y snap
   //   R16 Unknown-sex symbols are 1/4 size            → person.size = 15
+  //   R17 Stillbirth detection (X at end of line)     → lifeStatus = 'stillbirth'
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================
@@ -887,6 +888,38 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       const sex = importedBySex.get(person.name);
       if (sex === 'unknown') {
         person.size = UNKNOWN_SEX_SIZE;
+      }
+    }
+
+    // === Step 6: R17 — Stillbirth detection ===
+    // Detection: VLM marks stillbirths in the notes field with "stillbirth" keyword.
+    // OR: a person with sex='unknown', deceased=true, no birth year, child of a partnership
+    // → likely a stillbirth (small X at end of descending line per genogram convention).
+    // Apply person.lifeStatus = 'stillbirth' so the renderer can show appropriate symbol.
+    const importedByName = new Map(
+      (facts.people || []).map((p) => [p.name, p])
+    );
+    for (const person of people) {
+      const imported = importedByName.get(person.name);
+      if (!imported) continue;
+
+      // Explicit detection: notes contain "stillbirth"
+      const notesHaveStillbirth = (imported.notes || '').toLowerCase().includes('stillbirth');
+
+      // Implicit detection: unknown sex + deceased + child of partnership + no birth year
+      const looksLikeStillbirth =
+        imported.sex === 'unknown' &&
+        imported.deceased === true &&
+        !imported.birthYear &&
+        Boolean(person.parentPartnership);
+
+      if (notesHaveStillbirth || looksLikeStillbirth) {
+        person.lifeStatus = 'stillbirth';
+        // Stillbirths are very small (already smaller via R16 if sex=unknown,
+        // but ensure they're small even if sex is known)
+        if (!person.size || person.size > UNKNOWN_SEX_SIZE) {
+          person.size = UNKNOWN_SEX_SIZE;
+        }
       }
     }
   }

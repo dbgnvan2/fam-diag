@@ -213,7 +213,8 @@ SYMBOL KEY (standard genogram notation — apply strictly, by shape):
 - A square-ish shape = MALE. (sex: "male")
 - A circle-ish shape = FEMALE. (sex: "female")
 - An X drawn THROUGH a square or circle = that person is DECEASED. The shape still tells you the sex. (deceased: true)
-- A plain X with NO enclosing square or circle = a person of UNKNOWN sex. (sex: "unknown")
+- A plain X with NO enclosing square or circle, drawn at the end of a descending line from a couple = STILLBIRTH (unknown sex, born but did not survive). Use sex="unknown", deceased=true, and INCLUDE "stillbirth" in the notes field.
+- A standalone plain X (not at end of descending line) = a person of UNKNOWN sex. (sex: "unknown")
 - A triangle = a pregnancy. This is NOT a born person — do NOT add it to people[].
 - A small star or asterisk (*) = a miscarriage / pregnancy loss. NOT a person — do NOT add it to people[].
 - A small circle containing the letter "c" = a current pregnancy marker — BUT if this small "c" circle appears next to a person who is in a relationship and has a child below them, treat the "c" circle as a separate person (likely the partner/spouse). In that case, extract it as a person named "C (spouse of [partner name])".

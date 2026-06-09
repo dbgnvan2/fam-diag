@@ -26,6 +26,8 @@
  *     R14 Process top-left to bottom-right — spatial inference for orphans
  *     R15 Partnership connector Y consistent per generation
  *     R16 Unknown-sex symbols rendered 1/4 size (15px vs default 60px)
+ *     R17 Stillbirth detection — small X at end of descending line
+ *         → lifeStatus = 'stillbirth' (renderer can style accordingly)
  *
  * Each rule:
  *   - Has a clear name and description
