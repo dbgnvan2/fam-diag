@@ -24,6 +24,8 @@
  *     R12 Preserve X sequence — never reorder siblings or couples
  *     R13 Children X positioned under parents' partnership range
  *     R14 Process top-left to bottom-right — spatial inference for orphans
+ *     R15 Partnership connector Y consistent per generation
+ *     R16 Unknown-sex symbols rendered 1/4 size (15px vs default 60px)
  *
  * Each rule:
  *   - Has a clear name and description

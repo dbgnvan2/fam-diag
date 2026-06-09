@@ -1,0 +1,373 @@
+{
+  "fileMeta": {
+    "fileName": "dixie 3 generations.json",
+    "displayName": "dixie 3 generations.json",
+    "exportedAt": "2026-06-09T01:27:16.725Z"
+  },
+  "people": [
+    {
+      "id": "7QBrDjmLd-KVxIjx1cYAv",
+      "name": "M (b.1968)",
+      "firstName": "M",
+      "lastName": "(b.1968)",
+      "x": 225,
+      "y": 340,
+      "gender": "male",
+      "partnerships": [
+        "I0ShDvYLtj5olWex6NdgC"
+      ],
+      "events": [],
+      "birthDate": "1968-01-01",
+      "parentPartnership": "pSPrbjoXXGAFjAEWFVyXN"
+    },
+    {
+      "id": "m5lF6ZuZe1cryKJSwZKnR",
+      "name": "D (b.1971)",
+      "firstName": "D",
+      "lastName": "(b.1971)",
+      "x": 765,
+      "y": 340,
+      "gender": "female",
+      "partnerships": [
+        "I0ShDvYLtj5olWex6NdgC"
+      ],
+      "events": [],
+      "birthDate": "1971-01-01",
+      "parentPartnership": "r_b1Fkrwu3iSF1idAh5n0"
+    },
+    {
+      "id": "G9idhk6KOsczGfCgmUzVz",
+      "name": "K (b.2010)",
+      "firstName": "K",
+      "lastName": "(b.2010)",
+      "x": 400,
+      "y": 540,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "birthDate": "2010-01-01",
+      "parentPartnership": "I0ShDvYLtj5olWex6NdgC"
+    },
+    {
+      "id": "V3BVdiwR8csutYRKd28DK",
+      "name": "E (child, b.2010-twin)",
+      "firstName": "E",
+      "lastName": "(child, b.2010-twin)",
+      "x": 480,
+      "y": 540,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "birthDate": "2010-01-01",
+      "parentPartnership": "I0ShDvYLtj5olWex6NdgC"
+    },
+    {
+      "id": "9X-OYXCTxKf3wgI-qEvz8",
+      "name": "E (b.2014)",
+      "firstName": "E",
+      "lastName": "(b.2014)",
+      "x": 560,
+      "y": 540,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "birthDate": "2014-01-01",
+      "parentPartnership": "I0ShDvYLtj5olWex6NdgC"
+    },
+    {
+      "id": "pGitGrkYpp-Xe-xfM0d1f",
+      "name": "Paternal Grandfather (deceased, top-left)",
+      "firstName": "Paternal",
+      "lastName": "Grandfather (deceased, top-left)",
+      "x": 150,
+      "y": 140,
+      "gender": "male",
+      "partnerships": [
+        "pSPrbjoXXGAFjAEWFVyXN"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "VpQoTlA0FkbkEhiqBejhq",
+      "name": "Paternal Grandmother S (deceased)",
+      "firstName": "Paternal",
+      "lastName": "Grandmother S (deceased)",
+      "x": 310,
+      "y": 140,
+      "gender": "female",
+      "partnerships": [
+        "pSPrbjoXXGAFjAEWFVyXN"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "7eGeIFDRmBg8E96fIB7dD",
+      "name": "Maternal Grandfather (b.1940, d.2014)",
+      "firstName": "Maternal",
+      "lastName": "Grandfather (b.1940, d.2014)",
+      "x": 680,
+      "y": 140,
+      "gender": "male",
+      "partnerships": [
+        "r_b1Fkrwu3iSF1idAh5n0"
+      ],
+      "events": [],
+      "birthDate": "1940-01-01",
+      "deathDate": "2014-01-01"
+    },
+    {
+      "id": "2VTa1yXbCSM7ohXPT8ZDq",
+      "name": "Maternal Grandmother (b.1939, d.2026)",
+      "firstName": "Maternal",
+      "lastName": "Grandmother (b.1939, d.2026)",
+      "x": 930,
+      "y": 140,
+      "gender": "female",
+      "partnerships": [
+        "r_b1Fkrwu3iSF1idAh5n0"
+      ],
+      "events": [],
+      "birthDate": "1939-01-01",
+      "deathDate": "2026-01-01"
+    },
+    {
+      "id": "oiJLYFSc9GfadlCd8GqHE",
+      "name": "D (b.1976)",
+      "firstName": "D",
+      "lastName": "(b.1976)",
+      "x": 925,
+      "y": 340,
+      "gender": "male",
+      "partnerships": [
+        "4faLpPaLNNPGJBaN5N4cy"
+      ],
+      "events": [],
+      "birthDate": "1976-01-01",
+      "parentPartnership": "r_b1Fkrwu3iSF1idAh5n0"
+    },
+    {
+      "id": "0YK75H0xOSHZOPWsP88E3",
+      "name": "C (spouse of D b.1976)",
+      "firstName": "C",
+      "lastName": "(spouse of D b.1976)",
+      "x": 1060,
+      "y": 340,
+      "gender": "female",
+      "partnerships": [
+        "4faLpPaLNNPGJBaN5N4cy"
+      ],
+      "events": [],
+      "parentPartnership": "4faLpPaLNNPGJBaN5N4cy"
+    },
+    {
+      "id": "TUOE35FbUoh6H3C1KAUQW",
+      "name": "K (uncle)",
+      "firstName": "K",
+      "lastName": "(uncle)",
+      "x": 305,
+      "y": 340,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "pSPrbjoXXGAFjAEWFVyXN"
+    },
+    {
+      "id": "oZdOv4T9u-5wbxfZRV5iX",
+      "name": "Deceased child (X, maternal sibling)",
+      "firstName": "Deceased",
+      "lastName": "child (X, maternal sibling)",
+      "x": 845,
+      "y": 340,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "deathDate": "1900-01-01",
+      "parentPartnership": "r_b1Fkrwu3iSF1idAh5n0"
+    },
+    {
+      "id": "mkgIc1vIVzCwi6-u3AXLT",
+      "name": "B (b.2018)",
+      "firstName": "B",
+      "lastName": "(b.2018)",
+      "x": 980,
+      "y": 540,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "birthDate": "2018-01-01",
+      "parentPartnership": "4faLpPaLNNPGJBaN5N4cy"
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "I0ShDvYLtj5olWex6NdgC",
+      "partner1_id": "7QBrDjmLd-KVxIjx1cYAv",
+      "partner2_id": "m5lF6ZuZe1cryKJSwZKnR",
+      "horizontalConnectorY": 430,
+      "relationshipType": "married",
+      "relationshipStatus": "ended",
+      "relationshipStartDate": "2009-01-01",
+      "children": [
+        "G9idhk6KOsczGfCgmUzVz",
+        "V3BVdiwR8csutYRKd28DK",
+        "9X-OYXCTxKf3wgI-qEvz8"
+      ],
+      "notes": "Derived from facts.family\nm.2009 written on couple line",
+      "events": []
+    },
+    {
+      "id": "pSPrbjoXXGAFjAEWFVyXN",
+      "partner1_id": "pGitGrkYpp-Xe-xfM0d1f",
+      "partner2_id": "VpQoTlA0FkbkEhiqBejhq",
+      "horizontalConnectorY": 202,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "7QBrDjmLd-KVxIjx1cYAv",
+        "TUOE35FbUoh6H3C1KAUQW"
+      ],
+      "notes": "horizontal line connecting the two top-left symbols",
+      "events": []
+    },
+    {
+      "id": "r_b1Fkrwu3iSF1idAh5n0",
+      "partner1_id": "7eGeIFDRmBg8E96fIB7dD",
+      "partner2_id": "2VTa1yXbCSM7ohXPT8ZDq",
+      "horizontalConnectorY": 208,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "m5lF6ZuZe1cryKJSwZKnR",
+        "oiJLYFSc9GfadlCd8GqHE",
+        "oZdOv4T9u-5wbxfZRV5iX"
+      ],
+      "notes": "m.1969 written on couple line",
+      "events": []
+    },
+    {
+      "id": "4faLpPaLNNPGJBaN5N4cy",
+      "partner1_id": "oiJLYFSc9GfadlCd8GqHE",
+      "partner2_id": "0YK75H0xOSHZOPWsP88E3",
+      "horizontalConnectorY": 478,
+      "relationshipType": "married",
+      "relationshipStatus": "divorce",
+      "children": [
+        "mkgIc1vIVzCwi6-u3AXLT",
+        "0YK75H0xOSHZOPWsP88E3"
+      ],
+      "notes": "m.2015 div.2021 written near couple line",
+      "events": []
+    }
+  ],
+  "emotionalLines": [],
+  "pageNotes": [],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "married",
+    "common-law",
+    "living-together",
+    "dating",
+    "affair",
+    "friendship"
+  ],
+  "relationshipStatuses": [
+    "married",
+    "separated",
+    "divorced",
+    "started",
+    "ended",
+    "ongoing"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [],
+  "functionalFactCategories": [
+    {
+      "id": "ff-c17SkLyL",
+      "name": "Move"
+    },
+    {
+      "id": "ff-2mjcxiEV",
+      "name": "Employment"
+    },
+    {
+      "id": "ff-Zz_UI0rL",
+      "name": "Education"
+    },
+    {
+      "id": "ff-bwSaMZbO",
+      "name": "Finances"
+    }
+  ],
+  "nodalCategories": [
+    {
+      "id": "nodal-job",
+      "name": "Job Change"
+    },
+    {
+      "id": "nodal-illness",
+      "name": "Illness"
+    },
+    {
+      "id": "nodal-move",
+      "name": "House Move"
+    },
+    {
+      "id": "nodal-education",
+      "name": "Education"
+    },
+    {
+      "id": "nodal-relocation",
+      "name": "Relocation"
+    },
+    {
+      "id": "nodal-retirement",
+      "name": "Retirement"
+    },
+    {
+      "id": "nodal-hospitalization",
+      "name": "Hospitalization"
+    },
+    {
+      "id": "nodal-loss",
+      "name": "Loss"
+    }
+  ]
+}

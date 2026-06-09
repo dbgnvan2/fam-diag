@@ -616,7 +616,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       id,
       partner1_id: personA.id,
       partner2_id: personB.id,
-      horizontalConnectorY: Math.max(personA.y, personB.y) + 60 + index * 6,
+      horizontalConnectorY: Math.max(personA.y, personB.y) + 60, // R15: Same Y per generation (no per-partnership offset)
       relationshipType: normalizeRelationshipType(rel.type),
       relationshipStatus: normalizeRelationshipStatus(rel.status),
       children: explicitChildIds,
@@ -693,6 +693,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //   R12 Preserve X sequence — never reorder         → ratio-based positioning
   //   R13 Children X within parents' X range          → via spatial inference
   //   R14 Process top-left to bottom-right            → spatial inference for orphans
+  //   R15 Partnership connector Y consistent per gen  → recompute after Y snap
+  //   R16 Unknown-sex symbols are 1/4 size            → person.size = 15
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================
@@ -859,6 +861,33 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       sortedByX.forEach((person, i) => {
         person.x = startX + i * SIBLING_SPACING;
       });
+    }
+
+    // === Step 4: R15 — Partnership connector Y consistent per generation ===
+    // After Y snapping, recompute horizontalConnectorY so all partnerships at the
+    // same generation share the same Y line (no per-partnership offset).
+    const PARTNERSHIP_LINE_OFFSET = 60; // px below the partners' Y
+    for (const partnership of partnerships) {
+      const p1 = people.find((p) => p.id === partnership.partner1_id);
+      const p2 = people.find((p) => p.id === partnership.partner2_id);
+      if (p1 && p2) {
+        // Both partners are at same Y now (R8), so this is deterministic per generation
+        partnership.horizontalConnectorY = Math.max(p1.y, p2.y) + PARTNERSHIP_LINE_OFFSET;
+      }
+    }
+
+    // === Step 5: R16 — Unknown-sex people render as smaller symbol (1/4 size) ===
+    // Per user spec: unknown-sex symbols (X without enclosing shape, or otherwise unknown)
+    // should appear smaller than known-sex symbols.
+    const UNKNOWN_SEX_SIZE = 15; // 1/4 of default ~60px
+    const importedBySex = new Map(
+      (facts.people || []).map((p) => [p.name, p.sex])
+    );
+    for (const person of people) {
+      const sex = importedBySex.get(person.name);
+      if (sex === 'unknown') {
+        person.size = UNKNOWN_SEX_SIZE;
+      }
     }
   }
 
