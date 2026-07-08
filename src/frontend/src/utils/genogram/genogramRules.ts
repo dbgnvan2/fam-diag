@@ -41,8 +41,11 @@
  *     R20 Married-in mate anchoring — when both partners were born into families
  *         drawn on the page, the couple stays in the LARGER birth family's row and
  *         the other partner is "married-in": its birth family is not stretched to
- *         reach it; a longer parent-child connector runs to it instead. (Reduces
- *         cross-lineage stretch; full pedigree-collapse layout is still future work.)
+ *         reach it; a longer parent-child connector runs to it instead.
+ *     R21 Reingold-Tilford tree layout — measure each subtree's width bottom-up, then
+ *         place top-down so every parent couple is centered over its children while
+ *         staying in its own sibling row; siblings are spaced by their subtree widths
+ *         (so a parent with a big family is no longer dragged out of its row).
  *
  * Each rule:
  *   - Has a clear name and description

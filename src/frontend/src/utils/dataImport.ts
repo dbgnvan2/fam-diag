@@ -436,122 +436,168 @@ export const parseTranscriptToDraftDiagram = (
 // ---------------------------------------------------------------------------
 
 /**
- * Horizontal (X) layout for image imports (R11+R12+R19). Y is already set by
- * generation; this assigns X so that:
- *   - each family occupies its own horizontal space (families don't overlap),
- *   - the drawn left-to-right order of siblings is preserved (R12), and
- *   - every couple's Partner Relationship Line is WIDER than its children row:
- *     the left partner sits left of the smallest child X and the right partner
- *     sits right of the largest child X ("parents wider than children row").
+ * Horizontal (X) layout for image imports (R11+R12+R19+R20+R21). Y is already set
+ * by generation; this assigns X with a Reingold-Tilford-style tree layout so that:
+ *   - every parent couple is CENTERED over its children while staying in its own
+ *     sibling row (R21) — a parent with a big subtree no longer gets dragged out of
+ *     its row,
+ *   - siblings are spaced by their measured subtree widths, so families never
+ *     overlap (R19) and the drawn left-to-right order is preserved (R12),
+ *   - every couple's Partner Relationship Line is wider than its (resident)
+ *     children row (R19), and
+ *   - a partner born into two on-page families is anchored to the larger one, the
+ *     other being married-in (R20).
  *
- * Method: a post-order sweep over the family forest with a single left-to-right
- * cursor. Leaves take fixed slots (so no two subtrees overlap); each couple is
- * then bracketed around its already-placed children. A partner that is itself a
- * child of another family keeps the X its own family gave it (post-order
- * guarantees children are placed before their parents bracket them).
+ * Method: build a unit forest (a "unit" is a leaf person or a couple + its resident
+ * children), MEASURE each unit's subtree width bottom-up, then PLACE top-down —
+ * each couple bracketed around its children's centers.
  */
 function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void {
-  const SIBLING_SPACING = 80; // between adjacent leaf units
-  const COUPLE_MARGIN = 40; // couple sits this far outside its child span
-  const SUBTREE_GAP = 60; // extra gap after a child that heads its own family
+  const SLOT = 80; // leaf width
+  const COUPLE_MARGIN = 40; // partner sits this far outside the child span
+  const SIBLING_GAP = 30; // gap between adjacent sibling subtrees
+  const ROOT_GAP = 100; // gap between independent top-level families
 
   const byId = new Map(people.map((p) => [p.id, p]));
+  // Snapshot the drawn X order BEFORE placement mutates person.x — all sibling
+  // ordering and left/right-partner decisions use this stable order, never the live X.
+  const drawnX = new Map(people.map((p) => [p.id, p.x]));
+  const drawnXOf = (id: string) => drawnX.get(id) ?? 0;
   const childrenOf = (partnershipId: string) =>
-    people.filter((p) => p.parentPartnership === partnershipId).sort((a, b) => a.x - b.x);
-
-  // R20 — married-in mate anchoring. When BOTH partners of a couple were born into
-  // families drawn on this page, they can't both stay in their own sibling row, so
-  // the couple's subtree hangs from the LARGER birth family (the "anchor") and the
-  // other partner is the "married-in" mate: it moves next to the anchor and its own
-  // birth family is not stretched to reach it (its parent line simply runs longer).
+    people
+      .filter((p) => p.parentPartnership === partnershipId)
+      .sort((a, b) => drawnXOf(a.id) - drawnXOf(b.id));
+  const familiesWithKids = partnerships.filter((pt) => childrenOf(pt.id).length > 0);
   const siblingCount = (person: Person) =>
     person.parentPartnership ? childrenOf(person.parentPartnership).length : 0;
+
+  // R20 — per family, which partner is the "anchor" (connects up to its birth family)
+  // and which is "married-in". When both partners were born into on-page families the
+  // larger birth family anchors; when only one was, that one anchors; when neither,
+  // the couple is a top root.
+  const anchorOf = new Map<string, string | null>();
   const marriedIn = new Set<string>();
-  for (const pt of partnerships) {
+  for (const pt of familiesWithKids) {
     const p1 = byId.get(pt.partner1_id);
     const p2 = byId.get(pt.partner2_id);
-    if (!p1 || !p2 || !p1.parentPartnership || !p2.parentPartnership) continue;
-    const c1 = siblingCount(p1);
-    const c2 = siblingCount(p2);
-    let anchorId: string;
-    if (c1 !== c2) anchorId = c1 > c2 ? p1.id : p2.id; // bigger birth family stays put
-    else if (p1.x !== p2.x) anchorId = p1.x < p2.x ? p1.id : p2.id; // else leftmost drawn
-    else anchorId = p1.id < p2.id ? p1.id : p2.id; // stable final tie-break
-    marriedIn.add(anchorId === p1.id ? p2.id : p1.id);
+    const h1 = Boolean(p1?.parentPartnership);
+    const h2 = Boolean(p2?.parentPartnership);
+    if (p1 && p2 && h1 && h2) {
+      const c1 = siblingCount(p1);
+      const c2 = siblingCount(p2);
+      const anchor =
+        c1 !== c2
+          ? c1 > c2
+            ? p1
+            : p2
+          : drawnXOf(p1.id) !== drawnXOf(p2.id)
+          ? drawnXOf(p1.id) < drawnXOf(p2.id)
+            ? p1
+            : p2
+          : p1.id < p2.id
+          ? p1
+          : p2;
+      anchorOf.set(pt.id, anchor.id);
+      marriedIn.add(anchor.id === p1.id ? p2.id : p1.id);
+    } else if (h1) anchorOf.set(pt.id, pt.partner1_id);
+    else if (h2) anchorOf.set(pt.id, pt.partner2_id);
+    else anchorOf.set(pt.id, null);
   }
 
-  // A person "heads" a family for layout only if they are its anchor (not the
-  // married-in mate) — the anchor is what triggers the subtree placement.
-  const familyOf = (person: Person) =>
-    marriedIn.has(person.id)
-      ? undefined
-      : partnerships.find(
-          (pt) =>
-            (pt.partner1_id === person.id || pt.partner2_id === person.id) &&
-            childrenOf(pt.id).length > 0
-        );
+  const anchoredFamilyOf = (person: Person) =>
+    familiesWithKids.find((pt) => anchorOf.get(pt.id) === person.id);
+  const residentKids = (fam: Partnership) => childrenOf(fam.id).filter((c) => !marriedIn.has(c.id));
 
+  // --- Pass 1: measure subtree widths (bottom-up) ---
+  const widthCache = new Map<string, number>();
+  const measuring = new Set<string>();
+  const measurePerson = (person: Person): number => {
+    const fam = anchoredFamilyOf(person);
+    return fam ? measureFamily(fam) : SLOT;
+  };
+  const measureFamily = (fam: Partnership): number => {
+    const cached = widthCache.get(fam.id);
+    if (cached !== undefined) return cached;
+    if (measuring.has(fam.id)) return SLOT + 2 * COUPLE_MARGIN; // cycle guard
+    measuring.add(fam.id);
+    const kids = residentKids(fam);
+    const childrenWidth =
+      kids.length > 0
+        ? kids.reduce((sum, c) => sum + measurePerson(c), 0) + SIBLING_GAP * (kids.length - 1)
+        : SLOT;
+    measuring.delete(fam.id);
+    const w = childrenWidth + 2 * COUPLE_MARGIN;
+    widthCache.set(fam.id, w);
+    return w;
+  };
+
+  // --- Pass 2: place top-down; each unit occupies [left, left + width] ---
   const placed = new Set<string>();
-  let cursor = 0;
-
-  const place = (person: Person): void => {
-    if (placed.has(person.id)) return;
-    placed.add(person.id);
-
-    const fam = familyOf(person);
-    const kids = fam ? childrenOf(fam.id) : [];
-
-    if (!fam || kids.length === 0) {
-      person.x = cursor;
-      cursor += SIBLING_SPACING;
+  const placePerson = (person: Person, left: number): void => {
+    const fam = anchoredFamilyOf(person);
+    if (!fam) {
+      person.x = left + SLOT / 2;
+      placed.add(person.id);
       return;
     }
-
-    // Place children first (post-order), with a gap after any child subtree.
-    kids.forEach((kid, i) => {
-      place(kid);
-      if (i < kids.length - 1 && familyOf(kid)) cursor += SUBTREE_GAP;
-    });
-
-    // Bracket only around RESIDENT children — a child who married out (R20) has
-    // moved next to their spouse, so we don't stretch this couple to reach them.
-    const spanKids = kids.filter((k) => !marriedIn.has(k.id));
-    const bracketKids = spanKids.length > 0 ? spanKids : kids;
-    const minK = Math.min(...bracketKids.map((k) => k.x));
-    const maxK = Math.max(...bracketKids.map((k) => k.x));
-
-    // Bracket the couple around the children (parents wider than children row),
-    // preserving which partner is drawn on the left.
+    placeFamily(fam, left);
+  };
+  const placeFamily = (fam: Partnership, left: number): void => {
+    const famKey = `fam:${fam.id}`;
+    if (placed.has(famKey)) return;
+    placed.add(famKey);
+    const kids = residentKids(fam);
+    const centers: number[] = [];
+    let cursor = left + COUPLE_MARGIN;
+    for (const kid of kids) {
+      const w = measurePerson(kid);
+      placePerson(kid, cursor);
+      centers.push(cursor + w / 2);
+      cursor += w + SIBLING_GAP;
+    }
+    const minC = centers.length ? Math.min(...centers) : left + COUPLE_MARGIN;
+    const maxC = centers.length ? Math.max(...centers) : left + COUPLE_MARGIN;
     const p1 = byId.get(fam.partner1_id);
     const p2 = byId.get(fam.partner2_id);
     let leftP = p1;
     let rightP = p2;
-    if (p1 && p2 && p1.x > p2.x) {
+    if (p1 && p2 && drawnXOf(p1.id) > drawnXOf(p2.id)) {
       leftP = p2;
       rightP = p1;
     }
     if (leftP) {
-      leftP.x = minK - COUPLE_MARGIN;
+      leftP.x = minC - COUPLE_MARGIN;
       placed.add(leftP.id);
     }
     if (rightP && rightP !== leftP) {
-      rightP.x = maxK + COUPLE_MARGIN;
+      rightP.x = maxC + COUPLE_MARGIN;
       placed.add(rightP.id);
     }
-    // Keep the cursor past this family's right bracket for the next unit.
-    cursor = Math.max(cursor, maxK + COUPLE_MARGIN + SIBLING_SPACING);
   };
 
-  // Start only from top-lineage roots that HEAD a family (have descendants),
-  // left-to-right by their drawn X. Childless partners / isolated people are
-  // handled in the mop-up below.
-  const roots = people
-    .filter((p) => !p.parentPartnership && familyOf(p))
-    .sort((a, b) => a.x - b.x);
-  for (const r of roots) place(r);
+  // Roots = families whose anchor is a top person (no drawn parents) or null,
+  // placed left-to-right by their drawn X.
+  const rootFamilies = familiesWithKids
+    .filter((fam) => {
+      const a = anchorOf.get(fam.id) ?? null;
+      return a === null || !byId.get(a)?.parentPartnership;
+    })
+    .sort((a, b) => {
+      const ax = Math.min(drawnXOf(a.partner1_id), drawnXOf(a.partner2_id));
+      const bx = Math.min(drawnXOf(b.partner1_id), drawnXOf(b.partner2_id));
+      return ax - bx;
+    });
+
+  let cursor = 0;
+  for (const fam of rootFamilies) {
+    if (placed.has(`fam:${fam.id}`)) continue;
+    placeFamily(fam, cursor);
+    cursor += measureFamily(fam) + ROOT_GAP;
+  }
 
   // Mop up anyone still unplaced: a childless partner sits beside their already
-  // placed partner; a fully isolated person is appended at the right.
+  // placed partner (without landing on a sibling); a fully isolated person is
+  // appended at the right.
   for (const person of people) {
     if (placed.has(person.id)) continue;
     const mate = partnerships
@@ -560,19 +606,17 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
       .map((id) => byId.get(id))
       .find((m) => m && placed.has(m.id));
     if (mate) {
-      // Sit beside the mate, but never on top of someone already placed on the
-      // same generation row (a childless spouse dropped into a full sibling row).
       const sameRow = people.filter(
         (o) => o.id !== person.id && placed.has(o.id) && Math.round(o.y) === Math.round(person.y)
       );
-      const collides = (x: number) => sameRow.some((o) => Math.abs(o.x - x) < SIBLING_SPACING);
-      let candidate = mate.x + SIBLING_SPACING;
+      const collides = (x: number) => sameRow.some((o) => Math.abs(o.x - x) < SLOT);
+      let candidate = mate.x + SLOT;
       let guard = 0;
-      while (collides(candidate) && guard++ < people.length * 2) candidate += SIBLING_SPACING;
+      while (collides(candidate) && guard++ < people.length * 2) candidate += SLOT;
       person.x = candidate;
     } else {
       person.x = cursor;
-      cursor += SIBLING_SPACING;
+      cursor += SLOT;
     }
     placed.add(person.id);
   }
@@ -846,6 +890,9 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //       families, the couple stays in the larger birth family's row and the
   //       other partner is "married-in": its birth family is not stretched to
   //       reach it (a longer parent-child connector runs to it instead)
+  //   R21 Reingold-Tilford tree layout — measure each subtree's width bottom-up,
+  //       then place top-down so every parent is centered over its children while
+  //       staying in its own sibling row (siblings spaced by subtree width)
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================

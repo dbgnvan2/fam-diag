@@ -217,8 +217,8 @@ always kept. No year-gap is thresholded into a generation boundary (parent→chi
 
 ### Horizontal family layout — R19 (2026-07-08)
 
-`applyFamilyXLayout` replaces the old per-family sibling-centering with a post-order sweep
-over the family forest (single left-to-right cursor). Guarantees:
+`applyFamilyXLayout` replaces the old per-family sibling-centering with a Reingold-Tilford
+tree layout (measure subtree widths bottom-up, place top-down — see R21 below). Guarantees:
 - **Couple wider than its children row** — the left partner's X is left of the smallest
   child X and the right partner's X is right of the largest child X (the Partner
   Relationship Line brackets the sibling row).
@@ -234,12 +234,19 @@ its birth family is **not** stretched to bracket a child who has moved next to t
 spouse — a longer parent-child connector runs to it instead. On Jennie's Boy this keeps
 Charlie/Mae compact (Art marries into Jennie's side) rather than stretching across the page.
 
-**Still open — deep pedigree-collapse stretch.** R20 fixes the *married-in* partner's
-birth family, but the *anchor's* own couple can still be pulled wide by its subtree (on
-Jennie's Boy the great-grandparents' line is still wide because their descendant Jennie is
-positioned over her children). Fully flattening this needs a Reingold-Tilford-style pass
-that centres each parent over its children while keeping it in its sibling row — a larger
-layout rewrite, not yet done. The R19 bracketing invariant holds throughout.
+**R21 — Reingold-Tilford tree layout (done).** `applyFamilyXLayout` now MEASURES each
+subtree's width bottom-up, then PLACES top-down: every parent couple is centered over its
+children while staying in its own sibling row, and siblings are spaced by their measured
+subtree widths (families never overlap; drawn order preserved). This fixes the earlier
+symptom where a parent with a big family (Jennie) was dragged out of her sibling row — she
+now sits among her siblings with her family centered below her, and Wayne sits with Ben/
+Craig/Brian. A couple's Partner Relationship Line can still be genuinely wide when one
+child heads a large subtree (e.g. the great-grandparents span to reach Lucy, who heads a
+wide family) — that width is a correct reflection of the tree shape, not a layout bug.
+
+Implementation note: sibling order and left/right-partner decisions use a snapshot of the
+drawn X taken **before** placement mutates `person.x`, so re-sorting mid-layout can't
+scramble the order.
 
 ### Layout-rule changes (2026-07-08)
 

@@ -523,3 +523,49 @@ describe('factsToDiagramImportData — R19 packed family X layout', () => {
     expect(new Set(kidXs).size).toBe(3);
   });
 });
+
+describe('factsToDiagramImportData — R21 Reingold-Tilford centering', () => {
+  it('centers a parent couple over its children', () => {
+    const facts: FactsImportData = {
+      people: [
+        { name: 'Dad', sex: 'male', x: 40, y: 20 },
+        { name: 'Mom', sex: 'female', x: 60, y: 20 },
+        { name: 'C1', sex: 'male', x: 30, y: 60 },
+        { name: 'C2', sex: 'female', x: 50, y: 60 },
+        { name: 'C3', sex: 'male', x: 70, y: 60 },
+      ],
+      relationships: [{ a: 'Dad', b: 'Mom', children: ['C1', 'C2', 'C3'] }],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    const x = (n: string) => find(people, n).x;
+    const coupleCenter = (x('Dad') + x('Mom')) / 2;
+    const childrenCenter = (Math.min(x('C1'), x('C2'), x('C3')) + Math.max(x('C1'), x('C2'), x('C3'))) / 2;
+    expect(Math.abs(coupleCenter - childrenCenter)).toBeLessThan(1);
+  });
+
+  it('preserves sibling order even when one sibling has a wide subtree', () => {
+    // BigKid heads a family (so its layout mutates X during placement). Sibling order
+    // must still follow the drawn order — the regression the drawn-order snapshot fixes.
+    const facts: FactsImportData = {
+      people: [
+        { name: 'GA', sex: 'male', x: 40, y: 20 },
+        { name: 'GB', sex: 'female', x: 60, y: 20 },
+        { name: 'BigKid', sex: 'female', x: 30, y: 50 },
+        { name: 'MidKid', sex: 'male', x: 55, y: 50 },
+        { name: 'SmallKid', sex: 'male', x: 80, y: 50 },
+        { name: 'Sp', sex: 'male', x: 20, y: 50 },
+        { name: 'g1', sex: 'male', x: 20, y: 80 },
+        { name: 'g2', sex: 'female', x: 30, y: 80 },
+        { name: 'g3', sex: 'male', x: 40, y: 80 },
+      ],
+      relationships: [
+        { a: 'GA', b: 'GB', children: ['BigKid', 'MidKid', 'SmallKid'] },
+        { a: 'BigKid', b: 'Sp', children: ['g1', 'g2', 'g3'] },
+      ],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    const x = (n: string) => find(people, n).x;
+    expect(x('BigKid')).toBeLessThan(x('MidKid'));
+    expect(x('MidKid')).toBeLessThan(x('SmallKid'));
+  });
+});
