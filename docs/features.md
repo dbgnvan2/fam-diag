@@ -170,3 +170,29 @@ Anchor points:
 - Person additionally `true` on hover (`hoveredPersonId === person.id`)
 
 `useCanvasDragHandlers.ts` has `handle{Type}NoteDragEnd` / `handle{Type}NoteResizeEnd` for each.
+
+## Image import — hand-drawn genogram → diagram (Claude Vision VLM)
+
+Turns a photo/scan of a hand-drawn family diagram into an editable diagram via a single
+Claude Vision call. Entry point: File > **Import Family Diagram** (`AppRibbon.tsx`) →
+`DiagramEditor.handleImageDiagramAnalyze`.
+
+Pipeline:
+1. `utils/genogram/vlmImport.ts` — downscales the image and calls the Anthropic API
+   (browser-direct; key from `localStorage['anthropic_api_key']`). Prompt encodes standard
+   genogram notation + drawn-line and twin rules. Returns `FactsImportData`.
+2. `applyDataRules` in `utils/genogram/genogramRules.ts` — PHASE 1 fact-check/auto-fix
+   rules **R1–R6** (filter pregnancy/miscarriage markers, dedupe names, clean dangling
+   refs, block sibling marriages).
+3. `factsToDiagramImportData` in `utils/dataImport.ts` — builds people/partnerships, then
+   PHASE 2 layout rules **R7–R21**: longest-path generations (R7–R10, married-in inherits
+   partner), unknown-sex/stillbirth sizing with a 30px floor (R16/R17), twin grouping
+   (R18), and the horizontal `applyFamilyXLayout` (R19 no-overlap + couple-brackets-kids,
+   R20 married-in mate anchoring, R21 Reingold-Tilford centering). Age is only a soft
+   check — it never overrides a drawn line.
+4. `ImageDiagramReviewModal.tsx` — review draft before it loads.
+
+The full rule catalogue (R1–R21) is documented in the `genogramRules.ts` header and mirrored
+in the layout comment block of `dataImport.ts`. Design/status: [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md).
+The retired classical-CV pipeline is described in [genogram-import-status.md](genogram-import-status.md)
+(historical only).

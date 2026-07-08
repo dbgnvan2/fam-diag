@@ -11,6 +11,7 @@ Read the relevant file from `~/.claude/standards/` before starting work:
 | `ui-regression.md` | Any change to an existing screen, modal, or control |
 | `file-maintainability.md` | Any new file or significant refactor |
 | `learnings.md` | P3 (scope completeness — check all 5 EventCard call sites), P8 (dirty-state tests) |
+| [`./LEARNINGS.md`](LEARNINGS.md) | Repo-specific fix log (L1–L5): subsystem pivots, generation/layout algorithms, mutation-during-sort, fixture pitfalls, the two typecheck gates |
 
 ## Pre-completion checklist (all 3 must pass before declaring done)
 

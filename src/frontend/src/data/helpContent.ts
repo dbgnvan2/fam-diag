@@ -133,14 +133,26 @@ export const HELP_SECTIONS: HelpSection[] = [
       'The timeline strip remains visible even when no events fall within the selected year range, so you can always see the timeline controls and date context.',
     ],
   },
+  {
+    title: 'Import from Image (hand-drawn diagrams)',
+    tips: [
+      'File > Import Family Diagram turns a photo or scan of a hand-drawn family diagram (genogram) into an editable diagram using AI. Requires an Anthropic API key set in the AI settings.',
+      'Privacy: the image is sent to Anthropic (Claude) to be read. Only upload diagrams you are allowed to share with a third-party AI service, and avoid identifying details you do not want transmitted.',
+      'Standard genogram notation is read directly: square = male, circle = female, an X through a symbol = deceased, a triangle = pregnancy (not a person), a small star/asterisk = miscarriage (not a person), and a plain X at the end of a descending line = stillbirth.',
+      'Parent-child links come ONLY from lines you actually drew: a child connected to a couple\'s relationship line is kept; a symbol with no connecting line is left unattached rather than guessed into a family.',
+      'Twins drawn as an inverted "V" (two lines meeting on the couple\'s line) or inverted "Y" (a stem that splits) are grouped as a multiple birth.',
+      'Layout is generated for you: generations are stacked by the drawn parent-child lines (ages are only a soft check, never overriding a drawn line), each couple\'s relationship line is drawn wider than its children row, families are spaced so they do not overlap, and every parent is centered over its children.',
+      'The import is a starting draft — review names, sexes, dates, and links afterward. Anything the AI was unsure about is listed in the Ideas panel for you to check.',
+    ],
+  },
 ];
 
 export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
   'file-menu': {
     title: 'File Menu',
     demoTitle: 'Ribbon · File Menu',
-    body: 'File > New clears the canvas and immediately asks for a filename so the fresh diagram is saved right away. Opens New, Open, Save/Save As, import, export, Event Creator launch, and Quit actions.',
-    demoBody: 'Use the File menu to access New/Open/Save/Save As/import/export actions. File > New clears the canvas and prompts for a name before saving.',
+    body: 'File > New clears the canvas and immediately asks for a filename so the fresh diagram is saved right away. Opens New, Open, Save/Save As, import, export, Event Creator launch, and Quit actions. File > Import Family Diagram turns a photo/scan of a hand-drawn genogram into an editable diagram using AI (image is sent to Anthropic; see the "Import from Image" help section).',
+    demoBody: 'Use the File menu to access New/Open/Save/Save As/import/export actions. File > New clears the canvas and prompts for a name before saving. File > Import Family Diagram builds a diagram from a hand-drawn photo.',
   },
   save: {
     title: 'Save',
