@@ -36,8 +36,13 @@
  *     R18 Twins/multiples (inverted-V or inverted-Y descent cue) grouped via a
  *         shared multipleBirthGroupId + connectionAnchorX (renders inverted-V)
  *     R19 Packed family X layout — families don't overlap on X and each couple's
- *         Partner Relationship Line is wider than its children row (left partner X
- *         < smallest child X, right partner X > largest child X)
+ *         Partner Relationship Line is wider than its (resident) children row (left
+ *         partner X < smallest child X, right partner X > largest child X)
+ *     R20 Married-in mate anchoring — when both partners were born into families
+ *         drawn on the page, the couple stays in the LARGER birth family's row and
+ *         the other partner is "married-in": its birth family is not stretched to
+ *         reach it; a longer parent-child connector runs to it instead. (Reduces
+ *         cross-lineage stretch; full pedigree-collapse layout is still future work.)
  *
  * Each rule:
  *   - Has a clear name and description

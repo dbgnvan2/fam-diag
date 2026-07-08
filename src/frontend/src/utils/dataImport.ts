@@ -458,12 +458,38 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
   const byId = new Map(people.map((p) => [p.id, p]));
   const childrenOf = (partnershipId: string) =>
     people.filter((p) => p.parentPartnership === partnershipId).sort((a, b) => a.x - b.x);
+
+  // R20 — married-in mate anchoring. When BOTH partners of a couple were born into
+  // families drawn on this page, they can't both stay in their own sibling row, so
+  // the couple's subtree hangs from the LARGER birth family (the "anchor") and the
+  // other partner is the "married-in" mate: it moves next to the anchor and its own
+  // birth family is not stretched to reach it (its parent line simply runs longer).
+  const siblingCount = (person: Person) =>
+    person.parentPartnership ? childrenOf(person.parentPartnership).length : 0;
+  const marriedIn = new Set<string>();
+  for (const pt of partnerships) {
+    const p1 = byId.get(pt.partner1_id);
+    const p2 = byId.get(pt.partner2_id);
+    if (!p1 || !p2 || !p1.parentPartnership || !p2.parentPartnership) continue;
+    const c1 = siblingCount(p1);
+    const c2 = siblingCount(p2);
+    let anchorId: string;
+    if (c1 !== c2) anchorId = c1 > c2 ? p1.id : p2.id; // bigger birth family stays put
+    else if (p1.x !== p2.x) anchorId = p1.x < p2.x ? p1.id : p2.id; // else leftmost drawn
+    else anchorId = p1.id < p2.id ? p1.id : p2.id; // stable final tie-break
+    marriedIn.add(anchorId === p1.id ? p2.id : p1.id);
+  }
+
+  // A person "heads" a family for layout only if they are its anchor (not the
+  // married-in mate) — the anchor is what triggers the subtree placement.
   const familyOf = (person: Person) =>
-    partnerships.find(
-      (pt) =>
-        (pt.partner1_id === person.id || pt.partner2_id === person.id) &&
-        childrenOf(pt.id).length > 0
-    );
+    marriedIn.has(person.id)
+      ? undefined
+      : partnerships.find(
+          (pt) =>
+            (pt.partner1_id === person.id || pt.partner2_id === person.id) &&
+            childrenOf(pt.id).length > 0
+        );
 
   const placed = new Set<string>();
   let cursor = 0;
@@ -487,8 +513,12 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
       if (i < kids.length - 1 && familyOf(kid)) cursor += SUBTREE_GAP;
     });
 
-    const minK = Math.min(...kids.map((k) => k.x));
-    const maxK = Math.max(...kids.map((k) => k.x));
+    // Bracket only around RESIDENT children — a child who married out (R20) has
+    // moved next to their spouse, so we don't stretch this couple to reach them.
+    const spanKids = kids.filter((k) => !marriedIn.has(k.id));
+    const bracketKids = spanKids.length > 0 ? spanKids : kids;
+    const minK = Math.min(...bracketKids.map((k) => k.x));
+    const maxK = Math.max(...bracketKids.map((k) => k.x));
 
     // Bracket the couple around the children (parents wider than children row),
     // preserving which partner is drawn on the left.
@@ -812,6 +842,10 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //   R18 Twins/multiples grouped (inverted-V/Y cue)  → multipleBirthGroupId
   //   R19 Families don't overlap on X; couple wider   → applyFamilyXLayout
   //       than its children row (PRL brackets kids)
+  //   R20 Married-in mate anchoring — when both partners were born into drawn
+  //       families, the couple stays in the larger birth family's row and the
+  //       other partner is "married-in": its birth family is not stretched to
+  //       reach it (a longer parent-child connector runs to it instead)
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================

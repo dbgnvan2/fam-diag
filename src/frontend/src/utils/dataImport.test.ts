@@ -354,18 +354,22 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
     }
   });
 
-  it('brackets every couple wider than its children row (R19)', () => {
+  it('brackets every couple wider than its RESIDENT children row (R19, R20)', () => {
     const { people, partnerships } = factsToDiagramImportData(jennieFacts());
     const byId = new Map(people.map((p) => [p.id, p]));
+    // A child who is themselves a parent in another family may have married out
+    // (R20) and moved next to their spouse, so a couple need only bracket the
+    // children that still reside in its row.
+    const isParentElsewhere = (id: string) =>
+      partnerships.some((pt) => (pt.partner1_id === id || pt.partner2_id === id) && pt.children.length > 0);
     for (const pt of partnerships) {
-      if (pt.children.length === 0) continue;
-      const kidsX = pt.children.map((id) => byId.get(id)!.x);
+      const residentKids = pt.children.filter((id) => !isParentElsewhere(id));
+      if (residentKids.length === 0) continue;
+      const kidsX = residentKids.map((id) => byId.get(id)!.x);
       const p1 = byId.get(pt.partner1_id)!;
       const p2 = byId.get(pt.partner2_id)!;
-      const leftPartnerX = Math.min(p1.x, p2.x);
-      const rightPartnerX = Math.max(p1.x, p2.x);
-      expect(leftPartnerX).toBeLessThan(Math.min(...kidsX)); // left partner left of all kids
-      expect(rightPartnerX).toBeGreaterThan(Math.max(...kidsX)); // right partner right of all kids
+      expect(Math.min(p1.x, p2.x)).toBeLessThan(Math.min(...kidsX)); // left partner left of resident kids
+      expect(Math.max(p1.x, p2.x)).toBeGreaterThan(Math.max(...kidsX)); // right partner right of them
     }
   });
 });
@@ -408,6 +412,54 @@ describe('factsToDiagramImportData — age as a soft generation check', () => {
     const child = find(result.people, 'Older Child');
     expect(child.parentPartnership).toBe(result.partnerships[0].id);
     expect(result.partnerships[0].children).toContain(child.id);
+  });
+});
+
+describe('factsToDiagramImportData — R20 married-in mate anchoring', () => {
+  // Family A (3 kids) is larger than Family B (2 kids). A child of each marries the
+  // other. R20 keeps the couple in A's row (anchor) and marks B's child married-in,
+  // so B's couple is NOT stretched to reach the child who moved to their spouse.
+  const crossLineageFacts = (): FactsImportData => ({
+    people: [
+      { name: 'Amom', sex: 'female', x: 10 },
+      { name: 'Adad', sex: 'male', x: 20 },
+      { name: 'AsibL', sex: 'female', x: 5, y: 40 },
+      { name: 'AsibR', sex: 'male', x: 15, y: 40 },
+      { name: 'Amarry', sex: 'female', x: 25, y: 40 },
+      { name: 'Bmom', sex: 'female', x: 80 },
+      { name: 'Bdad', sex: 'male', x: 90 },
+      { name: 'Bsib', sex: 'female', x: 75, y: 40 },
+      { name: 'Bmarry', sex: 'male', x: 85, y: 40 },
+      { name: 'GC1', sex: 'male', x: 45, y: 70 },
+      { name: 'GC2', sex: 'female', x: 55, y: 70 },
+    ],
+    relationships: [
+      { a: 'Amom', b: 'Adad', children: ['AsibL', 'AsibR', 'Amarry'] },
+      { a: 'Bmom', b: 'Bdad', children: ['Bsib', 'Bmarry'] },
+      { a: 'Amarry', b: 'Bmarry', children: ['GC1', 'GC2'] },
+    ],
+  });
+
+  it('does not stretch the married-in partner’s birth family to reach them', () => {
+    const { people } = factsToDiagramImportData(crossLineageFacts());
+    const x = (n: string) => find(people, n).x;
+    // Family B brackets its RESIDENT child (Bsib) ...
+    expect(Math.min(x('Bmom'), x('Bdad'))).toBeLessThan(x('Bsib'));
+    expect(Math.max(x('Bmom'), x('Bdad'))).toBeGreaterThan(x('Bsib'));
+    // ... and Bmarry (married out) is NOT inside Family B's couple span — the couple
+    // stays compact and a longer parent-child connector reaches Bmarry instead.
+    const bLeft = Math.min(x('Bmom'), x('Bdad'));
+    const bRight = Math.max(x('Bmom'), x('Bdad'));
+    expect(x('Bmarry') < bLeft || x('Bmarry') > bRight).toBe(true);
+  });
+
+  it('still brackets the married couple over their own children', () => {
+    const { people } = factsToDiagramImportData(crossLineageFacts());
+    const x = (n: string) => find(people, n).x;
+    const kidMin = Math.min(x('GC1'), x('GC2'));
+    const kidMax = Math.max(x('GC1'), x('GC2'));
+    expect(Math.min(x('Amarry'), x('Bmarry'))).toBeLessThan(kidMin);
+    expect(Math.max(x('Amarry'), x('Bmarry'))).toBeGreaterThan(kidMax);
   });
 });
 

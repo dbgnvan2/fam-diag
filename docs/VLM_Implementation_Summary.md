@@ -226,12 +226,20 @@ over the family forest (single left-to-right cursor). Guarantees:
 - A childless married-in spouse is seated beside their partner without landing on top of
   a sibling already in that row (collision-avoided).
 
-**Known limitation — cross-lineage marriages.** When a person belongs to two families
-(e.g. Jennie is Ned/Lucy's child *and* Art's wife), their subtree can only hang from one
-side, which pulls the other lineage's couple wide (on Jennie's Boy the great-grandparents'
-line stretches because their child Lucy is dragged toward her husband's family). The
-bracketing invariant still holds, but proper "married-in" mate placement (drawing the
-person once with a connector) is a further refinement, not yet implemented.
+**R20 — married-in mate anchoring.** When both partners of a couple were born into
+families drawn on the page (e.g. Art is Charlie/Mae's child *and* Jennie is Ned/Lucy's
+child), they can't both stay in their own sibling row. R20 keeps the couple in the
+**larger** birth family's row (the "anchor") and marks the other partner "married-in":
+its birth family is **not** stretched to bracket a child who has moved next to their
+spouse — a longer parent-child connector runs to it instead. On Jennie's Boy this keeps
+Charlie/Mae compact (Art marries into Jennie's side) rather than stretching across the page.
+
+**Still open — deep pedigree-collapse stretch.** R20 fixes the *married-in* partner's
+birth family, but the *anchor's* own couple can still be pulled wide by its subtree (on
+Jennie's Boy the great-grandparents' line is still wide because their descendant Jennie is
+positioned over her children). Fully flattening this needs a Reingold-Tilford-style pass
+that centres each parent over its children while keeping it in its sibling row — a larger
+layout rewrite, not yet done. The R19 bracketing invariant holds throughout.
 
 ### Layout-rule changes (2026-07-08)
 
