@@ -129,9 +129,32 @@ export default function ImageDiagramModal({
           </button>
         </div>
 
-        <div style={{ marginBottom: 16, color: '#666', fontSize: 14 }}>
+        <div style={{ marginBottom: 12, color: '#666', fontSize: 14 }}>
           Upload a photo or scan of a hand-drawn family diagram. We'll use AI to extract the family members and
           relationships.
+        </div>
+
+        <div
+          role="note"
+          style={{
+            display: 'flex',
+            gap: 8,
+            border: '1px solid #ffe0b2',
+            background: '#fff8e1',
+            color: '#795548',
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginBottom: 16,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1.2 }}>🔒</span>
+          <span>
+            <strong>Privacy:</strong> this image is sent to Anthropic (Claude) to be analyzed. Only upload
+            diagrams you are permitted to share with a third-party AI service, and avoid including client
+            names or other identifying details you don't want transmitted.
+          </span>
         </div>
 
         <div

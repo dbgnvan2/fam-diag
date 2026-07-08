@@ -8,18 +8,15 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:genogram": "tsx scripts/integration-test.ts"
+    "test": "vitest"
   },
   "dependencies": {
-    "@techstark/opencv-js": "^4.12.0-release.1",
     "konva": "^9.3.6",
     "nanoid": "^5.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
-    "react-markdown": "^10.1.0",
-    "tesseract.js": "^6.0.1"
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

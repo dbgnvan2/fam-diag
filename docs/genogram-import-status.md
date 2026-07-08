@@ -1,5 +1,11 @@
 # Image-to-Diagram Import — Status as of 2026-06-08
 
+> ⚠️ **RETIRED / HISTORICAL.** The classical-CV pipeline described below was replaced
+> by a Claude Vision (VLM) approach later on 2026-06-08 and its code has been deleted
+> from the repo. See [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md) for
+> the active path. This document is kept only for historical context on why the CV
+> approach was abandoned (the opencv.js browser-hang blocker below is what triggered the pivot).
+
 This document records the state of the CV-based genogram import pipeline at the close of the 2026-06-07/06-08 work session, what works, what doesn't, and the recommended next steps.
 
 ## What works (verified)

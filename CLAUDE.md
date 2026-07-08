@@ -2,6 +2,16 @@
 
 React 18 + TypeScript + Konva.js + Vite frontend at `src/frontend/`.
 
+## Global standards
+
+Read the relevant file from `~/.claude/standards/` before starting work:
+
+| Standard | When |
+|---|---|
+| `ui-regression.md` | Any change to an existing screen, modal, or control |
+| `file-maintainability.md` | Any new file or significant refactor |
+| `learnings.md` | P3 (scope completeness — check all 5 EventCard call sites), P8 (dirty-state tests) |
+
 ## Pre-completion checklist (all 3 must pass before declaring done)
 
 ```bash
@@ -92,18 +102,8 @@ Conventions: co-locate (`Foo.tsx` → `Foo.test.tsx`), `@testing-library/react` 
 - **Event system, builders, EventCard, modalTitle pipeline:** [docs/event-system.md](docs/event-system.md)
 - **AI Agent, Papero, SIR, FF, Predictions, Notes, Properties panel field visibility:** [docs/features.md](docs/features.md)
 - **Modal positioning, context menu, settings list reordering:** [docs/ui-patterns.md](docs/ui-patterns.md)
-- **Image-to-diagram import pipeline (CV+OCR), what works/doesn't:** [docs/genogram-import-status.md](docs/genogram-import-status.md)
+- **Image-to-diagram import (Claude Vision VLM — the active path):** [docs/VLM_Implementation_Summary.md](docs/VLM_Implementation_Summary.md). Active code: `src/frontend/src/utils/genogram/vlmImport.ts` + `genogramRules.ts` (R1–R17), wired through `DiagramEditor.handleImageDiagramAnalyze`. NOTE: `docs/genogram-import-status.md` describes the **retired** classical-CV pipeline and is kept only for historical context.
 - **Implementation plans:** [docs/implementation_plan_2026-06-06.md](docs/implementation_plan_2026-06-06.md), [docs/implementation_plan_2026-06-07.md](docs/implementation_plan_2026-06-07.md), [docs/implementation_plan_2026-06-07b.md](docs/implementation_plan_2026-06-07b.md), [docs/implementation_plan_2026-06-07c.md](docs/implementation_plan_2026-06-07c.md)
-
-## Integration testing
-
-In addition to `npx vitest run` (unit tests), the genogram CV pipeline has a Node-side integration suite:
-
-```bash
-cd src/frontend && npm run test:genogram
-```
-
-It runs the real pipeline against the three fixture images in `Test Data/` and asserts topology + shape invariants. See [docs/genogram-import-status.md](docs/genogram-import-status.md).
 
 ## Running without approval prompts
 

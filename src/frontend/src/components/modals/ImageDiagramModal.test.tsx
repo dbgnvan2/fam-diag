@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import ImageDiagramModal from './ImageDiagramModal';
@@ -23,6 +23,14 @@ describe('ImageDiagramModal', () => {
       <ImageDiagramModal open={true} onClose={() => {}} onAnalyze={async () => {}} />
     );
     expect(container.firstChild).not.toBeNull();
+  });
+
+  it('discloses that the image is sent to Anthropic before the user analyzes', () => {
+    // Privacy consent point: the user must be told the image leaves the app
+    // (browser-direct to Anthropic) before clicking Analyze.
+    render(<ImageDiagramModal open={true} onClose={() => {}} onAnalyze={async () => {}} />);
+    expect(screen.getByText(/sent to Anthropic/i)).toBeInTheDocument();
+    expect(screen.getByText(/Privacy/i)).toBeInTheDocument();
   });
 });
 

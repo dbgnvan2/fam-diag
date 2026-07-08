@@ -194,21 +194,24 @@ The VLM extraction prompt (§4 of spec, 270 lines) encodes:
 
 ## Testing & Validation
 
-### Unit Tests (TODO — next phase)
+### Unit Tests (added 2026-07-07)
 
-Need to add tests in `vlmImport.test.ts` and extend `dataImport.test.ts`:
+The active VLM path is now covered by 39 unit tests across three files:
 
-1. **VLM parsing:**
-   - Well-formed JSON → valid FactsImportData
-   - Malformed JSON (markdown fences, etc.) → graceful error
-   - Duplicate names → deduplicated + note added
+1. **`genogram/genogramRules.test.ts`** (13) — R1–R6 fact-check rules, including
+   adversarial cases (the `\bmale\b` boundary must not fire on "female"; sibling-incest
+   marriages removed while unrelated cross-family marriages survive; dangling refs cleaned).
+2. **`genogram/vlmImport.test.ts`** (9) — `parseVLMResponse`: markdown-fence stripping,
+   malformed-JSON errors, non-array coercion, primitive/null rejection (`parseVLMResponse`
+   was exported for this).
+3. **`dataImport.test.ts`** (13) — `factsToDiagramImportData`: sex→gender, birth/death
+   dates, deceased placeholder, X%→canvas-px conversion, relationship→partnership child
+   linking, R16 unknown-sex size, R17 stillbirth (explicit + implicit), and non-image
+   backward compatibility.
+4. **`modals/ImageDiagramModal.test.tsx`** — asserts the Anthropic privacy disclosure renders.
 
-2. **Data conversion:**
-   - `people[]` fields → Person properties correctly
-   - `sex: 'male'` → `gender: 'male'`
-   - `deceased: true` + `deathYear: 2020` → `deathDate: "2020-01-01"`
-   - `confidence: 'low'` → surfaces in uncertainties
-   - Existing transcript behavior unchanged
+The network/canvas parts of `vlmImport()` (fetch, `createImageBitmap`, canvas encode)
+remain browser-only and are covered by the browser smoke test below, not mocked.
 
 ### Browser Smoke Test
 
@@ -222,15 +225,16 @@ File → Image Diagram → Upload test image → Analyze:
 
 ---
 
-## What Stays (Not Removed)
+## Classical CV pipeline — REMOVED (2026-07-07)
 
-The classical CV pipeline (`src/utils/cv-js/`) remains in the repo but is **not imported** by any active code:
-
-- ~1500 lines of pure-JS OpenCV ops
-- Tests for contour detection, morphology, etc.
-- Can be deleted later or kept for reference
-
-**Why keep it?** In case someone wants to restore the offline-capable path in the future, the code is there. But it is NOT the active import path.
+The orphaned classical-CV code was deleted (~4,900 lines across 35 files): all of
+`src/utils/cv-js/`, the `src/utils/genogram/` CV modules (`pipeline`, `symbols`, `shape`,
+`xDetect`, `xRemove`, `connectors`, `preprocess`, `assemble`, `letterOcr`, `letterVlm`,
+`symbolRecord`), `cvLoader.ts`, `tesseractLoader.ts`, the `scripts/integration-test.ts`
+runner (and its `test:genogram` npm script), and the `@techstark/opencv-js` + `tesseract.js`
+dependencies. It had drifted out of the build/test gates (8 failing tests + 7 `tsc -b`
+errors). The active path is unaffected — it never imported any of it. History for the
+approach lives in the retired `docs/genogram-import-status.md`.
 
 ---
 
@@ -249,14 +253,15 @@ The classical CV pipeline (`src/utils/cv-js/`) remains in the repo but is **not 
 
 ---
 
-## Next Steps (Not in This Commit)
+## Next Steps
 
-1. **Write unit tests** for vlmImport and data conversion
-2. **Smoke test** in browser with real genogram images
-3. **Collect cost data** — actual per-image costs once deployed
-4. **Make settings configurable** — wire maxImageDimension, etc. to UI
-5. **Optional:** Document in user help ("Images are sent to Anthropic")
-6. **Optional:** Remove cv-js code if not needed elsewhere
+- [x] **Write unit tests** for vlmImport and data conversion — done 2026-07-07 (see Testing above)
+- [x] **Document that images are sent to Anthropic** — privacy disclosure added to `ImageDiagramModal`
+- [x] **Remove cv-js code** — done 2026-07-07 (see "Classical CV pipeline — REMOVED")
+- [ ] **Smoke test** in browser with real genogram images (measure accuracy vs. `jennie_boy_diagram.json`)
+- [ ] **Collect cost data** — actual per-image costs once deployed
+- [ ] **Make settings configurable** — wire `maxImageDimension`, `imageQuality`, etc. to the UI
+- [ ] **Remove the debug overlay** — `vlmImport.ts` still injects a red `#vlm-debug-overlay` div on every import; this is dev scaffolding that should be gated or removed before wider release
 
 ---
 

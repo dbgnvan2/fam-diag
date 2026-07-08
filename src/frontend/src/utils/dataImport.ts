@@ -564,7 +564,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     });
   }
 
-  (facts.relationships || []).forEach((rel, index) => {
+  (facts.relationships || []).forEach((rel) => {
     if (!rel.a || !rel.b) return;
     const personA = getPerson(rel.a);
     const personB = getPerson(rel.b);

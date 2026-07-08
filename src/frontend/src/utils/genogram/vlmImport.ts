@@ -337,8 +337,10 @@ RULES:
 /**
  * Parse VLM JSON response and validate as FactsImportData.
  * Handles common formatting issues (markdown fences, etc).
+ *
+ * Exported for unit testing.
  */
-function parseVLMResponse(text: string): FactsImportData {
+export function parseVLMResponse(text: string): FactsImportData {
   // Strip markdown code fences if present
   let clean = text.trim();
   if (clean.startsWith('```json')) clean = clean.slice(7);

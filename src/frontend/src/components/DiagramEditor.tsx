@@ -47,7 +47,6 @@ import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
 import { ImportLog } from '../utils/importLog';
-import { runGenogramPipeline } from '../utils/genogram/pipeline';
 import {
   convertExtractedToDiagram,
   applyNotesPositions,
