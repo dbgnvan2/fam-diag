@@ -435,6 +435,119 @@ export const parseTranscriptToDraftDiagram = (
 // Facts JSON → draft diagram
 // ---------------------------------------------------------------------------
 
+/**
+ * Horizontal (X) layout for image imports (R11+R12+R19). Y is already set by
+ * generation; this assigns X so that:
+ *   - each family occupies its own horizontal space (families don't overlap),
+ *   - the drawn left-to-right order of siblings is preserved (R12), and
+ *   - every couple's Partner Relationship Line is WIDER than its children row:
+ *     the left partner sits left of the smallest child X and the right partner
+ *     sits right of the largest child X ("parents wider than children row").
+ *
+ * Method: a post-order sweep over the family forest with a single left-to-right
+ * cursor. Leaves take fixed slots (so no two subtrees overlap); each couple is
+ * then bracketed around its already-placed children. A partner that is itself a
+ * child of another family keeps the X its own family gave it (post-order
+ * guarantees children are placed before their parents bracket them).
+ */
+function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void {
+  const SIBLING_SPACING = 80; // between adjacent leaf units
+  const COUPLE_MARGIN = 40; // couple sits this far outside its child span
+  const SUBTREE_GAP = 60; // extra gap after a child that heads its own family
+
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const childrenOf = (partnershipId: string) =>
+    people.filter((p) => p.parentPartnership === partnershipId).sort((a, b) => a.x - b.x);
+  const familyOf = (person: Person) =>
+    partnerships.find(
+      (pt) =>
+        (pt.partner1_id === person.id || pt.partner2_id === person.id) &&
+        childrenOf(pt.id).length > 0
+    );
+
+  const placed = new Set<string>();
+  let cursor = 0;
+
+  const place = (person: Person): void => {
+    if (placed.has(person.id)) return;
+    placed.add(person.id);
+
+    const fam = familyOf(person);
+    const kids = fam ? childrenOf(fam.id) : [];
+
+    if (!fam || kids.length === 0) {
+      person.x = cursor;
+      cursor += SIBLING_SPACING;
+      return;
+    }
+
+    // Place children first (post-order), with a gap after any child subtree.
+    kids.forEach((kid, i) => {
+      place(kid);
+      if (i < kids.length - 1 && familyOf(kid)) cursor += SUBTREE_GAP;
+    });
+
+    const minK = Math.min(...kids.map((k) => k.x));
+    const maxK = Math.max(...kids.map((k) => k.x));
+
+    // Bracket the couple around the children (parents wider than children row),
+    // preserving which partner is drawn on the left.
+    const p1 = byId.get(fam.partner1_id);
+    const p2 = byId.get(fam.partner2_id);
+    let leftP = p1;
+    let rightP = p2;
+    if (p1 && p2 && p1.x > p2.x) {
+      leftP = p2;
+      rightP = p1;
+    }
+    if (leftP) {
+      leftP.x = minK - COUPLE_MARGIN;
+      placed.add(leftP.id);
+    }
+    if (rightP && rightP !== leftP) {
+      rightP.x = maxK + COUPLE_MARGIN;
+      placed.add(rightP.id);
+    }
+    // Keep the cursor past this family's right bracket for the next unit.
+    cursor = Math.max(cursor, maxK + COUPLE_MARGIN + SIBLING_SPACING);
+  };
+
+  // Start only from top-lineage roots that HEAD a family (have descendants),
+  // left-to-right by their drawn X. Childless partners / isolated people are
+  // handled in the mop-up below.
+  const roots = people
+    .filter((p) => !p.parentPartnership && familyOf(p))
+    .sort((a, b) => a.x - b.x);
+  for (const r of roots) place(r);
+
+  // Mop up anyone still unplaced: a childless partner sits beside their already
+  // placed partner; a fully isolated person is appended at the right.
+  for (const person of people) {
+    if (placed.has(person.id)) continue;
+    const mate = partnerships
+      .filter((pt) => pt.partner1_id === person.id || pt.partner2_id === person.id)
+      .map((pt) => (pt.partner1_id === person.id ? pt.partner2_id : pt.partner1_id))
+      .map((id) => byId.get(id))
+      .find((m) => m && placed.has(m.id));
+    if (mate) {
+      // Sit beside the mate, but never on top of someone already placed on the
+      // same generation row (a childless spouse dropped into a full sibling row).
+      const sameRow = people.filter(
+        (o) => o.id !== person.id && placed.has(o.id) && Math.round(o.y) === Math.round(person.y)
+      );
+      const collides = (x: number) => sameRow.some((o) => Math.abs(o.x - x) < SIBLING_SPACING);
+      let candidate = mate.x + SIBLING_SPACING;
+      let guard = 0;
+      while (collides(candidate) && guard++ < people.length * 2) candidate += SIBLING_SPACING;
+      person.x = candidate;
+    } else {
+      person.x = cursor;
+      cursor += SIBLING_SPACING;
+    }
+    placed.add(person.id);
+  }
+}
+
 export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => {
   const peopleByName = new Map<string, Person>();
   const getPerson = (name: string) => {
@@ -685,18 +798,20 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   // PHASE 2 LAYOUT RULES — applied after partnerships are built.
   // See: utils/genogram/genogramRules.ts for full rule documentation.
   //
-  //   R7  Each generation has same Y                  → snap via BFS depth
-  //   R8  Partners have same Y (same generation)      → iterate until consistent
+  //   R7  Each generation has same Y                  → longest-path depth (Step 1)
+  //   R8  Partners share a generation                 → married-in inherits partner
   //   R9  Siblings have same Y                        → share parentPartnership → same gen
   //   R10 Generations separated by N px on Y axis     → GENERATION_Y_GAP
-  //   R11 Siblings spaced N px apart on X axis        → SIBLING_SPACING
-  //   R12 Preserve X sequence — never reorder         → ratio-based positioning
-  //   R13 Children X within parents' X range          → sibling X placement
+  //   R11 Siblings spaced N px apart on X axis        → applyFamilyXLayout
+  //   R12 Preserve X sequence — never reorder         → sort by drawn X in layout
+  //   R13 Children X within parents' X range          → couple brackets children (R19)
   //   R14 (removed) — no positional inference of parent-child links (rule 2)
   //   R15 Partnership connector Y consistent per gen  → recompute after Y snap
   //   R16 Unknown-sex symbols are smaller (≥30 floor) → person.size = 30
   //   R17 Stillbirth detection (X at end of line)     → lifeStatus = 'stillbirth'
   //   R18 Twins/multiples grouped (inverted-V/Y cue)  → multipleBirthGroupId
+  //   R19 Families don't overlap on X; couple wider   → applyFamilyXLayout
+  //       than its children row (PRL brackets kids)
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================
@@ -832,34 +947,12 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       }
     }
 
-    // === Step 3: R11+R12 — Sibling X spacing + preserve sequence ===
-    // R11: Fixed 80px center-to-center (≈40px between symbol edges)
-    // R12: Order preserved by sorting siblings by X then placing in sequence
-    // Siblings = people who share the same parentPartnership (data-model rule)
-    // Siblings are centered around their original X midpoint.
-    const SIBLING_SPACING = 80; // pixels between sibling centers
-    const siblingGroups = new Map<string, Person[]>();
-    for (const person of people) {
-      if (!person.parentPartnership) continue;
-      if (!siblingGroups.has(person.parentPartnership)) {
-        siblingGroups.set(person.parentPartnership, []);
-      }
-      siblingGroups.get(person.parentPartnership)!.push(person);
-    }
-
-    for (const siblings of siblingGroups.values()) {
-      if (siblings.length < 2) continue;
-
-      const sortedByX = [...siblings].sort((a, b) => a.x - b.x);
-      const originalCenter =
-        (sortedByX[0].x + sortedByX[sortedByX.length - 1].x) / 2;
-      const totalWidth = (sortedByX.length - 1) * SIBLING_SPACING;
-      const startX = originalCenter - totalWidth / 2;
-
-      sortedByX.forEach((person, i) => {
-        person.x = startX + i * SIBLING_SPACING;
-      });
-    }
+    // === Step 3: R11+R12+R19 — Packed family X layout ===
+    // Pack each family left-to-right so families don't overlap (R19), keeping the
+    // drawn left-to-right order (R12) and fixed sibling spacing (R11). Also brackets
+    // every couple wider than its children row (left partner X < smallest child X,
+    // right partner X > largest child X). See applyFamilyXLayout below.
+    applyFamilyXLayout(people, partnerships);
 
     // === Step 4: R15 — Partnership connector Y consistent per generation ===
     // After Y snapping, recompute horizontalConnectorY so all partnerships at the

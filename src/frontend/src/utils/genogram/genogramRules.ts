@@ -35,6 +35,9 @@
  *         → lifeStatus = 'stillbirth' (renderer can style accordingly)
  *     R18 Twins/multiples (inverted-V or inverted-Y descent cue) grouped via a
  *         shared multipleBirthGroupId + connectionAnchorX (renders inverted-V)
+ *     R19 Packed family X layout — families don't overlap on X and each couple's
+ *         Partner Relationship Line is wider than its children row (left partner X
+ *         < smallest child X, right partner X > largest child X)
  *
  * Each rule:
  *   - Has a clear name and description

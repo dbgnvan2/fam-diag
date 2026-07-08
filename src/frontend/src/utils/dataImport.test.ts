@@ -60,16 +60,21 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       expect(find(people, 'Wayne Adams').deathDate).toBeUndefined();
     });
 
-    it('converts an image X percentage to a canvas X pixel', () => {
-      // CANVAS width 1200, padding 100 → x%=50 → 100 + 0.5*(1200-200) = 600.
-      // NOTE: Y is intentionally NOT asserted here — for image imports the layout
-      // rules (R7–R10) re-snap Y by generation after this conversion, so only the
-      // horizontal position from the image survives (R12 preserve X sequence).
-      const facts: FactsImportData = { people: [{ name: 'Wayne Adams', sex: 'male', x: 50, y: 50 }] };
+    it('uses image X percentage as left-to-right order, not absolute pixels (R12)', () => {
+      // For image imports BOTH axes are layout-determined: Y by generation, X by the
+      // packed family layout (R19). The image x% only fixes the drawn L-R ORDER, so a
+      // person drawn further left ends up left of one drawn further right.
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Pa', sex: 'male' },
+          { name: 'Ma', sex: 'female' },
+          { name: 'LeftKid', sex: 'male', x: 20, y: 60 },
+          { name: 'RightKid', sex: 'female', x: 80, y: 60 },
+        ],
+        relationships: [{ a: 'Pa', b: 'Ma', children: ['LeftKid', 'RightKid'] }],
+      };
       const { people } = factsToDiagramImportData(facts);
-      const wayne = find(people, 'Wayne Adams');
-      expect(wayne.x).toBe(600);
-      expect(Number.isFinite(wayne.y)).toBe(true);
+      expect(find(people, 'LeftKid').x).toBeLessThan(find(people, 'RightKid').x);
     });
   });
 
@@ -325,6 +330,44 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
     const { partnerships } = factsToDiagramImportData(jennieFacts());
     expect(partnerships).toHaveLength(ref.partnerships.length); // both have 5 families
   });
+
+  it('does not place a childless married-in spouse on top of a sibling (Rose vs Craig)', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    const rose = find(people, 'Rose');
+    // Rose married into a full sibling row (Ben/Craig/Wayne/Brian) — she must not
+    // land exactly on any of them.
+    for (const sib of ['Ben', 'Craig', 'Wayne', 'Brian']) {
+      expect(find(people, sib).x).not.toBe(rose.x);
+    }
+  });
+
+  it('gives every person a unique position on their generation row', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    const byRow = new Map<number, number[]>();
+    for (const p of people) {
+      const row = Math.round(p.y);
+      if (!byRow.has(row)) byRow.set(row, []);
+      byRow.get(row)!.push(Math.round(p.x));
+    }
+    for (const xs of byRow.values()) {
+      expect(new Set(xs).size).toBe(xs.length); // no two people share an (x,y)
+    }
+  });
+
+  it('brackets every couple wider than its children row (R19)', () => {
+    const { people, partnerships } = factsToDiagramImportData(jennieFacts());
+    const byId = new Map(people.map((p) => [p.id, p]));
+    for (const pt of partnerships) {
+      if (pt.children.length === 0) continue;
+      const kidsX = pt.children.map((id) => byId.get(id)!.x);
+      const p1 = byId.get(pt.partner1_id)!;
+      const p2 = byId.get(pt.partner2_id)!;
+      const leftPartnerX = Math.min(p1.x, p2.x);
+      const rightPartnerX = Math.max(p1.x, p2.x);
+      expect(leftPartnerX).toBeLessThan(Math.min(...kidsX)); // left partner left of all kids
+      expect(rightPartnerX).toBeGreaterThan(Math.max(...kidsX)); // right partner right of all kids
+    }
+  });
 });
 
 describe('factsToDiagramImportData — age as a soft generation check', () => {
@@ -365,5 +408,66 @@ describe('factsToDiagramImportData — age as a soft generation check', () => {
     const child = find(result.people, 'Older Child');
     expect(child.parentPartnership).toBe(result.partnerships[0].id);
     expect(result.partnerships[0].children).toContain(child.id);
+  });
+});
+
+describe('factsToDiagramImportData — R19 packed family X layout', () => {
+  it('places a couple’s Partner Relationship Line wider than its children row', () => {
+    const facts: FactsImportData = {
+      people: [
+        { name: 'Pa', sex: 'male', x: 40 },
+        { name: 'Ma', sex: 'female', x: 60 },
+        { name: 'A', sex: 'male', x: 30, y: 60 },
+        { name: 'B', sex: 'female', x: 50, y: 60 },
+        { name: 'C', sex: 'male', x: 70, y: 60 },
+      ],
+      relationships: [{ a: 'Pa', b: 'Ma', children: ['A', 'B', 'C'] }],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    const x = (n: string) => find(people, n).x;
+    const kidMin = Math.min(x('A'), x('B'), x('C'));
+    const kidMax = Math.max(x('A'), x('B'), x('C'));
+    expect(Math.min(x('Pa'), x('Ma'))).toBeLessThan(kidMin);
+    expect(Math.max(x('Pa'), x('Ma'))).toBeGreaterThan(kidMax);
+  });
+
+  it('keeps two sibling families from overlapping on X', () => {
+    const facts: FactsImportData = {
+      people: [
+        { name: 'GpaA', sex: 'male', x: 20 },
+        { name: 'GmaA', sex: 'female', x: 25 },
+        { name: 'GpaB', sex: 'male', x: 70 },
+        { name: 'GmaB', sex: 'female', x: 75 },
+        { name: 'A1', sex: 'male', x: 18, y: 60 },
+        { name: 'A2', sex: 'female', x: 27, y: 60 },
+        { name: 'B1', sex: 'male', x: 68, y: 60 },
+        { name: 'B2', sex: 'female', x: 77, y: 60 },
+      ],
+      relationships: [
+        { a: 'GpaA', b: 'GmaA', children: ['A1', 'A2'] },
+        { a: 'GpaB', b: 'GmaB', children: ['B1', 'B2'] },
+      ],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    const x = (n: string) => find(people, n).x;
+    // Family A's whole X-extent must sit entirely left of family B's — no interleaving.
+    const familyAmax = Math.max(x('GpaA'), x('GmaA'), x('A1'), x('A2'));
+    const familyBmin = Math.min(x('GpaB'), x('GmaB'), x('B1'), x('B2'));
+    expect(familyAmax).toBeLessThan(familyBmin);
+  });
+
+  it('assigns a distinct X to every person in a generation (no exact collisions)', () => {
+    const { people } = factsToDiagramImportData({
+      people: [
+        { name: 'P1', sex: 'male' },
+        { name: 'P2', sex: 'female' },
+        { name: 'K1', sex: 'male', x: 30, y: 60 },
+        { name: 'K2', sex: 'female', x: 50, y: 60 },
+        { name: 'K3', sex: 'male', x: 70, y: 60 },
+      ],
+      relationships: [{ a: 'P1', b: 'P2', children: ['K1', 'K2', 'K3'] }],
+    });
+    const kidXs = ['K1', 'K2', 'K3'].map((n) => find(people, n).x);
+    expect(new Set(kidXs).size).toBe(3);
   });
 });

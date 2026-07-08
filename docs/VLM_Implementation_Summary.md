@@ -215,6 +215,24 @@ younger than a drawn parent) into `uncertainties` for review — the drawn struc
 always kept. No year-gap is thresholded into a generation boundary (parent→child can be
 ~17y; siblings up to ~20y).
 
+### Horizontal family layout — R19 (2026-07-08)
+
+`applyFamilyXLayout` replaces the old per-family sibling-centering with a post-order sweep
+over the family forest (single left-to-right cursor). Guarantees:
+- **Couple wider than its children row** — the left partner's X is left of the smallest
+  child X and the right partner's X is right of the largest child X (the Partner
+  Relationship Line brackets the sibling row).
+- **Families don't overlap** and the drawn left-to-right sibling order is preserved (R12).
+- A childless married-in spouse is seated beside their partner without landing on top of
+  a sibling already in that row (collision-avoided).
+
+**Known limitation — cross-lineage marriages.** When a person belongs to two families
+(e.g. Jennie is Ned/Lucy's child *and* Art's wife), their subtree can only hang from one
+side, which pulls the other lineage's couple wide (on Jennie's Boy the great-grandparents'
+line stretches because their child Lucy is dragged toward her husband's family). The
+bracketing invariant still holds, but proper "married-in" mate placement (drawing the
+person once with a connector) is a further refinement, not yet implemented.
+
 ### Layout-rule changes (2026-07-08)
 
 - **R14 removed** — the old positional "spatial inference" that auto-attached an
