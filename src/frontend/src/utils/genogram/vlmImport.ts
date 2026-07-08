@@ -111,10 +111,10 @@ export async function vlmImport(
     ];
   }
 
-  // Log extracted data for debugging (to console AND to page)
-  const debugData = {
+  // Log a concise extraction summary to the console for debugging.
+  console.log('[vlmImport] Extracted facts:', {
     peopleCount: facts.people?.length ?? 0,
-    people: facts.people?.map(p => ({
+    people: facts.people?.map((p) => ({
       name: p.name,
       x: p.x,
       y: p.y,
@@ -123,25 +123,13 @@ export async function vlmImport(
       deathYear: p.deathYear,
     })),
     relationshipCount: facts.relationships?.length ?? 0,
-    relationships: facts.relationships?.map(r => ({
+    relationships: facts.relationships?.map((r) => ({
       a: r.a,
       b: r.b,
       type: r.type,
       children: r.children || [],
     })),
-  };
-  console.log('[vlmImport] Extracted facts:', debugData);
-
-  // Also display on page so we can see it in screenshots
-  // Remove any existing debug overlay first to avoid accumulation
-  const existingDebugDiv = document.getElementById('vlm-debug-overlay');
-  if (existingDebugDiv) existingDebugDiv.remove();
-
-  const debugDiv = document.createElement('div');
-  debugDiv.id = 'vlm-debug-overlay';
-  debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:white;border:2px solid red;padding:10px;max-height:400px;overflow-y:auto;z-index:9999;font-size:10px;font-family:monospace;max-width:400px;';
-  debugDiv.innerHTML = `<strong style="color:red">[VLM Debug]</strong> <button onclick="this.parentElement.remove()" style="float:right;cursor:pointer;">×</button><pre>${JSON.stringify(debugData, null, 2)}</pre>`;
-  document.body.appendChild(debugDiv);
+  });
 
   // Step 4: (Deduplication is now handled by R3 in applyDataRules above)
 

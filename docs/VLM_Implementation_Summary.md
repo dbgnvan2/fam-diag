@@ -261,7 +261,7 @@ approach lives in the retired `docs/genogram-import-status.md`.
 - [ ] **Smoke test** in browser with real genogram images (measure accuracy vs. `jennie_boy_diagram.json`)
 - [ ] **Collect cost data** — actual per-image costs once deployed
 - [ ] **Make settings configurable** — wire `maxImageDimension`, `imageQuality`, etc. to the UI
-- [ ] **Remove the debug overlay** — `vlmImport.ts` still injects a red `#vlm-debug-overlay` div on every import; this is dev scaffolding that should be gated or removed before wider release
+- [x] **Remove the debug overlay** — the red `#vlm-debug-overlay` div is gone (2026-07-07); a concise `console.log` extraction summary remains for debugging
 
 ---
 
