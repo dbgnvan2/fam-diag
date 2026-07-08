@@ -89,11 +89,24 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
     });
   });
 
-  describe('R16 — unknown-sex symbols render at reduced size', () => {
-    it('sets size to 15 for an unknown-sex person', () => {
+  describe('R16 — unknown-sex symbols render smaller, but never below the 30px floor', () => {
+    it('sets size to 30 for an unknown-sex person (rule 3 floor)', () => {
       const facts: FactsImportData = { people: [{ name: 'Mystery X', sex: 'unknown' }] };
       const { people } = factsToDiagramImportData(facts);
-      expect(find(people, 'Mystery X').size).toBe(15);
+      expect(find(people, 'Mystery X').size).toBe(30);
+    });
+
+    it('never sizes any imported person below 30 points', () => {
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Mystery X', sex: 'unknown' },
+          { name: 'Baby X', sex: 'unknown', deceased: true, notes: 'stillbirth' },
+        ],
+      };
+      const { people } = factsToDiagramImportData(facts);
+      for (const p of people) {
+        if (p.size !== undefined) expect(p.size).toBeGreaterThanOrEqual(30);
+      }
     });
 
     it('does not shrink a known-sex person', () => {
@@ -111,7 +124,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const { people } = factsToDiagramImportData(facts);
       const baby = find(people, 'Baby X');
       expect(baby.lifeStatus).toBe('stillbirth');
-      expect(baby.size).toBe(15);
+      expect(baby.size).toBe(30);
     });
 
     it('infers stillbirth from unknown-sex + deceased + no birth year + child of a partnership', () => {
@@ -131,6 +144,80 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts: FactsImportData = { people: [{ name: 'Mystery X', sex: 'unknown' }] };
       const { people } = factsToDiagramImportData(facts);
       expect(find(people, 'Mystery X').lifeStatus).toBeUndefined();
+    });
+  });
+
+  describe('rule 2 — no positional inference of parent-child links', () => {
+    it('leaves a person unattached when no line links them to a couple, even directly below', () => {
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Wayne Adams', sex: 'male', x: 30, y: 20 },
+          { name: 'Jennie Boyd', sex: 'female', x: 50, y: 20 },
+          { name: 'Orphan Below', sex: 'male', x: 40, y: 70 }, // sits under the couple, but NO children link
+        ],
+        relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: [] }],
+      };
+      const { people, partnerships } = factsToDiagramImportData(facts);
+      const orphan = find(people, 'Orphan Below');
+      expect(orphan.parentPartnership).toBeUndefined();
+      expect(partnerships.every((p) => !p.children.includes(orphan.id))).toBe(true);
+    });
+
+    it('still attaches a child that IS explicitly linked (rule 1)', () => {
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Wayne Adams', sex: 'male' },
+          { name: 'Jennie Boyd', sex: 'female' },
+          { name: 'Linked Kid', sex: 'female' },
+        ],
+        relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Linked Kid'] }],
+      };
+      const { people, partnerships } = factsToDiagramImportData(facts);
+      const kid = find(people, 'Linked Kid');
+      expect(kid.parentPartnership).toBe(partnerships[0].id);
+      expect(partnerships[0].children).toContain(kid.id);
+    });
+  });
+
+  describe('R18 — twins / multiple births', () => {
+    const twinFacts = (): FactsImportData => ({
+      people: [
+        { name: 'Wayne Adams', sex: 'male', x: 30 },
+        { name: 'Jennie Boyd', sex: 'female', x: 50 },
+        { name: 'Twin A', sex: 'female', x: 38, twinGroup: 't1' },
+        { name: 'Twin B', sex: 'male', x: 46, twinGroup: 't1' },
+      ],
+      relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Twin A', 'Twin B'] }],
+    });
+
+    it('gives twins a shared multipleBirthGroupId and a shared connectionAnchorX', () => {
+      const { people } = factsToDiagramImportData(twinFacts());
+      const a = find(people, 'Twin A');
+      const b = find(people, 'Twin B');
+      expect(a.multipleBirthGroupId).toBeDefined();
+      expect(a.multipleBirthGroupId).toBe(b.multipleBirthGroupId);
+      expect(a.connectionAnchorX).toBe(b.connectionAnchorX);
+    });
+
+    it('does not group an ordinary sibling that has no twinGroup', () => {
+      const facts = twinFacts();
+      facts.people!.push({ name: 'Solo Sib', sex: 'male' });
+      facts.relationships![0].children!.push('Solo Sib');
+      const { people } = factsToDiagramImportData(facts);
+      expect(find(people, 'Solo Sib').multipleBirthGroupId).toBeUndefined();
+    });
+
+    it('does not create a multiple-birth group from a single twinGroup member', () => {
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Wayne Adams', sex: 'male' },
+          { name: 'Jennie Boyd', sex: 'female' },
+          { name: 'Lonely Twin', sex: 'female', twinGroup: 't1' },
+        ],
+        relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Lonely Twin'] }],
+      };
+      const { people } = factsToDiagramImportData(facts);
+      expect(find(people, 'Lonely Twin').multipleBirthGroupId).toBeUndefined();
     });
   });
 

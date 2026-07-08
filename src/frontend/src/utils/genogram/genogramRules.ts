@@ -23,11 +23,14 @@
  *     R11 Siblings spaced N px apart on X axis (80px default)
  *     R12 Preserve X sequence — never reorder siblings or couples
  *     R13 Children X positioned under parents' partnership range
- *     R14 Process top-left to bottom-right — spatial inference for orphans
+ *     R14 (removed) — parent-child links come ONLY from drawn lines; a person is
+ *         never inferred to be a couple's child from position alone
  *     R15 Partnership connector Y consistent per generation
- *     R16 Unknown-sex symbols rendered 1/4 size (15px vs default 60px)
+ *     R16 Unknown-sex symbols rendered smaller, but never below the 30px floor
  *     R17 Stillbirth detection — small X at end of descending line
  *         → lifeStatus = 'stillbirth' (renderer can style accordingly)
+ *     R18 Twins/multiples (inverted-V or inverted-Y descent cue) grouped via a
+ *         shared multipleBirthGroupId + connectionAnchorX (renders inverted-V)
  *
  * Each rule:
  *   - Has a clear name and description

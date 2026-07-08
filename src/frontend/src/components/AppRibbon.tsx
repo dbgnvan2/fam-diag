@@ -232,7 +232,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Open', action: handleOpenFilePicker },
     { label: 'Import Data', action: handleImportDataPicker },
     { label: 'Import Person Events', action: handleImportPersonEventsPicker },
-    { label: 'Image Diagram', action: handleImageDiagramPicker },
+    { label: 'Import Family Diagram', action: handleImageDiagramPicker },
     { label: 'Save', action: () => handleSave(false) },
     { label: 'Save As', action: handleSaveAs },
     { label: 'Restore Backup (Browser)', action: () => void handleOpenBackupRestore() },

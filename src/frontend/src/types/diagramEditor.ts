@@ -235,6 +235,13 @@ export type FactsImportData = {
     notes?: string; // Adjacent text (b.1968, div. 2021, etc.)
     x?: number; // Position as % of image width (0-100), measured to symbol center
     y?: number; // Position as % of image height (0-100), measured to symbol center
+    /**
+     * Twin/multiple-birth grouping. People who share the same non-empty
+     * twinGroup value AND the same parent partnership are rendered as a
+     * multiple-birth group (inverted-V). Set by the VLM when it sees the
+     * inverted-V or inverted-Y twin cue descending from a couple's line.
+     */
+    twinGroup?: string;
   }>;
 };
 

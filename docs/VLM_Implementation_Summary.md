@@ -184,11 +184,27 @@ The VLM extraction prompt (§4 of spec, 270 lines) encodes:
 3. **Relationship extraction**
    - Marriage/divorce years, partnership status
    - Child lineages via vertical lines
+   - **Drawn lines only** — a child→couple link is recorded only when a connecting line
+     is actually drawn; a person with no connecting line is left unattached (never
+     inferred from position). Conversely, no drawn line may be omitted.
+   - **Twins** — inverted-V (lines meet on the couple's line) or inverted-Y (a stem
+     splits) descent cues tag the cluster with a shared `twinGroup`.
 
 4. **Uncertainty surfacing**
    - Low-confidence reads → confidence field in people[]
    - Ambiguous symbols → uncertainties[] array
    - User sees what to review
+
+### Layout-rule changes (2026-07-08)
+
+- **R14 removed** — the old positional "spatial inference" that auto-attached an
+  unlinked person sitting below a couple as their child is gone. Parent-child links now
+  come exclusively from drawn lines the VLM reads (`relationships[].children`).
+- **R16 floor** — unknown-sex / stillbirth symbols are still drawn smaller but never
+  below **30px** (was 15px).
+- **R18 added** — twins are grouped into a `multipleBirthGroupId` with a shared
+  `connectionAnchorX`, rendering as the existing inverted-V multiple-birth style.
+- **Menu** — the File-menu entry is now **"Import Family Diagram"** (was "Image Diagram").
 
 ---
 

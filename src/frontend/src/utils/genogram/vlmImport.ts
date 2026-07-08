@@ -210,6 +210,16 @@ SYMBOL KEY (standard genogram notation — apply strictly, by shape):
 - "m.YYYY" near a couple line = marriage year. "div. YYYY" or a double slash = divorce.
 - Text like "b.1968" or "b.1940 d.2014" next to a symbol = birth / death years.
 
+TWINS / MULTIPLE BIRTHS:
+Two (or more) children are TWINS when their descent lines join, forming either:
+  (a) an inverted "V" — two lines meeting at a single point ON the couple's horizontal line, or
+  (b) an inverted "Y" — a single stem drops from the couple's line and then splits into two lines
+      at its lower end.
+When you see either pattern, give every child in that cluster the SAME "twinGroup" label (e.g.
+"twinsA"), and still list each of them individually in people[] and in that couple's children[].
+Children whose lines descend and meet at a single shared point are twins; children each hanging
+from their OWN separate vertical line are ordinary (non-twin) siblings — do NOT give those a twinGroup.
+
 READING X-ED SYMBOLS: a heavy X often overlaps the letter inside. Do your best to read the letter UNDER the X. If you cannot, set name to "" and confidence "low".
 
 UNIQUE-LABEL RULE (CRITICAL):
@@ -241,7 +251,7 @@ Return a single JSON object with these keys:
   },
   "uncertainties": [string, ...],
   "people": [
-    { "name": label, "sex": "male"|"female"|"unknown", "deceased": boolean, "birthYear": number|null, "deathYear": number|null, "confidence": "high"|"med"|"low", "notes": "adjacent text", "x": 0-100, "y": 0-100 }
+    { "name": label, "sex": "male"|"female"|"unknown", "deceased": boolean, "birthYear": number|null, "deathYear": number|null, "confidence": "high"|"med"|"low", "notes": "adjacent text", "x": 0-100, "y": 0-100, "twinGroup": string|null }
   ]
 }
 
@@ -256,6 +266,10 @@ RULES:
 - CRITICAL: For every couple/partnership with children, make sure BOTH partners exist as separate persons in people[] — even if one is labeled with just a "c" symbol or unclear letter. If a child exists, the parents must both exist as named people.
 - CRITICAL: Children (sibship rows) connected to a parental couple by vertical lines — extract EVERY symbol in the sibship row, including isolated/labeled-only children that may not appear in any other relationship.
 - CRITICAL: For every relationship/couple, you MUST list the children of that couple in the "children" array (using the same labels). Identify children by: vertical line descending from the couple's horizontal partnership line to the child(ren). This is how parent-child connections are preserved.
+- CHILD LINES — follow the drawing exactly (do NOT guess):
+  - If a line IS drawn from a child down to (or up to) a couple's horizontal relationship line, you MUST record that child in that couple's children[] — never leave a drawn connection out.
+  - If NO line is drawn between a person and a couple's relationship line, do NOT invent a parent-child link, even if that person sits directly below the couple. A person with no connecting line is unattached — omit them from every children[] list.
+- TWINS: when child descent lines join as an inverted V (meeting on the couple's line) or an inverted Y (a stem that splits), give every child in that cluster the SAME non-null "twinGroup" label. Otherwise leave "twinGroup" null.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
   const userMessage = 'Extract all people and relationships from this genogram image.';

@@ -691,58 +691,24 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //   R10 Generations separated by N px on Y axis     → GENERATION_Y_GAP
   //   R11 Siblings spaced N px apart on X axis        → SIBLING_SPACING
   //   R12 Preserve X sequence — never reorder         → ratio-based positioning
-  //   R13 Children X within parents' X range          → via spatial inference
-  //   R14 Process top-left to bottom-right            → spatial inference for orphans
+  //   R13 Children X within parents' X range          → sibling X placement
+  //   R14 (removed) — no positional inference of parent-child links (rule 2)
   //   R15 Partnership connector Y consistent per gen  → recompute after Y snap
-  //   R16 Unknown-sex symbols are 1/4 size            → person.size = 15
+  //   R16 Unknown-sex symbols are smaller (≥30 floor) → person.size = 30
   //   R17 Stillbirth detection (X at end of line)     → lifeStatus = 'stillbirth'
+  //   R18 Twins/multiples grouped (inverted-V/Y cue)  → multipleBirthGroupId
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================
   const isImageImport = Boolean(facts.people && facts.people.length > 0);
 
   if (isImageImport) {
-    // === Step 0: R14 — Top-left to bottom-right reading order ===
-    // Spatial inference for unattached people:
-    // If a person has no parentPartnership AND is positioned below a partnership
-    // AND within (or near) the partners' X range, infer they're a child of that partnership.
-    // This catches people the VLM extracted but didn't explicitly link as children.
-    for (const person of people) {
-      if (person.parentPartnership) continue; // already linked
-
-      let bestPartnership: Partnership | null = null;
-      let bestYDistance = Infinity;
-      const X_MARGIN = 100; // pixel tolerance for "within parents' range"
-      const MAX_Y_DISTANCE = 350; // ~ one generation gap + slack
-
-      for (const partnership of partnerships) {
-        const p1 = people.find((p) => p.id === partnership.partner1_id);
-        const p2 = people.find((p) => p.id === partnership.partner2_id);
-        if (!p1 || !p2) continue;
-
-        const partnershipY = (p1.y + p2.y) / 2;
-        const minPartnerX = Math.min(p1.x, p2.x);
-        const maxPartnerX = Math.max(p1.x, p2.x);
-
-        // Person must be below the partnership
-        const yDistance = person.y - partnershipY;
-        if (yDistance <= 0 || yDistance > MAX_Y_DISTANCE) continue;
-
-        // Person X must be within parents' X range (with margin)
-        if (person.x < minPartnerX - X_MARGIN || person.x > maxPartnerX + X_MARGIN) continue;
-
-        // Choose the closest partnership above (smallest Y distance)
-        if (yDistance < bestYDistance) {
-          bestYDistance = yDistance;
-          bestPartnership = partnership;
-        }
-      }
-
-      if (bestPartnership) {
-        person.parentPartnership = bestPartnership.id;
-        bestPartnership.children = [...(bestPartnership.children || []), person.id];
-      }
-    }
+    // === Step 0: (removed) — no spatial inference of parent-child links ===
+    // Per the import rules, a child→partnership connection is created ONLY when a
+    // line was actually drawn between them (captured by the VLM as rel.children).
+    // We deliberately do NOT infer a parentPartnership from position alone: a person
+    // sitting below a couple but with no drawn connecting line must be left
+    // unattached rather than fabricated into that couple's child.
 
     // === Step 1: R7+R9 — Compute generation depth via partnership graph BFS ===
     // (R7 each generation has same Y, R9 siblings share parentPartnership → share gen)
@@ -877,10 +843,11 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       }
     }
 
-    // === Step 5: R16 — Unknown-sex people render as smaller symbol (1/4 size) ===
+    // === Step 5: R16 — Unknown-sex people render as smaller symbol ===
     // Per user spec: unknown-sex symbols (X without enclosing shape, or otherwise unknown)
-    // should appear smaller than known-sex symbols.
-    const UNKNOWN_SEX_SIZE = 15; // 1/4 of default ~60px
+    // should appear smaller than known-sex symbols — but never below the 30px floor
+    // (rule 3: no person object smaller than 30 points).
+    const UNKNOWN_SEX_SIZE = 30; // minimum person size (rule 3 floor)
     const importedBySex = new Map(
       (facts.people || []).map((p) => [p.name, p.sex])
     );
@@ -920,6 +887,32 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         if (!person.size || person.size > UNKNOWN_SEX_SIZE) {
           person.size = UNKNOWN_SEX_SIZE;
         }
+      }
+    }
+
+    // === Step 7: R18 — Twins / multiple births ===
+    // The VLM tags twins (inverted-V or inverted-Y cue) with a shared twinGroup.
+    // People who share the same non-empty twinGroup AND the same parent partnership
+    // become a multiple-birth group: a shared multipleBirthGroupId + a shared
+    // connectionAnchorX (their X midpoint) so their child lines converge on the PRL
+    // as an inverted-V, matching the existing multiple-birth data model.
+    const twinKeyToMembers = new Map<string, Person[]>();
+    for (const person of people) {
+      const imported = importedByName.get(person.name);
+      const group = imported?.twinGroup?.trim();
+      if (!group || !person.parentPartnership) continue;
+      // Key by parentPartnership too: twins must share the same parents.
+      const key = `${person.parentPartnership}||${group}`;
+      if (!twinKeyToMembers.has(key)) twinKeyToMembers.set(key, []);
+      twinKeyToMembers.get(key)!.push(person);
+    }
+    for (const members of twinKeyToMembers.values()) {
+      if (members.length < 2) continue; // a group of one is not a multiple birth
+      const groupId = nanoid();
+      const anchorX = members.reduce((sum, p) => sum + p.x, 0) / members.length;
+      for (const member of members) {
+        member.multipleBirthGroupId = groupId;
+        member.connectionAnchorX = anchorX;
       }
     }
   }
