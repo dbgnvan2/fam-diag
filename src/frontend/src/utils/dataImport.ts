@@ -710,82 +710,113 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     // sitting below a couple but with no drawn connecting line must be left
     // unattached rather than fabricated into that couple's child.
 
-    // === Step 1: R7+R9 — Compute generation depth via partnership graph BFS ===
-    // (R7 each generation has same Y, R9 siblings share parentPartnership → share gen)
-    // This is more robust than Y clustering because the VLM Y values aren't precise.
+    // === Step 1: R7+R8+R9 — Generation depth via longest-path over drawn links ===
+    // Generation comes ONLY from real drawn parent→child lines (parentPartnership,
+    // built from rel.children). We assign each person a generation such that every
+    // child sits strictly below the DEEPER of its two parents (longest path), and
+    // partners share a generation — a married-in spouse with no drawn parents inherits
+    // their partner's depth, never the other way around. This replaces the old
+    // first-arrival BFS, which let a married-in root (e.g. a spouse with no parents
+    // drawn) drag their deep-ancestry partner up to generation 0.
+    // (R7 same gen → same Y; R8 partners same gen; R9 siblings share gen.)
     const personGeneration = new Map<string, number>();
+    for (const person of people) personGeneration.set(person.id, 0);
+    const genOf = (id: string) => personGeneration.get(id) ?? 0;
 
-    // Find people who are children of some partnership
-    const childIds = new Set<string>();
-    partnerships.forEach((p) => {
-      (p.children || []).forEach((cid) => childIds.add(cid));
-    });
-
-    // Roots = people who are NOT children of any partnership
-    const queue: Array<{ personId: string; gen: number }> = [];
-    for (const person of people) {
-      if (!childIds.has(person.id)) {
-        personGeneration.set(person.id, 0);
-        queue.push({ personId: person.id, gen: 0 });
-      }
-    }
-
-    // BFS: spouses get same generation, children get gen+1
-    // SAFETY: cap iterations to prevent infinite loops from cycles
-    const MAX_BFS_ITERATIONS = people.length * 10;
-    let iterations = 0;
-    while (queue.length > 0 && iterations++ < MAX_BFS_ITERATIONS) {
-      const { personId, gen } = queue.shift()!;
-      const person = people.find((p) => p.id === personId);
-      if (!person) continue;
-
-      for (const partnershipId of person.partnerships || []) {
-        const partnership = partnerships.find((p) => p.id === partnershipId);
-        if (!partnership) continue;
-
-        // Set partner to same generation (only if not already assigned)
-        const partnerId =
-          partnership.partner1_id === personId
-            ? partnership.partner2_id
-            : partnership.partner1_id;
-        if (!personGeneration.has(partnerId)) {
-          personGeneration.set(partnerId, gen);
-          queue.push({ personId: partnerId, gen });
-        }
-
-        // Children of this partnership are gen + 1 (only assign once)
-        for (const childId of partnership.children || []) {
-          if (!personGeneration.has(childId)) {
-            personGeneration.set(childId, gen + 1);
-            queue.push({ personId: childId, gen: gen + 1 });
-          }
-        }
-      }
-    }
-    if (iterations >= MAX_BFS_ITERATIONS) {
-      console.warn('[vlmImport] BFS hit iteration cap — possible cycle in partnership graph');
-    }
-
-    // === Step 1.5: R8 — Partners have same Y (same generation) ===
-    // Rule: Partners must have same generation (Y axis).
-    // Iterate until all partners share the MAX of their generations
-    // (so if one is a child of grandparents, spouse joins them at that level).
-    let changed = true;
-    let safety = 0;
-    while (changed && safety++ < 20) {
-      changed = false;
+    // Relax to a fixpoint: child = max(parent gens)+1, then partners = max(both).
+    // Generations only ever increase, so this converges; the cap guards against a
+    // malformed parent-child cycle (someone made their own ancestor).
+    const MAX_GEN_ITERATIONS = people.length * people.length + 50;
+    let genChanged = true;
+    let genIterations = 0;
+    while (genChanged && genIterations++ < MAX_GEN_ITERATIONS) {
+      genChanged = false;
+      // (a) Each child is one generation below its deeper parent.
       for (const partnership of partnerships) {
-        const g1 = personGeneration.get(partnership.partner1_id);
-        const g2 = personGeneration.get(partnership.partner2_id);
-        if (g1 !== undefined && g2 !== undefined && g1 !== g2) {
-          const target = Math.max(g1, g2);
-          if (g1 !== target) {
-            personGeneration.set(partnership.partner1_id, target);
-            changed = true;
+        const parentGen = Math.max(genOf(partnership.partner1_id), genOf(partnership.partner2_id));
+        for (const childId of partnership.children || []) {
+          if (genOf(childId) < parentGen + 1) {
+            personGeneration.set(childId, parentGen + 1);
+            genChanged = true;
           }
-          if (g2 !== target) {
-            personGeneration.set(partnership.partner2_id, target);
-            changed = true;
+        }
+      }
+      // (b) Partners share the deeper of their two generations (married-in inherits).
+      for (const partnership of partnerships) {
+        const target = Math.max(genOf(partnership.partner1_id), genOf(partnership.partner2_id));
+        if (genOf(partnership.partner1_id) < target) {
+          personGeneration.set(partnership.partner1_id, target);
+          genChanged = true;
+        }
+        if (genOf(partnership.partner2_id) < target) {
+          personGeneration.set(partnership.partner2_id, target);
+          genChanged = true;
+        }
+      }
+    }
+    if (genIterations >= MAX_GEN_ITERATIONS) {
+      console.warn('[vlmImport] Generation relaxation hit iteration cap — possible cycle in parent-child graph');
+    }
+
+    // === Step 1.5: Age as a SOFT check — never overrides drawn lines ===
+    // Birth years (when present) are used only where the lines are silent, and to flag
+    // (not fix) contradictions. Parent→child gaps can be as small as ~17y and siblings
+    // as far apart as ~20y, so a year-gap is never thresholded into a generation
+    // boundary. Precedence: drawn line → marriage inheritance → age nudge → position.
+    const birthYearOf = (p: Person): number | null => {
+      const y = p.birthDate ? parseInt(p.birthDate.slice(0, 4), 10) : NaN;
+      return Number.isFinite(y) ? y : null;
+    };
+
+    // (a) Tier-3 nudge: a fully-disconnected person (no drawn parents, no partnership)
+    // with a birth year is placed into the generation band whose members' median birth
+    // year is closest — instead of defaulting to the top generation.
+    const medianBirthByGen = new Map<number, number>();
+    const yearsByGen = new Map<number, number[]>();
+    for (const person of people) {
+      const by = birthYearOf(person);
+      if (by === null) continue;
+      const g = genOf(person.id);
+      if (!yearsByGen.has(g)) yearsByGen.set(g, []);
+      yearsByGen.get(g)!.push(by);
+    }
+    for (const [g, years] of yearsByGen) {
+      years.sort((a, b) => a - b);
+      medianBirthByGen.set(g, years[Math.floor(years.length / 2)]);
+    }
+    if (medianBirthByGen.size > 0) {
+      for (const person of people) {
+        const isolated = !person.parentPartnership && (person.partnerships?.length ?? 0) === 0;
+        const by = birthYearOf(person);
+        if (!isolated || by === null) continue;
+        let bestGen = genOf(person.id);
+        let bestDelta = Infinity;
+        for (const [g, medianYear] of medianBirthByGen) {
+          const delta = Math.abs(by - medianYear);
+          if (delta < bestDelta) {
+            bestDelta = delta;
+            bestGen = g;
+          }
+        }
+        personGeneration.set(person.id, bestGen);
+      }
+    }
+
+    // (b) Flag age-impossible drawn links for review — but KEEP the drawn structure.
+    for (const partnership of partnerships) {
+      const parentYears = [partnership.partner1_id, partnership.partner2_id]
+        .map((id) => people.find((p) => p.id === id))
+        .map((p) => (p ? birthYearOf(p) : null));
+      for (const childId of partnership.children || []) {
+        const child = people.find((p) => p.id === childId);
+        const cy = child ? birthYearOf(child) : null;
+        if (!child || cy === null) continue;
+        for (const py of parentYears) {
+          if (py !== null && cy <= py) {
+            facts.uncertainties = [
+              ...(facts.uncertainties || []),
+              `[warn] Age check: "${child.name}" (b.${cy}) is not younger than a drawn parent (b.${py}); kept the drawn line — please verify.`,
+            ];
           }
         }
       }

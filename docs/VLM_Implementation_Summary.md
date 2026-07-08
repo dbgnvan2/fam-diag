@@ -195,6 +195,26 @@ The VLM extraction prompt (§4 of spec, 270 lines) encodes:
    - Ambiguous symbols → uncertainties[] array
    - User sees what to review
 
+### Generation-assignment fix (2026-07-08)
+
+Validated against the real "Jennie's Boy" hand-drawn diagram (`Jennies Boy Corrected.json`
+is the reference fixture). The old first-arrival BFS collapsed the tree: a married-in
+spouse with no drawn parents (Rose) was a graph root at generation 0 and dragged her
+deep-ancestry partner (Wayne, a great-grandchild) up to the top row, separating him from
+his own siblings; it also took a child's generation from whichever parent was reached
+first rather than the deeper one.
+
+Replaced with a **longest-path** pass (relax to fixpoint): every child sits strictly
+below the *deeper* of its two parents, and partners share the deeper generation so a
+married-in spouse inherits their partner's depth instead of the reverse.
+
+**Age is a soft check, never an override** (drawn line → marriage inheritance → age nudge
+→ position). Birth years, when present, (a) nudge a *fully-disconnected* dated person to
+the nearest-age generation band, and (b) flag age-impossible drawn links (a "child" not
+younger than a drawn parent) into `uncertainties` for review — the drawn structure is
+always kept. No year-gap is thresholded into a generation boundary (parent→child can be
+~17y; siblings up to ~20y).
+
 ### Layout-rule changes (2026-07-08)
 
 - **R14 removed** — the old positional "spatial inference" that auto-attached an

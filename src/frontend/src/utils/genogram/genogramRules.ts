@@ -16,9 +16,13 @@
  *     R6  Siblings cannot be married to each other — warn + remove relationship
  *
  *   PHASE 2: LAYOUT RULES (applied after partnerships built, in dataImport.ts)
- *     R7  Each generation has same Y — snap via BFS depth
- *     R8  Partners have same Y (same generation) — iterate until consistent
+ *     R7  Each generation has same Y — longest-path depth over drawn parent→child links
+ *     R8  Partners share a generation — married-in spouse (no drawn parents) inherits
+ *         the partner's depth; never drags an ancestral partner up to the top
  *     R9  Siblings have same Y — share parentPartnership → share generation
+ *     --  Age is a SOFT check only: it nudges fully-disconnected dated people to the
+ *         nearest-age band and flags age-impossible drawn links, but NEVER overrides a
+ *         drawn line (drawn line → marriage inheritance → age nudge → position)
  *     R10 Generations separated by N px on Y axis (200px default)
  *     R11 Siblings spaced N px apart on X axis (80px default)
  *     R12 Preserve X sequence — never reorder siblings or couples

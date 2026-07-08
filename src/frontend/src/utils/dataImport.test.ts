@@ -5,6 +5,8 @@
  * R13/R16/R17. Previously untested.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { factsToDiagramImportData } from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
 import type { Person } from '../types';
@@ -234,5 +236,134 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       // which may legitimately set a size for dense-family auto-resize.)
       expect(people.every((p) => p.lifeStatus === undefined)).toBe(true);
     });
+  });
+});
+
+/**
+ * Regression suite for the generation-assignment fix, driven by the real
+ * "Jennie's Boy" hand-drawn diagram. The old first-arrival BFS collapsed the
+ * tree and put Wayne (a great-grandchild) in the top generation because his
+ * wife Rose has no drawn parents. Longest-path assignment must place Wayne with
+ * his own siblings and below his parents. Corrected reference fixture:
+ * repo-root "Jennies Boy Corrected.json".
+ */
+describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
+  // Manual VLM-equivalent extraction of the photographed diagram (no birth years
+  // are written on it, so this exercises the STRUCTURAL fix, not the age tiers).
+  const jennieFacts = (): FactsImportData => ({
+    people: [
+      { name: 'Grandfather', sex: 'male', deceased: true },
+      { name: 'Grandmother', sex: 'female', deceased: true },
+      { name: 'Died@7yrs', sex: 'female', deceased: true },
+      { name: 'Helen', sex: 'female', deceased: true },
+      { name: 'Eileen', sex: 'female', deceased: true },
+      { name: 'Lucy', sex: 'female' },
+      { name: 'Ned', sex: 'male' },
+      { name: 'Charlie', sex: 'male', deceased: true },
+      { name: 'Mae White', sex: 'female', deceased: true },
+      { name: 'John', sex: 'male' },
+      { name: 'Gerald', sex: 'male' },
+      { name: 'Dennis', sex: 'male', deceased: true, twinGroup: 'dl' },
+      { name: 'Leonard', sex: 'male', twinGroup: 'dl' },
+      { name: 'Unnamed circle', sex: 'female' },
+      { name: 'Gordon', sex: 'male' },
+      { name: 'Art', sex: 'male' },
+      { name: 'Jennie', sex: 'female' },
+      { name: 'Ben', sex: 'male' },
+      { name: 'Craig', sex: 'male' },
+      { name: 'Wayne', sex: 'male' },
+      { name: 'Brian', sex: 'male' },
+      { name: 'Rose', sex: 'female' },
+    ],
+    relationships: [
+      { a: 'Grandfather', b: 'Grandmother', children: ['Died@7yrs', 'Helen', 'Eileen', 'Lucy'] },
+      { a: 'Ned', b: 'Lucy', children: ['John', 'Gerald', 'Dennis', 'Leonard', 'Unnamed circle', 'Jennie'] },
+      { a: 'Charlie', b: 'Mae White', children: ['Gordon', 'Art'] },
+      { a: 'Art', b: 'Jennie', children: ['Ben', 'Craig', 'Wayne', 'Brian'] },
+      { a: 'Wayne', b: 'Rose', children: [] },
+    ],
+  });
+
+  it('places Wayne in the SAME generation row as his siblings (not the top)', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    const wayne = find(people, 'Wayne');
+    for (const sib of ['Ben', 'Craig', 'Brian']) {
+      expect(find(people, sib).y).toBe(wayne.y);
+    }
+    // The old bug parked Wayne at the topmost generation — assert he is NOT there.
+    const topY = Math.min(...people.map((p) => p.y));
+    expect(wayne.y).toBeGreaterThan(topY);
+  });
+
+  it('keeps every child strictly below the deeper of its two parents', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    const y = (n: string) => find(people, n).y;
+    // Wayne below both parents
+    expect(y('Wayne')).toBeGreaterThan(y('Art'));
+    expect(y('Wayne')).toBeGreaterThan(y('Jennie'));
+    // Bug B: Ned/Lucy's children sit below Lucy (a grandparents' child), not level with Ned.
+    expect(y('Jennie')).toBeGreaterThan(y('Lucy'));
+    expect(y('Jennie')).toBeGreaterThan(y('Ned'));
+    // Grandparents are the topmost row.
+    expect(y('Grandfather')).toBe(Math.min(...people.map((p) => p.y)));
+  });
+
+  it('lets a married-in spouse with no drawn parents inherit their partner’s generation', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    // Rose has no parents drawn; she must sit with Wayne, not be treated as a top-gen root.
+    expect(find(people, 'Rose').y).toBe(find(people, 'Wayne').y);
+  });
+
+  it('produces the expected four generation bands', () => {
+    const { people } = factsToDiagramImportData(jennieFacts());
+    const bands = [...new Set(people.map((p) => p.y))].sort((a, b) => a - b);
+    expect(bands).toHaveLength(4); // grandparents → their kids → John/Jennie/Art gen → Wayne gen
+  });
+
+  it('matches the corrected reference on family count', () => {
+    const ref = JSON.parse(readFileSync(join(__dirname, '../../../../Jennies Boy Corrected.json'), 'utf8'));
+    const { partnerships } = factsToDiagramImportData(jennieFacts());
+    expect(partnerships).toHaveLength(ref.partnerships.length); // both have 5 families
+  });
+});
+
+describe('factsToDiagramImportData — age as a soft generation check', () => {
+  it('nudges a fully-disconnected dated person into the nearest-age generation band', () => {
+    const facts: FactsImportData = {
+      people: [
+        { name: 'Grandpa', sex: 'male', birthYear: 1900 },
+        { name: 'Grandma', sex: 'female', birthYear: 1905 },
+        { name: 'Parent A', sex: 'male', birthYear: 1930 },
+        { name: 'Parent B', sex: 'female', birthYear: 1932 },
+        { name: 'Kid', sex: 'male', birthYear: 1960 },
+        { name: 'Floater', sex: 'female', birthYear: 1958 }, // isolated, but same era as Kid
+      ],
+      relationships: [
+        { a: 'Grandpa', b: 'Grandma', children: ['Parent A'] },
+        { a: 'Parent A', b: 'Parent B', children: ['Kid'] },
+      ],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    // Floater has no lines, so structure alone would leave her at the top gen (y minimum).
+    // The age nudge should drop her onto Kid's row instead.
+    expect(find(people, 'Floater').y).toBe(find(people, 'Kid').y);
+  });
+
+  it('flags an age-impossible drawn parent→child link but keeps the drawn line', () => {
+    const facts: FactsImportData = {
+      people: [
+        { name: 'Young Parent', sex: 'male', birthYear: 1990 },
+        { name: 'Other Parent', sex: 'female', birthYear: 1992 },
+        { name: 'Older Child', sex: 'male', birthYear: 1980 }, // born BEFORE the parents
+      ],
+      relationships: [{ a: 'Young Parent', b: 'Other Parent', children: ['Older Child'] }],
+    };
+    const result = factsToDiagramImportData(facts);
+    // Age raises a hand (surfaced via ideasText) ...
+    expect(result.ideasText).toMatch(/Age check/i);
+    // ... but never grabs the wheel: the drawn parent-child link is preserved.
+    const child = find(result.people, 'Older Child');
+    expect(child.parentPartnership).toBe(result.partnerships[0].id);
+    expect(result.partnerships[0].children).toContain(child.id);
   });
 });

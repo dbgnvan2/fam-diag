@@ -1,0 +1,567 @@
+{
+  "fileMeta": {
+    "fileName": "Jennies Boy Corrected.json",
+    "displayName": "Jennies Boy Corrected.json",
+    "exportedAt": "2026-07-08T15:35:38.074Z"
+  },
+  "people": [
+    {
+      "id": "Hf2BflgaaAs47AOCH52mO",
+      "name": "Art",
+      "firstName": "Art",
+      "x": 353.33333333333314,
+      "y": 414.9999999999998,
+      "gender": "male",
+      "partnerships": [
+        "VbOLXN-Sw9GW0LjIHnNaH"
+      ],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS",
+      "adoptionStatus": "adopted"
+    },
+    {
+      "id": "S0XmGlM0yzyjgfs1lZ-_P",
+      "name": "Jennie",
+      "firstName": "Jennie",
+      "x": 891.6666666666663,
+      "y": 499.9999999999998,
+      "gender": "female",
+      "partnerships": [
+        "VbOLXN-Sw9GW0LjIHnNaH"
+      ],
+      "events": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd"
+    },
+    {
+      "id": "sqr4uBgvjthhYLymg-LU1",
+      "name": "Ben",
+      "firstName": "Ben",
+      "x": 423.33333333333326,
+      "y": 716.6666666666665,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "VbOLXN-Sw9GW0LjIHnNaH"
+    },
+    {
+      "id": "zsETcwdFza1UhH-9JEODs",
+      "name": "Craig",
+      "firstName": "Craig",
+      "x": 523.3333333333333,
+      "y": 711.6666666666667,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "VbOLXN-Sw9GW0LjIHnNaH"
+    },
+    {
+      "id": "QJXOXqTUYGSymANAvB0XL",
+      "name": "Wayne",
+      "firstName": "Wayne",
+      "x": 628.3333333333333,
+      "y": 710,
+      "gender": "male",
+      "partnerships": [
+        "Ax1JeN2KZD9_bEOrMpfiV"
+      ],
+      "events": [],
+      "parentPartnership": "VbOLXN-Sw9GW0LjIHnNaH"
+    },
+    {
+      "id": "ueD9EQZx4drkTO5gRvvHC",
+      "name": "Brian",
+      "firstName": "Brian",
+      "x": 769.9999999999998,
+      "y": 715,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "VbOLXN-Sw9GW0LjIHnNaH"
+    },
+    {
+      "id": "z-FLl0ZyoaaQIZYKnnlDl",
+      "name": "? (child of Art and Jennie)",
+      "firstName": "?",
+      "lastName": "(child of Art and Jennie)",
+      "x": 866.6666666666665,
+      "y": 693.3333333333333,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "VbOLXN-Sw9GW0LjIHnNaH",
+      "size": 57
+    },
+    {
+      "id": "CcBx3l5_vZfOC3hn4oJ-h",
+      "name": "Paternal Grandfather (top-left square)",
+      "firstName": "Paternal",
+      "lastName": "Grandfather (top-left square)",
+      "x": 548.3333333333334,
+      "y": -158.33333333333331,
+      "gender": "male",
+      "partnerships": [
+        "CodZF_p7qTejb9P3AXx5U"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "AcdMZQtn0DBmEkuPosA4J",
+      "name": "Paternal Grandmother (top-right circle)",
+      "firstName": "Paternal",
+      "lastName": "Grandmother (top-right circle)",
+      "x": 1030,
+      "y": -186.6666666666668,
+      "gender": "female",
+      "partnerships": [
+        "CodZF_p7qTejb9P3AXx5U"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "nX4fpPcHvdChBn5_WuumB",
+      "name": "Ned",
+      "firstName": "Ned",
+      "x": 488.33333333333303,
+      "y": 165,
+      "gender": "male",
+      "partnerships": [
+        "Xy_a_PPq4hGrd8ompYAqd"
+      ],
+      "events": []
+    },
+    {
+      "id": "LL7cQgbh8KbyQljCqY191",
+      "name": "Lucy",
+      "firstName": "Lucy",
+      "x": 969.9999999999993,
+      "y": 156.66666666666663,
+      "gender": "female",
+      "partnerships": [
+        "Xy_a_PPq4hGrd8ompYAqd"
+      ],
+      "events": [],
+      "parentPartnership": "CodZF_p7qTejb9P3AXx5U"
+    },
+    {
+      "id": "z5cowwb-HQBTB5snTsw0j",
+      "name": "Charlie",
+      "firstName": "Charlie",
+      "x": -153.33333333333326,
+      "y": 163.33333333333303,
+      "gender": "male",
+      "partnerships": [
+        "_-wx-iO55GEfQsI6DdZqS"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "cuF-DLaZT0Cos_DiTYAHn",
+      "name": "Mae White",
+      "firstName": "Mae",
+      "lastName": "White",
+      "x": 380.0000000000001,
+      "y": 151.6666666666663,
+      "gender": "female",
+      "partnerships": [
+        "_-wx-iO55GEfQsI6DdZqS"
+      ],
+      "events": [],
+      "deathDate": "1900-01-01"
+    },
+    {
+      "id": "ttPF_FENXYR0KYVP5WtDG",
+      "name": "Rose",
+      "firstName": "Rose",
+      "x": 761.6666666666665,
+      "y": 806.6666666666665,
+      "gender": "female",
+      "partnerships": [
+        "Ax1JeN2KZD9_bEOrMpfiV"
+      ],
+      "events": [],
+      "parentPartnership": "Ax1JeN2KZD9_bEOrMpfiV"
+    },
+    {
+      "id": "Sqvuv6HQRdsVx-PwEaIxM",
+      "name": "Deceased female (died@7yrs)",
+      "firstName": "Deceased",
+      "lastName": "female (died@7yrs)",
+      "x": 663.3333333333333,
+      "y": -10,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "deathDate": "1900-01-01",
+      "parentPartnership": "CodZF_p7qTejb9P3AXx5U"
+    },
+    {
+      "id": "EeWtDTAO-A2cz9chkZf4I",
+      "name": "Helen",
+      "firstName": "Helen",
+      "x": 743.3333333333333,
+      "y": -10,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "deathDate": "1900-01-01",
+      "parentPartnership": "CodZF_p7qTejb9P3AXx5U"
+    },
+    {
+      "id": "UaSasa8JouqbPT83xVpns",
+      "name": "Eileen",
+      "firstName": "Eileen",
+      "x": 823.3333333333333,
+      "y": -10,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "deathDate": "1900-01-01",
+      "parentPartnership": "CodZF_p7qTejb9P3AXx5U"
+    },
+    {
+      "id": "79ETlCu-b8Fy_p0FLfUa5",
+      "name": "John",
+      "firstName": "John",
+      "x": 500.0000000000002,
+      "y": 363.33333333333314,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd"
+    },
+    {
+      "id": "fVx7eZIHTHklppE12IQQG",
+      "name": "Gerald",
+      "firstName": "Gerald",
+      "x": 580.0000000000002,
+      "y": 363.33333333333314,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd"
+    },
+    {
+      "id": "6SBDHkmnNwxfRIZxnaLkP",
+      "name": "Unnamed circle sibling (Ned/Lucy child)",
+      "firstName": "Unnamed",
+      "lastName": "circle sibling (Ned/Lucy child)",
+      "x": 958.333333333333,
+      "y": 346.6666666666664,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd"
+    },
+    {
+      "id": "Ko0jFceDXmfq4TQ5Q9muo",
+      "name": "Circle child 1 (Charlie/Mae)",
+      "firstName": "Circle",
+      "lastName": "child 1 (Charlie/Mae)",
+      "x": -139.9999999999999,
+      "y": 358.33333333333303,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "OJ-t14UDIPTahvBNCMoLk",
+      "name": "Circle child 2 (Charlie/Mae)",
+      "firstName": "Circle",
+      "lastName": "child 2 (Charlie/Mae)",
+      "x": -59.999999999999886,
+      "y": 358.33333333333303,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "aNjgz5W0-qiQHM9_Zle9L",
+      "name": "Square child (Charlie/Mae)",
+      "firstName": "Square",
+      "lastName": "child (Charlie/Mae)",
+      "x": 20.000000000000114,
+      "y": 358.33333333333303,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "wR3vit1eUL8NMpg1o_ADq",
+      "name": "Circle child 3 (Charlie/Mae)",
+      "firstName": "Circle",
+      "lastName": "child 3 (Charlie/Mae)",
+      "x": 100.00000000000011,
+      "y": 358.33333333333303,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "KzFVYWTUyKSAvqZaOGw9Q",
+      "name": "Circle child 4 (Charlie/Mae)",
+      "firstName": "Circle",
+      "lastName": "child 4 (Charlie/Mae)",
+      "x": 180.0000000000001,
+      "y": 358.33333333333303,
+      "gender": "female",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "zcJ1DsHyZfpmfhrxv2ILz",
+      "name": "Gordon",
+      "firstName": "Gordon",
+      "x": 260.0000000000001,
+      "y": 358.33333333333303,
+      "gender": "male",
+      "partnerships": [],
+      "events": [],
+      "parentPartnership": "_-wx-iO55GEfQsI6DdZqS"
+    },
+    {
+      "id": "1q1CXRQKFSNmzdceMPbRJ",
+      "name": "Dennis 1",
+      "x": 658.3333333333328,
+      "y": 365.0000000000001,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd",
+      "connectionAnchorX": 699.9999999999995,
+      "multipleBirthGroupId": "Y5lww_SIOlVdJVyQEN65e",
+      "lifeStatus": "alive",
+      "events": [],
+      "birthSex": "male",
+      "genderIdentity": "masculine",
+      "genderSymbol": "male_cis",
+      "firstName": "Dennis"
+    },
+    {
+      "id": "pyCuyAbq0KO7x8gH_2AFv",
+      "name": "Lenard 2",
+      "x": 741.6666666666663,
+      "y": 360.0000000000001,
+      "gender": "male",
+      "partnerships": [],
+      "parentPartnership": "Xy_a_PPq4hGrd8ompYAqd",
+      "connectionAnchorX": 699.9999999999995,
+      "multipleBirthGroupId": "Y5lww_SIOlVdJVyQEN65e",
+      "lifeStatus": "alive",
+      "events": [],
+      "firstName": "Lenard"
+    }
+  ],
+  "partnerships": [
+    {
+      "id": "VbOLXN-Sw9GW0LjIHnNaH",
+      "partner1_id": "Hf2BflgaaAs47AOCH52mO",
+      "partner2_id": "S0XmGlM0yzyjgfs1lZ-_P",
+      "horizontalConnectorY": 600,
+      "relationshipType": "married",
+      "relationshipStatus": "ended",
+      "children": [
+        "sqr4uBgvjthhYLymg-LU1",
+        "zsETcwdFza1UhH-9JEODs",
+        "QJXOXqTUYGSymANAvB0XL",
+        "ueD9EQZx4drkTO5gRvvHC",
+        "z-FLl0ZyoaaQIZYKnnlDl"
+      ],
+      "notes": "Derived from facts.family\nhorizontal line connecting Art and Jennie",
+      "events": [],
+      "notesPosition": {
+        "x": 1058.3333333333333,
+        "y": 656.6666666666665
+      }
+    },
+    {
+      "id": "CodZF_p7qTejb9P3AXx5U",
+      "partner1_id": "CcBx3l5_vZfOC3hn4oJ-h",
+      "partner2_id": "AcdMZQtn0DBmEkuPosA4J",
+      "horizontalConnectorY": -118.33333333333331,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "Sqvuv6HQRdsVx-PwEaIxM",
+        "EeWtDTAO-A2cz9chkZf4I",
+        "UaSasa8JouqbPT83xVpns",
+        "LL7cQgbh8KbyQljCqY191"
+      ],
+      "notes": "horizontal line connecting them at top of diagram",
+      "events": [],
+      "notesPosition": {
+        "x": 1219.1666666666667,
+        "y": -71.6666666666668
+      }
+    },
+    {
+      "id": "Xy_a_PPq4hGrd8ompYAqd",
+      "partner1_id": "nX4fpPcHvdChBn5_WuumB",
+      "partner2_id": "LL7cQgbh8KbyQljCqY191",
+      "horizontalConnectorY": 233.33333333333337,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "79ETlCu-b8Fy_p0FLfUa5",
+        "fVx7eZIHTHklppE12IQQG",
+        "S0XmGlM0yzyjgfs1lZ-_P",
+        "6SBDHkmnNwxfRIZxnaLkP",
+        "1q1CXRQKFSNmzdceMPbRJ",
+        "pyCuyAbq0KO7x8gH_2AFv"
+      ],
+      "notes": "horizontal line connecting Ned and Lucy",
+      "events": [],
+      "notesPosition": {
+        "x": 1234.9999999999995,
+        "y": 301.66666666666674
+      }
+    },
+    {
+      "id": "_-wx-iO55GEfQsI6DdZqS",
+      "partner1_id": "z5cowwb-HQBTB5snTsw0j",
+      "partner2_id": "cuF-DLaZT0Cos_DiTYAHn",
+      "horizontalConnectorY": 218.33333333333303,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "Ko0jFceDXmfq4TQ5Q9muo",
+        "OJ-t14UDIPTahvBNCMoLk",
+        "aNjgz5W0-qiQHM9_Zle9L",
+        "wR3vit1eUL8NMpg1o_ADq",
+        "KzFVYWTUyKSAvqZaOGw9Q",
+        "zcJ1DsHyZfpmfhrxv2ILz",
+        "Hf2BflgaaAs47AOCH52mO"
+      ],
+      "notes": "horizontal line connecting Charlie and Mae White",
+      "events": []
+    },
+    {
+      "id": "Ax1JeN2KZD9_bEOrMpfiV",
+      "partner1_id": "QJXOXqTUYGSymANAvB0XL",
+      "partner2_id": "ttPF_FENXYR0KYVP5WtDG",
+      "horizontalConnectorY": 856.6666666666665,
+      "relationshipType": "married",
+      "relationshipStatus": "married",
+      "children": [
+        "ttPF_FENXYR0KYVP5WtDG"
+      ],
+      "notes": "vertical line descending from Wayne to Rose",
+      "events": []
+    }
+  ],
+  "emotionalLines": [],
+  "pageNotes": [],
+  "triangles": [],
+  "functionalIndicatorDefinitions": [
+    {
+      "id": "symptom-physical-default",
+      "label": "Physical Symptom",
+      "group": "physical",
+      "color": "#1f77b4",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-emotional-default",
+      "label": "Emotional Symptom",
+      "group": "emotional",
+      "color": "#d81b60",
+      "useLetter": true
+    },
+    {
+      "id": "symptom-social-default",
+      "label": "Social Symptom",
+      "group": "social",
+      "color": "#2e7d32",
+      "useLetter": true
+    }
+  ],
+  "eventCategories": [
+    "Relationship",
+    "Health",
+    "Career",
+    "Education",
+    "Location",
+    "Legal",
+    "Finance",
+    "Faith",
+    "Achievement",
+    "Social"
+  ],
+  "relationshipTypes": [
+    "married",
+    "common-law",
+    "living-together",
+    "dating",
+    "affair",
+    "friendship"
+  ],
+  "relationshipStatuses": [
+    "married",
+    "separated",
+    "divorced",
+    "started",
+    "ended",
+    "ongoing"
+  ],
+  "autoSaveMinutes": 1,
+  "ideasText": "create a correlate list of events - deaths and births for example.",
+  "predictionSets": [],
+  "functionalFactCategories": [
+    {
+      "id": "ff-c17SkLyL",
+      "name": "Move"
+    },
+    {
+      "id": "ff-2mjcxiEV",
+      "name": "Employment"
+    },
+    {
+      "id": "ff-Zz_UI0rL",
+      "name": "Education"
+    },
+    {
+      "id": "ff-bwSaMZbO",
+      "name": "Finances"
+    }
+  ],
+  "nodalCategories": [
+    {
+      "id": "nodal-job",
+      "name": "Job Change"
+    },
+    {
+      "id": "nodal-illness",
+      "name": "Illness"
+    },
+    {
+      "id": "nodal-move",
+      "name": "House Move"
+    },
+    {
+      "id": "nodal-education",
+      "name": "Education"
+    },
+    {
+      "id": "nodal-relocation",
+      "name": "Relocation"
+    },
+    {
+      "id": "nodal-retirement",
+      "name": "Retirement"
+    },
+    {
+      "id": "nodal-hospitalization",
+      "name": "Hospitalization"
+    },
+    {
+      "id": "nodal-loss",
+      "name": "Loss"
+    }
+  ]
+}
