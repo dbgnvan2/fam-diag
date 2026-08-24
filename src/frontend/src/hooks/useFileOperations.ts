@@ -315,18 +315,22 @@ export function useFileOperations({
     e.target.value = '';
   };
 
-  const handleNewFile = () => {
+  // Returns true when the canvas was actually cleared, false when the user
+  // cancelled the unsaved-changes confirm. Callers use this to decide whether
+  // to run new-diagram follow-ups (e.g. re-showing the right-click hint).
+  const handleNewFile = (): boolean => {
     if (isDirty) {
       const confirmReset = window.confirm(
         'Start a new family diagram? Unsaved changes will be lost.'
       );
       if (!confirmReset) {
-        return;
+        return false;
       }
     }
     // Just clear the canvas. The filename stays as the FALLBACK_FILE_NAME
     // sentinel so the first Save will route through Save As naturally.
     resetDiagramToBlankState();
+    return true;
   };
 
   const handleOpenFilePicker = () => {

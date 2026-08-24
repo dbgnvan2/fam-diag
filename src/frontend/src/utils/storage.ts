@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   ideas: 'family-diagram-ideas',
   predictions: 'family-diagram-predictions',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
+  hideRightClickHint: 'family-diagram-hide-right-click-hint',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,17 @@ export const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
 export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS[key], value);
+};
+
+/**
+ * Startup / File-New right-click hint suppression ("don't show this again").
+ * A user preference, so it deliberately survives File > New and is NOT part of
+ * clearDiagramLocalStorage's diagram-data keys.
+ */
+export const isRightClickHintHidden = () => getStoredValue('hideRightClickHint') === 'true';
+
+export const setRightClickHintHidden = (hidden: boolean) => {
+  setStoredValue('hideRightClickHint', hidden ? 'true' : 'false');
 };
 
 export const parseStoredUserSettings = (): StoredUserSettings | null => {

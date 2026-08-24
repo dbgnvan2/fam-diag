@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import DiagramEditor from './DiagramEditor';
 import { vi } from 'vitest';
+import { STORAGE_KEYS } from '../utils/storage';
 
 // Mocking nanoid to have deterministic ids
 vi.mock('nanoid', () => ({
@@ -9,6 +10,12 @@ vi.mock('nanoid', () => ({
 
 describe('DiagramEditor', () => {
     vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+    beforeEach(() => {
+        // The right-click hint's "don't show this again" preference persists in
+        // localStorage, so clear it between tests (dirty-state isolation).
+        localStorage.removeItem(STORAGE_KEYS.hideRightClickHint);
+    });
 
     it('should render the editor', () => {
         render(<DiagramEditor />);
@@ -227,6 +234,44 @@ describe('DiagramEditor', () => {
         // The Save As dialog must NOT appear — the user gets a blank canvas
         // and only sees the dialog later when they choose to Save.
         expect(screen.queryByRole('dialog', { name: /save as/i })).not.toBeInTheDocument();
+    });
+
+    it('shows the right-click hint on startup', () => {
+        render(<DiagramEditor />);
+        expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Right Click anywhere on the white background - the "canvas" to see options to add individuals or a family.'
+            )
+        ).toBeInTheDocument();
+    });
+
+    it('re-shows the right-click hint after File New', async () => {
+        render(<DiagramEditor />);
+        fireEvent.click(screen.getByText('Got it'));
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'New' }));
+        });
+        expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
+    });
+
+    it('stops showing the hint on File New and on the next start once "don\'t show this again" is ticked', async () => {
+        const first = render(<DiagramEditor />);
+        fireEvent.click(screen.getByLabelText("Don't show this again"));
+        fireEvent.click(screen.getByText('Got it'));
+
+        fireEvent.click(screen.getByRole('button', { name: /file ▾/i }));
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'New' }));
+        });
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
+
+        first.unmount();
+        render(<DiagramEditor />);
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
     });
 
     it('adds and opens an editable general note from the canvas menu', () => {

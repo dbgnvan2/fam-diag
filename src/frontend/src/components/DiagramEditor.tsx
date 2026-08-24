@@ -90,6 +90,8 @@ import {
   restoreBackupDirectoryHandle,
   writeFileBackup,
   listFileBackups,
+  isRightClickHintHidden,
+  setRightClickHintHidden,
 } from '../utils/storage';
 import type { BackupVersions } from '../utils/storage';
 import {
@@ -447,6 +449,10 @@ const DiagramEditor = () => {
   const [sessionNotesTarget, setSessionNotesTarget] = useState<string | null>(null);
   const [sessionEventDraft, setSessionEventDraft] = useState<EmotionalProcessEvent | null>(null);
   const [sessionEventTarget, setSessionEventTarget] = useState<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>(null);
+  // Startup hint: right-click is where every option lives. Also re-shown after
+  // File > New (see handleNewDiagram below), unless the user ticked
+  // "Don't show this again".
+  const [rightClickHintOpen, setRightClickHintOpen] = useState(() => !isRightClickHintHidden());
   const [helpOpen, setHelpOpen] = useState(false);
   const [ribbonHelpKey, setRibbonHelpKey] = useState<RibbonHelpKey | null>(null);
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
@@ -3428,6 +3434,25 @@ useEffect(() => {
     triggerSaveAs,
   });
 
+  // File > New: clear the canvas, then re-show the right-click hint so a fresh
+  // diagram starts with the same guidance as app startup. Skipped when the user
+  // cancels the unsaved-changes confirm (handleNewFile returns false).
+  const handleNewDiagram = () => {
+    const didReset = handleNewFile();
+    if (didReset && !isRightClickHintHidden()) {
+      setRightClickHintOpen(true);
+    }
+  };
+
+  // Closing the hint persists the "don't show this again" preference so it
+  // suppresses both the startup show and the File > New re-show.
+  const handleCloseRightClickHint = (dontShowAgain: boolean) => {
+    setRightClickHintOpen(false);
+    if (dontShowAgain) {
+      setRightClickHintHidden(true);
+    }
+  };
+
 
   // Re-opens the last-used file when browser permission wasn't auto-granted on
   // startup. Called from the File menu "Reopen [filename]" item so the browser
@@ -4505,7 +4530,7 @@ useEffect(() => {
             setNotesLayerEnabled={setNotesLayerEnabled}
             showSiblingConflicts={showSiblingConflicts}
             setShowSiblingConflicts={setShowSiblingConflicts}
-            handleNewFile={handleNewFile}
+            handleNewFile={handleNewDiagram}
             pendingReopenName={pendingReopenName}
             handleReopenLastFile={handleReopenLastFile}
             handleLoadDemoDiagram={handleLoadDemoDiagram}
@@ -4873,6 +4898,8 @@ useEffect(() => {
             selectedRibbonHelp={selectedRibbonHelp}
             selectedRibbonHelpBody={selectedRibbonHelpBody}
             setRibbonHelpKey={setRibbonHelpKey}
+            rightClickHintOpen={rightClickHintOpen}
+            handleCloseRightClickHint={handleCloseRightClickHint}
             helpOpen={helpOpen}
             setHelpOpen={setHelpOpen}
             handleStartDemoTour={handleStartDemoTour}

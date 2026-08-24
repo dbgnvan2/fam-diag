@@ -227,3 +227,15 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
     demoBody: 'Help opens Quick Start, training videos, and the two demo walkthrough modes. The ⊕ control beneath it recenters the diagram.',
   },
 };
+
+// Shown on app startup and after File > New. Editorial copy lives here, not in
+// the component (see the "editorial content in config, not code" rule).
+export const RIGHT_CLICK_HINT = {
+  title: 'Right Click is "right"',
+  paragraphs: [
+    'Right Click anywhere on the white background - the "canvas" to see options to add individuals or a family.',
+    'Once you have individuals and or relationships showing you can Right-Click on those to see options related to that item.',
+    'Just remember - Right Click is "right".',
+  ],
+  dontShowAgainLabel: "Don't show this again",
+};

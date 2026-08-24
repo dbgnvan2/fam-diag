@@ -37,6 +37,7 @@ import TimelineBoardModal from './modals/TimelineBoardModal';
 import SessionNotesPanel from './SessionNotesPanel';
 import RibbonHelpModal from './modals/RibbonHelpModal';
 import HelpModal from './modals/HelpModal';
+import RightClickHintModal from './modals/RightClickHintModal';
 import TrainingVideosModal from './modals/TrainingVideosModal';
 import DemoTourModal from './modals/DemoTourModal';
 import BuildDemoModal from './modals/BuildDemoModal';
@@ -206,6 +207,10 @@ interface DiagramModalsProps {
   selectedRibbonHelp: { title: string; body: string } | null;
   selectedRibbonHelpBody: string;
   setRibbonHelpKey: Dispatch<SetStateAction<RibbonHelpKey | null>>;
+
+  // RightClickHintModal
+  rightClickHintOpen: boolean;
+  handleCloseRightClickHint: (dontShowAgain: boolean) => void;
 
   // HelpModal
   helpOpen: boolean;
@@ -419,6 +424,8 @@ export default function DiagramModals({
   selectedRibbonHelp,
   selectedRibbonHelpBody,
   setRibbonHelpKey,
+  rightClickHintOpen,
+  handleCloseRightClickHint,
   helpOpen,
   setHelpOpen,
   handleStartDemoTour,
@@ -694,6 +701,10 @@ export default function DiagramModals({
         title={selectedRibbonHelp?.title ?? ''}
         body={selectedRibbonHelpBody}
         onClose={() => setRibbonHelpKey(null)}
+      />
+      <RightClickHintModal
+        open={rightClickHintOpen}
+        onClose={handleCloseRightClickHint}
       />
       <HelpModal
         open={helpOpen}
