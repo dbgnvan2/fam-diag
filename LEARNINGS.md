@@ -97,3 +97,28 @@ check is looser than the build gate.
 
 **Rule.** Run **all three** pre-completion gates every time (`tsc --noEmit`, `vitest`,
 `tsc -b`) — see CLAUDE.md. Never treat `tsc --noEmit` alone as "typechecks".
+
+---
+
+## L6 — A z-index compared against a child of a stacking context
+
+**Issue.** The startup right-click hint was placed at `zIndex: 900` on the argument that
+"context menus and ribbon dropdowns are at 1000, so 900 is below them". True for the context
+menu; false for all four ribbon menus. The hint painted over the File/Settings/Options/Help
+dropdowns and swallowed their clicks — a hint that covered the very menus it points at.
+
+**Root cause.** `AppRibbon`'s root is `position: sticky` with a z-index, so it creates a
+**stacking context**. Its dropdowns declare `zIndex: 1000`, but that 1000 is scoped to the
+ribbon — the whole ribbon subtree composites at the ribbon's own level (then 40). Reading
+`1000` off the child said nothing about where it lands relative to a root-level overlay.
+
+**What would have caught it.** Comparing against the ancestor that owns the stacking context,
+not the element whose style you happened to read. A guard test asserting `HINT < 1000` passed
+throughout — it compared two constants, neither of which described the real order.
+
+**Rule.** Before claiming one fixed/absolute layer sits below another, find the nearest
+ancestor of each with `position != static` and `z-index != auto`; that ancestor's value is the
+one that competes. Keep load-bearing z-indexes in `constants/zIndex.ts` and assert the ordering
+between those constants, so the claim is checkable rather than remembered. Verify the ordering
+in the browser with elements that actually overlap — an on-screen check where the two never
+intersect proves nothing.

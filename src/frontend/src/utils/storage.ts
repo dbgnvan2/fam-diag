@@ -48,9 +48,11 @@ export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) =>
  * it returns false instead of throwing when the browser refuses (quota
  * exceeded, Safari private mode).
  *
- * Deliberately a separate function: setStoredValue's throw is what surfaces a
- * failed diagram autosave to its callers, and swallowing it there would turn a
- * lost save into a console line nobody sees.
+ * Deliberately a separate function so setStoredValue keeps the exact contract
+ * its 16 existing callers were written against. Note that those callers do NOT
+ * handle the throw today — in the autosave path it escapes a setTimeout, so a
+ * refused write is currently lost either way. Surfacing that to the user is
+ * tracked in TODO.md; it is not something this helper can decide.
  */
 export const trySetStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): boolean => {
   if (typeof window === 'undefined') return false;

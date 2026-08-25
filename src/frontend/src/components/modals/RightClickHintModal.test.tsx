@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
-import RightClickHintModal, { HINT_Z_INDEX } from './RightClickHintModal';
+import RightClickHintModal from './RightClickHintModal';
+import { HINT_Z_INDEX, RIBBON_Z_INDEX } from '../../constants/zIndex';
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
 
 /** Harness supplying the checkbox state the modal no longer owns. */
@@ -100,9 +101,12 @@ describe('RightClickHintModal', () => {
   it('sits below the app overlay band and paints no backdrop over it', () => {
     const { container } = render(<Harness onClose={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Right click hint' });
-    // Context menus and ribbon dropdowns live at 1000, dialogs at 2400+. A hint
-    // above those would cover the very menu it tells the user to open.
-    expect(HINT_Z_INDEX).toBeLessThan(1000);
+    // A hint above these would cover the very menus it tells the user to open.
+    // The ribbon is compared against its real constant, not a remembered number:
+    // its sticky z-index is a stacking context, so its dropdowns' declared 1000
+    // composites at the ribbon's level (see constants/zIndex.ts).
+    expect(HINT_Z_INDEX).toBeLessThan(RIBBON_Z_INDEX);
+    expect(HINT_Z_INDEX).toBeLessThan(1000); // ContextMenu.tsx renders at 1000/1001
     expect(dialog.style.zIndex).toBe(String(HINT_Z_INDEX));
     // The dialog is the only element rendered — no full-viewport scrim.
     expect(container.childElementCount).toBe(1);

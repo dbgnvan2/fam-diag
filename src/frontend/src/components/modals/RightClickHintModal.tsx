@@ -1,12 +1,9 @@
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
+import { HINT_Z_INDEX } from '../../constants/zIndex';
 
-/**
- * Deliberately BELOW the app's overlay band: context menus and ribbon dropdowns
- * start at 1000, dialogs at 2400+. This is a non-blocking hint — it must never
- * paint over a menu or dialog the user opens, and for the same reason it has no
- * dimming backdrop.
- */
-export const HINT_Z_INDEX = 900;
+// Non-blocking hint: it sits below every menu and dialog (see constants/zIndex)
+// and paints no dimming backdrop, so it can never cover what it tells the user
+// to open.
 
 interface RightClickHintModalProps {
   open: boolean;

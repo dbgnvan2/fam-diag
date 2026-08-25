@@ -3458,9 +3458,9 @@ useEffect(() => {
     }
   };
 
-  // The hint tells the user to right-click, but its backdrop (z 2450) paints over
-  // the context menu (z 1000). So the moment any context menu opens, dismiss the
-  // hint — through the same close path, so a ticked checkbox still persists.
+  // Once the user follows the hint and opens a context menu, the hint has done
+  // its job — dismiss it, through the same close path so a ticked checkbox still
+  // persists. (Stacking order is handled separately, in constants/zIndex.ts.)
   useEffect(() => {
     if (contextMenu && rightClickHintOpen) {
       handleCloseRightClickHint();

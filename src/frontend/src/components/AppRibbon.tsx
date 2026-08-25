@@ -2,6 +2,7 @@ import React from 'react';
 import { getSaveButtonState } from '../utils/saveButtonState';
 import { isDemoDiagramFileName } from '../utils/demoTour';
 import { type RibbonHelpKey } from '../data/helpContent';
+import { RIBBON_Z_INDEX } from '../constants/zIndex';
 import type { DemoTourStep } from '../types/diagramEditor';
 
 export interface AppRibbonProps {
@@ -353,7 +354,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
       style={{
         position: 'sticky',
         top: 0,
-        zIndex: 40,
+        zIndex: RIBBON_Z_INDEX,
         padding: '4px 8px 6px',
         borderBottom: '1px solid #ccc',
         background: '#f6f7fb',

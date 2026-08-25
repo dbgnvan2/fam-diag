@@ -256,7 +256,7 @@ describe('DiagramEditor', () => {
         expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
     });
 
-    it('dismisses the right-click hint when a context menu opens (its backdrop covers the menu)', () => {
+    it('dismisses the right-click hint once a context menu opens', () => {
         render(<DiagramEditor />);
         expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
 

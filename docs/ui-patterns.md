@@ -44,6 +44,32 @@ The root menu uses `visibility: hidden` until position is computed.
 
 **Do not add `overflowY: auto` or `maxHeight` to `SubMenuContainer`** — it clips absolutely-positioned grandchildren (third-level submenus).
 
+## Non-blocking hints (and why they are not modals)
+
+`RightClickHintModal` is a hint, not a dialog: the rest of the app must stay
+usable while it is up. It therefore breaks with the modal pattern above in three
+deliberate ways, and a new hint should copy all three:
+
+- **No backdrop.** A `pointerEvents: 'none'` scrim is decoration, not a modal
+  barrier — it dims and obscures everything below its z-index while doing nothing
+  to block interaction. The hint uses a border plus shadow instead.
+- **Below the overlay band.** Its z-index comes from
+  `src/frontend/src/constants/zIndex.ts` (`HINT_Z_INDEX`), which is below
+  `RIBBON_Z_INDEX`, the context menu (1000/1001) and every dialog (2400+). A hint
+  that tells the user to open a menu must never paint over that menu.
+- **No `aria-modal`, no focus trap.** Marking the page inert for screen-reader
+  users while everyone else can still interact with it is worse than saying
+  nothing.
+
+### Stacking contexts make a declared z-index a lie
+
+The ribbon is `position: sticky` with a z-index, which creates a **stacking
+context**: its dropdowns declare `zIndex: 1000`, but they composite at the
+*ribbon's* level, not at 1000. Comparing a fixed overlay's z-index against a
+number read off a child element is therefore not a valid ordering argument —
+compare it against the ancestor that owns the stacking context, which is why
+`RIBBON_Z_INDEX` is a shared constant and the hint's test asserts against it.
+
 ## Settings list reordering
 
 Every list modal supports drag-drop and ▲/▼ via `utils/listReorder.ts` (`moveItemUp`, `moveItemDown`, `reorderItem`).
