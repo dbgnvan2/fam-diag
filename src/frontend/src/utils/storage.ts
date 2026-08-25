@@ -38,9 +38,20 @@ export const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
   return localStorage.getItem(STORAGE_KEYS[key]);
 };
 
-export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEYS[key], value);
+/**
+ * Writes a localStorage value. Returns false when the write could not happen
+ * (no window, or the browser refused it — quota exceeded, Safari private mode)
+ * so callers that made the user a promise can react instead of assuming success.
+ */
+export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(STORAGE_KEYS[key], value);
+    return true;
+  } catch (error) {
+    console.warn(`Could not write localStorage key "${STORAGE_KEYS[key]}"`, error);
+    return false;
+  }
 };
 
 /**
@@ -50,8 +61,10 @@ export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) =>
  */
 export const isRightClickHintHidden = () => getStoredValue('hideRightClickHint') === 'true';
 
-export const setRightClickHintHidden = (hidden: boolean) => {
-  setStoredValue('hideRightClickHint', hidden ? 'true' : 'false');
+/** Returns true only when the preference is verifiably stored (read back). */
+export const setRightClickHintHidden = (hidden: boolean): boolean => {
+  if (!setStoredValue('hideRightClickHint', hidden ? 'true' : 'false')) return false;
+  return isRightClickHintHidden() === hidden;
 };
 
 export const parseStoredUserSettings = (): StoredUserSettings | null => {

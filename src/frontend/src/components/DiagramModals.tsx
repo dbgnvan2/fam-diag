@@ -210,7 +210,9 @@ interface DiagramModalsProps {
 
   // RightClickHintModal
   rightClickHintOpen: boolean;
-  handleCloseRightClickHint: (dontShowAgain: boolean) => void;
+  rightClickHintDontShowAgain: boolean;
+  setRightClickHintDontShowAgain: Dispatch<SetStateAction<boolean>>;
+  handleCloseRightClickHint: () => void;
 
   // HelpModal
   helpOpen: boolean;
@@ -425,6 +427,8 @@ export default function DiagramModals({
   selectedRibbonHelpBody,
   setRibbonHelpKey,
   rightClickHintOpen,
+  rightClickHintDontShowAgain,
+  setRightClickHintDontShowAgain,
   handleCloseRightClickHint,
   helpOpen,
   setHelpOpen,
@@ -704,6 +708,8 @@ export default function DiagramModals({
       />
       <RightClickHintModal
         open={rightClickHintOpen}
+        dontShowAgain={rightClickHintDontShowAgain}
+        onDontShowAgainChange={setRightClickHintDontShowAgain}
         onClose={handleCloseRightClickHint}
       />
       <HelpModal

@@ -1,20 +1,28 @@
-import { useState } from 'react';
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
 
 interface RightClickHintModalProps {
   open: boolean;
-  /** Receives the "don't show this again" checkbox state at the moment of closing. */
-  onClose: (dontShowAgain: boolean) => void;
+  dontShowAgain: boolean;
+  onDontShowAgainChange: (dontShowAgain: boolean) => void;
+  /**
+   * Closes the hint, honouring the current dontShowAgain value. The state lives
+   * in the parent so a close triggered from outside the dialog (a right-click
+   * on the canvas) still respects a ticked checkbox.
+   */
+  onClose: () => void;
 }
 
 /**
  * Startup / File-New reminder that every option in the app hangs off a
  * right-click (Control-click on a one-button Mac mouse).
  */
-const RightClickHintModal = ({ open, onClose }: RightClickHintModalProps) => {
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+const RightClickHintModal = ({
+  open,
+  dontShowAgain,
+  onDontShowAgainChange,
+  onClose,
+}: RightClickHintModalProps) => {
   if (!open) return null;
-  const handleClose = () => onClose(dontShowAgain);
   return (
     <>
       <div
@@ -48,7 +56,7 @@ const RightClickHintModal = ({ open, onClose }: RightClickHintModalProps) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <h3 style={{ margin: 0, fontSize: 18 }}>{RIGHT_CLICK_HINT.title}</h3>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             aria-label="Close right click hint"
             style={{
               border: 'none',
@@ -81,12 +89,12 @@ const RightClickHintModal = ({ open, onClose }: RightClickHintModalProps) => {
             <input
               type="checkbox"
               checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
+              onChange={(e) => onDontShowAgainChange(e.target.checked)}
             />
             {RIGHT_CLICK_HINT.dontShowAgainLabel}
           </label>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             style={{
               background: '#1976d2',
               color: '#fff',

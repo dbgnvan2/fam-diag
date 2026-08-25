@@ -453,6 +453,7 @@ const DiagramEditor = () => {
   // File > New (see handleNewDiagram below), unless the user ticked
   // "Don't show this again".
   const [rightClickHintOpen, setRightClickHintOpen] = useState(() => !isRightClickHintHidden());
+  const [rightClickHintDontShowAgain, setRightClickHintDontShowAgain] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [ribbonHelpKey, setRibbonHelpKey] = useState<RibbonHelpKey | null>(null);
   const [readmeViewerOpen, setReadmeViewerOpen] = useState(false);
@@ -3367,7 +3368,7 @@ useEffect(() => {
     handleLoad,
     handleImportLoad,
     handleProcessTranscriptLoad,
-    handleNewFile,
+    handleNewFile: resetToNewDiagram,
     handleOpenFilePicker,
     handleImportDataPicker,
     handleImportPersonEventsPicker,
@@ -3438,7 +3439,7 @@ useEffect(() => {
   // diagram starts with the same guidance as app startup. Skipped when the user
   // cancels the unsaved-changes confirm (handleNewFile returns false).
   const handleNewDiagram = () => {
-    const didReset = handleNewFile();
+    const didReset = resetToNewDiagram();
     if (didReset && !isRightClickHintHidden()) {
       setRightClickHintOpen(true);
     }
@@ -3446,12 +3447,26 @@ useEffect(() => {
 
   // Closing the hint persists the "don't show this again" preference so it
   // suppresses both the startup show and the File > New re-show.
-  const handleCloseRightClickHint = (dontShowAgain: boolean) => {
+  const handleCloseRightClickHint = () => {
     setRightClickHintOpen(false);
-    if (dontShowAgain) {
-      setRightClickHintHidden(true);
+    if (rightClickHintDontShowAgain && !setRightClickHintHidden(true)) {
+      // The write did not stick (quota, private-mode storage). Say so rather
+      // than letting the hint silently reappear next launch.
+      console.warn(
+        'Could not save the "Don\'t show this again" preference — the hint will reappear.'
+      );
     }
   };
+
+  // The hint tells the user to right-click, but its backdrop (z 2450) paints over
+  // the context menu (z 1000). So the moment any context menu opens, dismiss the
+  // hint — through the same close path, so a ticked checkbox still persists.
+  useEffect(() => {
+    if (contextMenu && rightClickHintOpen) {
+      handleCloseRightClickHint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextMenu, rightClickHintOpen]);
 
 
   // Re-opens the last-used file when browser permission wasn't auto-granted on
@@ -4899,6 +4914,8 @@ useEffect(() => {
             selectedRibbonHelpBody={selectedRibbonHelpBody}
             setRibbonHelpKey={setRibbonHelpKey}
             rightClickHintOpen={rightClickHintOpen}
+            rightClickHintDontShowAgain={rightClickHintDontShowAgain}
+            setRightClickHintDontShowAgain={setRightClickHintDontShowAgain}
             handleCloseRightClickHint={handleCloseRightClickHint}
             helpOpen={helpOpen}
             setHelpOpen={setHelpOpen}

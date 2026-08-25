@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import DiagramEditor from './DiagramEditor';
 import { vi } from 'vitest';
 import { STORAGE_KEYS } from '../utils/storage';
+import { RIGHT_CLICK_HINT } from '../data/helpContent';
 
 // Mocking nanoid to have deterministic ids
 vi.mock('nanoid', () => ({
@@ -239,11 +240,8 @@ describe('DiagramEditor', () => {
     it('shows the right-click hint on startup', () => {
         render(<DiagramEditor />);
         expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'Right Click anywhere on the white background - the "canvas" to see options to add individuals or a family.'
-            )
-        ).toBeInTheDocument();
+        // The verbatim wording is asserted once, in RightClickHintModal.test.tsx.
+        expect(screen.getByText(RIGHT_CLICK_HINT.paragraphs[0])).toBeInTheDocument();
     });
 
     it('re-shows the right-click hint after File New', async () => {
@@ -256,6 +254,16 @@ describe('DiagramEditor', () => {
             fireEvent.click(screen.getByRole('button', { name: 'New' }));
         });
         expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
+    });
+
+    it('dismisses the right-click hint when a context menu opens (its backdrop covers the menu)', () => {
+        render(<DiagramEditor />);
+        expect(screen.getByRole('dialog', { name: 'Right click hint' })).toBeInTheDocument();
+
+        fireEvent.contextMenu(screen.getByRole('presentation'));
+
+        expect(screen.getByText('Add Person')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
     });
 
     it('stops showing the hint on File New and on the next start once "don\'t show this again" is ticked', async () => {

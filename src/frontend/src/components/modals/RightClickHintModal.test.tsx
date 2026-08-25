@@ -1,25 +1,48 @@
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import RightClickHintModal from './RightClickHintModal';
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
 
+/** Harness supplying the checkbox state the modal no longer owns. */
+const Harness = ({ onClose }: { onClose: () => void }) => {
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  return (
+    <RightClickHintModal
+      open
+      dontShowAgain={dontShowAgain}
+      onDontShowAgainChange={setDontShowAgain}
+      onClose={onClose}
+    />
+  );
+};
+
 describe('RightClickHintModal', () => {
   it('renders nothing when closed', () => {
-    render(<RightClickHintModal open={false} onClose={() => {}} />);
+    render(
+      <RightClickHintModal
+        open={false}
+        dontShowAgain={false}
+        onDontShowAgainChange={() => {}}
+        onClose={() => {}}
+      />
+    );
     expect(screen.queryByRole('dialog', { name: 'Right click hint' })).toBeNull();
   });
 
   it('shows the title and every hint paragraph when open', () => {
-    render(<RightClickHintModal open onClose={() => {}} />);
+    render(<Harness onClose={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Right click hint' });
     expect(dialog).toHaveTextContent(RIGHT_CLICK_HINT.title);
+    // Exact count, not a floor: an emptied array would otherwise assert nothing.
+    expect(RIGHT_CLICK_HINT.paragraphs).toHaveLength(3);
     RIGHT_CLICK_HINT.paragraphs.forEach((paragraph) => {
       expect(dialog).toHaveTextContent(paragraph);
     });
   });
 
   it('carries the exact wording of the right-click reminder', () => {
-    render(<RightClickHintModal open onClose={() => {}} />);
+    render(<Harness onClose={() => {}} />);
     expect(
       screen.getByText(
         'Right Click anywhere on the white background - the "canvas" to see options to add individuals or a family.'
@@ -35,39 +58,41 @@ describe('RightClickHintModal', () => {
 
   it('closes from the × control and the Got it button', () => {
     const onClose = vi.fn();
-    render(<RightClickHintModal open onClose={onClose} />);
+    render(<Harness onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Close right click hint'));
     fireEvent.click(screen.getByText('Got it'));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('reports dontShowAgain=false when the checkbox is left unticked', () => {
-    const onClose = vi.fn();
-    render(<RightClickHintModal open onClose={onClose} />);
+  it('starts with the checkbox unticked and reports ticks to the parent', () => {
+    const onDontShowAgainChange = vi.fn();
+    render(
+      <RightClickHintModal
+        open
+        dontShowAgain={false}
+        onDontShowAgainChange={onDontShowAgainChange}
+        onClose={() => {}}
+      />
+    );
     expect(screen.getByLabelText("Don't show this again")).not.toBeChecked();
-    fireEvent.click(screen.getByText('Got it'));
-    expect(onClose).toHaveBeenCalledWith(false);
+    fireEvent.click(screen.getByLabelText("Don't show this again"));
+    expect(onDontShowAgainChange).toHaveBeenCalledWith(true);
   });
 
-  it('reports dontShowAgain=true when the checkbox is ticked before closing', () => {
-    const onClose = vi.fn();
-    render(<RightClickHintModal open onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText("Don't show this again"));
+  it('renders the checkbox from the parent-owned value', () => {
+    render(
+      <RightClickHintModal
+        open
+        dontShowAgain
+        onDontShowAgainChange={() => {}}
+        onClose={() => {}}
+      />
+    );
     expect(screen.getByLabelText("Don't show this again")).toBeChecked();
-    fireEvent.click(screen.getByText('Got it'));
-    expect(onClose).toHaveBeenCalledWith(true);
-  });
-
-  it('reports the ticked checkbox through the × control too', () => {
-    const onClose = vi.fn();
-    render(<RightClickHintModal open onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText("Don't show this again"));
-    fireEvent.click(screen.getByLabelText('Close right click hint'));
-    expect(onClose).toHaveBeenCalledWith(true);
   });
 
   it('positions the dialog itself with position: fixed (modal viewport safety)', () => {
-    render(<RightClickHintModal open onClose={() => {}} />);
+    render(<Harness onClose={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Right click hint' });
     expect(dialog.style.position).toBe('fixed');
   });
