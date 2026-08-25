@@ -266,6 +266,19 @@ describe('DiagramEditor', () => {
         expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
     });
 
+    it('honours a ticked "don\'t show this again" when the hint is dismissed by a right-click', async () => {
+        const first = render(<DiagramEditor />);
+        fireEvent.click(screen.getByLabelText("Don't show this again"));
+        // Dismissed from outside the dialog — the reason the checkbox state
+        // lives in DiagramEditor rather than inside the modal.
+        fireEvent.contextMenu(screen.getByRole('presentation'));
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
+
+        first.unmount();
+        render(<DiagramEditor />);
+        expect(screen.queryByRole('dialog', { name: 'Right click hint' })).not.toBeInTheDocument();
+    });
+
     it('stops showing the hint on File New and on the next start once "don\'t show this again" is ticked', async () => {
         const first = render(<DiagramEditor />);
         fireEvent.click(screen.getByLabelText("Don't show this again"));

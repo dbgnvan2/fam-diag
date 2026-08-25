@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
-import RightClickHintModal from './RightClickHintModal';
+import RightClickHintModal, { HINT_Z_INDEX } from './RightClickHintModal';
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
 
 /** Harness supplying the checkbox state the modal no longer owns. */
@@ -95,5 +95,17 @@ describe('RightClickHintModal', () => {
     render(<Harness onClose={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'Right click hint' });
     expect(dialog.style.position).toBe('fixed');
+  });
+
+  it('sits below the app overlay band and paints no backdrop over it', () => {
+    const { container } = render(<Harness onClose={() => {}} />);
+    const dialog = screen.getByRole('dialog', { name: 'Right click hint' });
+    // Context menus and ribbon dropdowns live at 1000, dialogs at 2400+. A hint
+    // above those would cover the very menu it tells the user to open.
+    expect(HINT_Z_INDEX).toBeLessThan(1000);
+    expect(dialog.style.zIndex).toBe(String(HINT_Z_INDEX));
+    // The dialog is the only element rendered — no full-viewport scrim.
+    expect(container.childElementCount).toBe(1);
+    expect(dialog.getAttribute('aria-modal')).toBeNull();
   });
 });

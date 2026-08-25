@@ -3450,8 +3450,8 @@ useEffect(() => {
   const handleCloseRightClickHint = () => {
     setRightClickHintOpen(false);
     if (rightClickHintDontShowAgain && !setRightClickHintHidden(true)) {
-      // The write did not stick (quota, private-mode storage). Say so rather
-      // than letting the hint silently reappear next launch.
+      // The store refused the write (quota, private-mode). Developer-console
+      // only — the user is not told, and the hint will reappear next launch.
       console.warn(
         'Could not save the "Don\'t show this again" preference — the hint will reappear.'
       );

@@ -38,12 +38,21 @@ export const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
   return localStorage.getItem(STORAGE_KEYS[key]);
 };
 
+export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEYS[key], value);
+};
+
 /**
- * Writes a localStorage value. Returns false when the write could not happen
- * (no window, or the browser refused it — quota exceeded, Safari private mode)
- * so callers that made the user a promise can react instead of assuming success.
+ * setStoredValue for callers that need to know whether the write happened —
+ * it returns false instead of throwing when the browser refuses (quota
+ * exceeded, Safari private mode).
+ *
+ * Deliberately a separate function: setStoredValue's throw is what surfaces a
+ * failed diagram autosave to its callers, and swallowing it there would turn a
+ * lost save into a console line nobody sees.
  */
-export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): boolean => {
+export const trySetStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): boolean => {
   if (typeof window === 'undefined') return false;
   try {
     localStorage.setItem(STORAGE_KEYS[key], value);
@@ -61,9 +70,13 @@ export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): b
  */
 export const isRightClickHintHidden = () => getStoredValue('hideRightClickHint') === 'true';
 
-/** Returns true only when the preference is verifiably stored (read back). */
+/**
+ * Returns true when the write was accepted and reads back as the value asked
+ * for. A same-tick read-back cannot prove the value survives the session, only
+ * that the store accepted it — which is enough to catch a refused write.
+ */
 export const setRightClickHintHidden = (hidden: boolean): boolean => {
-  if (!setStoredValue('hideRightClickHint', hidden ? 'true' : 'false')) return false;
+  if (!trySetStoredValue('hideRightClickHint', hidden ? 'true' : 'false')) return false;
   return isRightClickHintHidden() === hidden;
 };
 
