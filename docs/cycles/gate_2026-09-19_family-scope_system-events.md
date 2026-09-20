@@ -654,3 +654,95 @@ non-functional findings remain — one med-low P3 parallel-copy (PropertiesPanel
 test overclaim, one low stale comment — none is a shipped-behaviour defect. Clean against P1–P36
 and L1–L6; P3/P19-corollary (parallel clone rule, med-low), test-quality (low) and doc-drift (low)
 were applicable.
+
+---
+
+# Pass 7 — re-run after fix commit a6ee222
+
+Date: 2026-09-20
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `7875bfb...HEAD` (1 commit); the three pass-6 findings cleared
+Verdict: **APPROVED**
+
+## Commits
+
+- a6ee222 Clear the three findings carried from gate pass 6
+
+## Gates (re-run on current HEAD `a6ee222`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 59 files, 600 passed, 13 skipped (613) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## The three carried findings — verified by reproduction, not by the commit message
+
+### 1. PropertiesPanel delegates the clone rule to eventDedup (pass-6 finding 1, med-low P3)
+
+Real. `getDisplayEvents` now sets `isAlreadyCloned = (sourceId) => hasSameEvent(sourceId, ownIds)`
+(PropertiesPanel.tsx:1656), importing `hasSameEvent` from `utils/eventDedup` (:27). The three
+redundant `ownIds.has(event.id)` guards beside it were removed (:1666, :1674, :1689); the exact-id
+check is preserved inside `hasSameEvent`'s first line `if (ownEventIds.has(eventId)) return true`
+(eventDedup.ts:25), so removing it cannot let a duplicate back in.
+
+Single-source-of-truth confirmed by grep: `CLONE_SUFFIX_PATTERN`, `baseEventId` and `hasSameEvent`
+now live only in eventDedup.ts; all three gather paths (PropertiesPanel, TimelineBoardModal,
+systemEvents.ts) import `hasSameEvent`. No inline `-p1`/`-p2` dedup copy remains anywhere.
+
+**Differential reproduction** (temporary panel-level test, since the panel's getDisplayEvents has no
+direct unit test): two Events-tab fixtures were rendered.
+- Classic case (person holds clone `shared-p1`, partnership holds original `shared`): GREEN under
+  BOTH the old inline rule and the new `hasSameEvent` rule — behaviour unchanged for the cases that
+  already worked.
+- New case (person holds original `shared`, partnership holds clone `shared-p1`): RED under the old
+  inline rule (duplicate leaked back in — `getAllByText(/zzz partnership event/i)` returned 2, not
+  1) and GREEN under `hasSameEvent`. The panel now handles a clone whose original is held, which the
+  inline version could not.
+
+The temp test was deleted after use; the working tree is restored to `a6ee222`.
+
+### 2. Shape test now exercises the female/oval half at component level (pass-6 finding 2, low)
+
+Real. The test fixture gives `wife` a `birthDate` and `mum` an `Illness` event, then asserts
+`Birth — Wife` (her own lane) and `Illness — Mum` (a system event on Root's lane) both render
+`999px` (TimelineBoardModal.systemEvents.test.tsx:294-321).
+
+**Mutation-proven**: `blockShapeForPerson`'s female branch was temporarily changed from `return
+'oval'` to `return 'rect'`; the test went RED (`expected '2px' to be '999px'` at line 319). Restored
+with `git checkout`; the test went GREEN. The female→oval mapping is now genuinely guarded at the
+component level, not just by the pure `blockShapeForPerson` unit test.
+
+### 3. Stale intensity-ramp comment gone (pass-6 finding 3, low)
+
+Confirmed by grep: the old ramp text (`0 / unset → green, 1 → blue, 2 → yellow, 3 → orange, 4 →
+pink, 5 → red`) returns zero matches. The comment above `eventStart` now points at
+constants/timelineBlockStyle.ts (`intensityStyle()` applies them), TimelineBoardModal.tsx:397-398.
+
+## Events tab — verified not broken
+
+Rendered the panel's Events tab with a full fixture (temporary test, deleted after): own events,
+partnership events, `familyEvents`, EPL events, and the synthesized birth all appear exactly once,
+with the partnership event (held as the person's clone, the partner's clone, and the partnership's
+original) listed once, not three times. No source is dropped and none is duplicated.
+
+## Findings (ranked)
+
+None. The three carried pass-6 findings are all resolved and reproduction-verified; no new finding
+was introduced by the fix commit.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump only).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — all three carried findings are cleared and verified by reproduction: the clone rule
+is now held once in eventDedup.ts (differential test proves behaviour is unchanged for the classic
+case and newly correct for a clone whose original is held), the shape test genuinely guards the
+female/oval path (mutation goes red), and the stale ramp comment is gone. The Events tab still lists
+own / partnership / familyEvents / EPL / synthesized events exactly once. Full suite (600 passed)
+and both typecheck gates are green. Clean against P1–P36 and L1–L6; P3/P19-corollary (parallel clone
+rule) was the only pattern applicable and it is now closed.
