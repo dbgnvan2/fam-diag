@@ -332,6 +332,26 @@ describe('computeScopeExclusions', () => {
     expect(exclusions.boundaryEvents).toBe(1);
   });
 
+  it('test_m1a12_ambiguous_counterpart_names_are_reported_not_guessed', () => {
+    // Two people share a display name — normal across generations in a
+    // genogram. A last-wins name lookup would attribute the event to whichever
+    // happened to be later in the array.
+    const { people, partnerships } = buildFamily();
+    const renamed = people.map((entry) =>
+      entry.id === 'sister' || entry.id === 'greatGrandkid'
+        ? { ...entry, name: 'Mary' }
+        : entry
+    );
+    const withEvent = renamed.map((entry) =>
+      entry.id === 'root' ? { ...entry, events: [event('e1', 'Mary')] } : entry
+    );
+    const scope = computeFamilyScope(withEvent, partnerships, 'root', { up: 2, down: 2 });
+    const exclusions = computeScopeExclusions(scope, withEvent, partnerships, [], []);
+
+    expect(exclusions.unresolvedBoundaryRefs).toBe(1);
+    expect(exclusions.boundaryEvents).toBe(0);
+  });
+
   it('test_m1a12_null_scope_reports_everything_visible', () => {
     const { people, partnerships } = buildFamily();
     const exclusions = computeScopeExclusions(null, people, partnerships, [], []);
@@ -383,6 +403,25 @@ describe('computeScopeDepth', () => {
     const depth = computeScopeDepth(people, partnerships, 'root');
     expect(depth.maxUp).toBe(3);
     expect(depth.maxDown).toBe(3);
+  });
+
+  it('test_m2a2_depth_honours_the_focus_traversal_options', () => {
+    // The steppers clamp against this number, so it has to be measured with
+    // the same traversal the focus uses — not a hardcoded one.
+    const people: Person[] = [
+      person('root', { partnerships: ['prRoot'] }),
+      person('spouse', { partnerships: ['prRoot'], parentPartnership: 'prInLaw' }),
+      person('inLawDad', { partnerships: ['prInLaw'] }),
+      person('inLawMum', { partnerships: ['prInLaw'] }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prRoot', 'root', 'spouse', []),
+      partnership('prInLaw', 'inLawDad', 'inLawMum', ['spouse']),
+    ];
+    expect(computeScopeDepth(people, partnerships, 'root').maxUp).toBe(0);
+    expect(
+      computeScopeDepth(people, partnerships, 'root', { includePartnerFOO: true }).maxUp
+    ).toBe(1);
   });
 });
 

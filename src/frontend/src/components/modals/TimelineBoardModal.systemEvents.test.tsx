@@ -192,13 +192,30 @@ describe('TimelineBoardModal — system events', () => {
     );
   });
 
-  it('test_m7e3_click_opens_event_on_owning_entity', () => {
+  it('test_m7e3_system_event_does_not_open_a_local_editor', () => {
+    // A relative's event is read-only here. Opening the local editor would
+    // edit the relative's record — and for a synthesized item would fabricate
+    // a brand-new event on them, with the relation label as its category,
+    // which then reaches the saved diagram.
     renderBoard();
-    const item = screen.getByText('Father died');
-    fireEvent.click(item);
-    // The EventModal opens against the owner (Dad), not the lane person.
-    const modalTitle = screen.getByText(/Person Edit Event|Person Add Event/);
-    expect(modalTitle.textContent).toContain('Dad');
+    fireEvent.click(screen.getByText('Father died'));
+    expect(screen.queryByText(/Person Edit Event|Person Add Event/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('timeline-selection-hint').textContent).toMatch(/Read-only/);
+  });
+
+  it('test_m7e3_own_event_still_opens_the_editor', () => {
+    renderBoard();
+    fireEvent.click(screen.getByText('Marriage'));
+    expect(screen.getByText(/Partnership Edit Event|Partnership Add Event/)).toBeInTheDocument();
+  });
+
+  it('test_m7e3_system_event_side_panel_fields_are_read_only', () => {
+    renderBoard();
+    fireEvent.click(screen.getByText('Father died'));
+    const nameField = screen.getByDisplayValue('Dad') as HTMLInputElement;
+    expect(nameField.readOnly).toBe(true);
+    // No "Add Event" button that would write to the relative.
+    expect(screen.queryByRole('button', { name: 'Add Event' })).not.toBeInTheDocument();
   });
 
   it('test_m7g2_toggle_cycle_leaves_own_events_unchanged', () => {
@@ -220,6 +237,30 @@ describe('TimelineBoardModal — system events', () => {
     // so the number can never exceed the people in the scope.
     expect(relatives).toBeGreaterThan(0);
     expect(relatives).toBeLessThanOrEqual(people.length - 1);
+  });
+
+  it('test_m7e2_undated_ring_events_are_reported_not_dropped_silently', () => {
+    const withUndated = people.map((person) =>
+      person.id === 'mum'
+        ? {
+            ...person,
+            events: [
+              {
+                ...event('mum-undated', 'Illness', ''),
+                date: '',
+                startDate: undefined,
+              },
+            ],
+          }
+        : person
+    );
+    renderBoard({
+      people: withUndated,
+      familyScope: computeFamilyScope(withUndated, partnerships, 'root', defaultFocusForRoot('root')),
+    });
+    expect(screen.getByTestId('system-events-count').textContent).toMatch(
+      /\d+ undated, not placed/
+    );
   });
 
   it('test_m7e1_lane_count_is_reported_without_truncation', () => {

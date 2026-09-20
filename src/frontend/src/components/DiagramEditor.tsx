@@ -40,6 +40,8 @@ import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
 import { useFamilyScope } from '../hooks/useFamilyScope';
 import {
   buildPersonVisibility,
+  computeFamilyScope,
+  defaultFocusForRoot,
   deriveTimelineSelection,
   pruneSelectionToScope,
 } from '../utils/familyScope';
@@ -50,6 +52,7 @@ import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
+import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
 import { ImportLog } from '../utils/importLog';
@@ -985,6 +988,24 @@ const DiagramEditor = () => {
   // Timeline lanes: an explicit person selection wins; otherwise the active
   // family scope drives the lanes (D5).
   // Spec: docs/implementation_plan_2026-09-19.md#M4.A.1
+  // Lanes for a focus set in the same handler: focusOnPerson is a setState, so
+  // the scope deriveTimelineIds closes over is still the previous render's.
+  // Spec: docs/implementation_plan_2026-09-19.md#M4.A.2
+  const deriveTimelineIdsForRoot = useCallback(
+    (rootId: string, options: { up: number; down: number }) =>
+      deriveTimelineSelection(
+        computeFamilyScope(people, partnerships, rootId, {
+          ...defaultFocusForRoot(rootId),
+          ...options,
+        }),
+        [],
+        people,
+        partnerships,
+        []
+      ),
+    [people, partnerships]
+  );
+
   const deriveTimelineIds = useCallback(
     (explicitPersonIds: string[], explicitFamilyIds: string[]) =>
       deriveTimelineSelection(
@@ -2198,27 +2219,30 @@ useEffect(() => {
   });
 
 
-  const buildDiagramPayload = (targetFileName = fileName) => ({
-    fileMeta: {
-      fileName: targetFileName,
-      displayName: targetFileName,
-      exportedAt: new Date().toISOString(),
-    },
-    people,
-    partnerships,
-    emotionalLines,
-    pageNotes,
-    triangles,
-    functionalIndicatorDefinitions,
-    eventCategories,
-    relationshipTypes,
-    relationshipStatuses,
-    autoSaveMinutes,
-    ideasText,
-    predictionSets,
-    functionalFactCategories,
-    nodalCategories,
-  });
+  // The payload shape lives in utils/diagramPayload.ts so the guarantee that
+  // view state (the family focus) never reaches a saved file can be asserted
+  // against the real object instead of against this file's source text.
+  // Spec: docs/implementation_plan_2026-09-19.md#M5.A.1
+  const buildDiagramPayload = (targetFileName = fileName) =>
+    buildDiagramPayloadPure(
+      {
+        people,
+        partnerships,
+        emotionalLines,
+        pageNotes,
+        triangles,
+        functionalIndicatorDefinitions,
+        eventCategories,
+        relationshipTypes,
+        relationshipStatuses,
+        autoSaveMinutes,
+        ideasText,
+        predictionSets,
+        functionalFactCategories,
+        nodalCategories,
+      },
+      targetFileName
+    );
 
   const setDiagramFileHandle = useCallback((handle: any | null) => {
     diagramFileHandleRef.current = handle;
@@ -3976,6 +4000,7 @@ useEffect(() => {
     focusFamilyOnPerson: familyScope.focusOnPerson,
     clearFamilyFocus: familyScope.clearFocus,
     deriveTimelineIds,
+    deriveTimelineIdsForRoot,
     addPerson,
     addCoach,
     addAIAgent,

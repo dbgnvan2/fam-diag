@@ -188,26 +188,49 @@ describe('collectSystemEvents', () => {
   });
 
   it('test_m7c2_ring_uses_defaults_when_no_focus_active', () => {
+    // D10: with no canvas focus the ring falls back to the same defaults
+    // (2 up / 2 down, collaterals on). Production callers pass null until the
+    // user sets a focus, so if this path returned nothing the whole feature
+    // would be inert and would report "0 system events" as though the family
+    // had none.
     const { people, partnerships } = buildSystem();
-    const viaDefaults = collectSystemEvents({
+    const explicit = collectSystemEvents({
       personId: 'root',
       scope: scopeFor(people, partnerships),
       people,
       partnerships,
       now: new Date('2026-09-19T00:00:00Z'),
     });
-    expect(viaDefaults.events.length).toBeGreaterThan(0);
-
-    // With no scope at all only the lane person is in the ring, so nothing
-    // from a relative is collected.
-    const noScope = collectSystemEvents({
+    const implicit = collectSystemEvents({
       personId: 'root',
       scope: null,
       people,
       partnerships,
       now: new Date('2026-09-19T00:00:00Z'),
     });
-    expect(noScope.events.filter((entry) => entry.ownerEntityType === 'person')).toHaveLength(0);
+
+    expect(implicit.events.length).toBeGreaterThan(0);
+    expect(labels(implicit)).toContain('Father died');
+    expect(implicit.relativeCount).toBeGreaterThan(0);
+    // The implicit default must match an explicitly-built default scope.
+    expect(labels(implicit).sort()).toEqual(labels(explicit).sort());
+  });
+
+  it('test_m7c2_null_scope_still_respects_the_generation_band', () => {
+    // The fallback is the DEFAULT scope, not "everyone".
+    const { people, partnerships } = buildSystem();
+    const outsider: Person = person('stranger', {
+      name: 'Stranger',
+      events: [event('stranger-evt', 'Death', '1990-01-01')],
+    });
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: null,
+      people: [...people, outsider],
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.relativeIds).not.toContain('stranger');
   });
 
   it('test_m7c3_labels_father_death_and_parents_divorce', () => {
@@ -273,9 +296,14 @@ describe('collectSystemEvents', () => {
     expect(all.some((label) => /Triangle: Triangle/.test(label))).toBe(true);
   });
 
-  it('test_m7c5_own_partnership_marriage_is_collected', () => {
+  it('test_m7c5_own_partnership_marriage_is_left_to_the_lane_itself', () => {
+    // The lane person's own marriage is their own event, not a system event:
+    // the Timeline lane and the Events tab both list it directly, so emitting
+    // it here rendered it twice.
     const all = labels(collect());
-    expect(all.some((label) => /Own family married/.test(label))).toBe(true);
+    expect(all.some((label) => /Own family/.test(label))).toBe(false);
+    // The parents' marriage, by contrast, IS a system event.
+    expect(all).toContain('Parents married');
   });
 
   it('test_m7c6_partnership_clone_p1_p2_not_duplicated', () => {
@@ -440,5 +468,72 @@ describe('lifetime clipping', () => {
     });
     expect(people).toEqual(peopleBefore);
     expect(partnerships).toEqual(partnershipsBefore);
+  });
+});
+
+
+/**
+ * Spec: docs/implementation_plan_2026-09-19.md#M7.C.6 (gate fixes)
+ */
+describe('collectSystemEvents — own partnerships and undated events', () => {
+  it('test_m7c6_own_partnership_events_are_not_emitted_as_system_events', () => {
+    // The lane person's own marriage is their own event. Both consumers list
+    // it directly, so emitting it here rendered every marriage twice.
+    const result = collect();
+    const ownPartnershipItems = result.events.filter(
+      (entry) => entry.ownerEntityType === 'partnership' && entry.ownerEntityId === 'prRoot'
+    );
+    expect(ownPartnershipItems).toHaveLength(0);
+    // The PARENTS' partnership is still collected.
+    expect(
+      result.events.some(
+        (entry) => entry.ownerEntityType === 'partnership' && entry.ownerEntityId === 'prP'
+      )
+    ).toBe(true);
+  });
+
+  it('test_m7c6_undated_events_are_counted_not_silently_dropped', () => {
+    const { people, partnerships } = buildSystem();
+    const withUndated = people.map((entry) =>
+      entry.id === 'mum'
+        ? {
+            ...entry,
+            events: [
+              { ...event('mum-undated', 'Illness', ''), date: '', startDate: undefined },
+            ],
+          }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withUndated, partnerships),
+      people: withUndated,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.undatedDropped).toBeGreaterThan(0);
+    expect(result.events.some((entry) => entry.event.id === 'mum-undated')).toBe(false);
+  });
+
+  it('test_m7c6_an_undated_reach_does_not_lock_the_event_out_of_another_relation', () => {
+    // The date test runs before the dedup key is reserved, so a dated reach
+    // through a second relation still lands.
+    const { people, partnerships } = buildSystem();
+    const shared = event('shared', 'Conflict', '1990-01-01');
+    const withBoth = people.map((entry) =>
+      entry.id === 'mum'
+        ? { ...entry, events: [{ ...shared }] }
+        : entry.id === 'sister'
+        ? { ...entry, events: [...(entry.events || []), { ...shared, date: '', startDate: undefined }] }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withBoth, partnerships),
+      people: withBoth,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.events.some((entry) => entry.event.id === 'shared')).toBe(true);
   });
 });

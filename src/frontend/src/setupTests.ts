@@ -1,3 +1,4 @@
+import { afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Node 26 exposes a global `localStorage` accessor that is undefined unless
@@ -86,3 +87,15 @@ const installStorage = (key: 'localStorage' | 'sessionStorage') => {
 
 installStorage('localStorage');
 installStorage('sessionStorage');
+
+// Each test starts from an empty store. A shared in-memory Map that is never
+// reset leaks keys into the next test in the same file — ordering-dependent
+// passes, which is the dirty-state class this repo has been bitten by (P8).
+afterEach(() => {
+  try {
+    globalThis.localStorage?.clear();
+    globalThis.sessionStorage?.clear();
+  } catch {
+    // A test may have replaced storage with a throwing stub; nothing to reset.
+  }
+});

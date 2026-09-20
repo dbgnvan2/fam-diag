@@ -66,7 +66,12 @@ type TimelineLane = {
   label: string;
   items: TimelineBlockItem[];
   /** Person lanes only: which relatives contributed system events. */
-  systemMeta?: { relativeIds: string[]; lifetimeFilterApplied: boolean };
+  systemMeta?: {
+    relativeIds: string[];
+    lifetimeFilterApplied: boolean;
+    /** Ring events with no usable date — reported, never silently dropped. */
+    undatedDropped: number;
+  };
 };
 
 export default function TimelineBoardModal({
@@ -588,6 +593,7 @@ export default function TimelineBoardModal({
         systemMeta = {
           relativeIds: system.relativeIds,
           lifetimeFilterApplied: system.lifetimeFilterApplied,
+          undatedDropped: system.undatedDropped,
         };
         system.events.forEach((entry: SystemEvent) => {
           const start = eventStart(entry.event);
@@ -623,6 +629,7 @@ export default function TimelineBoardModal({
     // Relatives are PEOPLE, not owner entities: a partnership or pattern
     // contributing an event counts the people in it, not itself.
     const relatives = new Set<string>();
+    let undatedDropped = 0;
     let lifetimeFilterApplied = true;
     timelineLanes.forEach((lane) => {
       lane.items.forEach((item) => {
@@ -631,10 +638,11 @@ export default function TimelineBoardModal({
       });
       if (lane.systemMeta) {
         lane.systemMeta.relativeIds.forEach((id) => relatives.add(id));
+        undatedDropped += lane.systemMeta.undatedDropped;
         if (!lane.systemMeta.lifetimeFilterApplied) lifetimeFilterApplied = false;
       }
     });
-    return { own, system, relatives: relatives.size, lifetimeFilterApplied };
+    return { own, system, relatives: relatives.size, undatedDropped, lifetimeFilterApplied };
   })();
 
   const handleTimelineItemClick = (laneLabel: string, item: TimelineBlockItem) => {
@@ -647,10 +655,18 @@ export default function TimelineBoardModal({
       itemLabel: item.label,
       startDate: item.startDate,
       endDate: item.endDate,
+      isSystemEvent: item.isSystemEvent,
     });
     if (!item.eventId) {
       // Span items (PRL, EPL line) — let the right-side panel show their
       // properties; no event editor opens.
+      return;
+    }
+    if (item.isSystemEvent) {
+      // A relative's event. Opening the local editor here would edit — or,
+      // for a synthesized one, fabricate on the relative — an event this lane
+      // only borrows. Read-only, exactly as the Events tab treats it (D14).
+      // Spec: docs/implementation_plan_2026-09-19.md#M7.E.3
       return;
     }
     // Find the existing event in the source entity's events[]. If it's a
@@ -709,6 +725,9 @@ export default function TimelineBoardModal({
     value: string
   ) => {
     if (!timelineBoardSelection || timelineBoardSelection.entityType !== 'person') return;
+    // Never write through a borrowed item: the entity behind it is a
+    // relative, not the lane person the panel header names.
+    if (timelineBoardSelection.isSystemEvent) return;
     const person = people.find((entry) => entry.id === timelineBoardSelection.entityId);
     if (!person) return;
     if (field === 'name') {
@@ -893,6 +912,9 @@ export default function TimelineBoardModal({
                   } from ${systemEventSummary.relatives} relative${
                     systemEventSummary.relatives === 1 ? '' : 's'
                   }`
+                : ''}
+              {showSystemEvents && systemEventSummary.undatedDropped > 0
+                ? ` \u00b7 ${systemEventSummary.undatedDropped} undated, not placed`
                 : ''}
               {showSystemEvents && !systemEventSummary.lifetimeFilterApplied
                 ? ' \u2014 no birth date, lifetime filter not applied'
@@ -1281,6 +1303,7 @@ export default function TimelineBoardModal({
                         <input
                           type="text"
                           value={timelineSelectionResolved.person.name || ''}
+                          readOnly={timelineBoardSelection?.isSystemEvent}
                           onChange={(e) =>
                             handleTimelinePersonPropertyChange('name', e.target.value)
                           }
@@ -1291,23 +1314,30 @@ export default function TimelineBoardModal({
                         <textarea
                           rows={4}
                           value={timelineSelectionResolved.person.notes || ''}
+                          readOnly={timelineBoardSelection?.isSystemEvent}
                           onChange={(e) =>
                             handleTimelinePersonPropertyChange('notes', e.target.value)
                           }
                           style={{ fontFamily: 'inherit' }}
                         />
                       </label>
-                      <button
-                        onClick={() => {
-                          if (timelineBoardSelection?.entityType === 'person' && timelineBoardSelection.entityId) {
-                            startAddEventForPerson(timelineBoardSelection.entityId);
-                          }
-                        }}
-                      >
-                        Add Event
-                      </button>
-                      <div style={{ fontSize: 12, color: '#7a8aaa', marginTop: 6 }}>
-                        Click any event block on the timeline to edit it.
+                      {!timelineBoardSelection?.isSystemEvent && (
+                        <button
+                          onClick={() => {
+                            if (timelineBoardSelection?.entityType === 'person' && timelineBoardSelection.entityId) {
+                              startAddEventForPerson(timelineBoardSelection.entityId);
+                            }
+                          }}
+                        >
+                          Add Event
+                        </button>
+                      )}
+                      <div style={{ fontSize: 12, color: '#7a8aaa', marginTop: 6 }} data-testid="timeline-selection-hint">
+                        {timelineBoardSelection?.isSystemEvent
+                          ? `Read-only \u2014 this event belongs to ${
+                              timelineSelectionResolved.person.name || 'a relative'
+                            }. Open them to edit it.`
+                          : 'Click any event block on the timeline to edit it.'}
                       </div>
                     </>
                   )}

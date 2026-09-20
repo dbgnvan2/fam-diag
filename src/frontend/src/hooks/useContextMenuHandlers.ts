@@ -9,7 +9,22 @@ import type {
 } from '../types';
 import type { PropertiesPanelIntent } from '../types/diagramEditor';
 import { GENDER_SYMBOL_OPTIONS } from '../utils/dataNormalization';
-import type { FamilyScopeFocus } from '../utils/familyScope';
+import {
+  computeScopeDepth,
+  DEFAULT_SCOPE_DOWN,
+  DEFAULT_SCOPE_UP,
+  type FamilyScopeFocus,
+} from '../utils/familyScope';
+
+/**
+ * Focus Family presets. The default sits in familyScope.ts so the menu, the
+ * chip and the system-events ring cannot drift apart (P4).
+ */
+const FAMILY_SCOPE_PRESETS: Array<{ label: string; up: number; down: number }> = [
+  { label: `${DEFAULT_SCOPE_UP} up / ${DEFAULT_SCOPE_DOWN} down`, up: DEFAULT_SCOPE_UP, down: DEFAULT_SCOPE_DOWN },
+  { label: '1 up / 1 down', up: 1, down: 1 },
+  { label: '3 up / 3 down', up: 3, down: 3 },
+];
 
 interface UseContextMenuHandlersDeps {
   // State data
@@ -73,6 +88,16 @@ interface UseContextMenuHandlersDeps {
     explicitPersonIds: string[],
     explicitFamilyIds: string[]
   ) => { personIds: string[]; familyIds: string[] };
+  /**
+   * Lanes for a focus being set in the same handler. focusFamilyOnPerson is a
+   * setState, so the scope deriveTimelineIds closes over is still the previous
+   * render's — deriving from it opens the board on the wrong family, or on
+   * none at all the first time.
+   */
+  deriveTimelineIdsForRoot: (
+    rootId: string,
+    options: { up: number; down: number }
+  ) => { personIds: string[]; familyIds: string[] };
   // Canvas geometry
   zoom: number;
   viewport: { width: number; height: number };
@@ -103,6 +128,7 @@ export function useContextMenuHandlers({
   focusFamilyOnPerson,
   clearFamilyFocus,
   deriveTimelineIds,
+  deriveTimelineIdsForRoot,
   addPerson,
   addCoach,
   addAIAgent,
@@ -460,46 +486,46 @@ export function useContextMenuHandlers({
             // Spec: docs/implementation_plan_2026-09-19.md#M3.A.1
             label: 'Focus Family',
             children: [
-              {
-                label: '2 up / 2 down',
+              ...FAMILY_SCOPE_PRESETS.map((preset) => ({
+                label: preset.label,
                 onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: 2, down: 2 });
+                  focusFamilyOnPerson(person.id, { up: preset.up, down: preset.down });
                   setContextMenu(null);
                 },
-              },
-              {
-                label: '1 up / 1 down',
-                onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: 1, down: 1 });
-                  setContextMenu(null);
-                },
-              },
-              {
-                label: '3 up / 3 down',
-                onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: 3, down: 3 });
-                  setContextMenu(null);
-                },
-              },
+              })),
               {
                 label: 'Whole family',
                 onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: people.length, down: people.length });
+                  // Clamped to the family's real depth so the chip shows a
+                  // meaningful number and the first "-" press is not a jump.
+                  const depth = computeScopeDepth(people, partnerships, person.id);
+                  focusFamilyOnPerson(person.id, { up: depth.maxUp, down: depth.maxDown });
                   setContextMenu(null);
                 },
               },
               {
                 label: 'Lineal only (no siblings/cousins)',
                 onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: 2, down: 2, includeCollaterals: false });
+                  focusFamilyOnPerson(person.id, {
+                    up: DEFAULT_SCOPE_UP,
+                    down: DEFAULT_SCOPE_DOWN,
+                    includeCollaterals: false,
+                  });
                   setContextMenu(null);
                 },
               },
               {
-                label: 'Timeline for this family',
+                label: `Timeline for this family (${DEFAULT_SCOPE_UP} up / ${DEFAULT_SCOPE_DOWN} down)`,
                 onClick: () => {
-                  focusFamilyOnPerson(person.id, { up: 2, down: 2 });
-                  const derived = deriveTimelineIds([], [...selectedFamilyIds]);
+                  focusFamilyOnPerson(person.id, {
+                    up: DEFAULT_SCOPE_UP,
+                    down: DEFAULT_SCOPE_DOWN,
+                  });
+                  // Derived from the focus being set, not from the stale one.
+                  const derived = deriveTimelineIdsForRoot(person.id, {
+                    up: DEFAULT_SCOPE_UP,
+                    down: DEFAULT_SCOPE_DOWN,
+                  });
                   setTimelineSelectionIds(derived.personIds);
                   setTimelineFamilySelectionIds(derived.familyIds);
                   setContextMenu(null);

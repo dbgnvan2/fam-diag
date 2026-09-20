@@ -1663,6 +1663,14 @@ const PropertiesPanel = ({
         if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
+      // Family-level events (FAMILY / TRIANGLE) of the person's own
+      // partnerships. The Timeline lane lists these; without them here the
+      // two views disagree again.
+      // Spec: docs/implementation_plan_2026-09-19.md#M7.A.2
+      (p.familyEvents || []).forEach((event) => {
+        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        extra.push(event);
+      });
       // Synthesized partnership-date events
       synthesizePartnershipDateEvents(p, partner1?.name, partner2?.name).forEach((e) => {
         if (ownIds.has(e.id)) return;

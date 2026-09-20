@@ -22,12 +22,11 @@ import type {
   Partnership,
   Person,
 } from '../types';
-import type { FamilyScope } from './familyScope';
+import { computeFamilyScope, defaultFocusForRoot, type FamilyScope } from './familyScope';
 import {
   DISTANT_ANCESTOR_NOUN,
   DISTANT_DESCENDANT_NOUN,
   EVENT_PHRASES,
-  OWN_UNION_NOUN,
   PARENTAL_UNION_NOUN,
   RELATION_NOUNS,
   SPOUSE_NOUNS,
@@ -60,6 +59,8 @@ export type SystemEventsResult = {
   relativeCount: number;
   /** Ids of those relatives, so several lanes can be unioned without double counting. */
   relativeIds: string[];
+  /** Events in the ring that carry no usable date and could not be placed. */
+  undatedDropped: number;
   /** False when the person has no birth date, so no lower bound was applied. */
   lifetimeFilterApplied: boolean;
 };
@@ -174,18 +175,30 @@ export function collectSystemEvents({
   const personById = new Map(people.map((entry) => [entry.id, entry]));
   const lanePerson = personById.get(personId);
   if (!lanePerson) {
-    return { events: [], relativeCount: 0, relativeIds: [], lifetimeFilterApplied: false };
+    return {
+      events: [],
+      relativeCount: 0,
+      relativeIds: [],
+      undatedDropped: 0,
+      lifetimeFilterApplied: false,
+    };
   }
+
+  // D10: the ring follows the active canvas focus when there is one, and uses
+  // the same defaults otherwise. Without this the feature is inert until the
+  // user happens to set a focus, and the UI reports "0 system events" — which
+  // reads as "this family has none" rather than "nothing was looked for".
+  const ring =
+    scope ?? computeFamilyScope(people, partnerships, personId, defaultFocusForRoot(personId));
 
   const inRing = (id?: string): boolean => {
     if (!id) return false;
     if (id === personId) return true;
-    return scope ? scope.personIds.has(id) : false;
+    return ring.personIds.has(id);
   };
   const generationOf = (id: string): number => {
-    if (!scope) return id === personId ? 0 : 0;
-    const laneGen = scope.generation.get(personId) ?? 0;
-    return (scope.generation.get(id) ?? 0) - laneGen;
+    const laneGen = ring.generation.get(personId) ?? 0;
+    return (ring.generation.get(id) ?? 0) - laneGen;
   };
 
   const collected: SystemEvent[] = [];
@@ -194,8 +207,17 @@ export function collectSystemEvents({
   // and synthetic ids are prefixed.
   const seen = new Set<string>();
   const relatives = new Set<string>();
+  // Events with no usable date cannot be placed on a timeline. They are
+  // dropped, but never silently — the count is reported (P2).
+  let undatedDropped = 0;
 
   const push = (entry: SystemEvent) => {
+    // Test the date BEFORE reserving the dedup key: an undated reach must not
+    // burn the key and lock the event out of every other relation.
+    if (!eventDate(entry.event)) {
+      undatedDropped += 1;
+      return;
+    }
     const key = `${entry.ownerEntityType}:${entry.ownerEntityId}:${entry.event.id}`;
     if (seen.has(key)) return;
     // The same underlying event reached through two relations appears once.
@@ -204,7 +226,6 @@ export function collectSystemEvents({
     if (seen.has(altKey)) return;
     seen.add(key);
     seen.add(altKey);
-    if (!eventDate(entry.event)) return;
     collected.push(entry);
     if (entry.ownerEntityType === 'person' && entry.ownerEntityId !== personId) {
       relatives.add(entry.ownerEntityId);
@@ -223,7 +244,7 @@ export function collectSystemEvents({
     if (!inRing(relative.id)) return;
     const isSelf = relative.id === personId;
     const generation = generationOf(relative.id);
-    const marriedIn = scope?.marriedIn.has(relative.id) ?? false;
+    const marriedIn = ring.marriedIn.has(relative.id);
     const isPartnerOfLanePerson =
       !isSelf &&
       (relative.partnerships || []).some((id) => ownPartnershipIds.has(id));
@@ -272,17 +293,17 @@ export function collectSystemEvents({
   partnerships.forEach((partnership) => {
     const bothInRing = inRing(partnership.partner1_id) && inRing(partnership.partner2_id);
     if (!bothInRing) return;
-    const isOwn = ownPartnershipIds.has(partnership.id);
+    // The lane person's OWN partnerships are their own events, not the
+    // system's. Both consumers already list them directly, so emitting them
+    // here rendered every marriage and family event twice.
+    if (ownPartnershipIds.has(partnership.id)) return;
     const isParental = parentPartnershipIds.has(partnership.id);
     const partner1 = personById.get(partnership.partner1_id);
     const partner2 = personById.get(partnership.partner2_id);
 
     let relationClass: RelationClass;
     let noun: string;
-    if (isOwn) {
-      relationClass = 'union';
-      noun = OWN_UNION_NOUN;
-    } else if (isParental) {
+    if (isParental) {
       relationClass = 'parental';
       noun = PARENTAL_UNION_NOUN;
     } else {
@@ -346,6 +367,7 @@ export function collectSystemEvents({
       events: nonSelf,
       relativeCount: relatives.size,
       relativeIds: [...relatives],
+      undatedDropped,
       lifetimeFilterApplied: false,
     };
   }
@@ -373,6 +395,7 @@ export function collectSystemEvents({
     events: kept,
     relativeCount: keptRelatives.size,
     relativeIds: [...keptRelatives],
+    undatedDropped,
     lifetimeFilterApplied,
   };
 }

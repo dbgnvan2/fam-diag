@@ -67,6 +67,15 @@ export default function FamilyScopeChip({
       `${exclusions.boundaryEvents} boundary event${exclusions.boundaryEvents === 1 ? '' : 's'}`
     );
   }
+  // Counterpart names shared by more than one person cannot be attributed, so
+  // they are neither counted nor guessed — they are reported (P2).
+  if (exclusions.unresolvedBoundaryRefs > 0) {
+    hiddenNotes.push(
+      `${exclusions.unresolvedBoundaryRefs} ambiguous name${
+        exclusions.unresolvedBoundaryRefs === 1 ? '' : 's'
+      } uncounted`
+    );
+  }
 
   const stepper = (
     label: string,

@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { buildDiagramPayload, DIAGRAM_PAYLOAD_KEYS } from './diagramPayload';
 import {
   computeFamilyScope,
   computeScopeExclusions,
@@ -19,18 +20,6 @@ const diagramEditorSource = readFileSync(
   join(__dirname, '../components/DiagramEditor.tsx'),
   'utf8'
 );
-
-/** The keys `buildDiagramPayload` writes into a saved diagram file. */
-const payloadKeys = (): string[] => {
-  const start = diagramEditorSource.indexOf('const buildDiagramPayload');
-  expect(start).toBeGreaterThan(-1);
-  const body = diagramEditorSource.slice(start, diagramEditorSource.indexOf('});', start));
-  return body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => /^[A-Za-z][A-Za-z0-9_]*[,:]$/.test(line))
-    .map((line) => line.replace(/[,:]$/, ''));
-};
 
 const people: Person[] = [
   { id: 'root', name: 'Root', x: 0, y: 0, partnerships: ['pr1'], birthDate: '1970-01-01' },
@@ -53,13 +42,73 @@ const partnerships: Partnership[] = [
 
 describe('family scope never reaches persisted state', () => {
   it('test_m5a1_focus_absent_from_saved_json', () => {
-    const keys = payloadKeys();
-    expect(keys).toContain('people');
-    expect(keys).toContain('partnerships');
-    keys.forEach((key) => {
-      expect(key.toLowerCase()).not.toContain('scope');
-      expect(key.toLowerCase()).not.toContain('focus');
-    });
+    // Asserted against the real payload object, not against source text: a
+    // nested key such as `familyScopeFocus: { ... }` escapes a line-based
+    // regex, so the guard could not catch the regression it exists for.
+    const payload = buildDiagramPayload(
+      {
+        people,
+        partnerships,
+        emotionalLines: [],
+        pageNotes: [],
+        triangles: [],
+        functionalIndicatorDefinitions: [],
+        eventCategories: [],
+        relationshipTypes: [],
+        relationshipStatuses: [],
+        autoSaveMinutes: 5,
+        ideasText: '',
+        predictionSets: [],
+        functionalFactCategories: [],
+        nodalCategories: [],
+      },
+      'test.diagram.json',
+      '2026-09-19T00:00:00.000Z'
+    );
+
+    expect(Object.keys(payload).sort()).toEqual([...DIAGRAM_PAYLOAD_KEYS].sort());
+    // Nothing anywhere in the serialized file mentions the view state.
+    const serialized = JSON.stringify(payload);
+    expect(serialized.toLowerCase()).not.toContain('familyscope');
+    expect(serialized.toLowerCase()).not.toContain('"focus"');
+    expect(serialized.toLowerCase()).not.toContain('scoperoot');
+  });
+
+  it('test_m5a1_editor_saves_through_the_shared_payload_builder', () => {
+    // If DiagramEditor ever builds its own object literal again, the guard
+    // above stops describing what is written.
+    expect(diagramEditorSource).toContain('buildDiagramPayloadPure(');
+    expect(diagramEditorSource).not.toMatch(/const buildDiagramPayload = \(targetFileName = fileName\) => \(\{/);
+  });
+
+  it('test_m5a1_a_focus_key_added_to_the_payload_type_would_fail_the_guard', () => {
+    // Adversarial (P7): the guard must reject a payload that carries the
+    // focus, including nested — the shape a source-line regex missed.
+    const contaminated = {
+      ...buildDiagramPayload(
+        {
+          people,
+          partnerships,
+          emotionalLines: [],
+          pageNotes: [],
+          triangles: [],
+          functionalIndicatorDefinitions: [],
+          eventCategories: [],
+          relationshipTypes: [],
+          relationshipStatuses: [],
+          autoSaveMinutes: 5,
+          ideasText: '',
+          predictionSets: [],
+          functionalFactCategories: [],
+          nodalCategories: [],
+        },
+        'test.diagram.json',
+        '2026-09-19T00:00:00.000Z'
+      ),
+      familyScopeFocus: { rootId: 'root', up: 2, down: 2 },
+    };
+    expect(Object.keys(contaminated).sort()).not.toEqual([...DIAGRAM_PAYLOAD_KEYS].sort());
+    expect(JSON.stringify(contaminated).toLowerCase()).toContain('familyscope');
   });
 
   it('test_m5a2_autosave_payload_unchanged_under_focus', () => {

@@ -43,9 +43,6 @@ export const SPOUSE_NOUNS: Record<RelationGender, string> = {
 /** Noun for the partnership that produced the lane person. */
 export const PARENTAL_UNION_NOUN = 'Parents';
 
-/** Noun for the lane person's own partnership. */
-export const OWN_UNION_NOUN = 'Own family';
-
 /**
  * Past-tense phrasing for the standard nodal categories, keyed by the
  * category text the event carries (lower-cased). Anything not listed keeps

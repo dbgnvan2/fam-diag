@@ -22,6 +22,7 @@ const exclusions: FamilyScopeExclusions = {
   hiddenEmotionalLines: 0,
   hiddenTriangles: 0,
   boundaryEvents: 0,
+  unresolvedBoundaryRefs: 0,
 };
 
 const renderChip = (overrides: Partial<React.ComponentProps<typeof FamilyScopeChip>> = {}) => {
@@ -94,6 +95,13 @@ describe('FamilyScopeChip', () => {
     expect(hidden).toHaveTextContent('3 patterns');
     expect(hidden).toHaveTextContent('1 triangle');
     expect(hidden).toHaveTextContent('2 boundary events');
+  });
+
+  it('test_m3a3_reports_ambiguous_counterpart_names', () => {
+    renderChip({ exclusions: { ...exclusions, unresolvedBoundaryRefs: 2 } });
+    expect(screen.getByTestId('family-scope-hidden')).toHaveTextContent(
+      '2 ambiguous names uncounted'
+    );
   });
 
   it('test_m3a3_reports_nothing_when_no_exclusions', () => {

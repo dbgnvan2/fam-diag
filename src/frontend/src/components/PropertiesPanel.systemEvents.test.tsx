@@ -204,8 +204,12 @@ describe('PropertiesPanel — system events on the Events tab', () => {
     expect(screen.queryByText(/Sister Illness/)).not.toBeInTheDocument();
   });
 
-  it('test_m7f1_no_system_section_without_a_scope', () => {
+  it('test_m7f1_section_still_appears_without_an_active_focus', () => {
+    // D10: no canvas focus falls back to the default ring. Requiring a focus
+    // made the whole feature inert until the user happened to set one.
     renderPanel({ familyScope: null });
-    expect(screen.queryByTestId('system-events-section')).not.toBeInTheDocument();
+    const section = screen.getByTestId('system-events-section');
+    expect(within(section).getByText('Parents divorced')).toBeInTheDocument();
+    expect(within(section).getByText('Father died')).toBeInTheDocument();
   });
 });

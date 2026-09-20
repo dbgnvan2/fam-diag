@@ -62,6 +62,8 @@ export type FamilyScopeExclusions = {
   hiddenEmotionalLines: number;
   hiddenTriangles: number;
   boundaryEvents: number;
+  /** Counterpart names shared by more than one person, so not attributable. */
+  unresolvedBoundaryRefs: number;
 };
 
 export const DEFAULT_SCOPE_UP = 2;
@@ -220,6 +222,7 @@ export function computeScopeExclusions(
       hiddenEmotionalLines: 0,
       hiddenTriangles: 0,
       boundaryEvents: 0,
+      unresolvedBoundaryRefs: 0,
     };
   }
   const inScope = (id?: string) => !!id && scope.personIds.has(id);
@@ -236,16 +239,28 @@ export function computeScopeExclusions(
   ).length;
 
   // Events kept on screen whose counterpart sits outside the scope.
-  const nameToId = new Map<string, string>();
+  // Events carry a counterpart's display NAME, not an id. Repeated names
+  // across generations are normal in a genogram, so a name shared by two
+  // people cannot be resolved and must not be guessed — it is counted as
+  // unresolved and reported separately rather than attributed to whichever
+  // person happened to be last in the list.
+  const idsByName = new Map<string, string[]>();
   people.forEach((person) => {
-    if (person.name) nameToId.set(person.name.trim().toLowerCase(), person.id);
+    const key = (person.name || '').trim().toLowerCase();
+    if (!key) return;
+    idsByName.set(key, [...(idsByName.get(key) || []), person.id]);
   });
+  let unresolvedBoundaryRefs = 0;
   const referencesOutOfScope = (otherPersonName?: string): boolean => {
     const key = (otherPersonName || '').trim().toLowerCase();
     if (!key || key === 'none') return false;
-    const otherId = nameToId.get(key);
-    if (!otherId) return false;
-    return !inScope(otherId);
+    const matches = idsByName.get(key);
+    if (!matches || matches.length === 0) return false;
+    if (matches.length > 1) {
+      unresolvedBoundaryRefs += 1;
+      return false;
+    }
+    return !inScope(matches[0]);
   };
 
   let boundaryEvents = 0;
@@ -268,6 +283,7 @@ export function computeScopeExclusions(
     hiddenEmotionalLines,
     hiddenTriangles,
     boundaryEvents,
+    unresolvedBoundaryRefs,
   };
 }
 
@@ -384,12 +400,17 @@ export function deriveTimelineSelection(
 export function computeScopeDepth(
   people: Person[],
   partnerships: Partnership[],
-  rootId: string
+  rootId: string,
+  options: Pick<FamilyScopeOptions, 'includeCollaterals' | 'includePartnerFOO'> = {}
 ): { maxUp: number; maxDown: number } {
+  // The depth must be measured with the SAME traversal the focus uses —
+  // otherwise the +/- steppers clamp against a family the focus cannot reach
+  // (or stop short of one it can).
   const wide = computeFamilyScope(people, partnerships, rootId, {
     up: people.length,
     down: people.length,
-    includeCollaterals: true,
+    includeCollaterals: options.includeCollaterals ?? true,
+    includePartnerFOO: options.includePartnerFOO ?? false,
   });
   let maxUp = 0;
   let maxDown = 0;

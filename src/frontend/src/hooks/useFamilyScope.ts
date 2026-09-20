@@ -51,7 +51,10 @@ export function useFamilyScope({
 
   const depth = useMemo(() => {
     if (!focus) return { maxUp: 0, maxDown: 0 };
-    return computeScopeDepth(people, partnerships, focus.rootId);
+    return computeScopeDepth(people, partnerships, focus.rootId, {
+      includeCollaterals: focus.includeCollaterals,
+      includePartnerFOO: focus.includePartnerFOO,
+    });
   }, [focus, people, partnerships]);
 
   const scope = useMemo(() => {
@@ -87,7 +90,10 @@ export function useFamilyScope({
     (delta: number) => {
       setFocus((prev) => {
         if (!prev) return prev;
-        const { maxUp } = computeScopeDepth(people, partnerships, prev.rootId);
+        const { maxUp } = computeScopeDepth(people, partnerships, prev.rootId, {
+          includeCollaterals: prev.includeCollaterals,
+          includePartnerFOO: prev.includePartnerFOO,
+        });
         const next = Math.min(Math.max(prev.up + delta, 0), maxUp);
         return next === prev.up ? prev : { ...prev, up: next };
       });
@@ -99,7 +105,10 @@ export function useFamilyScope({
     (delta: number) => {
       setFocus((prev) => {
         if (!prev) return prev;
-        const { maxDown } = computeScopeDepth(people, partnerships, prev.rootId);
+        const { maxDown } = computeScopeDepth(people, partnerships, prev.rootId, {
+          includeCollaterals: prev.includeCollaterals,
+          includePartnerFOO: prev.includePartnerFOO,
+        });
         const next = Math.min(Math.max(prev.down + delta, 0), maxDown);
         return next === prev.down ? prev : { ...prev, down: next };
       });

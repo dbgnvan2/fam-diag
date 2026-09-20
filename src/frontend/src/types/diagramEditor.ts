@@ -64,6 +64,12 @@ export type TimelineBoardSelection = {
   itemLabel: string;
   startDate?: string;
   endDate?: string;
+  /**
+   * True when the selected item is a relative's event borrowed onto this
+   * lane. Such an item is read-only here — it is edited on its owner.
+   * Spec: docs/implementation_plan_2026-09-19.md#M7.E.3
+   */
+  isSystemEvent?: boolean;
 };
 
 // ---------------------------------------------------------------------------
