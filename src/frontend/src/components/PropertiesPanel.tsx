@@ -24,6 +24,7 @@ import {
 import { computeDefaultFamilyName } from '../utils/partnershipUtils';
 import type { FamilyScope } from '../utils/familyScope';
 import { collectSystemEvents, type SystemEvent } from '../utils/systemEvents';
+import { hasSameEvent } from '../utils/eventDedup';
 import {
   synthesizePersonDateEvents,
   synthesizePartnershipDateEvents,
@@ -1649,8 +1650,10 @@ const PropertiesPanel = ({
     const person = selectedItem as Person;
     const ownEvents = person.events || [];
     const ownIds = new Set(ownEvents.map((e) => e.id));
-    const isAlreadyCloned = (sourceId: string) =>
-      ownIds.has(`${sourceId}-p1`) || ownIds.has(`${sourceId}-p2`);
+    // The clone rule lives in utils/eventDedup.ts so this panel and the
+    // Timeline cannot drift: the inline version here only recognised an
+    // original whose clone was held, not a clone whose original was.
+    const isAlreadyCloned = (sourceId: string) => hasSameEvent(sourceId, ownIds);
     const extra: EmotionalProcessEvent[] = [];
     // Synthesized birth/death/adoption from date fields
     extra.push(...synthesizePersonDateEvents(person));
@@ -1660,7 +1663,7 @@ const PropertiesPanel = ({
       const partner1 = people.find((q) => q.id === p.partner1_id);
       const partner2 = people.find((q) => q.id === p.partner2_id);
       (p.events || []).forEach((event) => {
-        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        if (isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
       // Family-level events (FAMILY / TRIANGLE) of the person's own
@@ -1668,7 +1671,7 @@ const PropertiesPanel = ({
       // two views disagree again.
       // Spec: docs/implementation_plan_2026-09-19.md#M7.A.2
       (p.familyEvents || []).forEach((event) => {
-        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        if (isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
       // Synthesized partnership-date events
@@ -1683,7 +1686,7 @@ const PropertiesPanel = ({
       const p1 = people.find((q) => q.id === line.person1_id);
       const p2 = people.find((q) => q.id === line.person2_id);
       (line.events || []).forEach((event) => {
-        if (ownIds.has(event.id) || isAlreadyCloned(event.id)) return;
+        if (isAlreadyCloned(event.id)) return;
         extra.push(event);
       });
       synthesizeEmotionalLineDateEvents(line, p1?.name, p2?.name).forEach((e) => {

@@ -394,9 +394,8 @@ export default function TimelineBoardModal({
 
   const selectedTimelinePeople = people.filter((person) => timelineSelectionIds.includes(person.id));
 
-  // Color the timeline box by event intensity:
-  //   0 / unset (e.g. birth, marriage) → green,  1 → blue,  2 → yellow,
-  //   3 → orange,  4 → pink,  5 → red.
+  // The intensity ramp and the shape vocabulary live in
+  // constants/timelineBlockStyle.ts; intensityStyle() applies them.
   const eventStart = (event: EmotionalProcessEvent): string | undefined =>
     event.startDate || event.date || undefined;
 

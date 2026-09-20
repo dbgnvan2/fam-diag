@@ -292,10 +292,32 @@ describe('TimelineBoardModal — block shape and intensity', () => {
   };
 
   it('test_timeline_male_events_are_rectangles_and_female_events_are_ovals', () => {
-    renderBoard({ timelineSelectionIds: ['root', 'wife'] });
-    // Root is male, Wife is female; both have a synthesized Birth/own event.
+    // The fixture's women had no dated events, so the female half of this
+    // rule was never exercised here. Give the wife and the mother one each.
+    const withFemaleEvents = people.map((person) =>
+      person.id === 'wife'
+        ? { ...person, birthDate: '1972-03-03' }
+        : person.id === 'mum'
+        ? { ...person, events: [event('mum-evt', 'Illness', '1994-02-02')] }
+        : person
+    );
+    renderBoard({
+      people: withFemaleEvents,
+      timelineSelectionIds: ['root', 'wife'],
+      familyScope: computeFamilyScope(
+        withFemaleEvents,
+        partnerships,
+        'root',
+        defaultFocusForRoot('root')
+      ),
+    });
+
+    // Male owners: rectangles.
     expect(styleOf('Birth — Root')?.borderRadius).toBe('2px');
     expect(styleOf('Birth — Son')?.borderRadius).toBe('2px');
+    // Female owners: wide ovals — on her own lane and as a system event on his.
+    expect(styleOf('Birth — Wife')?.borderRadius).toBe('999px');
+    expect(styleOf('Illness — Mum')?.borderRadius).toBe('999px');
   });
 
   it('test_timeline_couple_events_stay_neutral', () => {
