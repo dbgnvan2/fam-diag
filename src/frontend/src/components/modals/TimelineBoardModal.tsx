@@ -61,7 +61,13 @@ type TimelineBlockItem = {
   partnershipTarget?: 'events' | 'familyEvents';
 };
 
-type TimelineLane = { id: string; label: string; items: TimelineBlockItem[] };
+type TimelineLane = {
+  id: string;
+  label: string;
+  items: TimelineBlockItem[];
+  /** Person lanes only: which relatives contributed system events. */
+  systemMeta?: { relativeIds: string[]; lifetimeFilterApplied: boolean };
+};
 
 export default function TimelineBoardModal({
   people,
@@ -569,6 +575,7 @@ export default function TimelineBoardModal({
       // sister's symptom onset). The ring follows the active canvas family
       // scope and the result is clipped to this person's lifetime.
       // Spec: docs/implementation_plan_2026-09-19.md#M7.E.1
+      let systemMeta: TimelineLane['systemMeta'];
       if (showSystemEvents) {
         const system = collectSystemEvents({
           personId: person.id,
@@ -578,6 +585,10 @@ export default function TimelineBoardModal({
           allEmotionalLines,
           functionalIndicatorDefinitions,
         });
+        systemMeta = {
+          relativeIds: system.relativeIds,
+          lifetimeFilterApplied: system.lifetimeFilterApplied,
+        };
         system.events.forEach((entry: SystemEvent) => {
           const start = eventStart(entry.event);
           if (!start) return;
@@ -600,7 +611,7 @@ export default function TimelineBoardModal({
           });
         });
       }
-      lanes.push({ id: person.id, label: person.name || 'Unnamed', items });
+      lanes.push({ id: person.id, label: person.name || 'Unnamed', items, systemMeta });
     });
     return lanes;
   })();
@@ -609,20 +620,19 @@ export default function TimelineBoardModal({
   const systemEventSummary = (() => {
     let own = 0;
     let system = 0;
+    // Relatives are PEOPLE, not owner entities: a partnership or pattern
+    // contributing an event counts the people in it, not itself.
     const relatives = new Set<string>();
     let lifetimeFilterApplied = true;
     timelineLanes.forEach((lane) => {
       lane.items.forEach((item) => {
-        if (item.isSystemEvent) {
-          system += 1;
-          relatives.add(`${item.entityType}:${item.entityId}`);
-        } else {
-          own += 1;
-        }
+        if (item.isSystemEvent) system += 1;
+        else own += 1;
       });
-    });
-    selectedTimelinePeople.forEach((person) => {
-      if (!person.birthDate) lifetimeFilterApplied = false;
+      if (lane.systemMeta) {
+        lane.systemMeta.relativeIds.forEach((id) => relatives.add(id));
+        if (!lane.systemMeta.lifetimeFilterApplied) lifetimeFilterApplied = false;
+      }
     });
     return { own, system, relatives: relatives.size, lifetimeFilterApplied };
   })();

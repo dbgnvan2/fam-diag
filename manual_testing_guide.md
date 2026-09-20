@@ -38,3 +38,14 @@ Due to the canvas-based nature of the application, manual verification is essent
 *   **Session Notes**: Open floating panel. Type notes, highlight a line, and click "Make Event". Verify the anchored event is created in the target object's Events tab.
 *   **File Operations**: Test "Save As" (JSON export) and "Open". Verify the diagram name in the header updates.
 *   **Auto-Save**: Make a change and wait for the configured interval. Refresh the page and verify the state is restored.
+
+## 7. Family focus & system events (2026-09-19)
+
+Mostly covered by automated tests; these two need a human eye:
+
+1. **Export reflects the focus (M5.A.3).** Right-click a person → Focus Family → 2 up / 2 down,
+   then File → Export PNG. The image must contain only the people still on the canvas. Asserting
+   pixels in jsdom is not feasible, so this one is checked by hand.
+2. **Chip legibility at narrow window widths.** With a focus active, shrink the window: the
+   focus chip sits beside the timeline-year slider and must stay fully visible and not clip the
+   ribbon (see `docs/ui-patterns.md` on viewport safety).

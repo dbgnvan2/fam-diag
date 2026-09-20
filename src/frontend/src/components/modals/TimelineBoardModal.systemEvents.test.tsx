@@ -211,6 +211,17 @@ describe('TimelineBoardModal — system events', () => {
     expect(itemText()).toContain('Father died');
   });
 
+  it('test_m7e2_relative_count_counts_people_not_owner_entities', () => {
+    renderBoard();
+    const text = screen.getByTestId('system-events-count').textContent || '';
+    const relatives = Number(text.match(/from (\d+) relative/)?.[1]);
+    // The ring around Root holds Dad, Mum, Wife and Son. A partnership or
+    // pattern contributing an event must count the people in it, not itself,
+    // so the number can never exceed the people in the scope.
+    expect(relatives).toBeGreaterThan(0);
+    expect(relatives).toBeLessThanOrEqual(people.length - 1);
+  });
+
   it('test_m7e1_lane_count_is_reported_without_truncation', () => {
     renderBoard({ timelineSelectionIds: ['root', 'son', 'dad', 'mum', 'wife'] });
     const header = screen.getByTestId('system-events-header');

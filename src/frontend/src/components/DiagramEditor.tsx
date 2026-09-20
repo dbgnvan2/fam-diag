@@ -38,7 +38,11 @@ import { useEmotionalLineOperations } from '../hooks/useEmotionalLineOperations'
 import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
 import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
 import { useFamilyScope } from '../hooks/useFamilyScope';
-import { buildPersonVisibility, deriveTimelineSelection } from '../utils/familyScope';
+import {
+  buildPersonVisibility,
+  deriveTimelineSelection,
+  pruneSelectionToScope,
+} from '../utils/familyScope';
 import DiagramModals from './DiagramModals';
 import PredictionsPanel from './PredictionsPanel';
 import DiagramCanvas from './DiagramCanvas';
@@ -1015,33 +1019,54 @@ const DiagramEditor = () => {
   // Spec: docs/implementation_plan_2026-09-19.md#M2.A.5
   useEffect(() => {
     if (!activeFamilyScope) return;
-    const inScope = (id?: string | null) => !!id && activeFamilyScope.personIds.has(id);
     setSelectedPeopleIds((prev) => {
-      const next = prev.filter((id) => inScope(id));
+      const next = pruneSelectionToScope(
+        activeFamilyScope,
+        { personIds: prev, partnershipId: null, familyIds: [], childId: null, emotionalLineId: null },
+        allEmotionalLines
+      ).personIds;
       return next.length === prev.length ? prev : next;
     });
-    setSelectedChildId((prev) => (prev && !inScope(prev) ? null : prev));
+    setSelectedChildId((prev) =>
+      pruneSelectionToScope(
+        activeFamilyScope,
+        { personIds: [], partnershipId: null, familyIds: [], childId: prev, emotionalLineId: null },
+        allEmotionalLines
+      ).childId
+    );
     setSelectedPartnershipId((prev) =>
-      prev && !activeFamilyScope.partnershipIds.has(prev) ? null : prev
+      pruneSelectionToScope(
+        activeFamilyScope,
+        { personIds: [], partnershipId: prev, familyIds: [], childId: null, emotionalLineId: null },
+        allEmotionalLines
+      ).partnershipId
     );
     setSelectedFamilyIds((prev) => {
-      const next = prev.filter((id) => activeFamilyScope.partnershipIds.has(id));
+      const next = pruneSelectionToScope(
+        activeFamilyScope,
+        { personIds: [], partnershipId: null, familyIds: prev, childId: null, emotionalLineId: null },
+        allEmotionalLines
+      ).familyIds;
       return next.length === prev.length ? prev : next;
     });
-    setSelectedEmotionalLineId((prev) => {
-      if (!prev) return prev;
-      const line = allEmotionalLines.find((entry) => entry.id === prev);
-      if (!line) return prev;
-      return inScope(line.person1_id) && inScope(line.person2_id) ? prev : null;
-    });
+    setSelectedEmotionalLineId((prev) =>
+      pruneSelectionToScope(
+        activeFamilyScope,
+        { personIds: [], partnershipId: null, familyIds: [], childId: null, emotionalLineId: prev },
+        allEmotionalLines
+      ).emotionalLineId
+    );
     setPropertiesPanelItem((prev) => {
       if (!prev) return prev;
-      if ('name' in prev) return inScope(prev.id) ? prev : null;
+      if ('name' in prev) return activeFamilyScope.personIds.has(prev.id) ? prev : null;
       if ('partner1_id' in prev) {
         return activeFamilyScope.partnershipIds.has(prev.id) ? prev : null;
       }
       if ('lineStyle' in prev) {
-        return inScope(prev.person1_id) && inScope(prev.person2_id) ? prev : null;
+        return activeFamilyScope.personIds.has(prev.person1_id) &&
+          activeFamilyScope.personIds.has(prev.person2_id)
+          ? prev
+          : null;
       }
       return prev;
     });

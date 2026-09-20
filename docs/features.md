@@ -196,3 +196,88 @@ The full rule catalogue (R1–R21) is documented in the `genogramRules.ts` heade
 in the layout comment block of `dataImport.ts`. Design/status: [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md).
 The retired classical-CV pipeline is described in [genogram-import-status.md](genogram-import-status.md)
 (historical only).
+
+## Family focus — N generations up / N down
+
+**Spec:** [`implementation_plan_2026-09-19.md`](implementation_plan_2026-09-19.md) (M1–M6)
+**Code:** `utils/familyScope.ts`, `hooks/useFamilyScope.ts`, `components/FamilyScopeChip.tsx`
+
+Right-click a person → **Focus Family** shows only that person's family. Default is
+2 generations up and 2 down (grandparents → parents → person → children → grandchildren),
+adjustable with the `±` steppers on the chip that appears beside the timeline-year slider.
+
+### Traversal rules (`computeFamilyScope`)
+
+Generation-banded BFS, not a lineal walk. The root is generation 0; a person is in scope iff
+`-up ≤ gen ≤ +down` and reachable by a legal edge:
+
+| Edge | Target | Legal when |
+|---|---|---|
+| up | `parentPartnership` + `birthParentPartnership` → both partners, `gen − 1` | the node is **lineal** (never from a married-in partner — their FOO is a different family), and `gen − 1 ≥ −up` |
+| down | each partnership → `children`, `gen + 1` | `gen + 1 ≤ +down` |
+| partner | partners via `person.partnerships`, same `gen` | always; marks the partner *married-in* |
+
+- **Siblings, aunts, uncles and cousins** fall out of up-then-down paths — no special case.
+  `includeCollaterals: false` ("Lineal only" in the menu) restricts a node reached by an up
+  edge to descending back only to the child it came from.
+- **Boundary rule R4a:** at `up = 2` a grandparent's own siblings are *not* included — reaching
+  them needs a great-grandparent partnership at `gen −3`, outside the band.
+- **Adoption:** both `parentPartnership` and `birthParentPartnership` are traversed.
+- **`includePartnerFOO: true`** (not currently exposed in the menu) allows the up edge from a
+  married-in partner.
+- A partnership is in scope iff **both** partners are — the rule `partnershipVisibility`
+  already applies on the canvas.
+
+### Composition with the year slider
+
+The focus is ANDed into `personVisibility` (`buildPersonVisibility`), which the timeline-year
+slider already drove. A person must pass **both** filters to be drawn, which is why the chip
+sits next to the slider. Emotional lines and triangles need every endpoint visible, so
+boundary-crossing patterns disappear — the chip reports how many (`N patterns · M triangles
+hidden`).
+
+### What it never does
+
+Focus is view state: never written to the diagram JSON, never autosaved, and it never moves a
+person. Hidden people leave gaps; layout is not recompacted. "Center" re-centres the view on
+what remains. PNG/SVG export renders the stage, so it exports what is visible.
+
+### Timeline
+
+All three Timeline entry points route through `deriveTimelineSelection`: an explicit person
+selection wins, otherwise the active scope supplies the lanes, sorted by generation then birth
+date. Lanes are never truncated — the count is reported in the header.
+
+## System events — the nodal events of a person's system
+
+**Spec:** [`implementation_plan_2026-09-19.md`](implementation_plan_2026-09-19.md) (M7)
+**Code:** `utils/systemEvents.ts`, `constants/relationLabels.ts`
+
+A person's Timeline lane and Events tab show the events of the **family system** they belong
+to, not only the events they own or are a named party to: a father's death, the parents'
+divorce, a son's birth, a sister's symptom onset, the family's own FAMILY/TRIANGLE events.
+
+- **Ring** = the active family scope (its defaults when no focus is set).
+- **Labels** are generated from generation offset + sex — `Father died`, `Parents divorced`,
+  `Son born`, `Sister Depression`. Vocabulary lives in `constants/relationLabels.ts`, not in
+  the collector.
+- **No event-type filter:** SYMPTOM, NODAL, EPE, FF, SIR and PAPERO all come through.
+- **Lifetime clip:** an event is kept when its range *overlaps* `[birthDate, deathDate ?? today]`.
+  The one exception is the **parental union's formation** (relationship start / marriage),
+  which precedes every person by construction — the exception list is
+  `UNION_FORMATION_CATEGORIES`. A person with no birth date gets no lower bound, and the UI
+  says so rather than filtering silently.
+- **Dedup** is keyed on `(owner, event)`, never the event id alone, because partnership events
+  are cloned onto both partners with `-p1` / `-p2` suffixes.
+- **Rendering:** on the person's own lane, dashed and muted, behind a "System events" toggle
+  (default on) that reports `N own · M system events from K relatives`. In the Events tab they
+  are **read-only** — the `↗` control opens the event on the entity that owns it, so there is
+  never a second editable copy.
+
+### Date-field synthesis (extended)
+
+`utils/syntheticDateEvents.ts` also synthesizes `synthesizePersonIndicatorEvents`: a
+`functionalIndicator` carrying a date with no backing SYMPTOM event becomes one at read time.
+Indicators written by the Properties panel always have a backing event; those arriving through
+transcript / voice import (`DiagramEditor` `mergeIndicators`) do not, and were invisible on
+every timeline before this.

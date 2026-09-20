@@ -291,6 +291,50 @@ export function buildPersonVisibility(
   return map;
 }
 
+export type ScopedSelection = {
+  personIds: string[];
+  partnershipId: string | null;
+  familyIds: string[];
+  childId: string | null;
+  emotionalLineId: string | null;
+};
+
+/**
+ * Purpose: drop anything a focus has just hidden from the current selection,
+ *          the same way the timeline-year slider already prunes it.
+ * Spec:    docs/implementation_plan_2026-09-19.md#M2.A.5
+ * Tests:   familyScope.test.ts::test_m2a5_focus_prunes_hidden_selection
+ */
+export function pruneSelectionToScope(
+  scope: FamilyScope | null,
+  selection: ScopedSelection,
+  allEmotionalLines: EmotionalLine[] = []
+): ScopedSelection {
+  if (!scope) return selection;
+  const inScope = (id?: string | null): boolean => !!id && scope.personIds.has(id);
+  const line = selection.emotionalLineId
+    ? allEmotionalLines.find((entry) => entry.id === selection.emotionalLineId)
+    : undefined;
+  return {
+    personIds: selection.personIds.filter((id) => inScope(id)),
+    partnershipId:
+      selection.partnershipId && scope.partnershipIds.has(selection.partnershipId)
+        ? selection.partnershipId
+        : null,
+    familyIds: selection.familyIds.filter((id) => scope.partnershipIds.has(id)),
+    childId: inScope(selection.childId) ? selection.childId : null,
+    // A line we cannot resolve is left alone: absence from the list means the
+    // caller has not supplied it, not that it is out of scope.
+    emotionalLineId: !selection.emotionalLineId
+      ? null
+      : !line
+      ? selection.emotionalLineId
+      : inScope(line.person1_id) && inScope(line.person2_id)
+      ? selection.emotionalLineId
+      : null,
+  };
+}
+
 const birthKey = (person?: Person): string => person?.birthDate || '9999-99-99';
 
 /**

@@ -9,6 +9,7 @@ import {
   computeScopeDepth,
   computeScopeExclusions,
   deriveTimelineSelection,
+  pruneSelectionToScope,
 } from './familyScope';
 import type { EmotionalLine, EmotionalProcessEvent, Partnership, Person, Triangle } from '../types';
 
@@ -447,5 +448,83 @@ describe('buildPersonVisibility', () => {
     expect(visibilityPeople).toEqual(before);
     // Clearing the focus restores everyone the year filter allows.
     visibilityPeople.forEach((entry) => expect(cleared.get(entry.id)).toBe(true));
+  });
+});
+
+describe('pruneSelectionToScope', () => {
+  it('test_m2a5_focus_prunes_hidden_selection', () => {
+    const { people, partnerships } = buildFamily();
+    const scope = computeFamilyScope(people, partnerships, 'root', { up: 1, down: 1 });
+    const lines: EmotionalLine[] = [
+      {
+        id: 'in',
+        person1_id: 'root',
+        person2_id: 'sister',
+        relationshipType: 'conflict',
+        lineStyle: 'conflict-double',
+        lineEnding: 'none',
+      },
+      {
+        id: 'out',
+        person1_id: 'root',
+        person2_id: 'gf',
+        relationshipType: 'distance',
+        lineStyle: 'dotted',
+        lineEnding: 'none',
+      },
+    ];
+
+    const pruned = pruneSelectionToScope(
+      scope,
+      {
+        personIds: ['root', 'gf', 'sister'],
+        partnershipId: 'prG',
+        familyIds: ['prP', 'prG'],
+        childId: 'gf',
+        emotionalLineId: 'out',
+      },
+      lines
+    );
+
+    // gf sits at gen -2, outside a 1-up scope.
+    expect(pruned.personIds).toEqual(['root', 'sister']);
+    expect(pruned.partnershipId).toBeNull();
+    expect(pruned.familyIds).toEqual(['prP']);
+    expect(pruned.childId).toBeNull();
+    expect(pruned.emotionalLineId).toBeNull();
+  });
+
+  it('test_m2a5_keeps_a_selection_that_is_entirely_in_scope', () => {
+    const { people, partnerships } = buildFamily();
+    const scope = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2 });
+    const lines: EmotionalLine[] = [
+      {
+        id: 'in',
+        person1_id: 'root',
+        person2_id: 'sister',
+        relationshipType: 'conflict',
+        lineStyle: 'conflict-double',
+        lineEnding: 'none',
+      },
+    ];
+    const selection = {
+      personIds: ['root', 'sister'],
+      partnershipId: 'prP',
+      familyIds: ['prP'],
+      childId: 'root',
+      emotionalLineId: 'in',
+    };
+    expect(pruneSelectionToScope(scope, selection, lines)).toEqual(selection);
+  });
+
+  it('test_m2a5_no_scope_leaves_the_selection_untouched', () => {
+    const selection = {
+      personIds: ['anything'],
+      partnershipId: 'pr',
+      familyIds: ['pr'],
+      childId: 'anything',
+      emotionalLineId: 'line',
+    };
+    expect(pruneSelectionToScope(null, selection, [])).toBe(selection);
   });
 });

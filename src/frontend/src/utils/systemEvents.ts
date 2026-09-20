@@ -58,6 +58,8 @@ export type SystemEventsResult = {
   events: SystemEvent[];
   /** Distinct relatives (people other than the lane person) contributing events. */
   relativeCount: number;
+  /** Ids of those relatives, so several lanes can be unioned without double counting. */
+  relativeIds: string[];
   /** False when the person has no birth date, so no lower bound was applied. */
   lifetimeFilterApplied: boolean;
 };
@@ -172,7 +174,7 @@ export function collectSystemEvents({
   const personById = new Map(people.map((entry) => [entry.id, entry]));
   const lanePerson = personById.get(personId);
   if (!lanePerson) {
-    return { events: [], relativeCount: 0, lifetimeFilterApplied: false };
+    return { events: [], relativeCount: 0, relativeIds: [], lifetimeFilterApplied: false };
   }
 
   const inRing = (id?: string): boolean => {
@@ -343,6 +345,7 @@ export function collectSystemEvents({
     return {
       events: nonSelf,
       relativeCount: relatives.size,
+      relativeIds: [...relatives],
       lifetimeFilterApplied: false,
     };
   }
@@ -366,5 +369,10 @@ export function collectSystemEvents({
       if (id && id !== personId) keptRelatives.add(id);
     });
   });
-  return { events: kept, relativeCount: keptRelatives.size, lifetimeFilterApplied };
+  return {
+    events: kept,
+    relativeCount: keptRelatives.size,
+    relativeIds: [...keptRelatives],
+    lifetimeFilterApplied,
+  };
 }
