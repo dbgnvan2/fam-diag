@@ -1201,6 +1201,13 @@ export default function TimelineBoardModal({
                   >
                     Drag strip to pan years
                   </div>
+                  {/* Two layers on purpose. Each year cell has an opaque
+                      background, so a label drawn INSIDE a narrow cell has its
+                      overflow painted over by the next cell — the year lost
+                      its trailing digits and read as "202". The cells below
+                      carry the background and the click target; the labels
+                      above are a separate, non-interactive layer that nothing
+                      paints over. */}
                   {timelineYearSlices.map((slice, index) => (
                     <div
                       key={`slice-${slice.year}`}
@@ -1213,18 +1220,37 @@ export default function TimelineBoardModal({
                         height: 30,
                         background: index % 2 === 0 ? '#edf2fc' : '#e4ebfa',
                         borderRight: '1px solid #d5ddec',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: '#37527a',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         cursor: 'pointer',
                       }}
-                    >
-                      {shouldShowYearLabel(slice.year) ? slice.year : ''}
-                    </div>
+                    />
                   ))}
+                  {timelineYearSlices
+                    .filter((slice) => shouldShowYearLabel(slice.year))
+                    .map((slice) => (
+                      <div
+                        key={`year-label-${slice.year}`}
+                        data-testid="timeline-year-label"
+                        style={{
+                          position: 'absolute',
+                          // Centred on the slice rather than sized by it, so a
+                          // narrow year cannot clip its own label.
+                          left: `${slice.leftPct + slice.widthPct / 2}%`,
+                          transform: 'translateX(-50%)',
+                          top: 0,
+                          height: 30,
+                          display: 'flex',
+                          alignItems: 'center',
+                          whiteSpace: 'nowrap',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#37527a',
+                          pointerEvents: 'none',
+                          zIndex: 1,
+                        }}
+                      >
+                        {slice.year}
+                      </div>
+                    ))}
                 </div>
               </div>
               {timelineLanes.map((lane, laneIndex) => {
@@ -1321,7 +1347,13 @@ export default function TimelineBoardModal({
                       {place.map((item) => (
                         <React.Fragment key={item.id}>
                         <div
-                          title={item.hoverText}
+                          // No `title`: the browser would render its own
+                          // tooltip a second or two after the styled bubble
+                          // below, so every block showed two. aria-label keeps
+                          // the text available to assistive tech, and
+                          // data-hover-text is what tests read.
+                          aria-label={item.hoverText}
+                          data-hover-text={item.hoverText}
                           onClick={() => handleTimelineItemClick(lane.label, item)}
                           onMouseEnter={(e) => {
                             setTimelineHoverNote({

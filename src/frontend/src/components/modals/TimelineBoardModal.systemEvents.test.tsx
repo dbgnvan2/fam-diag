@@ -125,13 +125,13 @@ const renderBoard = (
  * and that is what these assertions check.
  */
 const hoverTexts = (): string =>
-  Array.from(document.querySelectorAll('[title]'))
-    .map((element) => element.getAttribute('title') || '')
+  Array.from(document.querySelectorAll('[data-hover-text]'))
+    .map((element) => element.getAttribute('data-hover-text') || '')
     .join('\n');
 
 /** The three-letter codes rendered inside the blocks. */
 const blockCodes = (): string[] =>
-  Array.from(document.querySelectorAll('div[title] strong')).map(
+  Array.from(document.querySelectorAll('div[data-hover-text] strong')).map(
     (element) => element.textContent || ''
   );
 
@@ -172,6 +172,19 @@ describe('TimelineBoardModal — person lane completeness', () => {
     codes.forEach((code) => expect(code.length).toBeLessThanOrEqual(3));
     expect(codes).toContain('Bir');
     expect(codes).toContain('Mar');
+  });
+
+  it('test_timeline_block_has_no_native_title_tooltip', () => {
+    // A `title` makes the browser draw its own tooltip a second or two after
+    // the styled bubble, so every block showed two hover bubbles.
+    renderBoard();
+    const blocks = Array.from(document.querySelectorAll('div[data-hover-text]'));
+    expect(blocks.length).toBeGreaterThan(0);
+    blocks.forEach((block) => expect(block.hasAttribute('title')).toBe(false));
+    // The text is still exposed to assistive tech.
+    expect(blocks[0].getAttribute('aria-label')).toBe(
+      blocks[0].getAttribute('data-hover-text')
+    );
   });
 
   it('test_timeline_hover_never_shows_the_synthesizer_placeholder', () => {
@@ -258,8 +271,8 @@ describe('TimelineBoardModal — duplicate partnership events', () => {
         defaultFocusForRoot('root')
       ),
     });
-    const married = Array.from(document.querySelectorAll('[title]')).filter((element) =>
-      (element.getAttribute('title') || '').startsWith('Married')
+    const married = Array.from(document.querySelectorAll('[data-hover-text]')).filter((element) =>
+      (element.getAttribute('data-hover-text') || '').startsWith('Married')
     );
     expect(married).toHaveLength(1);
   });
@@ -276,17 +289,51 @@ describe('TimelineBoardModal — duplicate partnership events', () => {
         defaultFocusForRoot('wife')
       ),
     });
-    const married = Array.from(document.querySelectorAll('[title]')).filter((element) =>
-      (element.getAttribute('title') || '').startsWith('Married')
+    const married = Array.from(document.querySelectorAll('[data-hover-text]')).filter((element) =>
+      (element.getAttribute('data-hover-text') || '').startsWith('Married')
     );
     expect(married).toHaveLength(1);
   });
 });
 
+describe('TimelineBoardModal — year header', () => {
+  /**
+   * Reported: the year header showed only three digits. Each year cell has an
+   * opaque background, so a label centred inside a narrow cell had its
+   * overflow painted over by the next cell and "2026" read as "202".
+   */
+  it('test_timeline_year_labels_show_all_four_digits', () => {
+    renderBoard();
+    const labels = screen.getAllByTestId('timeline-year-label');
+    expect(labels.length).toBeGreaterThan(0);
+    labels.forEach((label) => {
+      expect((label.textContent || '').trim()).toMatch(/^\d{4}$/);
+    });
+  });
+
+  it('test_timeline_year_labels_are_not_drawn_inside_the_year_cells', () => {
+    // The mechanism, not just the symptom: a label nested in a cell is
+    // clipped by whatever the next cell paints. Labels must be their own
+    // layer, and the cells must carry no text of their own.
+    renderBoard();
+    const labels = screen.getAllByTestId('timeline-year-label');
+    labels.forEach((label) => {
+      expect(label.parentElement?.getAttribute('data-testid')).not.toBe(
+        'timeline-year-label'
+      );
+      // Sized by its content, never by the year cell's width.
+      expect(label.style.width).toBe('');
+      expect(label.style.whiteSpace).toBe('nowrap');
+      // And it must not swallow the cell's click target underneath.
+      expect(label.style.pointerEvents).toBe('none');
+    });
+  });
+});
+
 describe('TimelineBoardModal — block shape and intensity', () => {
   const styleOf = (titlePrefix: string): CSSStyleDeclaration | undefined => {
-    const element = Array.from(document.querySelectorAll('div[title]')).find((node) =>
-      (node.getAttribute('title') || '').startsWith(titlePrefix)
+    const element = Array.from(document.querySelectorAll('div[data-hover-text]')).find((node) =>
+      (node.getAttribute('data-hover-text') || '').startsWith(titlePrefix)
     ) as HTMLElement | undefined;
     return element?.style;
   };
@@ -385,7 +432,7 @@ describe('TimelineBoardModal — system events', () => {
     // a brand-new event on them, with the relation label as its category,
     // which then reaches the saved diagram.
     renderBoard();
-    fireEvent.click(document.querySelector('[title^="Death \u2014 Dad"]')!);
+    fireEvent.click(document.querySelector('[data-hover-text^="Death \u2014 Dad"]')!);
     expect(screen.queryByText(/Person Edit Event|Person Add Event/)).not.toBeInTheDocument();
     expect(screen.getByTestId('timeline-selection-hint').textContent).toMatch(/Read-only/);
   });
@@ -393,8 +440,8 @@ describe('TimelineBoardModal — system events', () => {
   it('test_m7e3_own_event_still_opens_the_editor', () => {
     renderBoard();
     // Root's own marriage: an own item, so the local editor still opens.
-    const own = Array.from(document.querySelectorAll('[title]')).find((element) =>
-      (element.getAttribute('title') || '').startsWith('Marriage \u2014 Root + Wife')
+    const own = Array.from(document.querySelectorAll('[data-hover-text]')).find((element) =>
+      (element.getAttribute('data-hover-text') || '').startsWith('Marriage \u2014 Root + Wife')
     );
     expect(own).toBeDefined();
     fireEvent.click(own!);
@@ -403,7 +450,7 @@ describe('TimelineBoardModal — system events', () => {
 
   it('test_m7e3_system_event_side_panel_fields_are_read_only', () => {
     renderBoard();
-    fireEvent.click(document.querySelector('[title^="Death \u2014 Dad"]')!);
+    fireEvent.click(document.querySelector('[data-hover-text^="Death \u2014 Dad"]')!);
     const nameField = screen.getByDisplayValue('Dad') as HTMLInputElement;
     expect(nameField.readOnly).toBe(true);
     // No "Add Event" button that would write to the relative.
