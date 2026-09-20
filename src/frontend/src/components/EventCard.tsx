@@ -15,6 +15,14 @@ export interface EventCardProps {
   leftBorderColor?: string;
   onEdit?: () => void;
   onDelete?: () => void;
+  /**
+   * A system event belongs to a relative, not to the entity whose panel this
+   * is. It is shown for context and cannot be edited or deleted from here —
+   * the relation label says whose it is, and editing opens it on its owner.
+   * Spec: docs/implementation_plan_2026-09-19.md#M7.F.2
+   */
+  relationLabel?: string;
+  readOnly?: boolean;
 }
 
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
@@ -71,6 +79,8 @@ const EventCard = ({
   leftBorderColor = '#4b68a6',
   onEdit,
   onDelete,
+  relationLabel,
+  readOnly = false,
 }: EventCardProps) => {
   const sc = STATUS_STYLE[(status || '').toLowerCase()] ?? DEFAULT_STATUS_STYLE;
   const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
@@ -83,7 +93,8 @@ const EventCard = ({
         border: '1px solid #d0d8ea',
         borderLeft: `4px solid ${leftBorderColor}`,
         borderRadius: 8,
-        background: '#f7f9fd',
+        background: readOnly ? '#f2f4f8' : '#f7f9fd',
+        opacity: readOnly ? 0.9 : 1,
         fontSize: 13,
         fontFamily: 'inherit',
       }}
@@ -96,6 +107,21 @@ const EventCard = ({
         <span style={{ fontSize: 13, color: '#23324a' }}>{category}</span>
         {subtype && (
           <span style={{ fontSize: 13, color: '#5a6a88' }}>{subtype}</span>
+        )}
+        {relationLabel && (
+          <span
+            data-testid="event-card-relation"
+            style={{
+              fontSize: 12,
+              color: '#4b5a78',
+              background: '#e8edf6',
+              border: '1px dashed #9aa7b8',
+              borderRadius: 4,
+              padding: '1px 6px',
+            }}
+          >
+            {relationLabel}
+          </span>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           <span
@@ -127,7 +153,7 @@ const EventCard = ({
           >
             {statusDisplay}
           </span>
-          {onEdit && (
+          {!readOnly && onEdit && (
             <button
               type="button"
               aria-label="Edit"
@@ -138,7 +164,7 @@ const EventCard = ({
               <PencilIcon />
             </button>
           )}
-          {onDelete && (
+          {!readOnly && onDelete && (
             <button
               type="button"
               aria-label="Delete"
@@ -147,6 +173,17 @@ const EventCard = ({
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
             >
               🗑
+            </button>
+          )}
+          {readOnly && onEdit && (
+            <button
+              type="button"
+              aria-label="Open on owner"
+              title="Open this event on the person or family it belongs to"
+              style={{ ...actionBtnStyle, fontSize: 12, color: '#4b68a6' }}
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            >
+              ↗
             </button>
           )}
         </div>

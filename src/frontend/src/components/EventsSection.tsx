@@ -18,6 +18,7 @@ const normalizeCategory = (event: Parameters<typeof inferEventType>[0]): string 
   return match || toTitleCase(raw);
 };
 import EventCard from './EventCard';
+import type { SystemEvent } from '../utils/systemEvents';
 
 // ── pure helpers ───────────────────────────────────────────────────
 
@@ -35,6 +36,14 @@ interface EventsSectionProps {
   onDeleteEvent: (id: string) => void;
   onLinkEvent: (eventId: string, direction: 'prev' | 'next', attach: boolean) => void;
   onCreateAndAttach: (eventId: string, direction: 'prev' | 'next') => void;
+  /**
+   * Events belonging to relatives in the same family system. Shown read-only
+   * under the entity's own events; editing opens them on their owner.
+   * Spec: docs/implementation_plan_2026-09-19.md#M7.F
+   */
+  systemEvents?: SystemEvent[];
+  onOpenSystemEvent?: (entry: SystemEvent) => void;
+  systemEventsNote?: string;
 }
 
 const EventsSection = ({
@@ -47,6 +56,9 @@ const EventsSection = ({
   onDeleteEvent,
   onLinkEvent,
   onCreateAndAttach,
+  systemEvents = [],
+  onOpenSystemEvent,
+  systemEventsNote,
 }: EventsSectionProps) => {
   const [eventSortOrder, setEventSortOrder] = useState<'asc' | 'desc'>('desc');
   const [eventTypeFilter, setEventTypeFilter] = useState<'ALL' | EventType>('ALL');
@@ -157,6 +169,57 @@ const EventsSection = ({
             />
           </div>
         ))
+      )}
+      {systemEvents.length > 0 && (
+        <div style={{ marginTop: 14 }} data-testid="system-events-section">
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#4b5a78',
+              marginBottom: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>System events ({systemEvents.length})</span>
+            <span style={{ fontWeight: 400, color: '#7a869c' }}>
+              {systemEventsNote || 'read-only — belong to relatives in this family'}
+            </span>
+          </div>
+          {[...systemEvents]
+            .sort((a, b) => {
+              const aTime = normalizeEventDate(a.event)
+                ? new Date(normalizeEventDate(a.event)).getTime()
+                : Number.POSITIVE_INFINITY;
+              const bTime = normalizeEventDate(b.event)
+                ? new Date(normalizeEventDate(b.event)).getTime()
+                : Number.POSITIVE_INFINITY;
+              if (aTime === bTime) return 0;
+              const direction = eventSortOrder === 'asc' ? 1 : -1;
+              return aTime > bTime ? direction : -direction;
+            })
+            .map((entry) => (
+              <EventCard
+                key={`system-${entry.ownerEntityType}-${entry.ownerEntityId}-${entry.event.id}`}
+                date={entry.event.startDate || entry.event.date || ''}
+                type={EVENT_TYPE_LABELS[inferEventType(entry.event)]}
+                category={normalizeCategory(entry.event)}
+                subtype={
+                  inferEventType(entry.event) === 'SYMPTOM'
+                    ? entry.event.symptomType || entry.event.subtype || undefined
+                    : entry.event.subtype || undefined
+                }
+                status={entry.event.status || 'discrete'}
+                intensity={typeof entry.event.intensity === 'number' ? entry.event.intensity : null}
+                relationLabel={entry.relationLabel}
+                readOnly
+                leftBorderColor="#9aa7b8"
+                onEdit={onOpenSystemEvent ? () => onOpenSystemEvent(entry) : undefined}
+              />
+            ))}
+        </div>
       )}
       {eventRowMenu && (
         <div

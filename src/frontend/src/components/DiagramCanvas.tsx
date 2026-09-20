@@ -22,6 +22,7 @@ import type {
 } from '../types/diagramEditor';
 import ContextMenu from './ContextMenu';
 import PropertiesPanel from './PropertiesPanel';
+import type { FamilyScope } from '../utils/familyScope';
 import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
@@ -129,6 +130,7 @@ interface DiagramCanvasProps {
 
   // Visibility maps
   personVisibility: Map<string, boolean>;
+  familyScope: FamilyScope | null;
   emotionalVisibility: Map<string, boolean>;
   partnershipVisibility: Map<string, boolean>;
   emotionalSiblingMeta: Map<string, { index: number; count: number }>;
@@ -301,6 +303,7 @@ export default function DiagramCanvas({
   partnerships,
   allEmotionalLines,
   personVisibility,
+  familyScope,
   emotionalVisibility,
   partnershipVisibility,
   emotionalSiblingMeta,
@@ -1490,6 +1493,35 @@ export default function DiagramCanvas({
                     : undefined
                 }
                 allEmotionalLines={allEmotionalLines}
+                familyScope={familyScope}
+                onSelectSystemEventOwner={(owner) => {
+                  // A system event belongs to a relative — open it there
+                  // rather than editing a copy here (M7.F.2).
+                  if (owner.type === 'person') {
+                    const target = people.find((entry) => entry.id === owner.id);
+                    if (!target) return;
+                    setSelectedPeopleIds([target.id]);
+                    setSelectedPartnershipId(null);
+                    setSelectedEmotionalLineId(null);
+                    setPropertiesPanelItem(target);
+                    return;
+                  }
+                  if (owner.type === 'partnership') {
+                    const target = partnerships.find((entry) => entry.id === owner.id);
+                    if (!target) return;
+                    setSelectedPeopleIds([]);
+                    setSelectedPartnershipId(target.id);
+                    setSelectedEmotionalLineId(null);
+                    setPropertiesPanelItem(target);
+                    return;
+                  }
+                  const line = allEmotionalLines.find((entry) => entry.id === owner.id);
+                  if (!line) return;
+                  setSelectedPeopleIds([]);
+                  setSelectedPartnershipId(null);
+                  setSelectedEmotionalLineId(line.id);
+                  setPropertiesPanelItem(line);
+                }}
                 onSelectEmotionalLine={(line) => {
                   setPropertiesPanelItem(line);
                   setSelectedEmotionalLineId(line.id);

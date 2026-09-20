@@ -22,6 +22,8 @@ import {
   getSiblingPositionOptions,
 } from '../utils/siblingPosition';
 import { computeDefaultFamilyName } from '../utils/partnershipUtils';
+import type { FamilyScope } from '../utils/familyScope';
+import { collectSystemEvents, type SystemEvent } from '../utils/systemEvents';
 import {
   synthesizePersonDateEvents,
   synthesizePartnershipDateEvents,
@@ -357,6 +359,12 @@ interface PropertiesPanelProps {
   ) => void;
   onUpdateTriangleNotes?: (triangleId: string, notes: string) => void;
   allEmotionalLines?: EmotionalLine[];
+  /**
+   * Active canvas family scope — supplies the relation ring for the system
+   * events listed read-only under a person's own events (D10/D14).
+   * Spec: docs/implementation_plan_2026-09-19.md#M7.F.1
+   */
+  familyScope?: FamilyScope | null;
   onSelectEmotionalLine?: (line: EmotionalLine) => void;
   onRemoveEmotionalLine?: (id: string) => void;
   onAddEmotionalPattern?: (person1Id: string, person2Id: string) => void;
@@ -376,6 +384,11 @@ interface PropertiesPanelProps {
   onAddFamilyEvent?: (position: { x: number; y: number }) => void;
   onOpenFamilyEventEdit?: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
   onDeleteFamilyEvent?: (partnershipId: string, eventId: string) => void;
+  /** Open a system event on the entity that owns it (M7.F.2). */
+  onSelectSystemEventOwner?: (owner: {
+    type: 'person' | 'partnership' | 'emotional';
+    id: string;
+  }) => void;
   onClose: () => void;
 }
 
@@ -409,6 +422,7 @@ const PropertiesPanel = ({
   openNewEventPosition,
   newEventModalTitle,
   allEmotionalLines = [],
+  familyScope = null,
   onSelectEmotionalLine: _onSelectEmotionalLine,
   onRemoveEmotionalLine,
   onAddEmotionalPattern,
@@ -420,6 +434,7 @@ const PropertiesPanel = ({
   onAddFamilyEvent,
   onOpenFamilyEventEdit,
   onDeleteFamilyEvent,
+  onSelectSystemEventOwner,
   onClose,
 }: PropertiesPanelProps) => {
   const colorInputRefs = {
@@ -1670,6 +1685,31 @@ const PropertiesPanel = ({
     });
     return [...ownEvents, ...extra];
   }, [isPerson, isPartnership, isEmotionalLine, selectedItem, people, partnerships, allEmotionalLines, getEvents]);
+  // System events — a relative's nodal events, shown read-only on a person's
+  // Events tab so it lists the same set the Timeline lane shows (D14).
+  // Spec: docs/implementation_plan_2026-09-19.md#M7.F.1
+  const systemEventsResult = useMemo(() => {
+    if (!isPerson || !selectedItem) {
+      return { events: [] as SystemEvent[], relativeCount: 0, lifetimeFilterApplied: true };
+    }
+    return collectSystemEvents({
+      personId: selectedItem.id,
+      scope: familyScope,
+      people,
+      partnerships,
+      allEmotionalLines,
+      functionalIndicatorDefinitions,
+    });
+  }, [
+    isPerson,
+    selectedItem,
+    familyScope,
+    people,
+    partnerships,
+    allEmotionalLines,
+    functionalIndicatorDefinitions,
+  ]);
+
   const resolveEventClass = useCallback(
     (): EventClass => (isEmotionalLine ? 'emotional-pattern' : isPartnership ? 'relationship' : 'individual'),
     [isEmotionalLine, isPartnership]
@@ -2930,6 +2970,25 @@ const PropertiesPanel = ({
           onDeleteEvent={deleteEvent}
           onLinkEvent={() => {}}
           onCreateAndAttach={() => {}}
+          systemEvents={systemEventsResult.events}
+          systemEventsNote={
+            systemEventsResult.lifetimeFilterApplied
+              ? `read-only — from ${systemEventsResult.relativeCount} relative${
+                  systemEventsResult.relativeCount === 1 ? '' : 's'
+                } in this family`
+              : 'read-only — no birth date, lifetime filter not applied'
+          }
+          onOpenSystemEvent={(entry) => {
+            if (entry.ownerEntityType === 'person') {
+              onSelectSystemEventOwner?.({ type: 'person', id: entry.ownerEntityId });
+              return;
+            }
+            if (entry.ownerEntityType === 'partnership') {
+              onSelectSystemEventOwner?.({ type: 'partnership', id: entry.ownerEntityId });
+              return;
+            }
+            onSelectSystemEventOwner?.({ type: 'emotional', id: entry.ownerEntityId });
+          }}
         />
       )}
       {eventModalOpen && eventDraft && (

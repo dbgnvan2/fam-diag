@@ -3,9 +3,16 @@ import {
   synthesizePersonDateEvents,
   synthesizePartnershipDateEvents,
   synthesizeEmotionalLineDateEvents,
+  synthesizePersonIndicatorEvents,
   isSyntheticEventId,
 } from './syntheticDateEvents';
-import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
+import type {
+  Person,
+  Partnership,
+  EmotionalLine,
+  EmotionalProcessEvent,
+  FunctionalIndicatorDefinition,
+} from '../types';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -146,5 +153,82 @@ describe('isSyntheticEventId', () => {
     expect(isSyntheticEventId('synth-birth-p1')).toBe(true);
     expect(isSyntheticEventId('real-birth')).toBe(false);
     expect(isSyntheticEventId('xyz')).toBe(false);
+  });
+});
+
+/**
+ * Spec: docs/implementation_plan_2026-09-19.md#M7.B.1
+ */
+describe('synthesizePersonIndicatorEvents', () => {
+  const definitions: FunctionalIndicatorDefinition[] = [
+    { id: 'fi-anx', label: 'Anxiety', group: 'emotional' },
+    { id: 'fi-back', label: 'Back pain', group: 'physical' },
+  ];
+
+  it('test_m7b1_indicator_without_event_becomes_symptom_event', () => {
+    const person = makePerson({
+      functionalIndicators: [
+        { definitionId: 'fi-anx', status: 'current', impact: 3, intensity: 2, date: '2019-03-01' },
+      ],
+    });
+    const out = synthesizePersonIndicatorEvents(person, definitions);
+    expect(out).toHaveLength(1);
+    expect(out[0].eventType).toBe('SYMPTOM');
+    expect(out[0].symptomType).toBe('Anxiety');
+    expect(out[0].startDate).toBe('2019-03-01');
+    expect(out[0].date).toBe('2019-03-01');
+    expect(out[0].anchorType).toBe('PERSON');
+    expect(out[0].anchorId).toBe(person.id);
+    expect(out[0].eventClass).toBe('individual');
+    expect(out[0].sourceIndicatorId).toBe('fi-anx');
+    expect(out[0].status).toBe('ongoing');
+    expect(isSyntheticEventId(out[0].id)).toBe(true);
+  });
+
+  it('test_m7b1_indicator_with_backing_event_is_not_duplicated', () => {
+    const person = makePerson({
+      functionalIndicators: [
+        { definitionId: 'fi-anx', status: 'current', impact: 3, date: '2019-03-01' },
+      ],
+      events: [
+        {
+          ...realBirthEvent('2019-03-01'),
+          id: 'real-symptom',
+          category: 'emotional',
+          eventType: 'SYMPTOM',
+          sourceIndicatorId: 'fi-anx',
+        },
+      ],
+    });
+    expect(synthesizePersonIndicatorEvents(person, definitions)).toHaveLength(0);
+  });
+
+  it('test_m7b1_indicator_without_date_is_skipped', () => {
+    const person = makePerson({
+      functionalIndicators: [{ definitionId: 'fi-anx', status: 'current', impact: 3 }],
+    });
+    expect(synthesizePersonIndicatorEvents(person, definitions)).toHaveLength(0);
+  });
+
+  it('test_m7b1_past_indicator_is_marked_ended', () => {
+    const person = makePerson({
+      functionalIndicators: [
+        { definitionId: 'fi-back', status: 'past', impact: 1, date: '2001-01-01' },
+      ],
+    });
+    const out = synthesizePersonIndicatorEvents(person, definitions);
+    expect(out[0].status).toBe('end');
+    expect(out[0].symptomType).toBe('Back pain');
+  });
+
+  it('test_m7b1_unknown_definition_falls_back_to_a_generic_label', () => {
+    const person = makePerson({
+      functionalIndicators: [
+        { definitionId: 'missing', status: 'current', impact: 1, date: '2005-01-01' },
+      ],
+    });
+    const out = synthesizePersonIndicatorEvents(person, definitions);
+    expect(out).toHaveLength(1);
+    expect(out[0].symptomType).toBe('Symptom');
   });
 });

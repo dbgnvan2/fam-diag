@@ -16,6 +16,7 @@
  */
 import type {
   EmotionalProcessEvent,
+  FunctionalIndicatorDefinition,
   Person,
   Partnership,
   EmotionalLine,
@@ -81,6 +82,57 @@ export const synthesizePersonDateEvents = (person: Person): EmotionalProcessEven
     });
   });
   return out;
+};
+
+/**
+ * Purpose: surface a functional indicator that carries a date but has no
+ *          backing SYMPTOM event, so imported symptoms are not invisible on
+ *          every timeline.
+ * Spec:    docs/implementation_plan_2026-09-19.md#M7.B.1
+ * Tests:   syntheticDateEvents.test.ts::test_m7b1_indicator_without_event_becomes_symptom_event
+ *
+ * Saving a symptom through the Properties panel writes both an event and an
+ * indicator entry. Indicators arriving through transcript / voice import
+ * (DiagramEditor mergeIndicators) only write the indicator, so those need
+ * synthesizing at read time.
+ */
+export const synthesizePersonIndicatorEvents = (
+  person: Person,
+  definitions: FunctionalIndicatorDefinition[] = [],
+): EmotionalProcessEvent[] => {
+  const labelById = new Map(definitions.map((definition) => [definition.id, definition]));
+  const backedDefinitionIds = new Set(
+    (person.events || [])
+      .map((event) => event.sourceIndicatorId)
+      .filter((id): id is string => !!id),
+  );
+
+  return (person.functionalIndicators || []).flatMap((indicator) => {
+    if (!isValidIsoDate(indicator.date)) return [];
+    if (backedDefinitionIds.has(indicator.definitionId)) return [];
+    const definition = labelById.get(indicator.definitionId);
+    const label = definition?.label || 'Symptom';
+    const synthId = `synth-indicator-${person.id}-${indicator.definitionId}`;
+    if (hasEventForSlot(person.events, label, synthId)) return [];
+    return [
+      {
+        ...baseSynthEvent(synthId, indicator.date!, label),
+        eventType: 'SYMPTOM' as const,
+        anchorType: 'PERSON' as const,
+        anchorId: person.id,
+        eventClass: 'individual' as const,
+        primaryPersonName: person.name || '',
+        status: indicator.status === 'past' ? ('end' as const) : ('ongoing' as const),
+        intensity: indicator.intensity ?? 0,
+        frequency: indicator.frequency ?? 0,
+        impact: indicator.impact ?? 0,
+        sourceIndicatorId: indicator.definitionId,
+        symptomType: label,
+        category: definition?.group || label,
+        subtype: label,
+      },
+    ];
+  });
 };
 
 export const synthesizePartnershipDateEvents = (

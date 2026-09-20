@@ -11,6 +11,14 @@ import type {
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import { nanoid } from 'nanoid';
 import EventModal from '../EventModal';
+import {
+  synthesizeEmotionalLineDateEvents,
+  synthesizePartnershipDateEvents,
+  synthesizePersonDateEvents,
+  synthesizePersonIndicatorEvents,
+} from '../../utils/syntheticDateEvents';
+import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
+import type { FamilyScope } from '../../utils/familyScope';
 
 interface TimelineBoardModalProps {
   people: Person[];
@@ -25,6 +33,10 @@ interface TimelineBoardModalProps {
   // Independent from `timelineSelectionIds` so the user can pick any
   // combination of person + family lanes.
   timelineFamilySelectionIds?: string[];
+  // The active canvas family scope. Supplies the relation ring for the
+  // system events shown on each person lane (D10).
+  // Spec: docs/implementation_plan_2026-09-19.md#M7.C.2
+  familyScope?: FamilyScope | null;
   onUpdatePerson: (id: string, updates: Partial<Person>) => void;
   onUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
@@ -42,6 +54,8 @@ type TimelineBlockItem = {
   entityType: 'person' | 'partnership' | 'emotional';
   entityId: string;
   eventId?: string;
+  /** True when this item belongs to a relative, not to the lane person. */
+  isSystemEvent?: boolean;
   // For partnership entities: which array holds the event. Defaults to 'events'
   // (PRL relationship events). Family / Triangle events live on familyEvents[].
   partnershipTarget?: 'events' | 'familyEvents';
@@ -59,6 +73,7 @@ export default function TimelineBoardModal({
   functionalFactCategories = [],
   timelineSelectionIds,
   timelineFamilySelectionIds = [],
+  familyScope = null,
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
@@ -78,6 +93,9 @@ export default function TimelineBoardModal({
     maxYear: number;
     moved: boolean;
   } | null>(null);
+  // System events (a relative's nodal events on this person's lane) are on
+  // by default — D13.
+  const [showSystemEvents, setShowSystemEvents] = useState(true);
   const [timelineHoverNote, setTimelineHoverNote] = useState<{ text: string; x: number; y: number } | null>(null);
   const [timelineBoardSelection, setTimelineBoardSelection] = useState<TimelineBoardSelection | null>(null);
   // EventModal state — handles add and edit flows for any entity type
@@ -416,34 +434,16 @@ export default function TimelineBoardModal({
       const items: TimelineBlockItem[] = [];
       const seenEventIds = new Set<string>();
       const personEventIds = new Set((person.events || []).map((e) => e.id));
-      const personHasBirthEvent = (person.events || []).some(
-        (ev) => /^birth$/i.test(ev.category || '') && eventStart(ev),
-      );
-      if (person.birthDate && !personHasBirthEvent) {
-        items.push({
-          id: `person-birth-${person.id}`,
-          label: 'Birth',
-          detail: person.birthDate,
-          notes: person.notes,
-          startDate: person.birthDate,
-          color: intensityToColor(0),
-          entityType: 'person',
-          entityId: person.id,
-        });
-      }
-      if (person.deathDate) {
-        items.push({
-          id: `person-death-${person.id}`,
-          label: 'Death',
-          detail: person.deathDate,
-          notes: person.notes,
-          startDate: person.deathDate,
-          color: intensityToColor(0),
-          entityType: 'person',
-          entityId: person.id,
-        });
-      }
-      (person.events || []).forEach((event) => {
+      // Birth / death / adoption and any indicator-backed symptom come from
+      // the shared synthesizer, the same one the Properties panel Events tab
+      // uses, so the two views cannot drift apart.
+      // Spec: docs/implementation_plan_2026-09-19.md#M7.A.1
+      const ownEvents = [
+        ...(person.events || []),
+        ...synthesizePersonDateEvents(person),
+        ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
+      ];
+      ownEvents.forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
         if (seenEventIds.has(event.id)) return;
@@ -462,11 +462,21 @@ export default function TimelineBoardModal({
         });
       });
       // Events from partnerships the person is part of (skip if already on
-      // person.events through the standard clone path)
+      // person.events through the standard clone path). This includes the
+      // PRL date fields (marriage / separation / divorce), which used to be
+      // deferred to a Family lane that only exists when a partnership is
+      // separately selected — so a person's own marriage was missing.
+      // Spec: docs/implementation_plan_2026-09-19.md#M7.A.1 / #M7.A.2
       partnerships
         .filter((p) => p.partner1_id === person.id || p.partner2_id === person.id)
         .forEach((partnership) => {
-          (partnership.events || []).forEach((event) => {
+          const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name;
+          const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name;
+          const prlEvents = [
+            ...(partnership.events || []),
+            ...synthesizePartnershipDateEvents(partnership, partner1Name, partner2Name),
+          ];
+          prlEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
             if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
@@ -482,6 +492,29 @@ export default function TimelineBoardModal({
               entityType: 'partnership',
               entityId: partnership.id,
               eventId: event.id,
+              partnershipTarget: 'events',
+            });
+          });
+          // Family-level events (FAMILY / TRIANGLE) of the person's own
+          // partnerships — D16.
+          (partnership.familyEvents || []).forEach((event) => {
+            const start = eventStart(event);
+            if (!start) return;
+            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            seenEventIds.add(event.id);
+            const labelPrefix = event.eventType === 'TRIANGLE' ? 'Triangle' : 'Family';
+            items.push({
+              id: `person-fam-event-${event.id}-${person.id}`,
+              label: `${labelPrefix}: ${event.category || labelPrefix}`,
+              detail: event.subtype || event.observations || '',
+              notes: event.observations || '',
+              startDate: start,
+              endDate: event.endDate,
+              color: intensityToColor(event.intensity),
+              entityType: 'partnership',
+              entityId: partnership.id,
+              eventId: event.id,
+              partnershipTarget: 'familyEvents',
             });
           });
         });
@@ -504,7 +537,15 @@ export default function TimelineBoardModal({
               entityId: line.id,
             });
           }
-          (line.events || []).forEach((event) => {
+          const eplEvents = [
+            ...(line.events || []),
+            ...synthesizeEmotionalLineDateEvents(
+              line,
+              people.find((p) => p.id === line.person1_id)?.name,
+              people.find((p) => p.id === line.person2_id)?.name,
+            ),
+          ];
+          eplEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
             if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
@@ -523,9 +564,67 @@ export default function TimelineBoardModal({
             });
           });
         });
+      // System events — the nodal events of the family system this person
+      // belongs to (a father's death, the parents' divorce, a son's birth, a
+      // sister's symptom onset). The ring follows the active canvas family
+      // scope and the result is clipped to this person's lifetime.
+      // Spec: docs/implementation_plan_2026-09-19.md#M7.E.1
+      if (showSystemEvents) {
+        const system = collectSystemEvents({
+          personId: person.id,
+          scope: familyScope,
+          people,
+          partnerships,
+          allEmotionalLines,
+          functionalIndicatorDefinitions,
+        });
+        system.events.forEach((entry: SystemEvent) => {
+          const start = eventStart(entry.event);
+          if (!start) return;
+          const key = `${entry.ownerEntityType}:${entry.ownerEntityId}:${entry.event.id}`;
+          if (seenEventIds.has(key) || personEventIds.has(entry.event.id)) return;
+          seenEventIds.add(key);
+          items.push({
+            id: `person-system-${person.id}-${key}`,
+            label: entry.relationLabel,
+            detail: entry.event.observations || '',
+            notes: entry.event.observations || '',
+            startDate: start,
+            endDate: entry.event.endDate,
+            color: intensityToColor(entry.event.intensity),
+            entityType: entry.ownerEntityType,
+            entityId: entry.ownerEntityId,
+            eventId: entry.event.id,
+            partnershipTarget: entry.partnershipTarget,
+            isSystemEvent: true,
+          });
+        });
+      }
       lanes.push({ id: person.id, label: person.name || 'Unnamed', items });
     });
     return lanes;
+  })();
+
+  // Counts for the header (D13) — "N own · M system events from K relatives".
+  const systemEventSummary = (() => {
+    let own = 0;
+    let system = 0;
+    const relatives = new Set<string>();
+    let lifetimeFilterApplied = true;
+    timelineLanes.forEach((lane) => {
+      lane.items.forEach((item) => {
+        if (item.isSystemEvent) {
+          system += 1;
+          relatives.add(`${item.entityType}:${item.entityId}`);
+        } else {
+          own += 1;
+        }
+      });
+    });
+    selectedTimelinePeople.forEach((person) => {
+      if (!person.birthDate) lifetimeFilterApplied = false;
+    });
+    return { own, system, relatives: relatives.size, lifetimeFilterApplied };
   })();
 
   const handleTimelineItemClick = (laneLabel: string, item: TimelineBlockItem) => {
@@ -762,6 +861,38 @@ export default function TimelineBoardModal({
             </span>
           )}
         </div>
+        {selectedTimelinePeople.length > 0 && (
+          <div
+            data-testid="system-events-header"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13 }}
+          >
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showSystemEvents}
+                onChange={(e) => setShowSystemEvents(e.target.checked)}
+                data-testid="system-events-toggle"
+              />
+              System events
+            </label>
+            <span data-testid="system-events-count" style={{ color: '#555' }}>
+              {systemEventSummary.own} own
+              {showSystemEvents
+                ? ` \u00b7 ${systemEventSummary.system} system event${
+                    systemEventSummary.system === 1 ? '' : 's'
+                  } from ${systemEventSummary.relatives} relative${
+                    systemEventSummary.relatives === 1 ? '' : 's'
+                  }`
+                : ''}
+              {showSystemEvents && !systemEventSummary.lifetimeFilterApplied
+                ? ' \u2014 no birth date, lifetime filter not applied'
+                : ''}
+            </span>
+            <span style={{ color: '#7a7a7a', fontSize: 12 }}>
+              {timelineLanes.length} lane{timelineLanes.length === 1 ? '' : 's'}
+            </span>
+          </div>
+        )}
         {timelineYearBoundsForFilter && (
           <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1085,11 +1216,18 @@ export default function TimelineBoardModal({
                             height: 26,
                             padding: '4px 8px',
                             borderRadius: 6,
+                            // System events belong to a relative, not to the
+                            // lane person: dashed + muted so they read as
+                            // context rather than as this person's own events
+                            // (D12 — the intensity fill is not repurposed).
                             border:
                               timelineBoardSelection?.entityId === item.entityId &&
                               timelineBoardSelection?.eventId === item.eventId
                                 ? '2px solid #2f64b8'
+                                : item.isSystemEvent
+                                ? '1px dashed #9aa7b8'
                                 : '1px solid #cad3e0',
+                            opacity: item.isSystemEvent ? 0.82 : 1,
                             background: item.color,
                             fontSize: 12,
                             whiteSpace: 'nowrap',

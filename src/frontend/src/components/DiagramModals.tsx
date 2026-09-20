@@ -22,6 +22,7 @@ import type {
 } from '../types/diagramEditor';
 import type { PersonInventoryItem } from '../utils/personInventory';
 import type { RibbonHelpKey } from '../data/helpContent';
+import type { FamilyScope } from '../utils/familyScope';
 import ImportModeDialog from './modals/ImportModeDialog';
 import SessionCaptureDialog from './modals/SessionCaptureDialog';
 import ClientProfileModal from './modals/ClientProfileModal';
@@ -168,6 +169,7 @@ interface DiagramModalsProps {
   allEmotionalLines: EmotionalLine[];
   timelineSelectionIds: string[];
   timelineFamilySelectionIds: string[];
+  familyScope: FamilyScope | null;
   handleUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   handleUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
@@ -391,6 +393,7 @@ export default function DiagramModals({
   allEmotionalLines,
   timelineSelectionIds,
   timelineFamilySelectionIds,
+  familyScope,
   handleUpdatePerson,
   handleUpdatePartnership,
   handleUpdateEmotionalLine,
@@ -666,6 +669,7 @@ export default function DiagramModals({
         functionalFactCategories={functionalFactCategories}
         timelineSelectionIds={timelineSelectionIds}
         timelineFamilySelectionIds={timelineFamilySelectionIds}
+        familyScope={familyScope}
         onUpdatePerson={handleUpdatePerson}
         onUpdatePartnership={handleUpdatePartnership}
         onUpdateEmotionalLine={handleUpdateEmotionalLine}
