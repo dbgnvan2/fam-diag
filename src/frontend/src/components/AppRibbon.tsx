@@ -4,6 +4,8 @@ import { isDemoDiagramFileName } from '../utils/demoTour';
 import { type RibbonHelpKey } from '../data/helpContent';
 import { RIBBON_Z_INDEX } from '../constants/zIndex';
 import type { DemoTourStep } from '../types/diagramEditor';
+import FamilyScopeChip from './FamilyScopeChip';
+import type { FamilyScopeExclusions, FamilyScopeFocus } from '../utils/familyScope';
 
 export interface AppRibbonProps {
   // Refs
@@ -34,6 +36,15 @@ export interface AppRibbonProps {
   timelinePlaying: boolean;
   timelineSliderDisabled: boolean;
   timelineYearBounds: { min: number; max: number };
+  // Family scope filter (M3.A.2) — sits beside the year slider so both
+  // filters are visible at once (D9).
+  familyScopeFocus: FamilyScopeFocus | null;
+  familyScopeRootName: string;
+  familyScopeExclusions: FamilyScopeExclusions;
+  familyScopeDepth: { maxUp: number; maxDown: number };
+  onFamilyScopeAdjustUp: (delta: number) => void;
+  onFamilyScopeAdjustDown: (delta: number) => void;
+  onFamilyScopeClear: () => void;
   displayTimelineYear: number;
   zoom: number;
   helpOpen: boolean;
@@ -130,6 +141,13 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   timelinePlaying,
   timelineSliderDisabled,
   timelineYearBounds,
+  familyScopeFocus,
+  familyScopeRootName,
+  familyScopeExclusions,
+  familyScopeDepth,
+  onFamilyScopeAdjustUp,
+  onFamilyScopeAdjustDown,
+  onFamilyScopeClear,
   displayTimelineYear,
   zoom,
   helpOpen,
@@ -532,6 +550,17 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                 <div style={{ fontSize: 12, color: '#333', width: '100%', textAlign: 'center' }}>
                   Timeline {timelineSliderDisabled ? '(All Dates)' : `(${displayTimelineYear})`}
                 </div>
+                <FamilyScopeChip
+                  focus={familyScopeFocus}
+                  rootName={familyScopeRootName}
+                  exclusions={familyScopeExclusions}
+                  depth={familyScopeDepth}
+                  onAdjustUp={onFamilyScopeAdjustUp}
+                  onAdjustDown={onFamilyScopeAdjustDown}
+                  onClear={onFamilyScopeClear}
+                  onCenter={handleCenterDiagramView}
+                  onHelp={() => setRibbonHelpKey('family-scope')}
+                />
               </div>
             </div>
             <button

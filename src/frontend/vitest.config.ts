@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // jsdom needs a real (non-opaque) origin for window.localStorage.
+    environmentOptions: { jsdom: { url: 'http://localhost/' } },
     setupFiles: './src/setupTests.ts',
   },
 });

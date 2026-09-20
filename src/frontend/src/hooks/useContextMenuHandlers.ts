@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import type { PropertiesPanelIntent } from '../types/diagramEditor';
 import { GENDER_SYMBOL_OPTIONS } from '../utils/dataNormalization';
+import type { FamilyScopeFocus } from '../utils/familyScope';
 
 interface UseContextMenuHandlersDeps {
   // State data
@@ -64,6 +65,14 @@ interface UseContextMenuHandlersDeps {
   openAddFamilyModal: (position: { x: number; y: number }) => void;
   addEmotionalLine: (person1_id: string, person2_id: string, relationshipType: EmotionalLine['relationshipType'], lineStyle: EmotionalLine['lineStyle'], lineEnding: EmotionalLine['lineEnding']) => EmotionalLine;
   removeEmotionalLine: (emotionalLineId: string) => void;
+  // Family scope filter (M3.A.1 / M4.A.2)
+  familyScopeFocus: FamilyScopeFocus | null;
+  focusFamilyOnPerson: (rootId: string, overrides?: Partial<Omit<FamilyScopeFocus, 'rootId'>>) => void;
+  clearFamilyFocus: () => void;
+  deriveTimelineIds: (
+    explicitPersonIds: string[],
+    explicitFamilyIds: string[]
+  ) => { personIds: string[]; familyIds: string[] };
   // Canvas geometry
   zoom: number;
   viewport: { width: number; height: number };
@@ -90,6 +99,10 @@ export function useContextMenuHandlers({
   setPropertiesPanelIntent,
   setTimelineSelectionIds,
   setTimelineFamilySelectionIds,
+  familyScopeFocus,
+  focusFamilyOnPerson,
+  clearFamilyFocus,
+  deriveTimelineIds,
   addPerson,
   addCoach,
   addAIAgent,
@@ -442,16 +455,83 @@ export function useContextMenuHandlers({
             ],
           },
           {
+            // Family scope filter — show only this person's family, N
+            // generations up and down.
+            // Spec: docs/implementation_plan_2026-09-19.md#M3.A.1
+            label: 'Focus Family',
+            children: [
+              {
+                label: '2 up / 2 down',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: 2, down: 2 });
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: '1 up / 1 down',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: 1, down: 1 });
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: '3 up / 3 down',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: 3, down: 3 });
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Whole family',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: people.length, down: people.length });
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Lineal only (no siblings/cousins)',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: 2, down: 2, includeCollaterals: false });
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: 'Timeline for this family',
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, { up: 2, down: 2 });
+                  const derived = deriveTimelineIds([], [...selectedFamilyIds]);
+                  setTimelineSelectionIds(derived.personIds);
+                  setTimelineFamilySelectionIds(derived.familyIds);
+                  setContextMenu(null);
+                },
+              },
+              ...(familyScopeFocus
+                ? [
+                    {
+                      label: 'Clear focus',
+                      onClick: () => {
+                        clearFamilyFocus();
+                        setContextMenu(null);
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          {
             label: 'Timeline',
             onClick: () => {
                 const nextIds =
                   selectedPeopleIds.length > 1 && selectedPeopleIds.includes(person.id)
                     ? selectedPeopleIds
                     : [person.id];
-                setTimelineSelectionIds(nextIds);
+                // An explicit person selection always wins over the active
+                // family scope (D5).
+                const derived = deriveTimelineIds(nextIds, [...selectedFamilyIds]);
+                setTimelineSelectionIds(derived.personIds);
                 // Carry over any currently-selected families so the user
                 // gets person + family lanes in the same Timeline view.
-                setTimelineFamilySelectionIds([...selectedFamilyIds]);
+                setTimelineFamilySelectionIds(derived.familyIds);
                 setContextMenu(null);
             }
           },
@@ -787,8 +867,9 @@ export function useContextMenuHandlers({
       {
         label: 'Timeline',
         onClick: () => {
-          setTimelineSelectionIds(selectedPeopleIds);
-          setTimelineFamilySelectionIds([...selectedFamilyIds]);
+          const derived = deriveTimelineIds(selectedPeopleIds, [...selectedFamilyIds]);
+          setTimelineSelectionIds(derived.personIds);
+          setTimelineFamilySelectionIds(derived.familyIds);
           setContextMenu(null);
         },
       },

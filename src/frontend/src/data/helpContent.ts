@@ -7,6 +7,7 @@ export type RibbonHelpKey =
   | 'file-menu'
   | 'save'
   | 'timeline-controls'
+  | 'family-scope'
   | 'zoom'
   | 'event-categories'
   | 'functional-indicators'
@@ -159,6 +160,18 @@ export const RIBBON_HELP: Record<RibbonHelpKey, RibbonHelpEntry> = {
     demoTitle: 'Ribbon · Save + Auto-Save',
     body: 'Save writes the current diagram now. On a new unnamed diagram, Save prompts for a filename first — Chrome/Edge open the native OS Save dialog (navigate to any folder); Firefox/Safari show an in-app name dialog. Once named, subsequent Saves overwrite the same file silently. Save As always re-prompts for a name or location. Auto-Save sets the periodic save interval in minutes.',
     demoBody: 'Save commits the diagram now. New unnamed diagrams prompt for a filename first; named diagrams save silently. Auto-Save sets periodic save cadence in minutes.',
+  },
+  'family-scope': {
+    title: 'Family Focus',
+    demoTitle: 'Ribbon \u00b7 Family Focus',
+    body:
+      'Right-click a person and choose Focus Family to show only that person\u2019s family \u2014 ' +
+      'by default 2 generations up (parents, grandparents) and 2 down (children, grandchildren), ' +
+      'including siblings, aunts, uncles and cousins. Use the up/down steppers to widen or narrow it. ' +
+      'The focus filters the canvas and drives the Timeline lanes, and it combines with the year ' +
+      'slider \u2014 a person must pass both to be visible. It changes nothing in your file.',
+    demoBody:
+      'Family Focus shows one person\u2019s family, N generations up and down, and drives the Timeline lanes.',
   },
   'timeline-controls': {
     title: 'Timeline Controls',

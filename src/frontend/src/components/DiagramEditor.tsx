@@ -37,6 +37,8 @@ import { useVoiceHandlers } from '../hooks/useVoiceHandlers';
 import { useEmotionalLineOperations } from '../hooks/useEmotionalLineOperations';
 import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
 import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
+import { useFamilyScope } from '../hooks/useFamilyScope';
+import { buildPersonVisibility, deriveTimelineSelection } from '../utils/familyScope';
 import DiagramModals from './DiagramModals';
 import PredictionsPanel from './PredictionsPanel';
 import DiagramCanvas from './DiagramCanvas';
@@ -959,13 +961,42 @@ const DiagramEditor = () => {
     });
   }, [people, partnerships, emotionalLines, triangles, isVisibleAtTimeline]);
 
-  const personVisibility = useMemo(() => {
-    const map = new Map<string, boolean>();
-    people.forEach((person) => {
-      map.set(person.id, isVisibleAtTimeline(person.birthDate));
-    });
-    return map;
-  }, [people, isVisibleAtTimeline]);
+  const triangleTplLines = useMemo(
+    () => triangles.flatMap((triangle) => triangle.tpls || []),
+    [triangles]
+  );
+
+  const allEmotionalLines = useMemo(
+    () => [...emotionalLines, ...triangleTplLines],
+    [emotionalLines, triangleTplLines]
+  );
+
+  // Family scope filter — "show only this person's family, N generations up
+  // and N down". View state only; ANDed into the visibility maps below so it
+  // composes with the timeline-year slider (D9).
+  // Spec: docs/implementation_plan_2026-09-19.md#M2.A.4
+  const familyScope = useFamilyScope({ people, partnerships, allEmotionalLines, triangles });
+  const { scope: activeFamilyScope } = familyScope;
+
+  // Timeline lanes: an explicit person selection wins; otherwise the active
+  // family scope drives the lanes (D5).
+  // Spec: docs/implementation_plan_2026-09-19.md#M4.A.1
+  const deriveTimelineIds = useCallback(
+    (explicitPersonIds: string[], explicitFamilyIds: string[]) =>
+      deriveTimelineSelection(
+        activeFamilyScope,
+        explicitPersonIds,
+        people,
+        partnerships,
+        explicitFamilyIds
+      ),
+    [activeFamilyScope, people, partnerships]
+  );
+
+  const personVisibility = useMemo(
+    () => buildPersonVisibility(people, activeFamilyScope, isVisibleAtTimeline),
+    [people, isVisibleAtTimeline, activeFamilyScope]
+  );
 
   const partnershipVisibility = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -979,15 +1010,42 @@ const DiagramEditor = () => {
     return map;
   }, [partnerships, personVisibility, isVisibleAtTimeline]);
 
-  const triangleTplLines = useMemo(
-    () => triangles.flatMap((triangle) => triangle.tpls || []),
-    [triangles]
-  );
-
-  const allEmotionalLines = useMemo(
-    () => [...emotionalLines, ...triangleTplLines],
-    [emotionalLines, triangleTplLines]
-  );
+  // A focus can hide the current selection. Prune it, the same way the
+  // timeline-year slider already does above.
+  // Spec: docs/implementation_plan_2026-09-19.md#M2.A.5
+  useEffect(() => {
+    if (!activeFamilyScope) return;
+    const inScope = (id?: string | null) => !!id && activeFamilyScope.personIds.has(id);
+    setSelectedPeopleIds((prev) => {
+      const next = prev.filter((id) => inScope(id));
+      return next.length === prev.length ? prev : next;
+    });
+    setSelectedChildId((prev) => (prev && !inScope(prev) ? null : prev));
+    setSelectedPartnershipId((prev) =>
+      prev && !activeFamilyScope.partnershipIds.has(prev) ? null : prev
+    );
+    setSelectedFamilyIds((prev) => {
+      const next = prev.filter((id) => activeFamilyScope.partnershipIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+    setSelectedEmotionalLineId((prev) => {
+      if (!prev) return prev;
+      const line = allEmotionalLines.find((entry) => entry.id === prev);
+      if (!line) return prev;
+      return inScope(line.person1_id) && inScope(line.person2_id) ? prev : null;
+    });
+    setPropertiesPanelItem((prev) => {
+      if (!prev) return prev;
+      if ('name' in prev) return inScope(prev.id) ? prev : null;
+      if ('partner1_id' in prev) {
+        return activeFamilyScope.partnershipIds.has(prev.id) ? prev : null;
+      }
+      if ('lineStyle' in prev) {
+        return inScope(prev.person1_id) && inScope(prev.person2_id) ? prev : null;
+      }
+      return prev;
+    });
+  }, [activeFamilyScope, allEmotionalLines]);
 
   const triangleByTplLineId = useMemo(() => {
     const map = new Map<string, string>();
@@ -3889,6 +3947,10 @@ useEffect(() => {
     setPropertiesPanelIntent,
     setTimelineSelectionIds,
     setTimelineFamilySelectionIds,
+    familyScopeFocus: familyScope.focus,
+    focusFamilyOnPerson: familyScope.focusOnPerson,
+    clearFamilyFocus: familyScope.clearFocus,
+    deriveTimelineIds,
     addPerson,
     addCoach,
     addAIAgent,
@@ -4130,11 +4192,21 @@ useEffect(() => {
             // Timeline shows whatever is currently selected — all selected
             // families + all selected people. The right-click already
             // guarantees this family is part of the family selection.
+            // With no explicit person selection, the active family scope
+            // supplies the person lanes (D5).
             const familyIds = selectedFamilyIds.includes(partnershipId)
               ? selectedFamilyIds
               : [partnershipId, ...selectedFamilyIds];
-            setTimelineFamilySelectionIds(familyIds);
-            setTimelineSelectionIds(selectedPeopleIds.length ? [...selectedPeopleIds] : []);
+            const derived = deriveTimelineIds(
+              selectedPeopleIds.length ? [...selectedPeopleIds] : [],
+              familyIds
+            );
+            setTimelineFamilySelectionIds(
+              derived.familyIds.includes(partnershipId)
+                ? derived.familyIds
+                : [partnershipId, ...derived.familyIds]
+            );
+            setTimelineSelectionIds(derived.personIds);
             setContextMenu(null);
           },
         },
@@ -4508,6 +4580,13 @@ useEffect(() => {
             timelinePlaying={timelinePlaying}
             timelineSliderDisabled={timelineSliderDisabled}
             timelineYearBounds={timelineYearBounds}
+            familyScopeFocus={familyScope.focus}
+            familyScopeRootName={familyScope.rootPerson?.name || ''}
+            familyScopeExclusions={familyScope.exclusions}
+            familyScopeDepth={familyScope.depth}
+            onFamilyScopeAdjustUp={familyScope.adjustUp}
+            onFamilyScopeAdjustDown={familyScope.adjustDown}
+            onFamilyScopeClear={familyScope.clearFocus}
             displayTimelineYear={displayTimelineYear}
             zoom={zoom}
             helpOpen={helpOpen}
