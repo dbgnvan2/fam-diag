@@ -190,3 +190,77 @@ read-only guards, and the default ring were each traced end-to-end). One medium 
 the regression test for the dedup-key reorder does not exercise the path it names (finding 1
 above) — fix that fixture before the next chunk, but it is not a shipped-behaviour defect. The
 two typecheck gates and the full suite are green.
+
+---
+
+# Pass 3 — final gate, re-run on the commit to be pushed
+
+Date: 2026-09-19
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Final range: `aa081d3...HEAD` — 7 commits (pass 1 reviewed 5, pass 2 reviewed the
+fix commit `548676a`, pass 3 reviews `5134556`, the test-rebuild + docs commit that
+landed since pass 2). Note: the request said "8 commits" and "two commits since
+pass 2"; the range is actually 7 commits, of which one (`5134556`) landed after
+pass 2 — that single commit contains both the test rebuild and the docs.
+Verdict: **APPROVED**
+
+## Gates (re-run on current HEAD `5134556`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 56 files, 549 passed, 13 skipped (562) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## Pass-2 finding #1 — rebuilt regression test, verified it guards the reorder
+
+Pass 2 flagged `test_m7c6_an_undated_reach_does_not_lock_the_event_out_of_another_relation`
+as vacuous: its fixture put one event id on two **different owners**, whose dedup keys
+never collide, so it passed green on the pre-fix ordering. That test is now split into:
+
+- `test_m7c6_an_undated_clone_twin_does_not_lock_out_its_dated_twin` — a **same-owner**
+  `-p1`/`-p2` clone pair on `mum`, with the undated `twin-p1` pushed **first**. Both twins
+  collapse to the same `altKey` (`twin` after `/-p[12]$/` is stripped), so the ordering is
+  the only thing that decides whether the dated `twin-p2` survives.
+- `test_m7c6_a_dated_event_on_another_owner_is_unaffected_by_an_undated_namesake` — the
+  original different-owner case, kept separately so it no longer masquerades as the ordering
+  guard.
+
+**Red/green verified independently** (not trusted from the commit message): the `push()`
+body was temporarily reverted to reserve the dedup key before the date test (the old
+ordering), the twin test went RED (`expected false to be true` at the `twin-p2` assertion),
+the file was restored with `git checkout`, and the twin test went GREEN. The rebuilt test
+fails on the pre-fix code and passes on the fixed code — it genuinely guards the reorder.
+
+## Docs commit `5134556` — confirmed behaviour-neutral
+
+Files touched and their nature:
+
+- `README.md` — two Key Features bullets (Family Focus, System Events). Docs only.
+- `TODO.md` — records the carried findings, each with its reason (see below). Docs only.
+- `docs/cycles/gate_2026-09-19_*.md` — the gate file itself. Docs only.
+- `src/frontend/src/utils/systemEvents.test.ts` — the test rebuild above. Test only.
+
+No production source (`.ts`/`.tsx` outside `*.test.*`) changed in `5134556`; the only
+non-docs file is a test. The full suite and both typecheck gates confirm no behaviour shift.
+
+## Carried findings — documented, all non-functional
+
+Pass-2 finding #1 (vacuous test) is resolved above. The remaining pass-1/pass-2
+brittleness finding (Timeline/Focus wiring asserted by source-text greps in
+`useContextMenuHandlers.familyScope.test.ts`) and the four pre-existing deferrals are
+recorded in `TODO.md` under "From the family-focus / system-events batch" with the reason
+each was not fixed: source-grep brittleness (would need a ~50-dependency render harness),
+`includePartnerFOO` having no UI, unbounded Timeline lane count, `timelineSelectionIds`
+doubling as the modal open flag, and imported indicators writing no backing SYMPTOM event.
+None is a shipped-behaviour defect; each names the reason it was left.
+
+## Verdict
+
+**APPROVED** — the single substantive item the gate has held open across two passes is now
+closed: the dedup-key reorder is guarded by a test that is proven to go red on the pre-fix
+ordering and green on the fixed ordering. The docs commit is behaviour-neutral, all three
+gates are green on the exact commit to be pushed, and every remaining finding is a
+non-functional deferral recorded in `TODO.md` with a reason. Clean against P1–P36 and L1–L6,
+of which P3 (once), P19-corollary/P27 (once, resolved), P10/P27 (once, resolved) and
+P19-corollary persistence (carried, low) were applicable.
