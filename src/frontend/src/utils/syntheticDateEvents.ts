@@ -24,6 +24,13 @@ import type {
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Placeholder text on a synthesized event's observations field. It explains
+ * where the event came from; it is not a note the user wrote, so anywhere
+ * that shows notes should treat it as "no note" rather than display it.
+ */
+export const SYNTHETIC_EVENT_NOTE = '(auto-generated from date field)';
+
 const isValidIsoDate = (value?: string | null): value is string =>
   !!value && DATE_PATTERN.test(value);
 
@@ -58,7 +65,7 @@ const baseSynthEvent = (
   date,
   startDate: date,
   wwwwh: '',
-  observations: '(auto-generated from date field)',
+  observations: SYNTHETIC_EVENT_NOTE,
   otherPersonName: 'None',
 });
 

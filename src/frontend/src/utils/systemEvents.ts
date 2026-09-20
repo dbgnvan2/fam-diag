@@ -34,6 +34,7 @@ import {
   type RelationClass,
   type RelationGender,
 } from '../constants/relationLabels';
+import { eventDisplayName } from './timelineItemText';
 import {
   synthesizeEmotionalLineDateEvents,
   synthesizePartnershipDateEvents,
@@ -47,6 +48,10 @@ export type SystemEvent = {
   event: EmotionalProcessEvent;
   relationClass: RelationClass;
   relationLabel: string;
+  /** The kinship noun alone ("Grandson", "Father", "Parents"). */
+  relationNoun: string;
+  /** Display name of the entity the event belongs to. */
+  ownerName: string;
   ownerEntityType: SystemEventOwnerType;
   ownerEntityId: string;
   /** For a partnership owner: which array on it holds the event. */
@@ -80,12 +85,11 @@ const kinshipNoun = (generation: number, gender: RelationGender): string => {
 
 const phraseFor = (event: EmotionalProcessEvent): string => {
   // A symptom's category is its group ("emotional"); the symptom itself is on
-  // symptomType / subtype, which is what belongs in a lane label.
-  if (event.eventType === 'SYMPTOM') {
-    const symptom = (event.symptomType || event.subtype || '').trim();
-    if (symptom) return symptom;
-  }
+  // symptomType / subtype. eventDisplayName owns that rule so the lane label
+  // and the hover bubble cannot disagree.
+  const name = eventDisplayName(event, '');
   const category = (event.category || '').trim();
+  if (name && name !== category) return name;
   return EVENT_PHRASES[category.toLowerCase()] || category || 'event';
 };
 
@@ -282,6 +286,8 @@ export function collectSystemEvents({
         relationLabel: isSelf
           ? buildRelationLabel('self', '', event)
           : `${noun} ${phraseFor(event)}`.trim(),
+        relationNoun: noun,
+        ownerName: relative.name || 'Unnamed',
         ownerEntityType: 'person',
         ownerEntityId: relative.id,
       });
@@ -321,6 +327,8 @@ export function collectSystemEvents({
         event,
         relationClass,
         relationLabel: `${noun} ${phraseFor(event)}`.trim(),
+        relationNoun: noun,
+        ownerName: [partner1?.name, partner2?.name].filter(Boolean).join(' + ') || 'Family',
         ownerEntityType: 'partnership',
         ownerEntityId: partnership.id,
         partnershipTarget: 'events',
@@ -332,6 +340,8 @@ export function collectSystemEvents({
         event,
         relationClass,
         relationLabel: `${noun} · ${prefix}: ${event.category || prefix}`,
+        relationNoun: noun,
+        ownerName: [partner1?.name, partner2?.name].filter(Boolean).join(' + ') || 'Family',
         ownerEntityType: 'partnership',
         ownerEntityId: partnership.id,
         partnershipTarget: 'familyEvents',
@@ -355,6 +365,8 @@ export function collectSystemEvents({
         event,
         relationClass: 'sibling',
         relationLabel: `${pairLabel} · ${event.category || line.relationshipType}`,
+        relationNoun: line.relationshipType,
+        ownerName: pairLabel,
         ownerEntityType: 'emotional',
         ownerEntityId: line.id,
       });

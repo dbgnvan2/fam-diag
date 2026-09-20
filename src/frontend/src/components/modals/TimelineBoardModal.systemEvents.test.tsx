@@ -118,8 +118,22 @@ const renderBoard = (
   return props;
 };
 
-/** All timeline item labels currently rendered. */
-const itemText = (): string => document.body.textContent || '';
+/**
+ * The identification a user can actually read. The block itself only shows a
+ * three-letter code (Bir, Dea, Mar) because it is positioned by date and is
+ * often a few pixels wide; the hover bubble carries "what — who — relation",
+ * and that is what these assertions check.
+ */
+const hoverTexts = (): string =>
+  Array.from(document.querySelectorAll('[title]'))
+    .map((element) => element.getAttribute('title') || '')
+    .join('\n');
+
+/** The three-letter codes rendered inside the blocks. */
+const blockCodes = (): string[] =>
+  Array.from(document.querySelectorAll('div[title] strong')).map(
+    (element) => element.textContent || ''
+  );
 
 describe('TimelineBoardModal — person lane completeness', () => {
   it('test_m7a1_person_lane_shows_own_marriage_without_family_lane', () => {
@@ -127,19 +141,19 @@ describe('TimelineBoardModal — person lane completeness', () => {
     // was deferred to a Family lane that does not exist here, so it never
     // appeared anywhere.
     renderBoard({ timelineFamilySelectionIds: [] });
-    expect(itemText()).toContain('Marriage');
+    expect(hoverTexts()).toContain('Marriage');
   });
 
   it('test_m7a1_person_lane_shows_separation_and_divorce', () => {
     renderBoard();
-    expect(itemText()).toContain('Separation');
+    expect(hoverTexts()).toContain('Separation');
     // The parents' divorce arrives as a system event on the lane.
-    expect(itemText()).toContain('Parents divorced');
+    expect(hoverTexts()).toContain('Divorce \u2014 Dad + Mum \u2014 Parents');
   });
 
   it('test_m7a1_birth_and_death_still_render_once', () => {
     renderBoard();
-    const birthMatches = itemText().match(/Birth/g) || [];
+    const birthMatches = hoverTexts().match(/Birth/g) || [];
     expect(birthMatches.length).toBeGreaterThanOrEqual(1);
     // Own birth is not duplicated by the shared synthesizer.
     expect(birthMatches.length).toBeLessThanOrEqual(2);
@@ -147,7 +161,22 @@ describe('TimelineBoardModal — person lane completeness', () => {
 
   it('test_m7a2_own_family_and_triangle_events_on_person_lane', () => {
     renderBoard();
-    expect(itemText()).toContain('House fire');
+    expect(hoverTexts()).toContain('House fire');
+  });
+
+  it('test_timeline_block_shows_a_three_letter_code', () => {
+    renderBoard();
+    const codes = blockCodes();
+    expect(codes.length).toBeGreaterThan(0);
+    // Every block carries a short code, not a truncated sentence.
+    codes.forEach((code) => expect(code.length).toBeLessThanOrEqual(3));
+    expect(codes).toContain('Bir');
+    expect(codes).toContain('Mar');
+  });
+
+  it('test_timeline_hover_never_shows_the_synthesizer_placeholder', () => {
+    renderBoard();
+    expect(hoverTexts()).not.toContain('auto-generated from date field');
   });
 
   it('test_m7a3_timeline_imports_shared_synthesizer', () => {
@@ -162,21 +191,22 @@ describe('TimelineBoardModal — person lane completeness', () => {
 describe('TimelineBoardModal — system events', () => {
   it('test_m7e1_system_event_renders_on_person_lane_with_relation_label', () => {
     renderBoard();
-    expect(itemText()).toContain('Father died');
-    expect(itemText()).toContain('Son born');
+    // "what — who — relation", the form the user asked for.
+    expect(hoverTexts()).toContain('Death \u2014 Dad \u2014 Father');
+    expect(hoverTexts()).toContain('Birth \u2014 Son \u2014 Son');
   });
 
   it('test_m7e2_toggle_off_hides_system_events_and_updates_count', () => {
     renderBoard();
-    expect(itemText()).toContain('Father died');
+    expect(hoverTexts()).toContain('Death \u2014 Dad');
     const countBefore = screen.getByTestId('system-events-count').textContent || '';
     expect(countBefore).toMatch(/system events? from \d+ relatives?/);
 
     fireEvent.click(screen.getByTestId('system-events-toggle'));
-    expect(itemText()).not.toContain('Father died');
+    expect(hoverTexts()).not.toContain('Death \u2014 Dad');
     expect(screen.getByTestId('system-events-count').textContent).not.toMatch(/system event/);
     // The person's own events survive the toggle.
-    expect(itemText()).toContain('Marriage');
+    expect(hoverTexts()).toContain('Marriage');
   });
 
   it('test_m7e2_reports_no_birthdate_caveat', () => {
@@ -198,20 +228,25 @@ describe('TimelineBoardModal — system events', () => {
     // a brand-new event on them, with the relation label as its category,
     // which then reaches the saved diagram.
     renderBoard();
-    fireEvent.click(screen.getByText('Father died'));
+    fireEvent.click(document.querySelector('[title^="Death \u2014 Dad"]')!);
     expect(screen.queryByText(/Person Edit Event|Person Add Event/)).not.toBeInTheDocument();
     expect(screen.getByTestId('timeline-selection-hint').textContent).toMatch(/Read-only/);
   });
 
   it('test_m7e3_own_event_still_opens_the_editor', () => {
     renderBoard();
-    fireEvent.click(screen.getByText('Marriage'));
+    // Root's own marriage: an own item, so the local editor still opens.
+    const own = Array.from(document.querySelectorAll('[title]')).find((element) =>
+      (element.getAttribute('title') || '').startsWith('Marriage \u2014 Root + Wife')
+    );
+    expect(own).toBeDefined();
+    fireEvent.click(own!);
     expect(screen.getByText(/Partnership Edit Event|Partnership Add Event/)).toBeInTheDocument();
   });
 
   it('test_m7e3_system_event_side_panel_fields_are_read_only', () => {
     renderBoard();
-    fireEvent.click(screen.getByText('Father died'));
+    fireEvent.click(document.querySelector('[title^="Death \u2014 Dad"]')!);
     const nameField = screen.getByDisplayValue('Dad') as HTMLInputElement;
     expect(nameField.readOnly).toBe(true);
     // No "Add Event" button that would write to the relative.
@@ -225,7 +260,7 @@ describe('TimelineBoardModal — system events', () => {
     fireEvent.click(screen.getByTestId('system-events-toggle'));
     const ownAfter = screen.getByTestId('system-events-count').textContent?.match(/^(\d+) own/)?.[1];
     expect(ownAfter).toBe(ownBefore);
-    expect(itemText()).toContain('Father died');
+    expect(hoverTexts()).toContain('Death \u2014 Dad');
   });
 
   it('test_m7e2_relative_count_counts_people_not_owner_entities', () => {

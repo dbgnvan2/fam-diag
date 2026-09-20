@@ -19,6 +19,12 @@ import {
 } from '../../utils/syntheticDateEvents';
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
 import { earliestPartnershipDate } from '../../utils/partnershipUtils';
+import {
+  buildTimelineHoverText,
+  eventAbbreviation,
+  eventDisplayName,
+  realNote,
+} from '../../utils/timelineItemText';
 import type { FamilyScope } from '../../utils/familyScope';
 
 interface TimelineBoardModalProps {
@@ -47,6 +53,10 @@ interface TimelineBoardModalProps {
 type TimelineBlockItem = {
   id: string;
   label: string;
+  /** Three-letter code shown inside the block (Bir, Dea, Mar). */
+  abbrev: string;
+  /** Full identification for the hover bubble: what — who — relation. */
+  hoverText: string;
   detail?: string;
   notes?: string;
   startDate: string;
@@ -370,6 +380,9 @@ export default function TimelineBoardModal({
   const eventStart = (event: EmotionalProcessEvent): string | undefined =>
     event.startDate || event.date || undefined;
 
+  const dateRangeText = (start: string, end?: string) =>
+    end && end !== start ? `${start} \u2192 ${end}` : start;
+
   const timelineLanes = (() => {
     const lanes: TimelineLane[] = [];
     if (!selectedTimelinePeople.length && !timelineFamilySelectionIds.length) return lanes;
@@ -389,13 +402,21 @@ export default function TimelineBoardModal({
       // render no span at all.
       const prlStart = earliestPartnershipDate(partnership);
       if (prlStart) {
+        const prlEnd = partnership.divorceDate || partnership.separationDate;
         familyItems.push({
           id: `family-prl-${partnership.id}`,
           label: `${partner1Name} + ${partner2Name}`,
+          abbrev: eventAbbreviation(partnership.relationshipType),
+          hoverText: buildTimelineHoverText({
+            eventName: partnership.relationshipType || 'Relationship',
+            ownerName: `${partner1Name} + ${partner2Name}`,
+            note: partnership.notes,
+            dateRange: dateRangeText(prlStart, prlEnd),
+          }),
           detail: partnership.relationshipType,
           notes: partnership.notes,
           startDate: prlStart,
-          endDate: partnership.divorceDate || partnership.separationDate,
+          endDate: prlEnd,
           color: intensityToColor(0),
           entityType: 'partnership',
           entityId: partnership.id,
@@ -407,7 +428,14 @@ export default function TimelineBoardModal({
         familyItems.push({
           id: `family-prl-event-${event.id}`,
           label: event.category || 'Relationship Event',
-          detail: event.observations || '',
+          abbrev: eventAbbreviation(event.category || 'Relationship Event'),
+          hoverText: buildTimelineHoverText({
+            eventName: event.category || 'Relationship Event',
+            ownerName: `${partner1Name} + ${partner2Name}`,
+            note: event.observations,
+            dateRange: dateRangeText(start, event.endDate),
+          }),
+          detail: realNote(event.observations),
           notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
@@ -425,7 +453,14 @@ export default function TimelineBoardModal({
         familyItems.push({
           id: `family-fam-event-${event.id}`,
           label: event.category || `${labelPrefix} Event`,
-          detail: event.subtype || event.observations || '',
+          abbrev: eventAbbreviation(event.category || labelPrefix),
+          hoverText: buildTimelineHoverText({
+            eventName: `${labelPrefix}: ${event.category || labelPrefix}`,
+            ownerName: `${partner1Name} + ${partner2Name}`,
+            note: event.observations,
+            dateRange: dateRangeText(start, event.endDate),
+          }),
+          detail: event.subtype || realNote(event.observations),
           notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
@@ -466,8 +501,15 @@ export default function TimelineBoardModal({
         seenEventIds.add(event.id);
         items.push({
           id: `person-event-${event.id}`,
-          label: event.category || 'Event',
-          detail: event.observations || event.otherPersonName || '',
+          label: eventDisplayName(event),
+          abbrev: eventAbbreviation(eventDisplayName(event)),
+          hoverText: buildTimelineHoverText({
+            eventName: eventDisplayName(event),
+            ownerName: person.name || 'Unnamed',
+            note: event.observations,
+            dateRange: dateRangeText(start, event.endDate),
+          }),
+          detail: realNote(event.observations) || event.otherPersonName || '',
           notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
@@ -500,7 +542,14 @@ export default function TimelineBoardModal({
             items.push({
               id: `person-prl-event-${event.id}-${person.id}`,
               label: event.category || 'Relationship Event',
-              detail: event.observations || '',
+              abbrev: eventAbbreviation(event.category || 'Relationship Event'),
+              hoverText: buildTimelineHoverText({
+                eventName: event.category || 'Relationship Event',
+                ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
+                note: event.observations,
+                dateRange: dateRangeText(start, event.endDate),
+              }),
+              detail: realNote(event.observations),
               notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
@@ -522,7 +571,14 @@ export default function TimelineBoardModal({
             items.push({
               id: `person-fam-event-${event.id}-${person.id}`,
               label: `${labelPrefix}: ${event.category || labelPrefix}`,
-              detail: event.subtype || event.observations || '',
+              abbrev: eventAbbreviation(event.category || labelPrefix),
+              hoverText: buildTimelineHoverText({
+                eventName: `${labelPrefix}: ${event.category || labelPrefix}`,
+                ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
+                note: event.observations,
+                dateRange: dateRangeText(start, event.endDate),
+              }),
+              detail: event.subtype || realNote(event.observations),
               notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
@@ -544,6 +600,13 @@ export default function TimelineBoardModal({
             items.push({
               id: `person-epl-${line.id}-${person.id}`,
               label: `${line.relationshipType} · ${otherName}`,
+              abbrev: eventAbbreviation(line.relationshipType),
+              hoverText: buildTimelineHoverText({
+                eventName: line.relationshipType || 'Pattern',
+                ownerName: `${person.name || 'Unnamed'} \u2194 ${otherName}`,
+                note: line.notes,
+                dateRange: dateRangeText(line.startDate, line.endDate),
+              }),
               detail: line.lineStyle,
               notes: line.notes,
               startDate: line.startDate,
@@ -569,7 +632,14 @@ export default function TimelineBoardModal({
             items.push({
               id: `person-epl-event-${event.id}-${person.id}`,
               label: event.category || `${line.relationshipType} Event`,
-              detail: event.observations || `with ${otherName}`,
+              abbrev: eventAbbreviation(event.category || line.relationshipType),
+              hoverText: buildTimelineHoverText({
+                eventName: event.category || `${line.relationshipType} Event`,
+                ownerName: `${person.name || 'Unnamed'} \u2194 ${otherName}`,
+                note: event.observations,
+                dateRange: dateRangeText(start, event.endDate),
+              }),
+              detail: realNote(event.observations) || `with ${otherName}`,
               notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
@@ -609,7 +679,17 @@ export default function TimelineBoardModal({
           items.push({
             id: `person-system-${person.id}-${key}`,
             label: entry.relationLabel,
-            detail: entry.event.observations || '',
+            abbrev: eventAbbreviation(eventDisplayName(entry.event, entry.relationLabel)),
+            // "Birth — Jim Doe — Grandson": what happened, to whom, and how
+            // they relate to the person whose lane this is.
+            hoverText: buildTimelineHoverText({
+              eventName: eventDisplayName(entry.event, entry.relationLabel),
+              ownerName: entry.ownerName,
+              relation: entry.relationNoun,
+              note: entry.event.observations,
+              dateRange: dateRangeText(start, entry.event.endDate),
+            }),
+            detail: realNote(entry.event.observations),
             notes: entry.event.observations || '',
             startDate: start,
             endDate: entry.event.endDate,
@@ -1154,6 +1234,13 @@ export default function TimelineBoardModal({
                 const ONE_YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
                 const visibleSpanMs = Math.max(1, timelineDisplayRange.max - timelineDisplayRange.min);
                 const oneYearPct = (ONE_YEAR_MS / visibleSpanMs) * 100;
+                // A block has to be wide enough to read its three-letter code.
+                // Over a long visible range one year is only a few pixels, so
+                // floor the width used for both layout and row packing —
+                // otherwise blocks would be drawn wider than the packer thinks
+                // and would overlap their neighbours. Exact dates are on the
+                // hover, so the small loss of date fidelity is worth it.
+                const MIN_BLOCK_PCT = 4;
                 const place = sorted.map((item) => {
                   const startTs = parseTimelineDate(item.startDate) ?? timelineDisplayRange.min;
                   const endTsParsed = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
@@ -1161,7 +1248,8 @@ export default function TimelineBoardModal({
                   const isPointEvent = !item.endDate || endTs === startTs;
                   const leftPct = ((startTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
                   const endPct = ((endTs - timelineDisplayRange.min) / (timelineDisplayRange.max - timelineDisplayRange.min)) * 100;
-                  const spanPct = isPointEvent ? oneYearPct : Math.max(0, endPct - leftPct);
+                  const naturalSpanPct = isPointEvent ? oneYearPct : Math.max(0, endPct - leftPct);
+                  const spanPct = Math.max(naturalSpanPct, MIN_BLOCK_PCT);
                   let rowIndex = rowRightEdges.findIndex((edge) => leftPct >= edge + 0.6);
                   if (rowIndex === -1) {
                     rowIndex = rowRightEdges.indexOf(Math.min(...rowRightEdges));
@@ -1175,17 +1263,6 @@ export default function TimelineBoardModal({
                     rowOffset: rowIndex * 34,
                   };
                 });
-                const stripSelfName = (value: string, laneLabel: string) => {
-                  if (!value) return value;
-                  const escaped = laneLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                  const regex = new RegExp(`\\b${escaped}\\b`, 'ig');
-                  return value
-                    .replace(regex, '')
-                    .replace(/\s*·\s*$/, '')
-                    .replace(/^\s*·\s*/, '')
-                    .replace(/\s{2,}/g, ' ')
-                    .trim();
-                };
                 return (
                   <div key={lane.id} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', borderTop: '1px dashed #d7d7d7' }}>
                     <div
@@ -1226,20 +1303,18 @@ export default function TimelineBoardModal({
                       {place.map((item) => (
                         <React.Fragment key={item.id}>
                         <div
-                          title={item.notes || ''}
+                          title={item.hoverText}
                           onClick={() => handleTimelineItemClick(lane.label, item)}
                           onMouseEnter={(e) => {
-                            if (!item.notes) return;
                             setTimelineHoverNote({
-                              text: item.notes,
+                              text: item.hoverText,
                               x: e.clientX + 10,
                               y: e.clientY + 12,
                             });
                           }}
                           onMouseMove={(e) => {
-                            if (!item.notes) return;
                             setTimelineHoverNote({
-                              text: item.notes,
+                              text: item.hoverText,
                               x: e.clientX + 10,
                               y: e.clientY + 12,
                             });
@@ -1250,8 +1325,9 @@ export default function TimelineBoardModal({
                             left: `${item.leftPct}%`,
                             top: 10 + item.rowOffset,
                             width: `${item.spanPct}%`,
+                            minWidth: 34,
                             height: 26,
-                            padding: '4px 8px',
+                            padding: '4px 5px',
                             borderRadius: 6,
                             // System events belong to a relative, not to the
                             // lane person: dashed + muted so they read as
@@ -1274,8 +1350,12 @@ export default function TimelineBoardModal({
                             boxSizing: 'border-box',
                           }}
                         >
-                          <strong>{stripSelfName(item.label, lane.label)}</strong>
-                          {item.detail ? ` · ${stripSelfName(item.detail, lane.label)}` : ''}
+                          {/* Blocks are positioned by date, so a short event
+                              is only a few pixels wide and any label is cut to
+                              a character. The box carries a three-letter code
+                              (Bir, Dea, Mar); the hover bubble carries the
+                              full "what — who — relation". */}
+                          <strong>{item.abbrev}</strong>
                         </div>
                         </React.Fragment>
                       ))}
