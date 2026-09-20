@@ -360,5 +360,297 @@ are proven to go red on the old rule by reproduction, all three gates plus lint 
 and the design decision (any recorded relationship date, including an ending date alone,
 beats drawing from birth; undated stays visible) is implemented and documented. Two
 low-severity notes are recorded above; neither is a shipped-behaviour defect. Clean against
-P1–P36 and L1–L6; P3 (parallel field-list copy, low) and a pre-existing syntheticDateEvents
+Clean against P1–P36 and L1–L6; P3 (parallel field-list copy, low) and a pre-existing syntheticDateEvents
 gap (out of scope) were the only patterns applicable.
+
+---
+
+# Pass 5 — timeline-block readability fix (d3fa56b..HEAD)
+
+Date: 2026-09-19
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `d3fa56b...HEAD` (2 commits)
+Verdict: **REJECTED**
+
+## Commits
+
+- efe9855 Untrack the local scratch test diagram
+- 448d90a Make timeline blocks readable: 3-letter code in the box, identification on hover
+
+Commit 1 (efe9855) untracks `Testdiagram 1.json` and gitignores it — trivial, no behaviour.
+Commit 2 (448d90a) is the substance: the timeline block now carries a 3-letter code (Bir, Dea,
+Mar) and the hover bubble carries "what — who — relation"; `SYNTHETIC_EVENT_NOTE` is exported and
+treated as "no note"; `SystemEvent` gains `relationNoun`/`ownerName`; `phraseFor` delegates to
+`eventDisplayName`; a `MIN_BLOCK_PCT` width floor is applied to both the block style and the row
+packing; `stripSelfName` is deleted.
+
+## Gates (run on current HEAD `448d90a`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 58 files, 579 passed, 13 skipped (592) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## Audit of the four questions asked
+
+### Builder consistency — all nine builders updated, none missed
+
+Every timeline item builder sets both `abbrev` and `hoverText`, verified by reading the file
+(TimelineBoardModal.tsx): family-lane PRL span (:406), family PRL events (:428), family events
+(:453), person own events (:502), person PRL events (:542), person family events (:571), EPL span
+(:600), EPL events (:632), system events (:679). No builder was left rendering a bare sentence in
+the box. `label` is retained and still read (side-panel `itemLabel` :740 and the synthesized-draft
+`category` :789), so it is not dead — only `detail` and `notes` are (finding 2).
+
+### Test vacuousness — none of the migrated assertions are vacuous
+
+`hoverTexts()` joins every `[title]` attribute and `blockCodes()` reads `div[title] strong`. The
+new block-code test asserts exact membership (`toContain('Bir')`, `toContain('Mar')`) plus a
+length bound, and fails if `<strong>` stops rendering (`codes.length > 0`). The
+`not.toContain('auto-generated from date field')` guard is behavioural (realNote strips the
+placeholder through `buildTimelineHoverText`). The only source-text assertion in the file,
+`test_m7a3_timeline_imports_shared_synthesizer` (:182–188), is pre-existing and unchanged by this
+diff — the known P19-corollary brittleness, already recorded in `TODO.md`, not a new finding.
+
+### eventDisplayName sourceIndicatorId heuristic — sound today, implicit and leaky (finding 3)
+
+### Width floor — one floor is in the packing math, the other is not (finding 1)
+
+## Findings (ranked)
+
+### 1. Correctness — med-high · TimelineBoardModal.tsx:1328 (`minWidth: 34`) vs :1243–1257 (packing)
+
+The `MIN_BLOCK_PCT = 4` floor is correctly applied to both the block `width` and the row-packing
+right-edge, and the comment (:1237–1242) states exactly why: the drawn width must match what the
+packer reserves or blocks overlap. But the block style *also* sets `minWidth: 34` (px) — a second,
+independent floor that is **not** in the packing math. At the minimum supported content column
+(960 − 340 properties − 12 gap − 150 lane = **458px**), 4% = 18.3px, so `minWidth: 34px` is the
+*effective* floor (34px = 7.4%), while the packer still reserves only 4%. Two point events 5% of
+the range apart (≥ the 4.6% same-row threshold) land in the same row, and the first block's
+rendered 7.4% width overlaps the second by ~11px — the packer's 0.6% gap is only 2.75px.
+`minWidth` binds on any viewport narrower than ~1470px (content < 850px), i.e. essentially every
+laptop, so this is the common case. The old code (no floor, no minWidth) did not overlap. This is
+a regression in the very axis the change fixes: blocks now bleed into each other instead of being
+truncated. Not caught by the suite because jsdom does no layout.
+
+Fix: make the two floors agree — either drop `minWidth: 34` and raise `MIN_BLOCK_PCT` so 4% ≥ 34px
+at the minimum width (needs ~7.5%), or keep `minWidth` and fold the *effective* width (px, not %)
+into the packer's right-edge. One floor, one place.
+
+### 2. Dead fields — med · TimelineBoardModal.tsx:60–61 + all nine builders
+
+`TimelineBlockItem.detail` and `.notes` are now write-only: every builder sets them, nothing reads
+them (the block renders only `item.abbrev`; `title` and the hover use `item.hoverText`). The
+`realNote(event.observations)` results folded into `detail:` are dead computation — `realNote` is
+only live inside `buildTimelineHoverText`. Write-only fields invite drift (a maintainer sets
+`detail` expecting it to render) and are the inverted shape of P21. Fix: delete `detail` and
+`notes` from the type and from all nine builders; the hover already carries everything they held.
+
+### 3. Heuristic fragility — med-low · timelineItemText.ts:27–28 (`isSymptomLike`)
+
+`isSymptomLike = eventType === 'SYMPTOM' || !!sourceIndicatorId`. Verified against all producers:
+`sourceIndicatorId` is set only on symptom events today (demo-data FF symptoms, and
+`synthesizePersonIndicatorEvents`), so the heuristic is currently correct — and it is a genuine
+improvement over the old `eventType === 'SYMPTOM'`-only rule (real data records indicator-backed
+symptoms as `FF`). But the invariant "has sourceIndicatorId ⟹ is a symptom" is implicit and
+unenforced: `PropertiesPanel.saveEvent` (:2078) copies `eventDraft.sourceIndicatorId` through on
+**every** save regardless of type, while clearing `symptomType` for non-SYMPTOM (:2079). A symptom
+re-keyed to a non-symptom type (or any future producer that sets `sourceIndicatorId` on a
+non-symptom) would then have `eventDisplayName` return its `subtype` instead of `category`
+(e.g. "Interstate" instead of "Relocation"). No current reproducer. Fix: key on
+`eventType === 'SYMPTOM' || !!event.symptomType` (the symptom *name*, not the indicator id), or
+explicitly clear `sourceIndicatorId` when a non-symptom event is saved.
+
+### Note (not blocking) — side-panel `Item:` still shows the old phrasing
+
+For system events `item.label = entry.relationLabel` ("Father died"), rendered in the Timeline
+Properties `Item:` line, while the block/hover now use the new "Death — Dad — Father". Cosmetic
+inconsistency; the side panel is not wrong, just phrased differently. Also the family-lane PRL
+span abbreviates on the lowercase `relationshipType` ("mar" for "married"), unlike the capitalized
+"Mar" from the Marriage event — same cosmetic class.
+
+## Not covered
+
+- `Testdiagram 1.json` deletion + `.gitignore` (scratch data, no behaviour).
+- learning-qa scope limits: logic/algorithmic correctness (finding 1 is reported at the caller's
+  explicit request, outside the pattern catalogue), concurrency, authn/authz, injection/security,
+  performance, dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**REJECTED** — 3 findings (1 med-high, 1 med, 1 med-low). All three gates are green and the
+substantive work is otherwise well-executed: all nine item builders are updated consistently, the
+`MIN_BLOCK_PCT` floor is (for its part) correctly mirrored into the packing math, the
+`phraseFor → eventDisplayName` delegation keeps lane label and hover from disagreeing, and none of
+the migrated tests are vacuous. But finding 1 is a shipped-behaviour visual regression — the
+`minWidth: 34` pixel floor is not accounted for in the row packing, so blocks overlap on typical
+laptop viewports, the exact defect the change set out to remove. That is a functional gap on the
+rendered surface, not a cosmetic nit. Fix finding 1 (make the two width floors agree), drop the
+dead `detail`/`notes` fields (finding 2), and harden or document the `sourceIndicatorId` marker
+(finding 3) before re-running the gate.
+
+---
+
+# Pass 6 — re-run after fix commit e6cb9ac
+
+Date: 2026-09-20
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `d3fa56b...HEAD` (3 commits); fix commit `448d90a..e6cb9ac` swept as its own range
+Verdict: **APPROVED**
+
+## Commits
+
+- efe9855 Untrack the local scratch test diagram (reviewed pass 5 — trivial)
+- 448d90a Make timeline blocks readable (reviewed pass 5 — REJECTED)
+- e6cb9ac Fix duplicate timeline events, shape blocks by sex, shade them by intensity
+
+## Gates (re-run on current HEAD `e6cb9ac`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 59 files, 600 passed, 13 skipped (613) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## The three pass-5 findings — verified fixed by reproduction, not by the commit message
+
+### 1. Double width floor → ONE floor (pass-5 finding 1, med-high)
+
+Gone, verified by reading and grep. `MIN_BLOCK_PX = 34` (TimelineBoardModal.tsx:83) is
+the only floor constant; `minWidth: 34` is deleted from the block style (grep confirms no
+block `minWidth` remains — only the unrelated `minWidth: 960` content-column). The lane
+body is measured by `laneBodyRef` + a ResizeObserver `useEffect` (:136–150), attached to
+lane 0's body div (`ref={laneIndex === 0 ? laneBodyRef : undefined}`, :1319), and converted
+to a percentage once: `MIN_BLOCK_PCT = laneWidthPx > 0 ? (MIN_BLOCK_PX / laneWidthPx) * 100 : 0`
+(:1258–1259). That single value feeds BOTH the block width — `spanPct = Math.max(naturalSpanPct,
+MIN_BLOCK_PCT)` (:1268), rendered as `width: ${item.spanPct}%` (:1350) — AND the packer's
+reserved right edge `leftPct + spanPct` (:1273). With `boxSizing: 'border-box'` the drawn
+width equals exactly what the packer reserves, so blocks can no longer overhang the gap.
+
+Zero/stale measurement is handled without a correctness failure: before the first
+measurement `laneWidthPx === 0` and the floor is 0 (the honest natural span — no overlap,
+just no floor for one frame); on resize or reopen the deps-triggered re-measure corrects
+any stale value. jsdom has no `ResizeObserver`, so the floor path has no automated coverage
+— the mechanism is verified by reading, not by a test (see notes).
+
+### 2. Write-only detail/notes removed (pass-5 finding 2, med)
+
+Gone. `detail`/`notes` deleted from `TimelineBlockItem` (replaced by `shape`/`intensity`,
+:66–69) and from all nine builders (family PRL span, family PRL events, family events, person
+own events, person PRL events, person family events, EPL span, EPL events, system events).
+The `realNote` import is removed from TimelineBoardModal; `realNote` now lives only inside
+`buildTimelineHoverText` (timelineItemText.ts:97). grep confirms no `item.detail`/`item.notes`
+remain — the surviving `.notes` reads are `partnership.notes`/`line.notes`/`person.notes`
+(real data fields).
+
+### 3. sourceIndicatorId dropped on non-symptom save (pass-5 finding 3, med-low)
+
+Real. PropertiesPanel.saveEvent now sets
+`sourceIndicatorId: normalizedType === 'SYMPTOM' || normalizedType === 'FF' ? eventDraft.sourceIndicatorId : undefined`
+(PropertiesPanel.tsx:2085–2088). FF = "Functional Fact" (eventConstants.ts:463) has subtype
+(:522), and FF-typed symptom events are exactly what real diagrams carry. Traced end-to-end:
+an FF symptom keeps its `sourceIndicatorId`, `isSymptomLike = eventType === 'SYMPTOM' || !!sourceIndicatorId`
+(timelineItemText.ts:34–35) stays true, so it is still named by subtype — not broken. The
+chosen fix is the producer-side clear that pass-5 listed as acceptable; the residual (the
+invariant "has sourceIndicatorId ⟹ symptom" is still implicit in the consumer) is recorded
+below, non-blocking.
+
+## New work — audited
+
+### eventDedup (clone-aware) — correct, and cannot hide a distinct event
+
+`baseEventId` strips `-p[12]$`; `hasSameEvent` checks the exact id, the base, and both
+clones. The `-p1`/`-p2` suffix is produced ONLY by `cloneEventForPerson` (PropertiesPanel.tsx:241–251,
+suffix `'p1'`/`'p2'`); synthetic ids are `synth-…` and never end in `-p1`/`-p2`, so
+`baseEventId` cannot strip a legitimate id and `hasSameEvent` cannot suppress a distinct
+event. Used by TimelineBoardModal's four person-lane gather points (ownEvents :516, prlEvents
+:557, familyEvents :584, eplEvents :643) and systemEvents' push (:226). No gather point still
+dedupes on exact ids in a way that reproduces the duplicate: the family-lane gather points
+(:443/:466) read only the partnership's own arrays (no cross-source clone mixing); the
+system-events loop's `personEventIds.has(entry.event.id)` (:689) is a redundant guard, because
+`collectSystemEvents`' push already applied `hasSameEvent` against the lane person's ids and
+its `ownPartnershipIds`/`involvesLanePerson` filters guarantee no overlap between system events
+and person-lane events.
+
+### Block shape by sex + fill by intensity — correctly wired
+
+`blockShapeForPerson` (timelineItemText.ts:108) maps male→rect / female→oval / unknown→neutral,
+matching `genderOf` in systemEvents.ts. `intensityStyle` (:120) maps 1–5 to the ramp and
+0/undefined/null/out-of-range to the grey unrated fill; the border follows the same ramp.
+`BLOCK_BORDER_RADIUS` and the ramp live in constants/timelineBlockStyle.ts. Couples/family/
+pattern events are hard-coded `'neutral'`; person and system events use `blockShapeForPerson`.
+Fill uses `event.intensity`, never the emotional-line graphic level — the two "intensity"
+concepts stay distinct.
+
+### Hook-order crash — fix verified by mutation, not trusted
+
+Moved the ResizeObserver `useEffect` back below the early `return null` (:387), ran
+`test_timeline_board_survives_being_opened_after_being_closed`, and it failed with
+"Rendered more hooks than during the previous render" — then restored with `git checkout`.
+The closed→open→closed test genuinely guards the ordering.
+
+## Findings (ranked)
+
+### 1. P3 / P19-corollary — parallel hand-maintained clone rule — med-low · PropertiesPanel.tsx:1651–1653, 1663, 1671, 1686
+
+`getDisplayEvents` still carries its own inline `isAlreadyCloned` (`ownIds.has(\`${sourceId}-p1\`)
+|| ownIds.has(\`${sourceId}-p2\`)`) rather than importing `hasSameEvent` from eventDedup.ts.
+The commit message says the clone rule is now "held once", but it is held twice: eventDedup.ts
+and this inline copy. The two rules are semantically equivalent for the current data flow
+(both receive only original partnership-event ids — PropertiesPanel never passes a clone id),
+so this is not a shipped-behaviour defect today. But it is the exact parallel-copy drift class
+this sweep exists to catch, and they DO diverge on a clone input: `hasSameEvent('foo-p1', own)`
+strips the suffix and checks the base and both clones, while `isAlreadyCloned('foo-p1')` only
+checks `foo-p1-p1`/`foo-p1-p2` (never the base). Fix: import `hasSameEvent` in PropertiesPanel
+and delete `isAlreadyCloned`, so the rule has one home.
+
+### 2. Test overclaim — low · TimelineBoardModal.systemEvents.test.tsx (male/female shape test)
+
+`test_timeline_male_events_are_rectangles_and_female_events_are_ovals` asserts only two MALE
+blocks (Root's birth and Son's birth-as-system-event, both `2px`). It never asserts an oval, and
+the fixture has no female person with a date or event (wife/mum have no `birthDate`/`events[]`),
+so there is no female block to render. The female→oval path is covered only by the pure
+`blockShapeForPerson` unit test; the component-level wiring is asserted by name, not by any
+female assertion. Fix: give wife a `birthDate` (or an event) and assert `Birth — Wife` renders
+`999px`, or rename the test to what it actually checks.
+
+### 3. Stale comment — low · TimelineBoardModal.tsx:397–399
+
+The comment above the (now-deleted) `intensityToColor` block still documents the old ramp
+("0/unset → green, 1 → blue, 2 → yellow, 3 → orange, 4 → pink, 5 → red"); the real ramp is
+1 blue → 2 green → 3 amber → 4 orange → 5 red with grey unrated (constants/timelineBlockStyle.ts).
+Misleading to a future maintainer. Fix: update or delete it.
+
+## Notes (non-blocking)
+
+- The one-floor mechanism (measured `MIN_BLOCK_PCT`) has no automated coverage: jsdom lacks
+  `ResizeObserver`, so every test renders with `laneWidthPx === 0` and the floor at 0. Verified
+  by reading; the degradation is safe (honest natural span, no overlap).
+- The sourceIndicatorId fix leaves the consumer heuristic on `!!sourceIndicatorId`; the invariant
+  "has sourceIndicatorId ⟹ symptom" remains implicit for any future producer that sets the field
+  on a non-symptom. Pass-5 accepted producer-side clear; residual fragility only.
+- `test_timeline_producer_drops_the_indicator_link_on_a_non_symptom_save` is a source-grep
+  assertion (reads PropertiesPanel.tsx). It IS effective (goes red on revert) but brittle — the
+  known P19-corollary class already deferred in TODO.md, extended here, not a new defect.
+
+## Not covered
+
+- `Testdiagram 1.json` deletion + `.gitignore` (scratch data, no behaviour).
+- `src/frontend/src/data/version.ts` (version bump only).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — all three pass-5 findings are genuinely fixed (verified by reproduction, including
+a mutation test that proves the hook-order regression test fails when the hook is moved back below
+the early return). The new work is correct: the clone-aware dedup cannot suppress a distinct event
+(the `-p1`/`-p2` suffix is produced only by the clone path), no gather point still dedupes on exact
+ids in a way that reproduces the duplicate, shape/intensity is wired through
+constants/timelineBlockStyle.ts and keeps event.intensity distinct from the graphic level. Three
+non-functional findings remain — one med-low P3 parallel-copy (PropertiesPanel's inline
+`isAlreadyCloned` should be migrated to eventDedup so the rule is genuinely held once), one low
+test overclaim, one low stale comment — none is a shipped-behaviour defect. Clean against P1–P36
+and L1–L6; P3/P19-corollary (parallel clone rule, med-low), test-quality (low) and doc-drift (low)
+were applicable.

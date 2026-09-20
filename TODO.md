@@ -2,6 +2,28 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the timeline readability / duplicate-events batch (2026-09-20)
+
+Gate pass 6 APPROVED after pass 5 rejected the first attempt. Three findings
+carried, none blocking.
+
+- **The clone rule still lives in two places.** `utils/eventDedup.ts` holds
+  `hasSameEvent`, and the Timeline and the system-events collector use it — but
+  `PropertiesPanel.getDisplayEvents` kept its own inline `isAlreadyCloned`
+  (~`PropertiesPanel.tsx:1651`), which behaves differently when handed a clone
+  id rather than an original. The commit message claiming the rule is "held
+  once" was wrong; migrate the panel to `hasSameEvent`.
+- **The female-oval half of the shape test is not exercised at component
+  level.** `test_timeline_male_events_are_rectangles_and_female_events_are_ovals`
+  asserts two male blocks because the fixture has no event owned by a woman.
+  The pure function is covered both ways in `timelineItemText.test.ts`; the
+  component assertion needs a female-owned event in the fixture.
+- **Stale comment** at `TimelineBoardModal.tsx:397` still describes the
+  intensity ramp that moved to `constants/timelineBlockStyle.ts`.
+- **The single width floor has no jsdom coverage** — jsdom has no
+  `ResizeObserver`, so the measured-floor path only runs in a real browser
+  (where it was verified by hand). A layout test would need a stubbed observer.
+
 ## From the PRL timeline-date fix (2026-09-19)
 
 Gate pass 4 (post-push audit of `8be8446`) APPROVED; two low-severity notes left.
