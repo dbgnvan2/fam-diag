@@ -264,3 +264,101 @@ gates are green on the exact commit to be pushed, and every remaining finding is
 non-functional deferral recorded in `TODO.md` with a reason. Clean against P1–P36 and L1–L6,
 of which P3 (once), P19-corollary/P27 (once, resolved), P10/P27 (once, resolved) and
 P19-corollary persistence (carried, low) were applicable.
+
+---
+
+# Pass 4 — post-push audit of the PRL timeline fix (8be8446)
+
+Date: 2026-09-19
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6), post-push (commit already on main)
+Range: `38a25a2..8be8446` (1 commit)
+Verdict: **APPROVED**
+
+## Context
+
+User-reported bug: on the canvas year-slider timeline, a partner relationship line
+(PRL) was drawn from the partners' BIRTH instead of the relationship's own date.
+Root cause confirmed by reading (not trusting) PropertiesPanel.tsx:317-335
+`withPartnershipStatusDate` — a "Married" date is written to `statusDates.married`
+AND the legacy `marriedStartDate`, never `relationshipStartDate`. The old visibility
+rule read `relationshipStartDate` alone; `isVisibleAtTimeline` treats a missing date
+as visible-at-every-year, so the line appeared as soon as both partners existed.
+
+## Fix — complete across all five consumers
+
+`earliestPartnershipDate()` (partnershipUtils.ts:58) reports the earliest valid date
+across `relationshipStartDate`, the legacy mirrors (`marriedStartDate`/`separationDate`/
+`divorceDate`) and every `statusDates` value. Verified applied to all five consumers:
+
+1. Canvas `partnershipVisibility` memo — `buildPartnershipVisibility` extracted to
+   familyScope.ts:323, called by DiagramEditor.tsx:1032.
+2. Selection-pruning effect — `setSelectedPartnershipId` (DiagramEditor.tsx:939).
+3. Selection-pruning effect — `setPropertiesPanelItem` partnership branch
+   (DiagramEditor.tsx:968).
+4. Timeline year-bounds scan — statusDates loop added (DiagramEditor.tsx:814).
+5. Timeline board family-lane PRL span — `prlStart = earliestPartnershipDate(...)`
+   (TimelineBoardModal.tsx:390).
+
+## Remaining `relationshipStartDate` consumers — audited, none missed
+
+Every occurrence of `relationshipStartDate` in src/frontend was checked. The only
+ones left are NOT "when did the relationship exist" computations and correctly do
+NOT use the earliest date:
+
+- PartnershipNode.tsx:170 — renders a per-field "Start:" label; not a visibility/time
+  decision (a marriage-only partnership still shows "Married:").
+- syntheticDateEvents.ts:147 — per-field event synthesis, already enumerates all four
+  legacy fields; earliest-date is the wrong tool (it wants each date as its own event).
+- useVoiceHandlers.ts:262, dataImport.ts, DiagramEditor.tsx:3002 — producers/merge, not
+  timeline consumers.
+
+## Tests genuinely guard the rule — verified by reproduction
+
+The new tests in partnershipUtils.test.ts were NOT trusted. `earliestPartnershipDate`
+was temporarily reverted to the old `relationshipStartDate`-only rule and the suite
+run: 6 of 13 tests went RED (marriage-only reports its date, status-dates-only, earliest-
+of-several, ending-date-alone, and the two visibility-hiding cases). File restored with
+`git checkout`. The tests fail on the old rule and pass on the new rule.
+
+## Gates (run on 8be8446)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 57 files, 562 passed, 13 skipped |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+| `npm run lint` | PASS — 0 errors (8 pre-existing warnings, none in touched files) |
+
+## Findings (ranked)
+
+### 1. P3 / parallel field-list copy — low · DiagramEditor.tsx:809-816
+
+The year-bounds scan manually enumerates the partnership date fields
+(`relationshipStartDate`, `marriedStartDate`, `separationDate`, `divorceDate`,
+`statusDates`) instead of calling `partnershipDates()`. This is a hand-maintained copy
+of the field list `partnershipDates()` owns, so a future Partnership date field could be
+added to one and missed by the other. It is consistent today, and the scan needs
+per-field labels that `partnershipDates()` doesn't return, so sharing is not a drop-in.
+Consequence is limited: `timelineEntries` is consumed only for min/max year bounds
+(DiagramEditor.tsx:832-841), never rendered, so the duplicate entries the scan now
+produces for a PropertiesPanel-saved marriage (legacy `marriedStartDate` AND
+`statusDates.married`) are harmless. Recorded, not blocking.
+
+### 2. Pre-existing gap (out of scope) — low · syntheticDateEvents.ts:146-151
+
+`statusDates`-only dates (e.g. widowed) are now counted by PRL visibility and the year-
+bounds scan but are still absent from the Events-tab synthesis
+(`synthesizePartnershipDateEvents` enumerates only the four legacy fields). This predates
+the fix and is a different feature (surfacing each date as its own event), so
+`earliestPartnershipDate` is not the right tool. Follow-up only.
+
+## Verdict
+
+**APPROVED** — the fix is complete (all five consumers changed together), no remaining
+`relationshipStartDate` consumer that should use the earliest date was missed, the tests
+are proven to go red on the old rule by reproduction, all three gates plus lint are green,
+and the design decision (any recorded relationship date, including an ending date alone,
+beats drawing from birth; undated stays visible) is implemented and documented. Two
+low-severity notes are recorded above; neither is a shipped-behaviour defect. Clean against
+P1–P36 and L1–L6; P3 (parallel field-list copy, low) and a pre-existing syntheticDateEvents
+gap (out of scope) were the only patterns applicable.

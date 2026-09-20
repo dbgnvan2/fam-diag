@@ -2,6 +2,23 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the PRL timeline-date fix (2026-09-19)
+
+Gate pass 4 (post-push audit of `8be8446`) APPROVED; two low-severity notes left.
+
+- **The timeline year-bounds scan hand-enumerates partnership date fields.**
+  `DiagramEditor.tsx` (~:809) lists `relationshipStartDate` / `marriedStartDate` /
+  `separationDate` / `divorceDate` and then loops `statusDates` separately,
+  rather than sharing `partnershipDates()`. Not a drop-in: the scan needs a
+  per-field label for each entry, which `partnershipDates()` deliberately does
+  not carry. Consistent today; worth folding together if a sixth date field
+  ever appears.
+- **`syntheticDateEvents` still does not surface `statusDates`-only dates.**
+  A "Widowed" date has no legacy mirror field, so it never becomes an event in
+  the Events tab or on a Timeline lane. Pre-existing and separate from the
+  visibility fix — `earliestPartnershipDate()` is the wrong tool for it, since
+  synthesis wants each date as its own event with its own category.
+
 ## From the family-focus / system-events batch (2026-09-19)
 
 Raised by the external Hermes `learning-qa-sweep` gate over `aa081d3..HEAD`
