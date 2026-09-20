@@ -39,6 +39,7 @@ import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
 import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
 import { useFamilyScope } from '../hooks/useFamilyScope';
 import {
+  buildPartnershipVisibility,
   buildPersonVisibility,
   computeFamilyScope,
   defaultFocusForRoot,
@@ -52,6 +53,7 @@ import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
+import { earliestPartnershipDate } from '../utils/partnershipUtils';
 import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
@@ -808,6 +810,10 @@ const DiagramEditor = () => {
       addEntry(partnership.marriedStartDate, `${base} married`);
       addEntry(partnership.separationDate, `${base} separation`);
       addEntry(partnership.divorceDate, `${base} divorce`);
+      // Statuses without a legacy mirror field (e.g. widowed) live only here.
+      Object.entries(partnership.statusDates || {}).forEach(([status, date]) =>
+        addEntry(date, `${base} ${status}`)
+      );
       (partnership.events || []).forEach((event) => addEntry(eventStart(event), `${event.category || 'Event'} – ${partnerLabel}`));
     });
     emotionalLines.forEach((line) => {
@@ -930,7 +936,7 @@ const DiagramEditor = () => {
     setSelectedPartnershipId((prev) => {
       if (!prev) return prev;
       const partnership = partnerships.find((p) => p.id === prev);
-      if (!partnership || !isVisibleAtTimeline(partnership.relationshipStartDate)) {
+      if (!partnership || !isVisibleAtTimeline(earliestPartnershipDate(partnership))) {
         return null;
       }
       return prev;
@@ -959,7 +965,7 @@ const DiagramEditor = () => {
         return isVisibleAtTimeline(prev.birthDate) ? prev : null;
       }
       if ('partner1_id' in prev) {
-        return isVisibleAtTimeline(prev.relationshipStartDate) ? prev : null;
+        return isVisibleAtTimeline(earliestPartnershipDate(prev)) ? prev : null;
       }
       if ('lineStyle' in prev) {
         return isVisibleAtTimeline(prev.startDate) ? prev : null;
@@ -1023,17 +1029,10 @@ const DiagramEditor = () => {
     [people, isVisibleAtTimeline, activeFamilyScope]
   );
 
-  const partnershipVisibility = useMemo(() => {
-    const map = new Map<string, boolean>();
-    partnerships.forEach((partnership) => {
-      const visible =
-        isVisibleAtTimeline(partnership.relationshipStartDate) &&
-        (personVisibility.get(partnership.partner1_id) ?? true) &&
-        (personVisibility.get(partnership.partner2_id) ?? true);
-      map.set(partnership.id, visible);
-    });
-    return map;
-  }, [partnerships, personVisibility, isVisibleAtTimeline]);
+  const partnershipVisibility = useMemo(
+    () => buildPartnershipVisibility(partnerships, personVisibility, isVisibleAtTimeline),
+    [partnerships, personVisibility, isVisibleAtTimeline]
+  );
 
   // A focus can hide the current selection. Prune it, the same way the
   // timeline-year slider already does above.

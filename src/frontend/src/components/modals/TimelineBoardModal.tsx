@@ -18,6 +18,7 @@ import {
   synthesizePersonIndicatorEvents,
 } from '../../utils/syntheticDateEvents';
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
+import { earliestPartnershipDate } from '../../utils/partnershipUtils';
 import type { FamilyScope } from '../../utils/familyScope';
 
 interface TimelineBoardModalProps {
@@ -383,13 +384,17 @@ export default function TimelineBoardModal({
       const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name || 'Partner 1';
       const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name || 'Partner 2';
       const familyItems: TimelineBlockItem[] = [];
-      if (partnership.relationshipStartDate) {
+      // The span starts at the earliest date the partnership records — a
+      // marriage-only partnership has no relationshipStartDate and used to
+      // render no span at all.
+      const prlStart = earliestPartnershipDate(partnership);
+      if (prlStart) {
         familyItems.push({
           id: `family-prl-${partnership.id}`,
           label: `${partner1Name} + ${partner2Name}`,
           detail: partnership.relationshipType,
           notes: partnership.notes,
-          startDate: partnership.relationshipStartDate,
+          startDate: prlStart,
           endDate: partnership.divorceDate || partnership.separationDate,
           color: intensityToColor(0),
           entityType: 'partnership',

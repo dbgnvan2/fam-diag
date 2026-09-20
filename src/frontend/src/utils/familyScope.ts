@@ -28,6 +28,7 @@
  * partnership at gen -3, outside the band.
  */
 import type { EmotionalLine, Partnership, Person, Triangle } from '../types';
+import { earliestPartnershipDate } from './partnershipUtils';
 
 export type FamilyScopeOptions = {
   up: number;
@@ -303,6 +304,34 @@ export function buildPersonVisibility(
   people.forEach((person) => {
     const inScope = scope ? scope.personIds.has(person.id) : true;
     map.set(person.id, inScope && isVisibleAtTimeline(person.birthDate));
+  });
+  return map;
+}
+
+/**
+ * Purpose: decide which partnership lines may be drawn at the current
+ *          timeline year, given which people are visible.
+ * Spec:    n/a — regression fix, 2026-09-19
+ * Tests:   partnershipUtils.test.ts::test_prl_marriage_only_partnership_is_hidden_before_its_date
+ *
+ * The date tested is the EARLIEST the partnership records, not
+ * `relationshipStartDate` alone: a marriage date entered in the Properties
+ * panel lands in `statusDates` / `marriedStartDate`, and reading only
+ * `relationshipStartDate` left nothing to test — so the line was drawn from
+ * the partners' birth.
+ */
+export function buildPartnershipVisibility(
+  partnerships: Partnership[],
+  personVisibility: Map<string, boolean>,
+  isVisibleAtTimeline: (date?: string | null) => boolean
+): Map<string, boolean> {
+  const map = new Map<string, boolean>();
+  partnerships.forEach((partnership) => {
+    const visible =
+      isVisibleAtTimeline(earliestPartnershipDate(partnership)) &&
+      (personVisibility.get(partnership.partner1_id) ?? true) &&
+      (personVisibility.get(partnership.partner2_id) ?? true);
+    map.set(partnership.id, visible);
   });
   return map;
 }

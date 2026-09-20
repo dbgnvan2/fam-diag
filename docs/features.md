@@ -281,3 +281,30 @@ divorce, a son's birth, a sister's symptom onset, the family's own FAMILY/TRIANG
 Indicators written by the Properties panel always have a backing event; those arriving through
 transcript / voice import (`DiagramEditor` `mergeIndicators`) do not, and were invisible on
 every timeline before this.
+
+## Partnership dates and the timeline year slider
+
+A PRL may only be drawn once the relationship is known to have existed. The year the
+line first appears is `earliestPartnershipDate()` (`utils/partnershipUtils.ts`) — the
+earliest valid date across **all** of a partnership's date fields:
+
+- `relationshipStartDate`
+- the legacy mirrors `marriedStartDate`, `separationDate`, `divorceDate`
+- every value in `statusDates` (statuses such as *widowed* have no mirror field and live
+  only here)
+
+**Why all of them:** entering a "Married" date in the Properties panel writes
+`statusDates.married` plus `marriedStartDate` — never `relationshipStartDate`. The
+visibility rule used to read `relationshipStartDate` alone, and `isVisibleAtTimeline()`
+treats a missing date as "visible at every year", so a marriage-only partnership had no
+date to test and its line was drawn from the partners' **birth**.
+
+An ending date on its own (divorce, separation, widowed) is not the relationship's start,
+but it is still evidence the relationship existed by then, and is far better than drawing
+from birth. A partnership with **no** date stays visible at every year — nothing is known,
+so nothing is inferred, and hiding it would remove a relationship with no way to get it
+back.
+
+Consumers, all changed together (consistency protocol): `buildPartnershipVisibility`
+(canvas), the two timeline-driven selection-pruning effects, the timeline year-bounds
+scan, and the Timeline board's family-lane PRL span.
