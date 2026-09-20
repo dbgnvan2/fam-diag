@@ -12,11 +12,15 @@ A specialized, web-based family diagramming application designed for clinical an
 *   **Right-Click Shortcuts**: Quick access to "Add Parents", "Add Adopted Child", "Make Client", "Add AI Agent", "Add Family" (bulk-create two parents + a marriage + N children in one form), and contextual event creation.
 *   **Contextual Editing**: Direct child-linking (Click PRL → Click Person), on-canvas size/color overrides, and draggable resizable notes on all objects.
 *   **Notes System**: Add rich text notes to individuals, relationships, emotional patterns, triangles, and families. Notes are independently toggleable via right-click menu.
+*   **Family Focus**: Right-click a person → **Focus Family** to show only that person's family — by default 2 generations up and 2 down (grandparents → grandchildren), including siblings, aunts, uncles and cousins. A chip beside the year slider widens or narrows it, reports how many people are showing, and says what the boundary hides. It filters the canvas and drives the Timeline lanes; it changes nothing in your file.
 
 ### 🎭 Emotional Pattern Lines (EPLs) & Triangles
 *   **Advanced Styling**: Visualize Fusion, Distance, Cutoff, Conflict, Projection, and Open Connections with multi-level graphic scales (sawtooth, dashes, parallel lines).
 *   **Lifecycle Management**: Tracks "Ongoing" vs. "Ended" status with end dates—ended lines remain in the timeline/data but hide from the active canvas.
 *   **Triangle Analysis**: Create focused 3-person triangles with dedicated properties panel for analyzing emotional dynamics and tracking triangle-specific events and notes.
+
+### 🕰️ System Events
+*   **A person's lane shows their system, not just their own record**: a father's death, the parents' divorce, a son's birth, a sister's symptom onset, and the family's own Family/Triangle events all appear on the person's Timeline lane and in their Events tab, labelled by relation and clipped to that person's lifetime. They are read-only where they appear — editing opens the event on whoever owns it.
 
 ### 🧠 Clinical Assessment Frameworks
 *   **Papero Assessment**: 16 topics across 5 categories (Resourceful, Connectedness, Tension, Systems, Goals) with detailed 1-5 level help dialogs.

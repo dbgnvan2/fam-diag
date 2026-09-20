@@ -515,9 +515,40 @@ describe('collectSystemEvents — own partnerships and undated events', () => {
     expect(result.events.some((entry) => entry.event.id === 'mum-undated')).toBe(false);
   });
 
-  it('test_m7c6_an_undated_reach_does_not_lock_the_event_out_of_another_relation', () => {
-    // The date test runs before the dedup key is reserved, so a dated reach
-    // through a second relation still lands.
+  it('test_m7c6_an_undated_clone_twin_does_not_lock_out_its_dated_twin', () => {
+    // The real hazard is a -p1/-p2 clone PAIR on the SAME owner: both collapse
+    // to the same altKey, so an undated twin reserving the key first would
+    // skip the dated one. Different owners never collide, so a cross-owner
+    // fixture cannot fail on the pre-fix ordering and proves nothing.
+    // The undated twin is listed FIRST so it is pushed first.
+    const { people, partnerships } = buildSystem();
+    const withTwins = people.map((entry) =>
+      entry.id === 'mum'
+        ? {
+            ...entry,
+            events: [
+              { ...event('twin-p1', 'Conflict', ''), date: '', startDate: undefined },
+              event('twin-p2', 'Conflict', '1990-01-01'),
+            ],
+          }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withTwins, partnerships),
+      people: withTwins,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+
+    expect(result.events.some((entry) => entry.event.id === 'twin-p2')).toBe(true);
+    expect(result.events.some((entry) => entry.event.id === 'twin-p1')).toBe(false);
+    expect(result.undatedDropped).toBeGreaterThan(0);
+  });
+
+  it('test_m7c6_a_dated_event_on_another_owner_is_unaffected_by_an_undated_namesake', () => {
+    // Different owners have distinct dedup keys — kept as its own case so the
+    // twin test above stays the one that guards the ordering.
     const { people, partnerships } = buildSystem();
     const shared = event('shared', 'Conflict', '1990-01-01');
     const withBoth = people.map((entry) =>
