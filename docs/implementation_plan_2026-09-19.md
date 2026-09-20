@@ -318,3 +318,239 @@ cd src/frontend && npx tsc --noEmit
 cd src/frontend && npx vitest run
 cd src/frontend && rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b
 ```
+
+---
+
+# M7 — System events on a person lane
+
+**Added 2026-09-19 after review of the reported bug: "you aren't showing events a person
+is directly connected to — marriage, births, parents' deaths."**
+
+**Goal:** a person's lane shows the nodal events of the *system* that person belongs to, not
+only the events they personally own or are a named party to.
+
+## M7 root cause (verified in code)
+
+`TimelineBoardModal` builds its person lanes by hand
+(`TimelineBoardModal.tsx:415-527`) from five sources only: an inline-synthesized Birth, an
+inline-synthesized Death, `person.events[]`, `partnership.events[]` for partnerships the
+person belongs to, and EPL spans/events. It **never calls `utils/syntheticDateEvents.ts`**,
+which `PropertiesPanel.getDisplayEvents()` does call (`PropertiesPanel.tsx:26-28`,
+`:1620-1666`). Consequences:
+
+1. Marriage / separation / divorce / relationship-start are held on `Partnership` date fields
+   and surfaced only by `synthesizePartnershipDateEvents()`. The Timeline never calls it, and
+   the comment at `:413` defers the PRL to the Family lane — which only renders when that
+   partnership is in `timelineFamilySelectionIds`. Open Timeline on a person alone and **the
+   marriage is absent entirely**.
+2. `partnership.familyEvents[]` (Family and Triangle events) never reach a person lane.
+3. Neither surface has any concept of a relative's event. Parents' divorce, a father's death,
+   a son's birth, a sister's symptom onset — the person is not a party to any of them, and
+   they are the clinically load-bearing items.
+4. `CLAUDE.md` currently states that both `PropertiesPanel.getDisplayEvents()` and
+   `TimelineBoardModal` call `syntheticDateEvents.ts`. That is false today. **M7.A.1 makes it
+   true** rather than amending the doc.
+
+## M7 decisions (locked with the user 2026-09-19)
+
+| # | Decision | Ruling |
+|---|---|---|
+| D10 | The relation ring **follows the active canvas family scope**. With no scope active, the ring uses the same defaults (2 up / 2 down, collaterals on). One traversal (`familyScope.ts`), two consumers. | confirmed |
+| D11 | System events are clipped to the **lifetime of the person** whose lane they appear on. | confirmed |
+| D12 | System events render on the **person's own lane**, visually de-emphasised (relation-prefixed label, muted border). Intensity colour is already spoken for and is not reused for this. | confirmed |
+| D13 | On by default, with a Timeline header toggle and a count: *"14 own · 9 system events from 6 relatives"* (P2). | confirmed |
+| D14 | The Properties panel Events tab gets the same set, with system events **read-only** — editing one opens it on the entity that owns it. Prevents two editable copies of one event. | confirmed |
+| D15 | **Symptom events are included** — a relative's SYMPTOM events appear on the lane like any other. The collector filters by relation, never by `eventType`. | confirmed |
+| D16 | **Family-level events are included** — `partnership.familyEvents[]` (FAMILY and TRIANGLE) from every partnership in the ring, including the person's own and their parents'. | confirmed |
+
+### Assumption flagged for confirmation (D11 boundary)
+
+Strict lifetime clipping would drop **"Parents married"**, which almost always precedes the
+person's birth and is the origin of their nuclear family. The plan therefore implements
+lifetime clipping **with one exception: union-formation events on the parental partnership
+(relationship start, marriage) are kept regardless of date.** This is a single entry in a
+constant, trivially flipped if you disagree. Everything else pre-birth is excluded —
+a grandfather who died before the person was born does not appear.
+
+Span events use **overlap**, not start-containment: an event whose `startDate` precedes birth
+but whose `endDate` falls inside the lifetime is included.
+
+Lifetime bounds: lower = `person.birthDate`; upper = `person.deathDate` when set, else today.
+A person with **no `birthDate`** has no lower bound — all ring events show, and the count in
+D13 is annotated *"no birth date — lifetime filter not applied"* (P2: never drop or widen
+silently).
+
+## M7 acceptance criteria
+
+### M7.A — Fix the person-lane omissions (regression first, P10)
+
+**M7.A.1** — `TimelineBoardModal` person lanes are built through
+`synthesizePersonDateEvents` / `synthesizePartnershipDateEvents` /
+`synthesizeEmotionalLineDateEvents` instead of the inline Birth/Death blocks. The inline
+synthesis at `:418-443` is deleted, not left alongside (rule 1 — no duplicate logic).
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7a1_person_lane_shows_own_marriage_without_family_lane`
+  — **fails on today's code**: a person with a partnership carrying `marriedStartDate` and an
+  empty `timelineFamilySelectionIds` currently renders no Marriage item.
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7a1_person_lane_shows_separation_and_divorce`
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7a1_birth_and_death_still_render_once`
+  (no duplication now that synthesis is shared)
+
+**M7.A.2** (D16) — `partnership.familyEvents[]` from the person's own partnerships render on
+their lane, labelled `Family` / `Triangle` as the Family lane already does at `:387-401`.
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7a2_own_family_and_triangle_events_on_person_lane`
+
+**M7.A.3** — `CLAUDE.md` § Date-field synthesis is now accurate; no edit needed. Asserted by
+a grep test that `TimelineBoardModal.tsx` imports from `utils/syntheticDateEvents`.
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7a3_timeline_imports_shared_synthesizer`
+
+### M7.B — Indicator-backed symptom events (D15)
+
+**M7.B.1** — `synthesizePersonIndicatorEvents(person, definitions)` added to
+`utils/syntheticDateEvents.ts` — a `PersonFunctionalIndicator` with a valid `date` and no
+backing SYMPTOM event (matched on `sourceIndicatorId`) is surfaced as a synthetic SYMPTOM
+event. Saving a symptom through the Properties panel already writes both an event and an
+indicator (`PropertiesPanel.tsx:2040-2074`); indicators arriving through
+`DiagramEditor.tsx:2827` `mergeIndicators` (transcript / voice import) do not, and are
+invisible on every timeline today.
+- Per CLAUDE.md, adding it to `syntheticDateEvents.ts` means both consumers pick it up.
+- Tests:
+  - `syntheticDateEvents.test.ts::test_m7b1_indicator_without_event_becomes_symptom_event`
+  - `syntheticDateEvents.test.ts::test_m7b1_indicator_with_backing_event_is_not_duplicated`
+  - `syntheticDateEvents.test.ts::test_m7b1_indicator_without_date_is_skipped`
+
+### M7.C — The system-events collector
+
+**M7.C.1** — `collectSystemEvents({ personId, scope, people, partnerships, lines, definitions })`
+returns `SystemEvent[] = { event, relationClass, relationLabel, ownerEntityType, ownerEntityId }`.
+`relationClass: 'self' | 'union' | 'parental' | 'ascendant' | 'sibling' | 'descendant' | 'spousal'`.
+Built **on top of** the synthesizers — no second copy of the date logic.
+- File: `src/frontend/src/utils/systemEvents.ts` (new)
+- Test: `systemEvents.test.ts::test_m7c1_returns_relation_class_and_label_per_event`
+
+**M7.C.2** (D10) — The ring is `computeFamilyScope(people, partnerships, personId, focusOptions)`
+from M1 — the active canvas focus options when one is set, the M2.A.1 defaults otherwise.
+- Test: `systemEvents.test.ts::test_m7c2_ring_follows_active_canvas_scope`
+- Test: `systemEvents.test.ts::test_m7c2_ring_uses_defaults_when_no_focus_active`
+
+**M7.C.3** — Relation labels are generated, not hardcoded per case: `Father died`,
+`Parents divorced`, `Son born`, `Sister — depression onset`, `Wife died`. Derived from
+generation offset + `birthSex`/`genderIdentity` + relation class. Vocabulary lives in a
+constants map, not inline in the function (global rule 9 — editorial content out of logic).
+- File: `src/frontend/src/constants/relationLabels.ts` (new)
+- Tests:
+  - `systemEvents.test.ts::test_m7c3_labels_father_death_and_parents_divorce`
+  - `systemEvents.test.ts::test_m7c3_unknown_sex_falls_back_to_neutral_label`
+
+**M7.C.4** (D15) — No `eventType` filtering anywhere in the collector: a relative's SYMPTOM,
+NODAL, EPE, FF, SIR and PAPERO events all come through.
+- Test: `systemEvents.test.ts::test_m7c4_relative_symptom_event_reaches_lane`
+
+**M7.C.5** (D16) — `familyEvents[]` of every partnership in the ring are collected, including
+the parental partnership (family-of-origin family events).
+- Test: `systemEvents.test.ts::test_m7c5_parental_family_events_collected`
+
+**M7.C.6** — Dedup is keyed on `(ownerEntityId, eventId)`, never `eventId` alone. Covers the
+existing `-p1` / `-p2` partnership clone suffixes and the `synth-` prefixes.
+- Tests:
+  - `systemEvents.test.ts::test_m7c6_partnership_clone_p1_p2_not_duplicated`
+  - `systemEvents.test.ts::test_m7c6_same_event_from_two_relations_appears_once`
+
+### M7.D — Lifetime clipping (D11)
+
+**M7.D.1** — `clipToLifetime(systemEvents, person)` keeps an event iff its date range
+**overlaps** `[birthDate, deathDate ?? today]`.
+- Tests:
+  - `systemEvents.test.ts::test_m7d1_grandparent_death_before_birth_excluded`
+  - `systemEvents.test.ts::test_m7d1_span_starting_before_birth_ending_after_is_kept`
+  - `systemEvents.test.ts::test_m7d1_event_after_death_excluded`
+
+**M7.D.2** — Exception: union-formation events (`Relationship Started`, `Marriage`) on the
+**parental** partnership are kept regardless of date. Exception list is a named constant.
+- Test: `systemEvents.test.ts::test_m7d2_parents_marriage_kept_although_before_birth`
+
+**M7.D.3** — A person with no `birthDate` gets no lower bound, and the result carries
+`lifetimeFilterApplied: false` so the UI can say so.
+- Test: `systemEvents.test.ts::test_m7d3_no_birthdate_disables_lower_bound_and_flags_it`
+
+### M7.E — Timeline rendering (D12, D13)
+
+**M7.E.1** — System events render on the person's own lane, label prefixed with the relation
+(`Father died`), with a muted/dashed border and the same intensity fill rule as any other item
+(the intensity scale is not repurposed).
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7e1_system_event_renders_on_person_lane_with_relation_label`
+
+**M7.E.2** — Header toggle "System events", default **on**, with the count
+`N own · M system events from K relatives`, plus `— no birth date, lifetime filter not applied`
+when M7.D.3 applies.
+- Tests:
+  - `TimelineBoardModal.systemEvents.test.tsx::test_m7e2_toggle_off_hides_system_events_and_updates_count`
+  - `TimelineBoardModal.systemEvents.test.tsx::test_m7e2_reports_no_birthdate_caveat`
+
+**M7.E.3** — Clicking a system event opens the owning entity's event in `EventModal`, anchored
+to the **owner**, not to the lane's person.
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7e3_click_opens_event_on_owning_entity`
+
+### M7.F — Properties panel parity (D14)
+
+**M7.F.1** — `PropertiesPanel.getDisplayEvents()` for a person appends
+`collectSystemEvents(...)` under the same ring and lifetime rules.
+- Test: `PropertiesPanel.systemEvents.test.tsx::test_m7f1_events_tab_lists_parents_divorce`
+
+**M7.F.2** — System events in the Events tab are **read-only**: the `EventCard` renders
+without `onEdit` / `onDelete` writing to the lane person, and instead opens the owner. All
+**5 EventCard call sites** are checked per CLAUDE.md, and only the person Events tab changes.
+- Tests:
+  - `PropertiesPanel.systemEvents.test.tsx::test_m7f2_system_event_card_is_readonly_on_person`
+  - `PropertiesPanel.systemEvents.test.tsx::test_m7f2_own_event_card_still_editable`
+
+**M7.F.3** (P6 — verify status against the artifact) — Deleting a relative's event removes it
+from the person's lane and Events tab on the next render; no stale copy survives.
+- Test: `PropertiesPanel.systemEvents.test.tsx::test_m7f3_deleting_owner_event_clears_it_from_relative_view`
+
+### M7.G — Data integrity
+
+**M7.G.1** — Collecting and rendering system events never writes: no `Person`,
+`Partnership` or `EmotionalLine` is mutated, and the saved JSON is byte-identical with the
+toggle on and off (rule 7, D8).
+- Test: `systemEvents.persistence.test.ts::test_m7g1_system_events_are_read_only_projection`
+
+**M7.G.2** (P8 dirty state) — Switching the lane person, toggling system events off and on,
+and changing the canvas scope leaves the own-event set unchanged.
+- Test: `TimelineBoardModal.systemEvents.test.tsx::test_m7g2_toggle_cycle_leaves_own_events_unchanged`
+
+## M7 implementation order
+
+1. **M7.A** first — it is the reported bug, its regression test fails on today's code, and it
+   is independent of everything else (P10: highest-regression-risk fix gets the first test).
+2. **M7.B** — synthesizer extension, still independent of the scope work.
+3. **M7.C** — collector. Depends on M1 (`familyScope.ts`).
+4. **M7.D** — lifetime clipping. Depends on M7.C.
+5. **M7.E** — Timeline rendering. Depends on M7.C/D and M3 (focus state).
+6. **M7.F** — Properties panel parity. Depends on M7.C/D.
+7. **M7.G** — integrity tests.
+
+M7.A and M7.B can ship **before** M1–M6 if you want the marriage bug fixed immediately; they
+have no dependency on the scope filter.
+
+## M7 files
+
+**New:** `utils/systemEvents.ts`, `utils/systemEvents.test.ts`,
+`utils/systemEvents.persistence.test.ts`, `constants/relationLabels.ts`,
+`components/modals/TimelineBoardModal.systemEvents.test.tsx`,
+`components/PropertiesPanel.systemEvents.test.tsx`
+
+**Modified:** `components/modals/TimelineBoardModal.tsx` (lane builder rewritten onto the
+shared synthesizers, system-event items, header toggle + counts),
+`utils/syntheticDateEvents.ts` (indicator synthesis), `utils/syntheticDateEvents.test.ts`,
+`components/PropertiesPanel.tsx` (`getDisplayEvents` + read-only cards),
+`components/EventCard.tsx` (read-only variant), `docs/event-system.md`
+
+## M7 adjacent issues found, not fixed (rule 10)
+
+- `TimelineBoardModal.tsx` person-lane builder is a 115-line inline IIFE inside the component
+  (`:343-528`). M7.A rewrites its event sourcing but leaves it in place; extracting lane
+  building into `utils/timelineLanes.ts` is the natural follow-up
+  (`file-maintainability.md`).
+- Indicators written by `DiagramEditor.tsx:2827` `mergeIndicators` never create a backing
+  event, unlike the Properties-panel path. M7.B.1 covers this at **read** time via synthesis;
+  making the import path create real events is a separate change.
