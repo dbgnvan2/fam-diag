@@ -12,6 +12,13 @@
  */
 import type { EmotionalProcessEvent } from '../types';
 import { SYNTHETIC_EVENT_NOTE } from './syntheticDateEvents';
+import {
+  INTENSITY_BORDER,
+  INTENSITY_FILL,
+  INTENSITY_UNRATED_BORDER,
+  INTENSITY_UNRATED_FILL,
+  type TimelineBlockShape,
+} from '../constants/timelineBlockStyle';
 
 type NameableEvent = Pick<
   EmotionalProcessEvent,
@@ -90,4 +97,33 @@ export function buildTimelineHoverText({
   const cleanedNote = realNote(note);
   if (cleanedNote) lines.push(cleanedNote);
   return lines.join('\n');
+}
+
+/**
+ * Purpose: which shape a block takes, from the sex of the person whose event
+ *          it is. Events that belong to a couple, a family or a pattern have
+ *          no single person, so they stay neutral.
+ * Tests:   timelineItemText.test.ts::test_timeline_shape_follows_the_owner_sex
+ */
+export function blockShapeForPerson(person?: {
+  birthSex?: string;
+  gender?: string;
+} | null): TimelineBlockShape {
+  const raw = (person?.birthSex || person?.gender || '').toString().toLowerCase();
+  if (!raw) return 'neutral';
+  if (raw.startsWith('m') || raw === 'b') return 'rect';
+  if (raw.startsWith('f') || raw === 's' || raw === 'g') return 'oval';
+  return 'neutral';
+}
+
+/** Fill and border for an event's intensity (1-5; 0 or unset = unrated). */
+export function intensityStyle(intensity?: number | null): {
+  fill: string;
+  border: string;
+} {
+  const level = typeof intensity === 'number' ? Math.round(intensity) : 0;
+  if (level >= 1 && level <= 5) {
+    return { fill: INTENSITY_FILL[level], border: INTENSITY_BORDER[level] };
+  }
+  return { fill: INTENSITY_UNRATED_FILL, border: INTENSITY_UNRATED_BORDER };
 }

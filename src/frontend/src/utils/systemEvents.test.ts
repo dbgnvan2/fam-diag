@@ -322,9 +322,30 @@ describe('collectSystemEvents', () => {
       now: new Date('2026-09-19T00:00:00Z'),
     });
     const conflicts = result.events.filter((entry) => entry.event.id.startsWith('shared-evt'));
-    // Only the wife's copy is a system event (root's own copy is 'self').
-    expect(conflicts).toHaveLength(1);
-    expect(conflicts[0].ownerEntityId).toBe('wife');
+    // Neither copy is a system event. A partnership event is cloned onto both
+    // partners, so the wife's `-p2` copy is the SAME marriage the lane person
+    // already holds as `-p1` — surfacing it here listed it twice, which is
+    // what was reported on the timeline.
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('test_m7c6_a_relatives_own_event_is_still_collected', () => {
+    // The suppression above must not swallow events the lane person does not
+    // hold a copy of.
+    const { people, partnerships } = buildSystem();
+    const withWifeEvent = people.map((entry) =>
+      entry.id === 'wife'
+        ? { ...entry, events: [event('wife-only', 'Illness', '1996-01-01')] }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withWifeEvent, partnerships),
+      people: withWifeEvent,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.events.some((entry) => entry.event.id === 'wife-only')).toBe(true);
   });
 
   it('test_m7c6_same_event_from_two_relations_appears_once', () => {

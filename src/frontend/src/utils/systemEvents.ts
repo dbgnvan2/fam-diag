@@ -34,6 +34,7 @@ import {
   type RelationClass,
   type RelationGender,
 } from '../constants/relationLabels';
+import { baseEventId, hasSameEvent } from './eventDedup';
 import { eventDisplayName } from './timelineItemText';
 import {
   synthesizeEmotionalLineDateEvents,
@@ -215,7 +216,14 @@ export function collectSystemEvents({
   // dropped, but never silently — the count is reported (P2).
   let undatedDropped = 0;
 
+  // A partnership event is cloned onto both partners. If the lane person
+  // already holds this event — as their own clone or as the original — it is
+  // their event, not a relative's, and listing the partner's copy as a system
+  // event showed the same marriage twice.
+  const lanePersonEventIds = new Set((lanePerson.events || []).map((entry) => entry.id));
+
   const push = (entry: SystemEvent) => {
+    if (hasSameEvent(entry.event.id, lanePersonEventIds)) return;
     // Test the date BEFORE reserving the dedup key: an undated reach must not
     // burn the key and lock the event out of every other relation.
     if (!eventDate(entry.event)) {
@@ -225,8 +233,7 @@ export function collectSystemEvents({
     const key = `${entry.ownerEntityType}:${entry.ownerEntityId}:${entry.event.id}`;
     if (seen.has(key)) return;
     // The same underlying event reached through two relations appears once.
-    const cloneKey = entry.event.id.replace(/-p[12]$/, '');
-    const altKey = `${entry.ownerEntityType}:${entry.ownerEntityId}:${cloneKey}`;
+    const altKey = `${entry.ownerEntityType}:${entry.ownerEntityId}:${baseEventId(entry.event.id)}`;
     if (seen.has(altKey)) return;
     seen.add(key);
     seen.add(altKey);

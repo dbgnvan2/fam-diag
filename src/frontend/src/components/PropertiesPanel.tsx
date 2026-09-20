@@ -2075,7 +2075,17 @@ const PropertiesPanel = ({
       reflectionsNote: eventDraft.reflectionsNote || '',
       status: eventDraft.status || 'discrete',
       createdAt: eventDraft.createdAt ?? Date.now(),
-      sourceIndicatorId: eventDraft.sourceIndicatorId,
+      // sourceIndicatorId links an event back to the functional indicator it
+      // describes, and is what tells a reader "this event names a symptom".
+      // It used to be copied through on every save while symptomType was
+      // cleared, so changing an event's type left a stale link behind and the
+      // event would be displayed by its subtype instead of its category.
+      // SYMPTOM and FF are both legitimate carriers (the Symptoms tab saves
+      // as FF); anything else drops the link.
+      sourceIndicatorId:
+        normalizedType === 'SYMPTOM' || normalizedType === 'FF'
+          ? eventDraft.sourceIndicatorId
+          : undefined,
       symptomType: normalizedType === 'SYMPTOM' ? (eventDraft.symptomType || '') : undefined,
       eventClass: eventDraft.eventClass || resolveEventClass(),
     };

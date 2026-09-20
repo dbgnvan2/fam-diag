@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Person,
   Partnership,
@@ -19,12 +19,18 @@ import {
 } from '../../utils/syntheticDateEvents';
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
 import { earliestPartnershipDate } from '../../utils/partnershipUtils';
+import { hasSameEvent } from '../../utils/eventDedup';
 import {
+  blockShapeForPerson,
   buildTimelineHoverText,
   eventAbbreviation,
   eventDisplayName,
-  realNote,
+  intensityStyle,
 } from '../../utils/timelineItemText';
+import {
+  BLOCK_BORDER_RADIUS,
+  type TimelineBlockShape,
+} from '../../constants/timelineBlockStyle';
 import type { FamilyScope } from '../../utils/familyScope';
 
 interface TimelineBoardModalProps {
@@ -57,11 +63,12 @@ type TimelineBlockItem = {
   abbrev: string;
   /** Full identification for the hover bubble: what — who — relation. */
   hoverText: string;
-  detail?: string;
-  notes?: string;
+  /** Rectangle for males, wide oval for females, soft box otherwise. */
+  shape: TimelineBlockShape;
+  /** Event intensity 1-5; 0 / undefined means unrated. */
+  intensity?: number;
   startDate: string;
   endDate?: string;
-  color: string;
   entityType: 'person' | 'partnership' | 'emotional';
   entityId: string;
   eventId?: string;
@@ -71,6 +78,9 @@ type TimelineBlockItem = {
   // (PRL relationship events). Family / Triangle events live on familyEvents[].
   partnershipTarget?: 'events' | 'familyEvents';
 };
+
+/** Enough width for a three-letter code plus its padding. */
+const MIN_BLOCK_PX = 34;
 
 type TimelineLane = {
   id: string;
@@ -118,6 +128,26 @@ export default function TimelineBoardModal({
   // System events (a relative's nodal events on this person's lane) are on
   // by default — D13.
   const [showSystemEvents, setShowSystemEvents] = useState(true);
+  // The block width floor is a pixel quantity (three characters have to fit),
+  // but layout and row packing work in percentages. Measure the lane body so
+  // both use ONE floor expressed in the same units — a second floor applied
+  // only in the style would draw blocks wider than the packer reserved, and
+  // they would overlap.
+  const laneBodyRef = useRef<HTMLDivElement | null>(null);
+  const [laneWidthPx, setLaneWidthPx] = useState(0);
+
+  // Must stay above the early `return null` below: a hook declared after it
+  // only runs while the board is open, and React crashes with "rendered more
+  // hooks than during the previous render" the moment it opens.
+  useEffect(() => {
+    const node = laneBodyRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setLaneWidthPx(node.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [timelineSelectionIds, timelineFamilySelectionIds]);
   const [timelineHoverNote, setTimelineHoverNote] = useState<{ text: string; x: number; y: number } | null>(null);
   const [timelineBoardSelection, setTimelineBoardSelection] = useState<TimelineBoardSelection | null>(null);
   // EventModal state — handles add and edit flows for any entity type
@@ -367,16 +397,6 @@ export default function TimelineBoardModal({
   // Color the timeline box by event intensity:
   //   0 / unset (e.g. birth, marriage) → green,  1 → blue,  2 → yellow,
   //   3 → orange,  4 → pink,  5 → red.
-  const intensityToColor = (intensity?: number | null): string => {
-    switch (intensity) {
-      case 1: return '#cce5ff';
-      case 2: return '#fff3cd';
-      case 3: return '#ffe5cc';
-      case 4: return '#ffd1dc';
-      case 5: return '#ffcccc';
-      default: return '#cdf5cd';
-    }
-  };
   const eventStart = (event: EmotionalProcessEvent): string | undefined =>
     event.startDate || event.date || undefined;
 
@@ -407,17 +427,15 @@ export default function TimelineBoardModal({
           id: `family-prl-${partnership.id}`,
           label: `${partner1Name} + ${partner2Name}`,
           abbrev: eventAbbreviation(partnership.relationshipType),
+          shape: 'neutral',
           hoverText: buildTimelineHoverText({
             eventName: partnership.relationshipType || 'Relationship',
             ownerName: `${partner1Name} + ${partner2Name}`,
             note: partnership.notes,
             dateRange: dateRangeText(prlStart, prlEnd),
           }),
-          detail: partnership.relationshipType,
-          notes: partnership.notes,
           startDate: prlStart,
           endDate: prlEnd,
-          color: intensityToColor(0),
           entityType: 'partnership',
           entityId: partnership.id,
         });
@@ -429,17 +447,16 @@ export default function TimelineBoardModal({
           id: `family-prl-event-${event.id}`,
           label: event.category || 'Relationship Event',
           abbrev: eventAbbreviation(event.category || 'Relationship Event'),
+          shape: 'neutral',
+          intensity: event.intensity,
           hoverText: buildTimelineHoverText({
             eventName: event.category || 'Relationship Event',
             ownerName: `${partner1Name} + ${partner2Name}`,
             note: event.observations,
             dateRange: dateRangeText(start, event.endDate),
           }),
-          detail: realNote(event.observations),
-          notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
-          color: intensityToColor(event.intensity),
           entityType: 'partnership',
           entityId: partnership.id,
           eventId: event.id,
@@ -454,17 +471,16 @@ export default function TimelineBoardModal({
           id: `family-fam-event-${event.id}`,
           label: event.category || `${labelPrefix} Event`,
           abbrev: eventAbbreviation(event.category || labelPrefix),
+          shape: 'neutral',
+          intensity: event.intensity,
           hoverText: buildTimelineHoverText({
             eventName: `${labelPrefix}: ${event.category || labelPrefix}`,
             ownerName: `${partner1Name} + ${partner2Name}`,
             note: event.observations,
             dateRange: dateRangeText(start, event.endDate),
           }),
-          detail: event.subtype || realNote(event.observations),
-          notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
-          color: intensityToColor(event.intensity),
           entityType: 'partnership',
           entityId: partnership.id,
           eventId: event.id,
@@ -497,23 +513,22 @@ export default function TimelineBoardModal({
       ownEvents.forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
-        if (seenEventIds.has(event.id)) return;
+        if (hasSameEvent(event.id, seenEventIds)) return;
         seenEventIds.add(event.id);
         items.push({
           id: `person-event-${event.id}`,
           label: eventDisplayName(event),
           abbrev: eventAbbreviation(eventDisplayName(event)),
+          shape: blockShapeForPerson(person),
+          intensity: event.intensity,
           hoverText: buildTimelineHoverText({
             eventName: eventDisplayName(event),
             ownerName: person.name || 'Unnamed',
             note: event.observations,
             dateRange: dateRangeText(start, event.endDate),
           }),
-          detail: realNote(event.observations) || event.otherPersonName || '',
-          notes: event.observations || '',
           startDate: start,
           endDate: event.endDate,
-          color: intensityToColor(event.intensity),
           entityType: 'person',
           entityId: person.id,
           eventId: event.id,
@@ -537,23 +552,24 @@ export default function TimelineBoardModal({
           prlEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
-            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            // The person already holds this event as a `-p1` / `-p2` clone,
+            // so comparing exact ids listed the marriage twice.
+            if (hasSameEvent(event.id, seenEventIds) || hasSameEvent(event.id, personEventIds)) return;
             seenEventIds.add(event.id);
             items.push({
               id: `person-prl-event-${event.id}-${person.id}`,
               label: event.category || 'Relationship Event',
               abbrev: eventAbbreviation(event.category || 'Relationship Event'),
+              shape: 'neutral',
+              intensity: event.intensity,
               hoverText: buildTimelineHoverText({
                 eventName: event.category || 'Relationship Event',
                 ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
                 note: event.observations,
                 dateRange: dateRangeText(start, event.endDate),
               }),
-              detail: realNote(event.observations),
-              notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
-              color: intensityToColor(event.intensity),
               entityType: 'partnership',
               entityId: partnership.id,
               eventId: event.id,
@@ -565,24 +581,23 @@ export default function TimelineBoardModal({
           (partnership.familyEvents || []).forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
-            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            if (hasSameEvent(event.id, seenEventIds) || hasSameEvent(event.id, personEventIds)) return;
             seenEventIds.add(event.id);
             const labelPrefix = event.eventType === 'TRIANGLE' ? 'Triangle' : 'Family';
             items.push({
               id: `person-fam-event-${event.id}-${person.id}`,
               label: `${labelPrefix}: ${event.category || labelPrefix}`,
               abbrev: eventAbbreviation(event.category || labelPrefix),
+              shape: 'neutral',
+              intensity: event.intensity,
               hoverText: buildTimelineHoverText({
                 eventName: `${labelPrefix}: ${event.category || labelPrefix}`,
                 ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
                 note: event.observations,
                 dateRange: dateRangeText(start, event.endDate),
               }),
-              detail: event.subtype || realNote(event.observations),
-              notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
-              color: intensityToColor(event.intensity),
               entityType: 'partnership',
               entityId: partnership.id,
               eventId: event.id,
@@ -601,17 +616,15 @@ export default function TimelineBoardModal({
               id: `person-epl-${line.id}-${person.id}`,
               label: `${line.relationshipType} · ${otherName}`,
               abbrev: eventAbbreviation(line.relationshipType),
+              shape: 'neutral',
               hoverText: buildTimelineHoverText({
                 eventName: line.relationshipType || 'Pattern',
                 ownerName: `${person.name || 'Unnamed'} \u2194 ${otherName}`,
                 note: line.notes,
                 dateRange: dateRangeText(line.startDate, line.endDate),
               }),
-              detail: line.lineStyle,
-              notes: line.notes,
               startDate: line.startDate,
               endDate: line.endDate,
-              color: intensityToColor(0),
               entityType: 'emotional',
               entityId: line.id,
             });
@@ -627,23 +640,22 @@ export default function TimelineBoardModal({
           eplEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
-            if (seenEventIds.has(event.id) || personEventIds.has(event.id)) return;
+            if (hasSameEvent(event.id, seenEventIds) || hasSameEvent(event.id, personEventIds)) return;
             seenEventIds.add(event.id);
             items.push({
               id: `person-epl-event-${event.id}-${person.id}`,
               label: event.category || `${line.relationshipType} Event`,
               abbrev: eventAbbreviation(event.category || line.relationshipType),
+              shape: 'neutral',
+              intensity: event.intensity,
               hoverText: buildTimelineHoverText({
                 eventName: event.category || `${line.relationshipType} Event`,
                 ownerName: `${person.name || 'Unnamed'} \u2194 ${otherName}`,
                 note: event.observations,
                 dateRange: dateRangeText(start, event.endDate),
               }),
-              detail: realNote(event.observations) || `with ${otherName}`,
-              notes: event.observations || '',
               startDate: start,
               endDate: event.endDate,
-              color: intensityToColor(event.intensity),
               entityType: 'emotional',
               entityId: line.id,
               eventId: event.id,
@@ -680,6 +692,11 @@ export default function TimelineBoardModal({
             id: `person-system-${person.id}-${key}`,
             label: entry.relationLabel,
             abbrev: eventAbbreviation(eventDisplayName(entry.event, entry.relationLabel)),
+            shape:
+              entry.ownerEntityType === 'person'
+                ? blockShapeForPerson(people.find((entry2) => entry2.id === entry.ownerEntityId))
+                : 'neutral',
+            intensity: entry.event.intensity,
             // "Birth — Jim Doe — Grandson": what happened, to whom, and how
             // they relate to the person whose lane this is.
             hoverText: buildTimelineHoverText({
@@ -689,11 +706,8 @@ export default function TimelineBoardModal({
               note: entry.event.observations,
               dateRange: dateRangeText(start, entry.event.endDate),
             }),
-            detail: realNote(entry.event.observations),
-            notes: entry.event.observations || '',
             startDate: start,
             endDate: entry.event.endDate,
-            color: intensityToColor(entry.event.intensity),
             entityType: entry.ownerEntityType,
             entityId: entry.ownerEntityId,
             eventId: entry.event.id,
@@ -1214,7 +1228,7 @@ export default function TimelineBoardModal({
                   ))}
                 </div>
               </div>
-              {timelineLanes.map((lane) => {
+              {timelineLanes.map((lane, laneIndex) => {
                 const filteredItems = lane.items.filter((item) => {
                   const startTs = parseTimelineDate(item.startDate);
                   const endTs = parseTimelineDate(item.endDate || item.startDate);
@@ -1236,11 +1250,13 @@ export default function TimelineBoardModal({
                 const oneYearPct = (ONE_YEAR_MS / visibleSpanMs) * 100;
                 // A block has to be wide enough to read its three-letter code.
                 // Over a long visible range one year is only a few pixels, so
-                // floor the width used for both layout and row packing —
-                // otherwise blocks would be drawn wider than the packer thinks
-                // and would overlap their neighbours. Exact dates are on the
-                // hover, so the small loss of date fidelity is worth it.
-                const MIN_BLOCK_PCT = 4;
+                // floor the width — and express the floor as a percentage of
+                // the measured lane so layout and row packing share it. Exact
+                // dates are on the hover, so the small loss of date fidelity
+                // is worth the legibility. Before the first measurement the
+                // floor is 0, i.e. the natural span, rather than a guess.
+                const MIN_BLOCK_PCT =
+                  laneWidthPx > 0 ? (MIN_BLOCK_PX / laneWidthPx) * 100 : 0;
                 const place = sorted.map((item) => {
                   const startTs = parseTimelineDate(item.startDate) ?? timelineDisplayRange.min;
                   const endTsParsed = parseTimelineDate(item.endDate || item.startDate) ?? startTs;
@@ -1299,7 +1315,10 @@ export default function TimelineBoardModal({
                         </button>
                       )}
                     </div>
-                    <div style={{ position: 'relative', minHeight: 112, borderLeft: '1px solid #ddd', background: '#fff' }}>
+                    <div
+                      ref={laneIndex === 0 ? laneBodyRef : undefined}
+                      style={{ position: 'relative', minHeight: 112, borderLeft: '1px solid #ddd', background: '#fff' }}
+                    >
                       {place.map((item) => (
                         <React.Fragment key={item.id}>
                         <div
@@ -1324,28 +1343,33 @@ export default function TimelineBoardModal({
                             position: 'absolute',
                             left: `${item.leftPct}%`,
                             top: 10 + item.rowOffset,
+                            // One width floor, expressed in percent and shared
+                            // with the row packer. A second floor in px (as
+                            // minWidth) would draw blocks wider than the packer
+                            // reserved, so neighbours overlapped.
                             width: `${item.spanPct}%`,
-                            minWidth: 34,
                             height: 26,
                             padding: '4px 5px',
-                            borderRadius: 6,
+                            // Rectangle for a male, wide oval for a female,
+                            // soft box for a couple / family / pattern.
+                            borderRadius: BLOCK_BORDER_RADIUS[item.shape],
                             // System events belong to a relative, not to the
                             // lane person: dashed + muted so they read as
-                            // context rather than as this person's own events
-                            // (D12 — the intensity fill is not repurposed).
+                            // context rather than as this person's own events.
                             border:
                               timelineBoardSelection?.entityId === item.entityId &&
                               timelineBoardSelection?.eventId === item.eventId
                                 ? '2px solid #2f64b8'
                                 : item.isSystemEvent
-                                ? '1px dashed #9aa7b8'
-                                : '1px solid #cad3e0',
+                                ? `1px dashed ${intensityStyle(item.intensity).border}`
+                                : `1px solid ${intensityStyle(item.intensity).border}`,
                             opacity: item.isSystemEvent ? 0.82 : 1,
-                            background: item.color,
+                            background: intensityStyle(item.intensity).fill,
                             fontSize: 12,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            textOverflow: 'clip',
+                            textAlign: 'center',
                             cursor: 'pointer',
                             boxSizing: 'border-box',
                           }}

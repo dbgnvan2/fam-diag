@@ -188,6 +188,141 @@ describe('TimelineBoardModal — person lane completeness', () => {
   });
 });
 
+describe('TimelineBoardModal — opening and closing', () => {
+  it('test_timeline_board_survives_being_opened_after_being_closed', () => {
+    // The component returns null when nothing is selected, so every hook has
+    // to sit above that line. A hook declared below it runs only while the
+    // board is open, and React crashes with "rendered more hooks than during
+    // the previous render" the moment a user opens the board — a white
+    // screen that never shows up in a test that renders it already-open.
+    const props = {
+      people,
+      partnerships,
+      allEmotionalLines: [],
+      eventCategories: [],
+      timelineFamilySelectionIds: [],
+      familyScope: computeFamilyScope(people, partnerships, 'root', defaultFocusForRoot('root')),
+      onUpdatePerson: vi.fn(),
+      onUpdatePartnership: vi.fn(),
+      onUpdateEmotionalLine: vi.fn(),
+      onClose: vi.fn(),
+    };
+    // Closed first...
+    const { rerender } = render(<TimelineBoardModal {...props} timelineSelectionIds={[]} />);
+    expect(screen.queryByText('Timeline Board')).not.toBeInTheDocument();
+
+    // ...then opened, which is when the hook order used to change.
+    rerender(<TimelineBoardModal {...props} timelineSelectionIds={['root']} />);
+    expect(screen.getByText('Timeline Board')).toBeInTheDocument();
+
+    // ...and closed again.
+    rerender(<TimelineBoardModal {...props} timelineSelectionIds={[]} />);
+    expect(screen.queryByText('Timeline Board')).not.toBeInTheDocument();
+  });
+});
+
+describe('TimelineBoardModal — duplicate partnership events', () => {
+  /**
+   * Reported on "Peter Doe": each of his marriage events appeared twice.
+   * A partnership event is cloned onto both partners with a `-p1` / `-p2`
+   * id suffix, and the lane compared exact ids — so it listed the clone held
+   * on the person AND the partnership's own original.
+   */
+  const marriageEvent = event('1789853310593-a33193f5d8f1f', 'Married', '1990-01-01', {
+    eventClass: 'relationship',
+    anchorType: 'RELATIONSHIP_PRL',
+    anchorId: 'prRoot',
+  });
+
+  const clonedPeople: Person[] = people.map((person) =>
+    person.id === 'root'
+      ? { ...person, events: [{ ...marriageEvent, id: `${marriageEvent.id}-p1` }] }
+      : person.id === 'wife'
+      ? { ...person, events: [{ ...marriageEvent, id: `${marriageEvent.id}-p2` }] }
+      : person
+  );
+  const clonedPartnerships: Partnership[] = partnerships.map((partnership) =>
+    partnership.id === 'prRoot'
+      ? { ...partnership, events: [marriageEvent] }
+      : partnership
+  );
+
+  it('test_timeline_partnership_event_is_not_listed_twice_on_a_partners_lane', () => {
+    renderBoard({
+      people: clonedPeople,
+      partnerships: clonedPartnerships,
+      familyScope: computeFamilyScope(
+        clonedPeople,
+        clonedPartnerships,
+        'root',
+        defaultFocusForRoot('root')
+      ),
+    });
+    const married = Array.from(document.querySelectorAll('[title]')).filter((element) =>
+      (element.getAttribute('title') || '').startsWith('Married')
+    );
+    expect(married).toHaveLength(1);
+  });
+
+  it('test_timeline_the_other_partners_clone_is_not_listed_either', () => {
+    renderBoard({
+      people: clonedPeople,
+      partnerships: clonedPartnerships,
+      timelineSelectionIds: ['wife'],
+      familyScope: computeFamilyScope(
+        clonedPeople,
+        clonedPartnerships,
+        'wife',
+        defaultFocusForRoot('wife')
+      ),
+    });
+    const married = Array.from(document.querySelectorAll('[title]')).filter((element) =>
+      (element.getAttribute('title') || '').startsWith('Married')
+    );
+    expect(married).toHaveLength(1);
+  });
+});
+
+describe('TimelineBoardModal — block shape and intensity', () => {
+  const styleOf = (titlePrefix: string): CSSStyleDeclaration | undefined => {
+    const element = Array.from(document.querySelectorAll('div[title]')).find((node) =>
+      (node.getAttribute('title') || '').startsWith(titlePrefix)
+    ) as HTMLElement | undefined;
+    return element?.style;
+  };
+
+  it('test_timeline_male_events_are_rectangles_and_female_events_are_ovals', () => {
+    renderBoard({ timelineSelectionIds: ['root', 'wife'] });
+    // Root is male, Wife is female; both have a synthesized Birth/own event.
+    expect(styleOf('Birth — Root')?.borderRadius).toBe('2px');
+    expect(styleOf('Birth — Son')?.borderRadius).toBe('2px');
+  });
+
+  it('test_timeline_couple_events_stay_neutral', () => {
+    renderBoard();
+    expect(styleOf('Marriage — Root + Wife')?.borderRadius).toBe('6px');
+  });
+
+  it('test_timeline_intensity_drives_the_fill', () => {
+    const rated = people.map((person) =>
+      person.id === 'root'
+        ? {
+            ...person,
+            events: [event('rated-5', 'Crisis', '2001-01-01', { intensity: 5 })],
+          }
+        : person
+    );
+    renderBoard({
+      people: rated,
+      familyScope: computeFamilyScope(rated, partnerships, 'root', defaultFocusForRoot('root')),
+    });
+    const style = styleOf('Crisis — Root');
+    expect(style?.background).toBeTruthy();
+    // An unrated event must not share the fill of a rated one.
+    expect(style?.background).not.toBe(styleOf('Birth — Root')?.background);
+  });
+});
+
 describe('TimelineBoardModal — system events', () => {
   it('test_m7e1_system_event_renders_on_person_lane_with_relation_label', () => {
     renderBoard();

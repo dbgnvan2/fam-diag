@@ -4,12 +4,23 @@
  * three-letter code and the hover bubble carries the identification.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
+  blockShapeForPerson,
   buildTimelineHoverText,
   eventAbbreviation,
   eventDisplayName,
+  intensityStyle,
   realNote,
 } from './timelineItemText';
+import {
+  BLOCK_BORDER_RADIUS,
+  INTENSITY_BORDER,
+  INTENSITY_FILL,
+  INTENSITY_UNRATED_BORDER,
+  INTENSITY_UNRATED_FILL,
+} from '../constants/timelineBlockStyle';
 import { SYNTHETIC_EVENT_NOTE } from './syntheticDateEvents';
 
 describe('eventAbbreviation', () => {
@@ -156,5 +167,84 @@ describe('eventDisplayName', () => {
     expect(eventDisplayName({ category: 'Birth', eventType: 'NODAL' })).toBe('Birth');
     expect(eventDisplayName({ category: '', eventType: 'NODAL' })).toBe('Event');
     expect(eventDisplayName({ category: '', eventType: 'NODAL' }, 'Son born')).toBe('Son born');
+  });
+});
+
+describe('blockShapeForPerson', () => {
+  it('test_timeline_shape_follows_the_owner_sex', () => {
+    expect(blockShapeForPerson({ birthSex: 'male' })).toBe('rect');
+    expect(blockShapeForPerson({ birthSex: 'female' })).toBe('oval');
+    // The older single-letter gender codes are still in saved diagrams.
+    expect(blockShapeForPerson({ gender: 'b' })).toBe('rect');
+    expect(blockShapeForPerson({ gender: 's' })).toBe('oval');
+  });
+
+  it('test_timeline_shape_is_neutral_when_sex_is_unknown_or_absent', () => {
+    expect(blockShapeForPerson({ birthSex: 'intersex' })).toBe('neutral');
+    expect(blockShapeForPerson({})).toBe('neutral');
+    expect(blockShapeForPerson(null)).toBe('neutral');
+    expect(blockShapeForPerson(undefined)).toBe('neutral');
+  });
+
+  it('test_timeline_oval_is_a_pill_and_rect_is_square_cornered', () => {
+    expect(BLOCK_BORDER_RADIUS.oval).toBe('999px');
+    expect(BLOCK_BORDER_RADIUS.rect).toBe('2px');
+  });
+});
+
+describe('intensityStyle', () => {
+  it('test_timeline_intensity_runs_blue_to_red', () => {
+    // 1 blue, 5 red, with green and orange between.
+    expect(intensityStyle(1).fill).toBe(INTENSITY_FILL[1]);
+    expect(intensityStyle(5).fill).toBe(INTENSITY_FILL[5]);
+    const ramp = [1, 2, 3, 4, 5].map((level) => intensityStyle(level).fill);
+    expect(new Set(ramp).size).toBe(5);
+  });
+
+  it('test_timeline_unrated_intensity_is_not_on_the_ramp', () => {
+    // 0 means "not rated" and must not read as a rating (the repo's
+    // long-standing 1-based intensity rule).
+    const unrated = intensityStyle(0).fill;
+    expect(unrated).toBe(INTENSITY_UNRATED_FILL);
+    expect(Object.values(INTENSITY_FILL)).not.toContain(unrated);
+    expect(intensityStyle(undefined).fill).toBe(unrated);
+    expect(intensityStyle(null).fill).toBe(unrated);
+  });
+
+  it('test_timeline_out_of_range_intensity_falls_back_to_unrated', () => {
+    expect(intensityStyle(9).fill).toBe(INTENSITY_UNRATED_FILL);
+    expect(intensityStyle(-1).fill).toBe(INTENSITY_UNRATED_FILL);
+  });
+
+  it('test_timeline_each_level_has_a_matching_border', () => {
+    [1, 2, 3, 4, 5].forEach((level) => {
+      expect(intensityStyle(level).border).toBe(INTENSITY_BORDER[level]);
+    });
+    expect(intensityStyle(0).border).toBe(INTENSITY_UNRATED_BORDER);
+  });
+});
+
+describe('eventDisplayName — the symptom marker cannot go stale', () => {
+  it('test_timeline_producer_drops_the_indicator_link_on_a_non_symptom_save', () => {
+    // PropertiesPanel.saveEvent keeps sourceIndicatorId only for SYMPTOM and
+    // FF. Without that, retyping a symptom as a NODAL event left the link
+    // behind and this function would name the event by its subtype.
+    const source = readFileSync(
+      join(__dirname, '../components/PropertiesPanel.tsx'),
+      'utf8'
+    );
+    expect(source).toContain("normalizedType === 'SYMPTOM' || normalizedType === 'FF'");
+    expect(source).not.toMatch(/\n\s*sourceIndicatorId: eventDraft\.sourceIndicatorId,/);
+  });
+
+  it('test_timeline_a_nodal_event_without_the_link_keeps_its_category', () => {
+    expect(
+      eventDisplayName({
+        category: 'Relocation',
+        eventType: 'NODAL',
+        subtype: 'Interstate',
+        sourceIndicatorId: undefined,
+      })
+    ).toBe('Relocation');
   });
 });
