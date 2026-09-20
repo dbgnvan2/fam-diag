@@ -2,6 +2,15 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## Flaky test spotted during gate pass 8 (2026-09-20)
+
+- **`DiagramEditor.test.tsx` "starts interactive demo…" times out under load.**
+  The gate's full-suite runs flaked twice and passed once; the test passes in
+  isolation (~1.4s) and sits in a file untouched by the batch, so it is
+  load-dependent rather than a regression. A suite that fails intermittently
+  is the kind of red people learn to ignore — raise its timeout or make the
+  demo step deterministic before it trains anyone to shrug at a failure.
+
 ## From the timeline readability / duplicate-events batch (2026-09-20)
 
 Gate pass 6 APPROVED after pass 5 rejected the first attempt. Three findings

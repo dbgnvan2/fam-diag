@@ -746,3 +746,113 @@ female/oval path (mutation goes red), and the stale ramp comment is gone. The Ev
 own / partnership / familyEvents / EPL / synthesized events exactly once. Full suite (600 passed)
 and both typecheck gates are green. Clean against P1–P36 and L1–L6; P3/P19-corollary (parallel clone
 rule) was the only pattern applicable and it is now closed.
+
+---
+
+# Pass 8 — two display bugs on the Timeline Board (cc70010)
+
+Date: 2026-09-20
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `5b109ed...HEAD` (1 commit)
+Verdict: **APPROVED**
+
+## Commits
+
+- cc70010 Fix the double hover bubble and the clipped year header
+
+## Gates (run on current HEAD `cc70010`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 59 files, 603 passed, 13 skipped (616) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+Note: the full suite was run three times. Two runs had one pre-existing timeout
+(`DiagramEditor.test.tsx` "starts interactive demo from help…", a 20-click loop, 5000ms) and
+one ran clean at 603 passed. The flaky test passes in isolation (1359ms), is in a file the
+diff does not touch, and is load-dependent — not a regression from cc70010. Counted here as
+the clean run; the flake is recorded for honesty.
+
+## Fix 1 — double hover bubble (title attribute removed)
+
+The block div now sets `aria-label={item.hoverText}` and `data-hover-text={item.hoverText}`
+instead of `title` (TimelineBoardModal.tsx:1355-1356). The custom styled bubble is unchanged:
+`onMouseEnter`/`onMouseMove` still set `timelineHoverNote` (:1359, :1366), `onMouseLeave`
+clears it (:1372), and the bubble renders `timelineHoverNote.text` (:1508). So the browser's
+native tooltip no longer joins the styled bubble a second later.
+
+**Verified by reproduction, not the commit message.** Restoring `title={item.hoverText}` in
+place of the two attributes and re-running `test_timeline_block_has_no_native_title_tooltip`
+goes RED (`expected 0 to be greater than 0` — `div[data-hover-text]` matches nothing once the
+attribute is gone). The test genuinely guards the removal; the file was restored with
+`git checkout`.
+
+**Nothing lost.** `title` previously provided a hover tooltip and an advisory accessible name.
+The hover text is unchanged (both the bubble and the removed title read the same
+`item.hoverText`), and `aria-label` is the correct accessibility replacement — it now gives
+the block's accessible name the full "what — who — relation" string rather than the bare
+three-letter code, a strict improvement for screen readers.
+
+**No other double-tooltip source.** grep for `title=` in the file returns exactly one hit:
+the "+ Add Event" button (TimelineBoardModal.tsx:1337). That button has no `onMouseEnter`/
+`onMouseMove`/`onMouseLeave` and never sets `timelineHoverNote`, so its native tooltip is the
+only one it shows — no competing bubble, no double tooltip.
+
+## Fix 2 — year header clipped to three digits (two-layer strip)
+
+Each year cell previously drew its own centred label inside an opaque, `overflow`-sharing
+box, so once a cell was narrower than the four digits the next cell painted over the trailing
+digit ("2026" → "202"). The strip is now two sibling layers (TimelineBoardModal.tsx:1211-1253):
+
+- Cells (:1211-1226) carry the background, border and the click target
+  (`onClick={() => applyPickedYear(slice.year)}`, :1214); they are self-closing and draw no text.
+- Labels (:1227-1253) are a separate layer, centred on the slice via
+  `left: ${leftPct + widthPct/2}%` + `transform: translateX(-50%)`, sized by content
+  (`whiteSpace: 'nowrap'`, no `width`), `zIndex: 1`, and `pointerEvents: 'none'` (:1247).
+
+**Verified by reproduction.** Reverting to the old single-layer cell (text nested back inside,
+`display:flex/justifyContent:center`) and re-running the two year-header tests goes RED — both
+`test_timeline_year_labels_show_all_four_digits` and
+`test_timeline_year_labels_are_not_drawn_inside_the_year_cells` fail because the
+`data-testid="timeline-year-label"` node no longer exists. Restored with `git checkout`.
+
+**Click target survives the new layer.** The label carries `pointerEvents: 'none'` (:1247) and
+no `onClick`/`onPointerDown`, so in a real browser the click passes through to the cell beneath;
+`applyPickedYear` is unchanged on the cell (:1214). jsdom does no hit-testing, so this is
+verified structurally (pointerEvents:none is a CSS guarantee; the label has no handler to
+swallow anything), and the test asserts `label.style.pointerEvents === 'none'` (:328) so a
+future revert of that style goes red.
+
+**Drag-to-pan survives the new layer.** The strip's `onPointerDown`/`onPointerMove`/`onPointerUp`
+handlers (:1145-1185) live on the strip container, not the cells; a pointer-down on a cell
+bubbles to the strip exactly as before. The label layer and the "Drag strip to pan years" hint
+(:1198) are both `pointerEvents: 'none'`, so neither intercepts the drag. The cells' `onClick`
+was not changed by this diff, only their text content moved out.
+
+## Findings (ranked)
+
+None. Both fixes are real and each is guarded by a test proven to go red when the fix is
+reverted (mutation-verified above). No sibling path was left carrying a native `title` that
+would re-trigger a double tooltip.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump only).
+- The click-through of `pointerEvents: 'none'` is verified structurally, not by jsdom
+  hit-testing (jsdom does not honour `pointer-events`); the guard is the style assertion.
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — both reported display bugs are fixed and verified by reproduction, not by the
+commit message: restoring `title` makes the no-native-tooltip test fail, and nesting the label
+back inside a cell makes both year-header tests fail. The year-cell click target
+(`applyPickedYear`) and the drag-to-pan strip are intact because the new label layer is
+`pointerEvents: 'none'` with no handlers, and the strip's pointer handlers live on the
+container. Accessibility is preserved and improved via `aria-label`. The only remaining
+`title` in the file (the "+ Add Event" button) has no competing styled bubble, so it cannot
+double. Both typecheck gates are green and the full suite passes (603); the one flaky timeout
+observed is pre-existing, load-dependent and in a file the diff does not touch. Clean against
+P1–P36 and L1–L6; no pattern was applicable.
