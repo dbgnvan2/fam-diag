@@ -15,8 +15,11 @@
  * three line kinds used different widths (20 / 10 / 24), so they now share
  * one.
  *
- * 28 is a deliberate compromise. Sibling drop-lines sit roughly 40px apart at
- * 100% zoom, so a wider region would leave neighbouring lines almost no gap;
- * where regions do overlap, the topmost shape in draw order wins.
+ * 28 is a deliberate compromise. Sibling drop-lines are spaced 42px by the
+ * importer, 50px when added by hand and 70px by voice; at the tightest of
+ * those a 28px region still leaves a 14px gap, and a wider one would start
+ * closing it. Where regions do overlap, the topmost shape in draw order
+ * wins — which is why the cutoff arc stays narrower than the child line it
+ * is drawn over.
  */
 export const LINE_HIT_STROKE_WIDTH = 28;

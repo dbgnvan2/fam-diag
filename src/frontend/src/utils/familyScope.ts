@@ -78,8 +78,26 @@ export const defaultFocusForRoot = (rootId: string): FamilyScopeFocus => ({
   includePartnerFOO: false,
 });
 
-/** How a person was reached. Lineal nodes may walk up; married-in nodes may not. */
-type Reach = { gen: number; lineal: boolean; fromChildId?: string };
+/**
+ * How a person was reached.
+ *
+ * `lineal` controls traversal: a married-in partner's own family of origin is
+ * a different family, so we never walk up from one (D1).
+ *
+ * `blood` answers a different question — is this person related to the root by
+ * birth, or by marriage? It needs the genealogical rule: from the root you may
+ * go UP and then DOWN, but never up again. Without `descended`, a grandchild's
+ * up-edge marks BOTH of its parents as blood, so a son's wife came out as a
+ * "Daughter" rather than a daughter-in-law.
+ */
+type Reach = {
+  gen: number;
+  lineal: boolean;
+  blood: boolean;
+  /** True once the path has taken a down edge; up edges stop conferring blood. */
+  descended: boolean;
+  fromChildId?: string;
+};
 
 const parentPartnershipIds = (person: Person): string[] => {
   const ids: string[] = [];
@@ -125,8 +143,9 @@ export function computeFamilyScope(
 
   const isBetter = (next: Reach, prev: Reach | undefined): boolean => {
     if (!prev) return true;
-    if (next.lineal && !prev.lineal) return true;
-    if (!next.lineal && prev.lineal) return false;
+    // A blood relationship is the strongest claim, then a lineal one.
+    if (next.blood !== prev.blood) return next.blood;
+    if (next.lineal !== prev.lineal) return next.lineal;
     return Math.abs(next.gen) < Math.abs(prev.gen);
   };
 
@@ -138,7 +157,7 @@ export function computeFamilyScope(
     queue.push({ id, reach });
   };
 
-  visit(rootId, { gen: 0, lineal: true });
+  visit(rootId, { gen: 0, lineal: true, blood: true, descended: false });
 
   while (queue.length) {
     const { id, reach } = queue.shift()!;
@@ -154,7 +173,13 @@ export function computeFamilyScope(
       const partnerId =
         partnership.partner1_id === id ? partnership.partner2_id : partnership.partner1_id;
       if (!partnerId || partnerId === id) return;
-      visit(partnerId, { gen: reach.gen, lineal: false });
+      // Married in: related to the root by this partnership, not by birth.
+      visit(partnerId, {
+        gen: reach.gen,
+        lineal: false,
+        blood: false,
+        descended: reach.descended,
+      });
     });
 
     // Up edge — only from a lineal node, unless the partner-FOO toggle is on.
@@ -164,7 +189,16 @@ export function computeFamilyScope(
         if (!partnership) return;
         [partnership.partner1_id, partnership.partner2_id].forEach((parentId) => {
           if (!parentId) return;
-          visit(parentId, { gen: reach.gen - 1, lineal: true, fromChildId: id });
+          visit(parentId, {
+            gen: reach.gen - 1,
+            lineal: true,
+            // Going up only proves a blood tie while we have not yet gone
+            // down: a grandchild's parents are not the root's blood kin
+            // merely because the root reached that grandchild.
+            blood: reach.blood && !reach.descended,
+            descended: reach.descended,
+            fromChildId: id,
+          });
         });
       });
     }
@@ -178,7 +212,12 @@ export function computeFamilyScope(
       (partnership.children || []).forEach((childId) => {
         if (!childId) return;
         if (!includeCollaterals && reach.fromChildId && childId !== reach.fromChildId) return;
-        visit(childId, { gen: reach.gen + 1, lineal: true });
+        visit(childId, {
+          gen: reach.gen + 1,
+          lineal: true,
+          blood: reach.blood,
+          descended: true,
+        });
       });
     });
   }
@@ -188,7 +227,7 @@ export function computeFamilyScope(
   const marriedIn = new Set<string>();
   reached.forEach((reach, id) => {
     generation.set(id, reach.gen);
-    if (!reach.lineal) marriedIn.add(id);
+    if (!reach.blood) marriedIn.add(id);
   });
 
   // A partnership is in scope iff both partners are — the rule

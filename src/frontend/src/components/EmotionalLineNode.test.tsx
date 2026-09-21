@@ -470,4 +470,51 @@ describe('EmotionalLineNode', () => {
             expect(line.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
         });
     });
+
+    /**
+     * The component renders through several different paths depending on the
+     * pattern type, so asserting one of them says nothing about the rest.
+     */
+    it.each([
+        ['fusion', 'fusion-dotted-wide'],
+        ['fusion', 'fusion-triple'],
+        ['cutoff', 'cutoff'],
+        ['conflict', 'conflict-solid-wide'],
+        ['distance', 'distance-dashed-tight'],
+        ['projection', 'projection-3'],
+        ['open-connection', 'open-connection-2'],
+    ] as const)(
+        'gives the %s / %s render path a wide hit region too',
+        (relationshipType, lineStyle) => {
+            const stageRef = React.createRef<any>();
+            render(
+                <Stage ref={stageRef}>
+                    <Layer>
+                        <EmotionalLineNode
+                            emotionalLine={{
+                                id: `el-${lineStyle}`,
+                                person1_id: 'p1',
+                                person2_id: 'p2',
+                                relationshipType: relationshipType as EmotionalLine['relationshipType'],
+                                lineStyle: lineStyle as EmotionalLine['lineStyle'],
+                                lineEnding: 'arrow-p1-to-p2',
+                            }}
+                            person1={{ id: 'p1', x: 0, y: 0, name: 'A', partnerships: [] }}
+                            person2={{ id: 'p2', x: 200, y: 200, name: 'B', partnerships: [] }}
+                            isSelected={false}
+                            onSelect={() => {}}
+                            onContextMenu={() => {}}
+                        />
+                    </Layer>
+                </Stage>
+            );
+            const withHit = stageRef
+                .current!.find('Line')
+                .filter((line: any) => line.hitStrokeWidth() !== 'auto');
+            expect(withHit.length).toBeGreaterThan(0);
+            withHit.forEach((line: any) => {
+                expect(line.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
+            });
+        }
+    );
 });

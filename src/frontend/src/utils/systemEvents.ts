@@ -26,6 +26,8 @@ import { computeFamilyScope, defaultFocusForRoot, type FamilyScope } from './fam
 import {
   DISTANT_ANCESTOR_NOUN,
   DISTANT_DESCENDANT_NOUN,
+  DISTANT_IN_LAW_NOUN,
+  IN_LAW_NOUNS,
   EVENT_PHRASES,
   PARENTAL_UNION_NOUN,
   RELATION_NOUNS,
@@ -80,7 +82,17 @@ const genderOf = (person?: Person): RelationGender => {
   return 'unknown';
 };
 
-const kinshipNoun = (generation: number, gender: RelationGender): string => {
+const kinshipNoun = (
+  generation: number,
+  gender: RelationGender,
+  marriedIn = false
+): string => {
+  // Someone who married in is not a blood relation: a son's wife is a
+  // daughter-in-law, not a daughter.
+  if (marriedIn) {
+    const inLawRow = IN_LAW_NOUNS[generation];
+    return inLawRow ? inLawRow[gender] : DISTANT_IN_LAW_NOUN;
+  }
   const row = RELATION_NOUNS[generation];
   if (row) return row[gender];
   return generation < 0 ? DISTANT_ANCESTOR_NOUN : DISTANT_DESCENDANT_NOUN;
@@ -272,15 +284,13 @@ export function collectSystemEvents({
       noun = SPOUSE_NOUNS[genderOf(relative)];
     } else if (generation < 0) {
       relationClass = 'ascendant';
-      noun = kinshipNoun(generation, genderOf(relative));
+      noun = kinshipNoun(generation, genderOf(relative), marriedIn);
     } else if (generation > 0) {
       relationClass = 'descendant';
-      noun = kinshipNoun(generation, genderOf(relative));
+      noun = kinshipNoun(generation, genderOf(relative), marriedIn);
     } else {
       relationClass = 'sibling';
-      noun = marriedIn
-        ? SPOUSE_NOUNS[genderOf(relative)]
-        : kinshipNoun(0, genderOf(relative));
+      noun = kinshipNoun(0, genderOf(relative), marriedIn);
     }
 
     const ownEvents = [

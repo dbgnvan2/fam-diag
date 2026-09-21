@@ -29,6 +29,34 @@ export const RELATION_NOUNS: Record<number, Record<RelationGender, string>> = {
   2: { male: 'Grandson', female: 'Granddaughter', unknown: 'Grandchild' },
 };
 
+/**
+ * Kinship nouns for someone who married in rather than being born into the
+ * family. Betty Baker is her father-in-law's son's wife: at his generation +1
+ * and flagged married-in, so "Daughter" is wrong — she is his daughter-in-law.
+ *
+ * Above the lane person these are STEP relations, not in-laws: the traversal
+ * never walks up from a married-in partner, so a married-in person a
+ * generation up is a parent's other partner, never a spouse's parent.
+ */
+export const IN_LAW_NOUNS: Record<number, Record<RelationGender, string>> = {
+  [-2]: {
+    male: 'Step-grandfather',
+    female: 'Step-grandmother',
+    unknown: 'Step-grandparent',
+  },
+  [-1]: { male: 'Step-father', female: 'Step-mother', unknown: 'Step-parent' },
+  0: { male: 'Brother-in-law', female: 'Sister-in-law', unknown: 'Sibling-in-law' },
+  1: { male: 'Son-in-law', female: 'Daughter-in-law', unknown: 'Child-in-law' },
+  2: {
+    male: 'Grandson-in-law',
+    female: 'Granddaughter-in-law',
+    unknown: 'Grandchild-in-law',
+  },
+};
+
+/** Anyone married in beyond the named generations above. */
+export const DISTANT_IN_LAW_NOUN = 'Relative by marriage';
+
 /** Fallbacks for generations beyond the named nouns above. */
 export const DISTANT_ANCESTOR_NOUN = 'Ancestor';
 export const DISTANT_DESCENDANT_NOUN = 'Descendant';

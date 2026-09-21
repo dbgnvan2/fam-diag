@@ -589,3 +589,131 @@ describe('collectSystemEvents — own partnerships and undated events', () => {
     expect(result.events.some((entry) => entry.event.id === 'shared')).toBe(true);
   });
 });
+
+/**
+ * Reported: Betty Baker was labelled "Daughter" on her father-in-law's lane.
+ * She has no parentPartnership — she married into the family — but her son's
+ * up-edge marked both his parents as lineal, which cleared her married-in
+ * flag. Blood kinship needs the genealogical rule: from the root you may go
+ * up and then down, but never up again.
+ */
+describe('in-law and step relations', () => {
+  const inLawFamily = () => {
+    // Everyone carries a birth date so every person owns at least one event
+    // and therefore appears with a relation label.
+    const people: Person[] = [
+      // Bob dies inside Jim's lifetime, so Jim's lane has an event of his to
+      // label — a birth in 1940 would be clipped out of a life begun in 1990.
+      person('bob', {
+        name: 'Bob',
+        birthSex: 'male',
+        partnerships: ['prBob'],
+        birthDate: '1940-01-01',
+        deathDate: '2010-05-05',
+      }),
+      person('mary', {
+        name: 'Mary',
+        birthSex: 'female',
+        partnerships: ['prBob'],
+        birthDate: '1942-01-01',
+      }),
+      person('peter', {
+        name: 'Peter',
+        birthSex: 'male',
+        parentPartnership: 'prBob',
+        partnerships: ['prPeter'],
+        birthDate: '1965-01-01',
+        events: [event('peter-evt', 'Job change', '2000-01-01')],
+      }),
+      person('sue', {
+        name: 'Sue',
+        birthSex: 'female',
+        parentPartnership: 'prBob',
+        birthDate: '1967-01-01',
+      }),
+      // Married in: no parentPartnership of her own.
+      person('betty', {
+        name: 'Betty',
+        birthSex: 'female',
+        partnerships: ['prPeter'],
+        birthDate: '1966-01-01',
+        events: [event('betty-evt', 'Illness', '1995-01-01')],
+      }),
+      person('jim', {
+        name: 'Jim',
+        birthSex: 'male',
+        parentPartnership: 'prPeter',
+        birthDate: '1990-01-01',
+      }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prBob', 'bob', 'mary', ['peter', 'sue']),
+      partnership('prPeter', 'peter', 'betty', ['jim']),
+    ];
+    return { people, partnerships };
+  };
+
+  const nounFor = (rootId: string, ownerId: string): string | undefined => {
+    const { people, partnerships } = inLawFamily();
+    const result = collectSystemEvents({
+      personId: rootId,
+      scope: computeFamilyScope(people, partnerships, rootId, defaultFocusForRoot(rootId)),
+      people,
+      partnerships,
+      now: new Date('2026-09-21T00:00:00Z'),
+    });
+    return result.events.find((entry) => entry.ownerEntityId === ownerId)?.relationNoun;
+  };
+
+  it('test_inlaw_a_sons_wife_is_a_daughter_in_law_not_a_daughter', () => {
+    expect(nounFor('bob', 'betty')).toBe('Daughter-in-law');
+    // The blood daughter is still a daughter.
+    expect(nounFor('bob', 'sue')).toBe('Daughter');
+  });
+
+  it('test_inlaw_she_is_still_a_mother_to_her_own_child', () => {
+    // The same person, a different lane: Jim's mother by birth.
+    expect(nounFor('jim', 'betty')).toBe('Mother');
+  });
+
+  it('test_inlaw_she_is_a_sister_in_law_to_her_husbands_siblings', () => {
+    expect(nounFor('betty', 'sue')).toBe('Sister-in-law');
+    expect(nounFor('betty', 'peter')).toBe('Husband');
+  });
+
+  it('test_inlaw_blood_relatives_keep_their_own_nouns', () => {
+    expect(nounFor('bob', 'peter')).toBe('Son');
+    expect(nounFor('bob', 'jim')).toBe('Grandson');
+    expect(nounFor('jim', 'bob')).toBe('Grandfather');
+  });
+
+  it('test_inlaw_a_step_parent_is_not_a_parent_in_law', () => {
+    // Someone married to a parent, reached across that parent, is a step
+    // relation: the traversal never walks up from a married-in partner, so a
+    // married-in person a generation up can only be a parent's partner.
+    const { people, partnerships } = inLawFamily();
+    const withStep: Person[] = [
+      ...people.map((entry) =>
+        entry.id === 'bob' ? { ...entry, partnerships: ['prBob', 'prStep'] } : entry
+      ),
+      person('carol', {
+        name: 'Carol',
+        birthSex: 'female',
+        partnerships: ['prStep'],
+        birthDate: '1945-01-01',
+      }),
+    ];
+    const withStepPartnerships = [...partnerships, partnership('prStep', 'bob', 'carol', [])];
+    const result = collectSystemEvents({
+      personId: 'peter',
+      scope: computeFamilyScope(withStep, withStepPartnerships, 'peter', defaultFocusForRoot('peter')),
+      people: withStep,
+      partnerships: withStepPartnerships,
+      now: new Date('2026-09-21T00:00:00Z'),
+    });
+    const carol = result.events.find((entry) => entry.ownerEntityId === 'carol');
+    if (carol) expect(carol.relationNoun).toBe('Step-mother');
+    // Either way she must never be labelled a plain "Mother".
+    expect(carol?.relationNoun).not.toBe('Mother');
+  });
+});
