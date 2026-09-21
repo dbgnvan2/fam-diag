@@ -1183,3 +1183,131 @@ nothing was lost from it. Three non-blocking findings remain — one med-low res
 none is a shipped-behaviour defect. Clean against P1–P36 and L1–L6; P19-corollary/P2
 (fuzzy parallel recogniser, resolved) and a write-then-hide inconsistency (resolved) were
 the applicable patterns this pass.
+
+---
+
+# Pass 11 — partnership separation marks follow the recorded dates (5b85d9c)
+
+Date: 2026-09-21
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `77625f5...HEAD` (1 commit)
+Verdict: **APPROVED**
+
+## Commits
+
+- 5b85d9c Draw the separation and divorce marks from the recorded dates
+
+## Gates (run on current HEAD `5b85d9c`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 61 files, 632 passed, 13 skipped (645) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## Root cause — confirmed by reading, not the commit message
+
+`PartnershipNode` drew the separation/divorce marks from `relationshipStatus` alone — a single
+current value. Bob Doe + mary Doe were saved with marriage, separation AND divorce dates
+(`marriedStartDate`, `separationDate`, `divorceDate` all set, plus the `statusDates` mirrors), but
+`relationshipStatus` was still `'ongoing'` (the normal state of affairs — entering the dates is what
+the user does; the dropdown is only touched when the relationship ends *without* a recorded date).
+So no mark branch fired and the line stayed unbroken. The fix derives the marks from the recorded
+dates with `relationshipStatus` as a fallback.
+
+## (a) Component tests genuinely count rendered diagonals — red against the old rule
+
+`partnershipSeparationMarks` was temporarily reverted in `partnershipUtils.ts` to the old
+status-only rule (`divorced`/`separated` off `relationshipStatus` with `'divorced'→'divorce'`), the
+file restored with `git checkout` after. Result on `PartnershipNode.test.tsx`:
+
+- `draws two slashes for a couple whose divorce date is recorded` → RED (`expected +0 to be 2`)
+- `draws one slash for a couple who are only separated` → RED (`expected +0 to be 1`)
+- `draws no slashes for an intact marriage` → GREEN (correctly unaffected)
+
+`countSlashes` counts the only diagonal lines that cross the connector's Y with a 20px rise, so the
+assertions are on rendered Konva shapes, not source text. The two date-driven tests fail on the old
+rule and pass on the new one — they genuinely guard the fix.
+
+## (b) Marks cannot appear on an intact marriage or an inappropriate type
+
+Attacked with an executable probe (`partnershipSeparationMarks` over a battery of realistic
+partnerships; probe deleted after use):
+
+- intact marriage (`status 'married'`, `marriedStartDate` only) → `{separated:false, divorced:false}` — no marks.
+- `status 'married'` + `statusDates.married` only → no marks.
+- blank date (`statusDates.separated: '   '`) → no marks (the trim check holds).
+- custom relationship type `co-parents`, status `ongoing` → no marks.
+- custom status keys `dissolved` / `cohabiting` (in `relationshipStatus` and in `statusDates`) → no marks.
+
+The function ignores `relationshipType` and uses exact string equality (no substring), so a custom
+status key cannot false-positive. The only case that yields marks on a nominally-"married" partnership
+is a `status 'married'` carrying a stale `divorceDate` / `statusDates.divorce`. That is not a new
+contradiction: `PartnershipNode` already renders a `Divorced: <date>` text label from `divorceDate`
+independently of status (unchanged by this diff), so the mark is now *consistent* with the existing
+date label rather than a fresh defect. It also requires the user to have entered a divorce date and
+then flipped status back to `married` without clearing it — contradictory data, and the "dates are
+evidence, status is a fallback" tradeoff the fix's own docblock states.
+
+## (c) The 3-line → 1-line change for 'ended' is correct, not a degradation
+
+Old code: `(normalized === 'separated' || normalized === 'ended')` rendered the single slash AND
+`(normalized === 'divorce' || normalized === 'ended')` rendered the two-slash divorce mark — so
+`'ended'` drew **three** lines (a separation slash and a divorce double-slash simultaneously), which
+asserts two contradictory states at once. The non-married types that use `'ended'` (engaged,
+friendship, affair, living-together, dating, common-law) mean "the relationship ended", which is one
+slash (broken), not two (legally divorced — not meaningful for a non-marriage). New code: `'ended'`
+→ `separated:true, divorced:false` → one slash. The intent (an ended relationship is marked) is
+preserved; only the over-draw is removed. Verified against `RELATIONSHIP_TYPE_STATUS_ROWS`: every
+`'ended'`-bearing type is non-married, and none offers `divorce`, so two slashes would be wrong for
+all of them. Not degraded.
+
+## (d) The removed helper and branches had no other readers
+
+The removed `normalizeRelationshipStatus` was a file-local `const` in `PartnershipNode.tsx` (not
+exported). grep confirms the only surviving `normalizeRelationshipStatus` is the unrelated one in
+`utils/dataImport.ts` (a different function mapping arbitrary import strings at dataImport.ts:808,
+semantics `'divorc*'→'divorce'` etc.), untouched by this diff. No other component renders partnership
+separation marks: grep for `=== 'separated' | === 'divorce' | === 'divorced' | === 'ended'` returns
+only the new `partnershipSeparationMarks` function plus `PropertiesPanel.tsx` matches that are
+`EmotionalLine.status` checks (a different type), not partnership marks. The `'divorced'→'divorce'`
+normalisation the helper performed is now carried inside `partnershipSeparationMarks` via the
+`status === 'divorce' || status === 'divorced'` branches. The voice-command producer
+(`useVoiceHandlers.ts`) sets both the date field and `relationshipStatus`, so it still drives marks
+under both the old and new rule.
+
+## Findings (ranked)
+
+None blocking.
+
+### 1. Hand-maintained status-key set — low · partnershipUtils.ts:93-103
+
+The divorce/separated status strings (`'divorce'`, `'divorced'`, `'separated'`, `'separation'`,
+`'ended'`) are hardcoded here, while `RELATIONSHIP_STATUS_KEY_ALIASES` (PropertiesPanel.tsx:73)
+separately maintains the same `'divorced'→'divorce'` canonicalisation and
+`constants/relationshipStatusLabels.ts` holds the per-type rows. There is no existing single
+"is-this-a-divorce-status" predicate to import (the rows table is keyed by type, not a flat map), so
+this is not a copy of another module's list that can drift — it is a fresh, small domain map. A future
+new status spelling would need touching both places. Non-blocking; recorded for awareness.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.43 → v 2.44` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — the fix is verified by reproduction, not the commit message. The component tests
+genuinely count rendered diagonals and go red against the old status-only rule (mutation-verified).
+The marks cannot appear on an intact marriage or any type that should not have them: custom
+relationship types and custom status keys produce no marks, blank dates are ignored, and the one
+nominally-"married"-with-stale-divorce-date case is already surfaced by the pre-existing `Divorced:`
+date label (unchanged), so the mark is consistent with existing UI, not a new contradiction. The
+deliberate behaviour change (three lines → one for `'ended'`) is correct for every non-married type
+that uses `'ended'` — the old three-line rendering asserted separated *and* divorced at once, and no
+`'ended'`-bearing type offers a divorce status, so two slashes would be wrong for all of them. The
+removed helper and branches had no other readers; the `'divorced'` normalisation survives inside the
+new function. All three gates are green on the exact commit to be pushed. Clean against P1–P36 and
+L1–L6; one low-severity hand-maintained-key note (finding 1), no shipped-behaviour defect.

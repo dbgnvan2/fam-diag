@@ -2,6 +2,18 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the separation/divorce marks fix (2026-09-21)
+
+Gate pass 11 APPROVED. One low, non-blocking note.
+
+- **`partnershipSeparationMarks` hand-maintains its status-key set**
+  (`utils/partnershipUtils.ts`): `divorce`/`divorced`, `separated`/
+  `separation`, `ended`. There is no shared "is a divorce status" predicate
+  to import — `canonicalRelationshipStatusKey` normalises spelling but does
+  not classify — so this is a fresh domain map rather than a copy that can
+  drift from one. Worth folding into a shared classifier if a third consumer
+  ever needs the same question answered.
+
 ## From the one-event-per-date batch (2026-09-20)
 
 Gate passes 9 and 10 (pass 9 REJECTED, pass 10 APPROVED). Three residuals,
