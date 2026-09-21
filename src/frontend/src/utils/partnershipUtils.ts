@@ -60,3 +60,48 @@ export function earliestPartnershipDate(partnership: Partnership): string | unde
   if (!dates.length) return undefined;
   return dates.reduce((earliest, value) => (value < earliest ? value : earliest));
 }
+
+/**
+ * Purpose: which separation marks a partnership line carries — one slash for
+ *          separated, two for divorced.
+ * Spec:    n/a — reported 2026-09-21
+ * Tests:   src/frontend/src/utils/partnershipUtils.test.ts
+ *
+ * The marks used to key off `relationshipStatus` alone, a single current
+ * value. A couple with a marriage, a separation AND a divorce date recorded
+ * still showed an unbroken line whenever that dropdown had been left on
+ * "ongoing" — which is the normal state of affairs, since entering the dates
+ * is what the user does. The recorded dates are the evidence; the status is
+ * only a fallback for a couple whose status was set without a date.
+ *
+ * Divorce supersedes separation: a divorced couple is drawn with two slashes,
+ * not two slashes and a third.
+ */
+export type PartnershipSeparationMarks = { separated: boolean; divorced: boolean };
+
+const hasStatusDate = (partnership: Partnership, ...keys: string[]): boolean =>
+  keys.some((key) => {
+    const value = (partnership.statusDates || {})[key];
+    return !!value && value.trim().length > 0;
+  });
+
+export function partnershipSeparationMarks(
+  partnership: Partnership
+): PartnershipSeparationMarks {
+  const status = (partnership.relationshipStatus || '').trim().toLowerCase();
+
+  const divorced =
+    !!partnership.divorceDate ||
+    hasStatusDate(partnership, 'divorce', 'divorced') ||
+    status === 'divorce' ||
+    status === 'divorced';
+
+  const separated =
+    !!partnership.separationDate ||
+    hasStatusDate(partnership, 'separated', 'separation') ||
+    status === 'separated' ||
+    status === 'ended';
+
+  // Two slashes replace the one, rather than joining it.
+  return { separated: separated && !divorced, divorced };
+}

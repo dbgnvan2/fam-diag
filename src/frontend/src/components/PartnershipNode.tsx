@@ -2,7 +2,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
-import { computeDefaultFamilyName } from '../utils/partnershipUtils';
+import { computeDefaultFamilyName, partnershipSeparationMarks } from '../utils/partnershipUtils';
 
 interface PartnershipNodeProps {
   partnership: Partnership;
@@ -39,12 +39,6 @@ const getDashStyle = (relationshipType: string) => {
 }
 
 const normalizeCoord = (value: number) => Number(value.toFixed(3));
-const normalizeRelationshipStatus = (value?: string) => {
-  const normalized = (value || '').trim().toLowerCase();
-  if (normalized === 'divorced') return 'divorce';
-  return normalized;
-};
-
 const TRI_SIDE = 16;
 const TRI_HALF = TRI_SIDE / 2;
 const TRI_H = Math.round(TRI_SIDE * Math.sqrt(3) / 2);
@@ -64,9 +58,9 @@ const STRESSOR_INDICATOR_DEFS = [
 ] as const;
 
 const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamilySelected, onSelect, onHorizontalConnectorDragEnd, onFamilyNameOffsetChange, onFamilyNameSizeChange, onContextMenu, onFamilyClick, onFamilyContextMenu, onFamilyIndicatorClick }: PartnershipNodeProps) => {
-  const { horizontalConnectorY, relationshipType, relationshipStatus, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX, familyNameOffsetY, familyNameWidth, familyNameHeight, color, backgroundColor } = partnership;
+  const { horizontalConnectorY, relationshipType, relationshipStartDate, marriedStartDate, separationDate, divorceDate, familyName, familyNameOffsetX, familyNameOffsetY, familyNameWidth, familyNameHeight, color, backgroundColor } = partnership;
+  const separationMarks = partnershipSeparationMarks(partnership);
   const dashStyle = getDashStyle(relationshipType);
-  const normalizedRelationshipStatus = normalizeRelationshipStatus(relationshipStatus);
   const lineColor = color || 'black';
   const bgColor = backgroundColor;
 
@@ -203,10 +197,13 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           />
         )}
 
-        {(normalizedRelationshipStatus === 'separated' || normalizedRelationshipStatus === 'ended') && (
+        {/* One slash for separated, two for divorced — driven by the dates
+            the user recorded, not by the status dropdown, which is normally
+            still on its old value after those dates are entered. */}
+        {separationMarks.separated && (
             <Line points={[midPointX - 5, connectorY - 10, midPointX + 5, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />
         )}
-        {(normalizedRelationshipStatus === 'divorce' || normalizedRelationshipStatus === 'ended') && (
+        {separationMarks.divorced && (
             <>
                 <Line points={[midPointX - 10, connectorY - 10, midPointX, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />
                 <Line points={[midPointX, connectorY - 10, midPointX + 10, connectorY + 10]} stroke={isSelected ? 'blue' : lineColor} strokeWidth={2} />

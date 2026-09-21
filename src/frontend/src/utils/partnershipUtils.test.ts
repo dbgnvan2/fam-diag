@@ -10,7 +10,11 @@
  * soon as both partners existed.
  */
 import { describe, it, expect } from 'vitest';
-import { earliestPartnershipDate, partnershipDates } from './partnershipUtils';
+import {
+  earliestPartnershipDate,
+  partnershipDates,
+  partnershipSeparationMarks,
+} from './partnershipUtils';
 import { buildPartnershipVisibility } from './familyScope';
 import type { Partnership } from '../types';
 
@@ -150,5 +154,87 @@ describe('PRL visibility across the timeline years', () => {
 
     expect(at(2002)).toBe(false);
     expect(at(2005)).toBe(true);
+  });
+});
+
+/**
+ * Reported: Bob Doe and mary Doe were marked married, separated and divorced,
+ * and the PRL kept showing an unbroken line. All three dates were recorded —
+ * married 1969-03-03, separated 1980-01-01, divorce 1985-01-01 — but
+ * relationshipStatus was still "ongoing", and the marks keyed off that alone.
+ */
+describe('partnershipSeparationMarks', () => {
+  it('test_prl_marks_follow_the_recorded_dates_not_the_status_dropdown', () => {
+    const bobAndMary = partnership({
+      relationshipType: 'married',
+      relationshipStatus: 'ongoing',
+      marriedStartDate: '1969-03-03',
+      separationDate: '1980-01-01',
+      divorceDate: '1985-01-01',
+      statusDates: { married: '1969-03-03', separated: '1980-01-01', divorce: '1985-01-01' },
+    });
+    expect(partnershipSeparationMarks(bobAndMary)).toEqual({
+      separated: false,
+      divorced: true,
+    });
+  });
+
+  it('test_prl_a_separation_date_alone_gives_one_slash', () => {
+    const marks = partnershipSeparationMarks(
+      partnership({ relationshipStatus: 'ongoing', separationDate: '1980-01-01' })
+    );
+    expect(marks).toEqual({ separated: true, divorced: false });
+  });
+
+  it('test_prl_divorce_supersedes_separation_rather_than_adding_to_it', () => {
+    // Two slashes, not two plus a third.
+    const marks = partnershipSeparationMarks(
+      partnership({ separationDate: '1980-01-01', divorceDate: '1985-01-01' })
+    );
+    expect(marks.divorced).toBe(true);
+    expect(marks.separated).toBe(false);
+  });
+
+  it('test_prl_status_still_works_when_no_date_was_entered', () => {
+    expect(partnershipSeparationMarks(partnership({ relationshipStatus: 'separated' }))).toEqual({
+      separated: true,
+      divorced: false,
+    });
+    expect(partnershipSeparationMarks(partnership({ relationshipStatus: 'divorced' }))).toEqual({
+      separated: false,
+      divorced: true,
+    });
+    // "divorce" and "divorced" are both in use as status values.
+    expect(partnershipSeparationMarks(partnership({ relationshipStatus: 'divorce' })).divorced).toBe(
+      true
+    );
+    // A non-married relationship that ended reads as separated.
+    expect(partnershipSeparationMarks(partnership({ relationshipStatus: 'ended' }))).toEqual({
+      separated: true,
+      divorced: false,
+    });
+  });
+
+  it('test_prl_statusDates_only_partnership_is_marked', () => {
+    // "divorce" has a legacy mirror field, but a diagram may carry only the
+    // statusDates entry.
+    const marks = partnershipSeparationMarks(
+      partnership({ relationshipStatus: 'ongoing', statusDates: { divorce: '1985-01-01' } })
+    );
+    expect(marks.divorced).toBe(true);
+  });
+
+  it('test_prl_an_intact_marriage_carries_no_marks', () => {
+    const marks = partnershipSeparationMarks(
+      partnership({ relationshipStatus: 'married', marriedStartDate: '1969-03-03' })
+    );
+    expect(marks).toEqual({ separated: false, divorced: false });
+  });
+
+  it('test_prl_blank_dates_do_not_count_as_recorded', () => {
+    const marks = partnershipSeparationMarks(
+      partnership({ relationshipStatus: 'ongoing', statusDates: { separated: '   ' } })
+    );
+    expect(marks).toEqual({ separated: false, divorced: false });
   });
 });

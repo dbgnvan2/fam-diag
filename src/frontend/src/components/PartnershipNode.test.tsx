@@ -148,4 +148,76 @@ describe('PartnershipNode', () => {
         expect(bgLine.attrs.stroke).toBe('#e3f2fd');
         expect(bgLine.attrs.strokeWidth).toBe(10);
     });
+
+    /**
+     * Reported: Bob Doe and mary Doe were marked married, separated and
+     * divorced and the line stayed unbroken. All three dates were recorded
+     * but relationshipStatus was still "ongoing", and the marks keyed off
+     * that dropdown alone.
+     */
+    const countSlashes = (stageRef: React.RefObject<any>, connectorY: number) => {
+        const stage = stageRef.current;
+        // The separation marks are the only diagonal lines drawn across the
+        // connector: same short span, crossing its Y.
+        return stage
+            .find('Line')
+            .filter((line: any) => {
+                const pts = line.points();
+                if (pts.length !== 4) return false;
+                const risesAcross = Math.abs(pts[1] - pts[3]) === 20;
+                const crosses = Math.min(pts[1], pts[3]) < connectorY && Math.max(pts[1], pts[3]) > connectorY;
+                return risesAcross && crosses;
+            }).length;
+    };
+
+    const renderWith = (overrides: Partial<Partnership>) => {
+        const stageRef = React.createRef<any>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PartnershipNode
+                        partnership={{ ...partnership, ...overrides }}
+                        partner1={partner1}
+                        partner2={partner2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onHorizontalConnectorDragEnd={() => {}}
+                        onContextMenu={() => {}}
+                        {...noopProps}
+                    />
+                </Layer>
+            </Stage>
+        );
+        return stageRef;
+    };
+
+    it('draws two slashes for a couple whose divorce date is recorded', () => {
+        // Bob and mary Doe, exactly as saved: every date entered, status
+        // never changed from "ongoing".
+        const stageRef = renderWith({
+            relationshipStatus: 'ongoing',
+            marriedStartDate: '1969-03-03',
+            separationDate: '1980-01-01',
+            divorceDate: '1985-01-01',
+            statusDates: { married: '1969-03-03', separated: '1980-01-01', divorce: '1985-01-01' },
+        });
+        expect(countSlashes(stageRef, 50)).toBe(2);
+    });
+
+    it('draws one slash for a couple who are only separated', () => {
+        const stageRef = renderWith({
+            relationshipStatus: 'ongoing',
+            marriedStartDate: '1969-03-03',
+            separationDate: '1980-01-01',
+        });
+        expect(countSlashes(stageRef, 50)).toBe(1);
+    });
+
+    it('draws no slashes for an intact marriage', () => {
+        const stageRef = renderWith({
+            relationshipStatus: 'married',
+            marriedStartDate: '1969-03-03',
+        });
+        expect(countSlashes(stageRef, 50)).toBe(0);
+    });
 });
