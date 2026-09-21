@@ -1317,11 +1317,16 @@ describe('PropertiesPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
         expect(updatePerson).toHaveBeenCalledWith(
             'p-date',
-            expect.objectContaining({
-                birthDate: '2001-02-03',
-                events: expect.any(Array),
-            })
+            expect.objectContaining({ birthDate: '2001-02-03' })
         );
+        // The date field IS the record. Appending an event for it produced a
+        // second block on the timeline, and a third once the date was later
+        // corrected, because the append never replaced the previous one.
+        const [, updates] = updatePerson.mock.calls[0];
+        const appended = (updates.events || []) as Array<{ category?: string; subtype?: string }>;
+        expect(
+            appended.some((event) => (event.subtype || '').toLowerCase() === 'birth date')
+        ).toBe(false);
     });
 
     it('saves Birth Sex, Gender Date, and Gender with events on Save', () => {
@@ -1366,16 +1371,23 @@ describe('PropertiesPanel', () => {
                 gender: 'male',
                 genderDate: '2020-05-01',
                 genderIdentity: 'masculine',
+                // Identity CHANGES are genuine events and still recorded.
                 events: expect.arrayContaining([
                     expect.objectContaining({ subtype: 'Birth Sex: Male' }),
-                    expect.objectContaining({ subtype: 'Gender Date' }),
                     expect.objectContaining({ subtype: 'Gender: Masculine' }),
                 ]),
             })
         );
+        // The gender DATE is a field, not an event: it is surfaced once by
+        // syntheticDateEvents instead of being appended on every edit.
+        const [, genderUpdates] = updatePerson.mock.calls[0];
+        const genderEvents = (genderUpdates.events || []) as Array<{ subtype?: string }>;
+        expect(
+            genderEvents.some((event) => (event.subtype || '').toLowerCase() === 'gender date')
+        ).toBe(false);
     });
 
-    it('creates person events when partnership dates are saved', () => {
+    it('saves a partnership date without appending an event for it', () => {
         const updatePerson = vi.fn();
         const updatePartnership = vi.fn();
         const partner1: Person = {
@@ -1429,27 +1441,18 @@ describe('PropertiesPanel', () => {
         const saveButtons = screen.getAllByRole('button', { name: /^Save$/i });
         fireEvent.click(saveButtons[saveButtons.length - 1]);
 
+        // The date is stored on the partnership...
         expect(updatePartnership).toHaveBeenCalled();
-        expect(updatePerson).toHaveBeenCalledTimes(2);
+        const [, partnershipUpdates] = updatePartnership.mock.calls[0];
+        expect(partnershipUpdates.relationshipStartDate).toBe('2020-01-01');
 
-        const firstCall = updatePerson.mock.calls[0];
-        const secondCall = updatePerson.mock.calls[1];
-
-        expect(firstCall[0]).toBe('person-a');
-        expect(firstCall[1].events?.[0]).toMatchObject({
-            date: '2020-01-01',
-            primaryPersonName: 'Partner A',
-            otherPersonName: 'Partner B',
-            eventClass: 'relationship',
-        });
-
-        expect(secondCall[0]).toBe('person-b');
-        expect(secondCall[1].events?.[0]).toMatchObject({
-            date: '2020-01-01',
-            primaryPersonName: 'Partner B',
-            otherPersonName: 'Partner A',
-            eventClass: 'relationship',
-        });
+        // ...and nothing is appended to it, or cloned onto either partner.
+        // Saving used to write a record for the date AND another dated today
+        // saying the status had changed, so one relationship read as several
+        // events. syntheticDateEvents renders exactly one block from the
+        // field instead.
+        expect(partnershipUpdates.events ?? []).toHaveLength(0);
+        expect(updatePerson).not.toHaveBeenCalled();
     });
 
     it('renders a date field for a custom relationship status from settings', () => {

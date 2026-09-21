@@ -35,6 +35,8 @@ import {
   type RelationGender,
 } from '../constants/relationLabels';
 import { baseEventId, hasSameEvent } from './eventDedup';
+import { withoutPersonDateRecords } from './personDateEvents';
+import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
 import { eventDisplayName } from './timelineItemText';
 import {
   synthesizeEmotionalLineDateEvents,
@@ -282,7 +284,7 @@ export function collectSystemEvents({
     }
 
     const ownEvents = [
-      ...(relative.events || []),
+      ...withoutPersonDateRecords(relative.events || []),
       ...synthesizePersonDateEvents(relative),
       ...synthesizePersonIndicatorEvents(relative, functionalIndicatorDefinitions),
     ];
@@ -329,7 +331,10 @@ export function collectSystemEvents({
       partner1?.name,
       partner2?.name
     );
-    [...(partnership.events || []), ...dateEvents].forEach((event) => {
+    [
+      ...withoutPartnershipStatusRecords(partnership.events || [], partnership),
+      ...dateEvents,
+    ].forEach((event) => {
       push({
         event,
         relationClass,

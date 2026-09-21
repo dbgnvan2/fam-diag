@@ -25,6 +25,8 @@ import { computeDefaultFamilyName } from '../utils/partnershipUtils';
 import type { FamilyScope } from '../utils/familyScope';
 import { collectSystemEvents, type SystemEvent } from '../utils/systemEvents';
 import { hasSameEvent } from '../utils/eventDedup';
+import { withoutPersonDateRecords } from '../utils/personDateEvents';
+import { withoutPartnershipStatusRecords } from '../utils/partnershipStatusEvents';
 import {
   synthesizePersonDateEvents,
   synthesizePartnershipDateEvents,
@@ -251,14 +253,6 @@ const cloneEventForPerson = (
   otherPersonName: otherName,
 });
 
-const RELATIONSHIP_STATUS_INTENSITY: Record<string, number> = {
-  married: 3,
-  separated: 4,
-  divorced: 5,
-  started: 2,
-  ended: 4,
-  ongoing: 3,
-};
 const normalizeStatusKey = (value: string) => canonicalRelationshipStatusKey(value);
 const LEGACY_STATUS_DATE_FIELD_BY_KEY: Partial<
   Record<string, 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate'>
@@ -1126,39 +1120,6 @@ const PropertiesPanel = ({
     };
   };
 
-  const buildPartnershipEvent = (
-    partnership: Partnership,
-    status: string,
-    dateValue: string
-  ): EmotionalProcessEvent | null => {
-    if (!DATE_PATTERN.test(dateValue)) return null;
-    const partner1 = people.find((person) => person.id === partnership.partner1_id);
-    const partner2 = people.find((person) => person.id === partnership.partner2_id);
-    if (!partner1 || !partner2) return null;
-    const label = relationshipDateLabelFor(partnership.relationshipType, status);
-    return {
-      id: createEventId(),
-      date: dateValue,
-      startDate: dateValue,
-      category: toTitleCase(partnership.relationshipType),
-      eventType: 'NODAL' as const,
-      anchorType: 'RELATIONSHIP_PRL' as const,
-      anchorId: partnership.id,
-      status: 'discrete' as const,
-      subtype: label,
-      intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(status)] ?? 0,
-      frequency: 0,
-      impact: 0,
-      howWell: DEFAULT_HOW_WELL,
-      otherPersonName: partner2.name || '',
-      primaryPersonName: partner1.name || '',
-      wwwwh: DEFAULT_OBSERVATION,
-      observations: partnership.notes || DEFAULT_OBSERVATION,
-      eventClass: 'relationship' as const,
-      createdAt: Date.now(),
-    };
-  };
-
   type EmotionalDateField = 'startDate' | 'endDate';
 
   const buildEmotionalLineEvent = (
@@ -1267,10 +1228,11 @@ const PropertiesPanel = ({
       const next = personDraft[field] ?? '';
       if (prev !== next) {
         updates[field] = next || undefined;
-        if (next && DATE_PATTERN.test(next)) {
-          const event = buildPersonDateEvent(personDraft, field, next);
-          if (event) newEvents.push(event);
-        }
+        // No event is written for the date itself. This used to APPEND one on
+        // every change and never update the previous one, so correcting a
+        // birth date left the old year on the timeline as its own life event.
+        // The field is the record; syntheticDateEvents surfaces exactly one
+        // Birth / Death / Adoption / Gender block from it.
       }
       // Create event when death checkbox newly checked without a date
       if (field === 'deathDate' && !next && nextDeathKnown && !prevDeathKnown) {
@@ -1280,29 +1242,7 @@ const PropertiesPanel = ({
     });
     if ((selectedPerson.adoptionDate ?? '') !== (personDraft.adoptionDate ?? '')) {
       updates.adoptionDate = personDraft.adoptionDate || undefined;
-      if (personDraft.adoptionDate && DATE_PATTERN.test(personDraft.adoptionDate)) {
-        newEvents.push({
-          id: createEventId(),
-          date: personDraft.adoptionDate,
-          startDate: personDraft.adoptionDate,
-          category: 'Individual',
-          eventType: 'NODAL' as const,
-          anchorType: 'PERSON' as const,
-          anchorId: selectedPerson.id,
-          status: 'discrete' as const,
-          subtype: 'Adoption Date',
-          intensity: 0,
-          frequency: 0,
-          impact: 0,
-          howWell: DEFAULT_HOW_WELL,
-          otherPersonName: 'None',
-          primaryPersonName: personDraft.name || '',
-          wwwwh: DEFAULT_OBSERVATION,
-          observations: DEFAULT_OBSERVATION,
-          eventClass: 'individual' as const,
-          createdAt: Date.now(),
-        });
-      }
+      // As above: the date field is the record, not an appended event.
     }
     PERSON_DEFERRED_IDENTITY_FIELDS.forEach((field) => {
       const prev = selectedPerson[field];
@@ -1367,36 +1307,9 @@ const PropertiesPanel = ({
       }
     });
     const newEvents: EmotionalProcessEvent[] = [];
-    // Create event when type or status changes
-    const typeChanged = stringDiffers(partnershipDraft.relationshipType, selectedPartnership.relationshipType);
-    const statusChanged = stringDiffers(partnershipDraft.relationshipStatus, selectedPartnership.relationshipStatus);
-    if (typeChanged || statusChanged) {
-      const today = new Date().toISOString().slice(0, 10);
-      const statusLabel = typeChanged
-        ? `Type changed to ${humanizeOptionLabel(partnershipDraft.relationshipType)}`
-        : `Status changed to ${humanizeOptionLabel(partnershipDraft.relationshipStatus)}`;
-      newEvents.push({
-        id: createEventId(),
-        date: today,
-        startDate: today,
-        category: toTitleCase(partnershipDraft.relationshipType),
-        eventType: 'NODAL' as const,
-        anchorType: 'RELATIONSHIP_PRL' as const,
-        anchorId: selectedPartnership.id,
-        status: 'discrete' as const,
-        subtype: statusLabel,
-        intensity: RELATIONSHIP_STATUS_INTENSITY[normalizeStatusKey(partnershipDraft.relationshipStatus)] ?? 0,
-        frequency: 0,
-        impact: 0,
-        howWell: DEFAULT_HOW_WELL,
-        otherPersonName: partner2?.name || '',
-        primaryPersonName: partner1?.name || '',
-        wwwwh: DEFAULT_OBSERVATION,
-        observations: DEFAULT_OBSERVATION,
-        eventClass: 'relationship' as const,
-        createdAt: Date.now(),
-      });
-    }
+    // No "type/status changed" event is written. It was dated TODAY rather
+    // than the day anything happened, appended on every edit, and duplicated
+    // the status date the synthesizer already renders.
     allRelationshipStatuses.forEach((status) => {
       const prev = readPartnershipStatusDate(selectedPartnership, status);
       const next = readPartnershipStatusDate(partnershipDraft, status);
@@ -1411,10 +1324,10 @@ const PropertiesPanel = ({
         if (legacyField) {
           updates[legacyField] = next || undefined;
         }
-        if (next) {
-          const event = buildPartnershipEvent(partnershipDraft, status, next);
-          if (event) newEvents.push(event);
-        }
+        // As with person dates, the status date is the record. Appending an
+        // event here produced a second block for the same marriage, and a
+        // third once the date was edited.
+
       }
     });
     if (newEvents.length) {
@@ -1648,7 +1561,8 @@ const PropertiesPanel = ({
       return ownEvents;
     }
     const person = selectedItem as Person;
-    const ownEvents = person.events || [];
+    // Date records are hidden rather than deleted — see utils/personDateEvents.ts.
+    const ownEvents = withoutPersonDateRecords(person.events || []);
     const ownIds = new Set(ownEvents.map((e) => e.id));
     // The clone rule lives in utils/eventDedup.ts so this panel and the
     // Timeline cannot drift: the inline version here only recognised an
@@ -1662,7 +1576,7 @@ const PropertiesPanel = ({
       if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;
       const partner1 = people.find((q) => q.id === p.partner1_id);
       const partner2 = people.find((q) => q.id === p.partner2_id);
-      (p.events || []).forEach((event) => {
+      withoutPartnershipStatusRecords(p.events || [], p).forEach((event) => {
         if (isAlreadyCloned(event.id)) return;
         extra.push(event);
       });

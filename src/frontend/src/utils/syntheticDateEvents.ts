@@ -14,6 +14,7 @@
  * Properties panel still create real events via the existing build*Event
  * helpers — synthesis only fills gaps in older data.
  */
+import { RELATIONSHIP_STATUS_INTENSITY } from '../constants/timelineBlockStyle';
 import type {
   EmotionalProcessEvent,
   FunctionalIndicatorDefinition,
@@ -71,10 +72,17 @@ const baseSynthEvent = (
 
 export const synthesizePersonDateEvents = (person: Person): EmotionalProcessEvent[] => {
   const out: EmotionalProcessEvent[] = [];
-  const slots: Array<{ field: 'birthDate' | 'deathDate' | 'adoptionDate'; category: string; synthId: string }> = [
+  const slots: Array<{
+    field: 'birthDate' | 'deathDate' | 'adoptionDate' | 'genderDate';
+    category: string;
+    synthId: string;
+  }> = [
     { field: 'birthDate', category: 'Birth', synthId: `synth-birth-${person.id}` },
     { field: 'deathDate', category: 'Death', synthId: `synth-death-${person.id}` },
     { field: 'adoptionDate', category: 'Adoption', synthId: `synth-adoption-${person.id}` },
+    // Added when person-date records stopped being written on save: without
+    // this the gender date would appear nowhere at all.
+    { field: 'genderDate', category: 'Gender', synthId: `synth-gender-${person.id}` },
   ];
   slots.forEach(({ field, category, synthId }) => {
     const date = person[field] as string | undefined;
@@ -150,17 +158,20 @@ export const synthesizePartnershipDateEvents = (
   const out: EmotionalProcessEvent[] = [];
   const primaryName = partner1Name || '';
   const otherName = partner2Name || 'None';
-  const dateMap: Array<{ field: keyof Partnership; category: string }> = [
-    { field: 'relationshipStartDate', category: 'Relationship Started' },
-    { field: 'marriedStartDate', category: 'Marriage' },
-    { field: 'separationDate', category: 'Separation' },
-    { field: 'divorceDate', category: 'Divorce' },
+  const dateMap: Array<{ field: keyof Partnership; status: string; category: string }> = [
+    { field: 'relationshipStartDate', status: 'started', category: 'Relationship Started' },
+    { field: 'marriedStartDate', status: 'married', category: 'Marriage' },
+    { field: 'separationDate', status: 'separated', category: 'Separation' },
+    { field: 'divorceDate', status: 'divorced', category: 'Divorce' },
   ];
-  dateMap.forEach(({ field, category }) => {
-    const date = partnership[field] as string | undefined;
-    if (!isValidIsoDate(date)) return;
-    const synthId = `synth-${field}-${partnership.id}`;
+  // A status that has a legacy mirror field is emitted once, from the field.
+  const statusesWithLegacyField = new Set(dateMap.map((entry) => entry.status));
+  const emitted = new Set<string>();
+
+  const emit = (synthId: string, date: string, category: string, status: string) => {
+    if (emitted.has(date + category)) return;
     if (hasEventForSlot(partnership.events, category, synthId)) return;
+    emitted.add(date + category);
     out.push({
       ...baseSynthEvent(synthId, date, category),
       anchorType: 'RELATIONSHIP_PRL',
@@ -168,7 +179,23 @@ export const synthesizePartnershipDateEvents = (
       eventClass: 'relationship',
       primaryPersonName: primaryName,
       otherPersonName: otherName,
+      intensity: RELATIONSHIP_STATUS_INTENSITY[status] ?? 0,
     });
+  };
+
+  dateMap.forEach(({ field, status, category }) => {
+    const date = partnership[field] as string | undefined;
+    if (!isValidIsoDate(date)) return;
+    emit(`synth-${field}-${partnership.id}`, date, category, status);
+  });
+
+  // Statuses with no legacy mirror field — "widowed" is the common one —
+  // live only in statusDates, so without this they appear nowhere at all.
+  Object.entries(partnership.statusDates || {}).forEach(([status, date]) => {
+    if (!isValidIsoDate(date)) return;
+    if (statusesWithLegacyField.has(status)) return;
+    const category = status.charAt(0).toUpperCase() + status.slice(1);
+    emit(`synth-status-${status}-${partnership.id}`, date, category, status);
   });
   return out;
 };

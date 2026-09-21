@@ -43,3 +43,18 @@ export const INTENSITY_BORDER: Record<number, string> = {
 };
 
 export const INTENSITY_UNRATED_BORDER = '#c2cad6';
+
+/**
+ * How intense each relationship status reads on the 1-5 scale. Carried onto
+ * the synthesized status events so a divorce still shows warmer than a
+ * marriage now that the appended status records are gone.
+ */
+export const RELATIONSHIP_STATUS_INTENSITY: Record<string, number> = {
+  married: 3,
+  separated: 4,
+  divorced: 5,
+  widowed: 5,
+  started: 2,
+  ended: 4,
+  ongoing: 3,
+};

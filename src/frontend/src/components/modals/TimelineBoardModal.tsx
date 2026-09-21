@@ -20,6 +20,8 @@ import {
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
 import { earliestPartnershipDate } from '../../utils/partnershipUtils';
 import { hasSameEvent } from '../../utils/eventDedup';
+import { withoutPersonDateRecords } from '../../utils/personDateEvents';
+import { withoutPartnershipStatusRecords } from '../../utils/partnershipStatusEvents';
 import {
   blockShapeForPerson,
   buildTimelineHoverText,
@@ -439,7 +441,7 @@ export default function TimelineBoardModal({
           entityId: partnership.id,
         });
       }
-      (partnership.events || []).forEach((event) => {
+      withoutPartnershipStatusRecords(partnership.events || [], partnership).forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
         familyItems.push({
@@ -505,7 +507,9 @@ export default function TimelineBoardModal({
       // uses, so the two views cannot drift apart.
       // Spec: docs/implementation_plan_2026-09-19.md#M7.A.1
       const ownEvents = [
-        ...(person.events || []),
+        // Date records are hidden, not deleted: the date field is the record
+        // and the synthesizer renders exactly one block from it.
+        ...withoutPersonDateRecords(person.events || []),
         ...synthesizePersonDateEvents(person),
         ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
       ];
@@ -545,7 +549,7 @@ export default function TimelineBoardModal({
           const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name;
           const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name;
           const prlEvents = [
-            ...(partnership.events || []),
+            ...withoutPartnershipStatusRecords(partnership.events || [], partnership),
             ...synthesizePartnershipDateEvents(partnership, partner1Name, partner2Name),
           ];
           prlEvents.forEach((event) => {
