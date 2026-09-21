@@ -65,12 +65,54 @@ describe('isPartnershipStatusRecordEvent', () => {
     expect(isPartnershipStatusRecordEvent(record, widowed)).toBe(true);
   });
 
-  it('test_prl_separation_label_variants_match_their_status', () => {
-    const separated = partnership({ separationDate: '2008-03-01' });
-    ['Separated', 'Separation'].forEach((label) => {
-      const record = event({ date: '2008-03-01', startDate: '2008-03-01', subtype: label });
-      expect(isPartnershipStatusRecordEvent(record, separated)).toBe(true);
+  it('test_prl_the_separated_label_matches_its_status', () => {
+    const separated = partnership({
+      separationDate: '2008-03-01',
+      statusDates: { separated: '2008-03-01' },
     });
+    const record = event({ date: '2008-03-01', startDate: '2008-03-01', subtype: 'Separated' });
+    expect(isPartnershipStatusRecordEvent(record, separated)).toBe(true);
+  });
+
+  it('test_prl_real_events_sharing_a_word_with_a_status_are_kept', () => {
+    // Reproduced by the QA gate against an earlier stem-matching version,
+    // which hid every one of these because they start like a status name.
+    // They are the user's own clinical records, on the status date.
+    const engaged = partnership({
+      relationshipType: 'engaged',
+      relationshipStartDate: '1990-01-01',
+      statusDates: { married: '1990-01-01', separated: '1990-01-01', start: '1990-01-01' },
+    });
+    [
+      'Marriage counselling',
+      'Marriage problems',
+      'Separation anxiety',
+      'Started counselling',
+      'Engagement party',
+    ].forEach((subtype) => {
+      expect(isPartnershipStatusRecordEvent(event({ subtype }), engaged)).toBe(false);
+    });
+  });
+
+  it('test_prl_every_label_the_producer_writes_is_still_recognised', () => {
+    // The other half: an exact label on its own date must still be hidden,
+    // or the duplicates come back.
+    const all = partnership({
+      statusDates: {
+        married: '1990-01-01',
+        divorce: '1990-01-01',
+        separated: '1990-01-01',
+        widowed: '1990-01-01',
+      },
+    });
+    ['Married', 'Divorced', 'Separated', 'Widowed'].forEach((subtype) => {
+      expect(isPartnershipStatusRecordEvent(event({ subtype }), all)).toBe(true);
+    });
+  });
+
+  it('test_prl_a_person_anchored_event_is_never_matched', () => {
+    const personEvent = event({ subtype: 'Married', anchorType: 'PERSON' });
+    expect(isPartnershipStatusRecordEvent(personEvent, peterDoe)).toBe(false);
   });
 
   it('test_prl_a_user_written_event_on_the_wedding_day_is_kept', () => {

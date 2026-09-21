@@ -25,6 +25,7 @@ import { computeDefaultFamilyName } from '../utils/partnershipUtils';
 import type { FamilyScope } from '../utils/familyScope';
 import { collectSystemEvents, type SystemEvent } from '../utils/systemEvents';
 import { hasSameEvent } from '../utils/eventDedup';
+import { RELATIONSHIP_TYPE_STATUS_ROWS } from '../constants/relationshipStatusLabels';
 import { withoutPersonDateRecords } from '../utils/personDateEvents';
 import { withoutPartnershipStatusRecords } from '../utils/partnershipStatusEvents';
 import {
@@ -65,54 +66,10 @@ const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
 const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const PERSON_DATE_LABELS: Record<'birthDate' | 'deathDate' | 'genderDate', string> = {
-  birthDate: 'Birth Date',
-  deathDate: 'Death Date',
-  genderDate: 'Gender Date',
-};
 const DEFAULT_OBSERVATION = 'Not recorded - ask client';
 const DEFAULT_HOW_WELL = 1;
 const humanizeOptionLabel = (value: string) =>
   value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-const RELATIONSHIP_TYPE_STATUS_ROWS: Record<string, { status: string; dateLabel: string }[]> = {
-  married: [
-    { status: 'married', dateLabel: 'Married' },
-    { status: 'divorce', dateLabel: 'Divorced' },
-    { status: 'separated', dateLabel: 'Separated' },
-    { status: 'widowed', dateLabel: 'Widowed' },
-  ],
-  engaged: [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ongoing', dateLabel: 'Ongoing' },
-    { status: 'ended', dateLabel: 'Ended' },
-  ],
-  friendship: [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ongoing', dateLabel: 'Ongoing' },
-    { status: 'ended', dateLabel: 'Ended' },
-  ],
-  affair: [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ongoing', dateLabel: 'Ongoing' },
-    { status: 'ended', dateLabel: 'Ended' },
-  ],
-  'living-together': [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ongoing', dateLabel: 'Ongoing' },
-    { status: 'ended', dateLabel: 'Ended' },
-  ],
-  'common-law': [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ended', dateLabel: 'Ended' },
-    { status: 'separated', dateLabel: 'Separated' },
-    { status: 'widowed', dateLabel: 'Widowed' },
-  ],
-  dating: [
-    { status: 'start', dateLabel: 'Start' },
-    { status: 'ongoing', dateLabel: 'Ongoing' },
-    { status: 'ended', dateLabel: 'Ended' },
-  ],
-};
 const RELATIONSHIP_STATUS_KEY_ALIASES: Record<string, string> = {
   started: 'start',
   start: 'start',
@@ -241,17 +198,10 @@ const getGenderIdentityLabel = (value?: Person['genderIdentity']) => {
 };
 const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
   birthSex === 'male' ? 'masculine' : birthSex === 'intersex' || birthSex === 'ai-agent' ? 'nonbinary' : 'feminine';
-const cloneEventForPerson = (
-  base: EmotionalProcessEvent,
-  personName: string,
-  otherName: string,
-  suffix: string
-): EmotionalProcessEvent => ({
-  ...base,
-  id: `${base.id}-${suffix}`,
-  primaryPersonName: personName,
-  otherPersonName: otherName,
-});
+// cloneEventForPerson was removed with its only caller. Partnership status
+// events are no longer written, so there is nothing to copy onto each
+// partner; utils/eventDedup.ts still recognises the -p1 / -p2 clones that
+// existing diagrams contain.
 
 const normalizeStatusKey = (value: string) => canonicalRelationshipStatusKey(value);
 const LEGACY_STATUS_DATE_FIELD_BY_KEY: Partial<
@@ -1021,34 +971,6 @@ const PropertiesPanel = ({
     setEmotionalPristine(false);
   };
 
-  const buildPersonDateEvent = (
-    person: Person,
-    field: keyof typeof PERSON_DATE_LABELS,
-    dateValue: string
-  ): EmotionalProcessEvent => {
-    const displayName = composeDisplayName({}, person) || person.name || '';
-    return {
-      id: createEventId(),
-      date: dateValue,
-      startDate: dateValue,
-      category: 'Individual',
-      eventType: 'NODAL' as const,
-      anchorType: 'PERSON' as const,
-      anchorId: person.id,
-      status: 'discrete' as const,
-      subtype: PERSON_DATE_LABELS[field],
-      intensity: 0,
-      frequency: 0,
-      impact: 0,
-      howWell: DEFAULT_HOW_WELL,
-      otherPersonName: '',
-      primaryPersonName: displayName,
-      wwwwh: DEFAULT_OBSERVATION,
-      observations: person.notes || DEFAULT_OBSERVATION,
-      eventClass: 'individual' as const,
-      createdAt: Date.now(),
-    };
-  };
   const buildPersonIdentityEvent = (
     person: Person,
     field: keyof Pick<Person, 'birthSex' | 'genderIdentity'>,
@@ -1234,11 +1156,10 @@ const PropertiesPanel = ({
         // The field is the record; syntheticDateEvents surfaces exactly one
         // Birth / Death / Adoption / Gender block from it.
       }
-      // Create event when death checkbox newly checked without a date
-      if (field === 'deathDate' && !next && nextDeathKnown && !prevDeathKnown) {
-        const today = new Date().toISOString().slice(0, 10);
-        newEvents.push(buildPersonDateEvent(personDraft, field, today));
-      }
+      // "Deceased, date unknown" used to write a Death Date event dated
+      // TODAY — a date the death did not happen on. A death with no date
+      // cannot be placed on a timeline honestly; the node's death marker
+      // carries it instead.
     });
     if ((selectedPerson.adoptionDate ?? '') !== (personDraft.adoptionDate ?? '')) {
       updates.adoptionDate = personDraft.adoptionDate || undefined;
@@ -1297,8 +1218,6 @@ const PropertiesPanel = ({
 
   const savePartnershipProperties = () => {
     if (!selectedPartnership || !partnershipDraft || !partnershipDirty) return;
-    const partner1 = people.find((person) => person.id === selectedPartnership.partner1_id);
-    const partner2 = people.find((person) => person.id === selectedPartnership.partner2_id);
     const updates: Partial<Partnership> = {};
     PARTNERSHIP_STRING_FIELDS.forEach((field) => {
       if (stringDiffers(partnershipDraft[field], selectedPartnership[field])) {
@@ -1306,7 +1225,6 @@ const PropertiesPanel = ({
         (updates as any)[field] = value && value !== '' ? value : undefined;
       }
     });
-    const newEvents: EmotionalProcessEvent[] = [];
     // No "type/status changed" event is written. It was dated TODAY rather
     // than the day anything happened, appended on every edit, and duplicated
     // the status date the synthesizer already renders.
@@ -1330,23 +1248,8 @@ const PropertiesPanel = ({
 
       }
     });
-    if (newEvents.length) {
-      updates.events = [...(selectedPartnership.events || []), ...newEvents];
-      if (partner1 && partner2) {
-        appendEventsToPerson(
-          partner1.id,
-          newEvents.map((event) =>
-            cloneEventForPerson(event, partner1.name || '', partner2.name || '', 'p1')
-          )
-        );
-        appendEventsToPerson(
-          partner2.id,
-          newEvents.map((event) =>
-            cloneEventForPerson(event, partner2.name || '', partner1.name || '', 'p2')
-          )
-        );
-      }
-    }
+    // Nothing is appended here any more: the status fields are the record,
+    // so there is no event to store and none to clone onto each partner.
     if (!Object.keys(updates).length) {
       setPartnershipPristine(true);
       setPartnershipDraft({ ...selectedPartnership });

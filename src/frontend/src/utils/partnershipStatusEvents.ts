@@ -12,6 +12,7 @@
  * renders from the date field. The status date is the record.
  */
 import type { EmotionalProcessEvent, Partnership } from '../types';
+import { RELATIONSHIP_STATUS_DATE_LABELS } from '../constants/relationshipStatusLabels';
 
 /** Subtypes written by the "type/status changed" record. */
 export const STATUS_CHANGE_SUBTYPE_PREFIXES = ['type changed to', 'status changed to'];
@@ -19,23 +20,6 @@ export const STATUS_CHANGE_SUBTYPE_PREFIXES = ['type changed to', 'status change
 /** `Married` / ` married ` / `Married?` all compare equal. */
 const normalizeLabel = (value: string): string =>
   value.trim().toLowerCase().replace(/[^a-z]/g, '');
-
-/**
- * The status key and the label written for it are different words for the
- * same thing — `separated` is labelled "Separation", `married` is labelled
- * "Marriage" — so they are compared on their shared stem rather than
- * letter-for-letter. Five characters is enough to separate `separated` from
- * `engaged` while still matching `divorce`/`divorced`.
- */
-const STEM_LENGTH = 5;
-
-const sharesStem = (a: string, b: string): boolean => {
-  if (!a || !b) return false;
-  const limit = Math.min(a.length, b.length);
-  let shared = 0;
-  while (shared < limit && a[shared] === b[shared]) shared += 1;
-  return shared >= Math.min(STEM_LENGTH, limit);
-};
 
 const eventDate = (event: EmotionalProcessEvent): string =>
   (event.startDate || event.date || '').trim();
@@ -66,6 +50,8 @@ export function isPartnershipStatusRecordEvent(
   event: EmotionalProcessEvent,
   partnership: Partnership
 ): boolean {
+  // These records are always anchored to the relationship.
+  if (event.anchorType && event.anchorType !== 'RELATIONSHIP_PRL') return false;
   const subtype = (event.subtype || '').trim().toLowerCase();
   if (STATUS_CHANGE_SUBTYPE_PREFIXES.some((prefix) => subtype.startsWith(prefix))) {
     return true;
@@ -76,10 +62,21 @@ export function isPartnershipStatusRecordEvent(
   if (!date) return false;
   const normalizedSubtype = normalizeLabel(subtype);
 
-  return statusDateEntries(partnership).some(([statusKey, statusDate]) => {
-    if (statusDate.trim() !== date) return false;
-    return sharesStem(normalizedSubtype, normalizeLabel(statusKey));
-  });
+  // The subtype has to be one of the labels the producer actually writes —
+  // an exact match, not a stem. A fuzzy match hid the user's own records:
+  // "Marriage counselling", "Separation anxiety" and "Started counselling"
+  // all share a stem with a status but are nothing to do with one.
+  const isKnownLabel =
+    RELATIONSHIP_STATUS_DATE_LABELS.has(subtype) ||
+    statusDateEntries(partnership).some(
+      ([statusKey]) => normalizeLabel(statusKey) === normalizedSubtype
+    );
+  if (!isKnownLabel) return false;
+
+  // ...and it has to fall on the date that status actually holds.
+  return statusDateEntries(partnership).some(
+    ([, statusDate]) => statusDate.trim() === date
+  );
 }
 
 /** Drops those records from a list, leaving user-written events untouched. */
