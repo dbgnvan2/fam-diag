@@ -856,3 +856,330 @@ container. Accessibility is preserved and improved via `aria-label`. The only re
 double. Both typecheck gates are green and the full suite passes (603); the one flaky timeout
 observed is pre-existing, load-dependent and in a file the diff does not touch. Clean against
 P1–P36 and L1–L6; no pattern was applicable.
+
+---
+
+# Pass 9 — one event per date: stop appending person/partnership records (7f6d7dd)
+
+Date: 2026-09-20
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `dde4503...HEAD` (1 commit)
+Verdict: **REJECTED**
+
+## Commits
+
+- 7f6d7dd One event per date: stop appending person-date and partnership-status records
+
+## Gates (run on current HEAD `7f6d7dd`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 61 files, 618 passed, 13 skipped (631) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## The four requested checks — verified by reproduction, not by the commit message
+
+### (1) No date record written on save; buildPartnershipEvent gone
+
+Real, with one exception. `grep -rn buildPartnershipEvent src/frontend/src` returns ZERO
+references — the builder and its only caller are both deleted. `savePersonProperties`
+(Person dates) no longer pushes for birth/death/gender/adoption: the `newEvents.push` inside
+`PERSON_DEFERRED_DATE_FIELDS.forEach` and the adoption-date push are both removed
+(PropertiesPanel.tsx:1226-1246). `savePartnershipProperties` no longer pushes the
+"type/status changed" record nor the status-date record (PropertiesPanel.tsx:1309-1331);
+`newEvents` is now always empty, so the `if (newEvents.length)` clone block at
+:1333-1349 is dead code (harmless, but it will never fire).
+
+Exception: the deathDateKnown-without-a-date path still writes a `buildPersonDateEvent`
+(subtype `Death Date`, dated today) at :1238-1241 — see finding 2.
+
+### (2) Nothing became invisible — genderDate and every statusDates key are surfaced
+
+Verified by enumerating the fields, not by trusting the commit message.
+
+- Person date fields (`birthDate`, `deathDate`, `adoptionDate`, `genderDate`): all four now
+  have a synthesis slot in `synthesizePersonDateEvents`; `genderDate` is the newly-added one
+  (:85), surfacing a field that nothing else would emit once its record stopped being written.
+- Partnership: the four legacy fields stay in `dateMap` and the new `statusDates` loop
+  (:194-199) emits every key with NO legacy mirror field — `widowed` and any custom status
+  (`engaged`, `dating`, `ended`, …) — which previously reached the timeline only through the
+  appended record. The `statusesWithLegacyField` guard (:168) prevents double-emitting a
+  status that has both a field and a `statusDates` entry.
+- No OTHER date field was found that reached the timeline only via an appended record and
+  now reaches through nothing: the only date-bearing fields on the three types are the four
+  person fields above, the four partnership legacy fields, `statusDates`, and the emotional
+  line `startDate`/`endDate` (both already synthesized and unchanged).
+
+### (3) The recognisers vs. user-written events
+
+`personDateEvents.ts` is safe. `isPersonDateRecordEvent` requires BOTH category `Individual`
+AND an exact label match against the four `PERSON_DATE_EVENT_LABELS` (`Birth Date`, `Death
+Date`, `Gender Date`, `Adoption Date`), case/space-tolerant. Probe of realistic user events:
+"Death of pet", "Birthday party" (both category `Individual`) → kept; the category guard is
+what makes "Individual" as the Event Creator's default category harmless. `personDateEvents`
+passes.
+
+`partnershipStatusEvents.ts` does NOT pass. See finding 1 — the 5-character stem match plus
+the absence of any category guard hides realistic user-written relationship events.
+
+### (4) The three rewritten tests guard the new contract
+
+Verified by mutation. The birth-date append was temporarily re-added to
+`savePersonProperties` (reintroducing the old `buildPersonDateEvent` push), and the test
+"only saves birth/death dates when Save is clicked" went RED (`expected true to be false` at
+PropertiesPanel.test.tsx:1329). The file was restored with `git checkout`. The test genuinely
+fails if the append comes back — the new contract is guarded, not just asserted.
+
+## Findings (ranked)
+
+### 1. P19-corollary / P2 — high · partnershipStatusEvents.ts:30-37, 79-82
+
+`isPartnershipStatusRecordEvent` silently drops a user-written relationship event. The
+matcher compares the event's `subtype` to the status KEY with a shared-5-char-prefix rule
+(`sharesStem`, `STEM_LENGTH = 5`) and — unlike `personDateEvents` — imposes NO category
+guard. The only other condition is that the event's date equals the status's recorded date.
+
+Reproduced against the real function (tsx probe, not a hand-copy):
+
+- `Marriage counselling` (category `Therapy`) on `marriedStartDate` → HIDDEN
+- `Marriage problems` (category `Conflict`) on `marriedStartDate` → HIDDEN
+- `Separation anxiety` on `separationDate` → HIDDEN
+- `Started counselling` on `relationshipStartDate` → HIDDEN
+- `Engagement party` on `statusDates.engaged` → HIDDEN
+
+"Marriage counselling", "Marriage problems", "Separation anxiety" are everyday clinical
+entries in a family-therapy diagram, and each is dropped from the Timeline Board, the system
+events collector, AND the Events tab with no trace and no undo.
+
+The fuzzy stem was engineered against a false premise. The file's own comment claims
+"`separated` is labelled 'Separation', `married` is labelled 'Marriage'" — but the records
+the recogniser must catch were written by `buildPartnershipEvent` with
+`relationshipDateLabelFor`, whose `RELATIONSHIP_TYPE_STATUS_ROWS` table
+(PropertiesPanel.tsx:77-113) returns the -ed forms (`Married`, `Divorced`, `Separated`,
+`Widowed`, `Start`, `Ongoing`, `Ended`), never the noun forms. Every record's subtype is
+therefore an exact (case-insensitive) match for its status key; the stem is unnecessary to
+catch them and is exactly what lets a word *starting with* the key's first five letters
+through.
+
+Fix: match the producer's actual label set, not a prefix. Either (a) import the shared
+`RELATIONSHIP_TYPE_STATUS_ROWS` dateLabels (or `relationshipDateLabelFor`) and compare the
+subtype exactly, or (b) require `normalizeLabel(subtype) === normalizeLabel(statusKey)` (the
+records are the same word) — dropping `sharesStem` entirely. Add a category guard mirroring
+`personDateEvents` (records were written under `toTitleCase(relationshipType)`) so the
+"confusing default category" problem is closed on the partnership side too. Add a regression
+test for each of the five reproduced cases above asserting `false`.
+
+### 2. Inconsistency — med-low · PropertiesPanel.tsx:1238-1241 (deathDateKnown without a date)
+
+The path that writes an event when the death checkbox is newly checked with no date was left
+deliberately creating a `buildPersonDateEvent('Death Date', today)`. Under the new recogniser
+that event IS a person-date record (`category: 'Individual'`, `subtype: 'Death Date'`), so
+`withoutPersonDateRecords` now hides it in all three display surfaces. Net effect:
+
+- Dead data: the event is written and then immediately hidden everywhere it could render.
+- Timeline regression: a person checked "deceased (date unknown)" no longer produces any
+  Timeline/Events block — the only remaining surface is the node's death-X overlay
+  (PersonNode.tsx:458-459, keyed off `deathDate || deathDateKnown`).
+
+This is inconsistent with the new contract ("the date field is the record; exactly one event
+for death"). There is no date field to synthesize from here, so the two consistent options
+are: stop writing the event (deathDateKnown is already surfaced on the node), or synthesize a
+`Death` block from `deathDateKnown` when `deathDate` is absent. As committed, it writes an
+event that is then suppressed.
+
+## Notes (non-blocking)
+
+- `savePartnershipProperties` retains the now-unreachable `if (newEvents.length)` clone block
+  (PropertiesPanel.tsx:1333-1349). Dead code — remove it or it will mislead a future
+  maintainer into thinking partnership saves still emit events.
+- `EventCreator.tsx` (the raw event editor) still lists `person.events` unfiltered, so the
+  legacy date records remain visible there. This is pre-existing behaviour and arguably
+  correct for a raw editor (it is where you would delete them), but it is a fourth surface
+  that does not apply the "hide at display" rule — recorded for awareness, not blocking.
+- `RELATIONSHIP_STATUS_INTENSITY` moved to `constants/timelineBlockStyle.ts` and is carried
+  onto synthesized status events, so the divorce > marriage intensity ramp survives the
+  removal of the appended records; `widowed` gained a 5 (was absent from the old inline map).
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump only).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**REJECTED** — 1 high, 1 med-low. The core fix is sound and complete: no date record is
+written on save (deathKnown aside), `buildPartnershipEvent` is gone, `genderDate` and every
+`statusDates` key are now surfaced, and the rewritten tests are proven by mutation to go red
+if the appends return. But finding 1 is a shipped-behaviour defect that contradicts the
+change's central invariant "a user-written event is never hidden": the partnership recogniser's
+5-char stem, with no category guard, silently drops realistic clinical events ("Marriage
+counselling", "Separation anxiety", "Engagement party") from three surfaces. It is also built
+on a false premise — the records' subtypes are the -ed forms, not the noun forms, so an exact
+match against the producer's label set would catch every real record with zero false
+positives. Fix finding 1 by matching the producer's actual labels (drop `sharesStem`) and
+adding a category guard; resolve finding 2 (stop writing the deathKnown event or synthesize a
+Death block from `deathDateKnown`); then re-run the gate. Clean against P1–P36 and L1–L6;
+P19-corollary/P2 (fuzzy parallel recogniser, high) and a write-then-hide inconsistency
+(med-low) were applicable.
+
+---
+
+# Pass 10 — re-run after fix commit 6a289fc
+
+Date: 2026-09-20
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `dde4503...HEAD` (2 commits); fix commit `7f6d7dd..6a289fc` swept as its own range
+Verdict: **APPROVED**
+
+## Commits
+
+- 7f6d7dd One event per date: stop appending person-date and partnership-status records (pass 9 — REJECTED)
+- 6a289fc Stop the status-record filter hiding real events, and clear the dead paths (this pass's fix commit)
+
+## Gates (re-run on current HEAD `6a289fc`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 61 files, 621 passed, 13 skipped (634) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## The two pass-9 findings — verified fixed by reproduction, not by the commit message
+
+### Finding 1 (high) — stem removed, exact label match, anchorType guard
+
+The 5-char stem (`sharesStem`, `STEM_LENGTH`) is gone from `partnershipStatusEvents.ts`.
+The matcher now:
+
+1. Rejects any event anchored to something other than the relationship
+   (`if (event.anchorType && event.anchorType !== 'RELATIONSHIP_PRL') return false`).
+2. Requires the subtype to be a label the producer actually writes — either in
+   `RELATIONSHIP_STATUS_DATE_LABELS` (extracted to `constants/relationshipStatusLabels.ts`)
+   or `normalizeLabel(statusKey) === normalizeLabel(subtype)` for a statusDates key
+   (the custom-status fallback via `humanizeOptionLabel`).
+3. Requires the event's date to equal that status's recorded date.
+
+The five reproduced cases were re-run against the REAL function via a `tsx` probe (not a
+hand-copy), all now return `false` (kept): `Marriage counselling`, `Marriage problems`,
+`Separation anxiety`, `Started counselling`, `Engagement party`.
+
+A further 23 realistic attack subtypes of my own choosing all return `false` (kept):
+`Marriage counselling session`, `Marriage retreat`, `Marriage breakdown`,
+`Counselling for marriage`, `Anniversary of marriage`, `Separation agreement`,
+`Separation trial`, `Divorce mediation`, `Divorce lawyer`, `Widowed grief group`,
+`Widowed and bereaved`, `Started couples therapy`, `Started a new relationship`,
+`Ongoing affair`, `Ongoing conflict`, `Ended the relationship`, `Ended therapy`,
+`Engagement announcement`, `Engagement ring`, `Marriage` (noun), `Separation` (noun),
+`Married but unhappy`, `Separated then reconciled`.
+
+**Other direction verified.** Every producer label on its own status date still returns
+`true` (recognised, hidden — no duplicates come back): `Married`, `Divorced`, `Separated`,
+`Widowed`, `Start`, `Ongoing`, `Ended`, plus the custom-status fallback
+(`humanizeOptionLabel('cohabiting')` → `Cohabiting` on `statusDates.cohabiting`). The
+`RELATIONSHIP_TYPE_STATUS_ROWS` table was extracted byte-for-byte (normalized-whitespace
+identical to the copy removed from `PropertiesPanel.tsx`, verified programmatically), so no
+label was dropped or altered in the move.
+
+### Finding 2 (med-low) — deathDateKnown-without-a-date no longer writes an event
+
+The `if (field === 'deathDate' && !next && nextDeathKnown && !prevDeathKnown)` block that
+appended a `buildPersonDateEvent('Death Date', today)` is removed. `savePersonProperties`
+now only sets `updates.deathDateKnown` for the checkbox; the date fields
+(`PERSON_DEFERRED_DATE_FIELDS.forEach`) set the field and comment that the field is the
+record. Confirmed nothing regressed: `deathDateKnown` is still persisted (:1146), the node's
+death marker still keys off `deathDate || deathDateKnown` (PersonNode.tsx, unchanged), and
+the full suite + both typecheck gates are green. Note: no dedicated regression test asserts
+this specific removal (see findings below) — the guard is the code path itself plus the
+existing "no date event appended" tests for birth/gender.
+
+## Removed helpers — no other caller, other paths unaffected
+
+- `buildPersonDateEvent` — grep returns ZERO references. Deleted with its only caller.
+- `buildPartnershipEvent` — grep returns ZERO references. Deleted with its only caller.
+- `cloneEventForPerson` — grep returns only the explanatory comment. Its only caller was
+  the removed clone block in `savePartnershipProperties`.
+- `PERSON_DATE_LABELS` — ZERO references (consumed only by `buildPersonDateEvent`).
+- `RELATIONSHIP_STATUS_INTENSITY` — relocated to `constants/timelineBlockStyle.ts`, now
+  consumed by `syntheticDateEvents.ts:182`; not lost.
+- The `if (newEvents.length)` append/clone block in `savePartnershipProperties` — gone;
+  `newEvents` is no longer declared there, so nothing is appended.
+
+`appendEventsToPerson` was NOT removed and is NOT dead — it still serves the Papero score
+path (`buildPaperoScoreEvent` at PropertiesPanel.tsx:2783).
+
+Partnership events created through the OTHER paths still behave, verified by reading:
+the Events-tab "Add Event" flow (`saveEvent` → `onUpdatePartnership(id, { events })`,
+:1956-1957) and the Timeline board's own add/edit (`saveEventModal` →
+`onUpdatePartnership(id, { events | familyEvents })`, TimelineBoardModal.tsx:224-237) both
+write straight to the partnership arrays and use none of the removed helpers.
+`familyEvents` are surfaced unfiltered in `getDisplayEvents` (:1490-1493) — correct, since
+status records were only ever written to `events`, never `familyEvents`.
+
+## PropertiesPanel.tsx coherence — diffed against dde4503, every hunk sane
+
+The full diff (`git diff dde4503..HEAD -- .../PropertiesPanel.tsx`) is six surgical hunks:
+(1) three imports added, each used; (2) `PERSON_DATE_LABELS` + the local
+`RELATIONSHIP_TYPE_STATUS_ROWS` removed (the latter now imported, byte-identical);
+(3) `cloneEventForPerson` + `RELATIONSHIP_STATUS_INTENSITY` removed (relocated/comment);
+(4) `buildPersonDateEvent` removed; (5) `savePersonProperties` / `savePartnershipProperties`
+date-event appends, the deathKnown push, the type/status-changed event and the clone block
+removed; (6) `getDisplayEvents` now filters `withoutPersonDateRecords` and
+`withoutPartnershipStatusRecords`. No hunk deletes unrelated code; `newEvents` in
+`savePersonProperties` is still live for the identity fields (`buildPersonIdentityEvent`),
+`humanizeOptionLabel`, `normalizeStatusKey`, `toTitleCase`, and `appendEventsToPerson` all
+retain callers (confirmed by grep), and `tsc --noEmit` under `noUnusedLocals` passes with no
+unused-import/locals errors. The file is coherent.
+
+## Findings (ranked)
+
+### 1. P19-corollary residual — med-low · partnershipStatusEvents.ts:69-73
+
+The `normalizeLabel(statusKey) === normalizedSubtype` branch (kept to catch custom statuses)
+still hides a user-written relationship event whose subtype is exactly the STATUS KEY
+`Divorce` (noun) on the divorce date. `divorce` is the one standard status whose key
+diverges from its dateLabel (`Divorced`); the other six keys spell their label exactly, so
+no noun-form false positive exists for them. Reproduced: subtype `Divorce` on
+`statusDates.divorce` → `true` (hidden); on any other date → `false`. This predates the fix
+(the pass-9 stem hid the same string) and the event is semantically indistinguishable from
+the divorce status record, so it is not a shipped-behaviour defect — recorded, not blocking.
+
+### 2. Prefix branch without date/anchorId check — low · partnershipStatusEvents.ts:56
+
+`STATUS_CHANGE_SUBTYPE_PREFIXES` matches any subtype starting `type changed to` /
+`status changed to` with no date or anchorId requirement (only the anchorType guard). This
+is the app's own generated phrasing (the old producer wrote exactly these strings), so a
+clinician writing one freehand is implausible; it was present in 7f6d7dd and pass 9 did not
+flag it. Recorded for awareness; non-blocking.
+
+### 3. Test-coverage gap — low · PropertiesPanel.test.tsx
+
+No regression test asserts the deathKnown-without-a-date path writes no event (the existing
+guards cover birth and gender dates only). The removal is verified by reading and by the
+green suite, but a future re-introduction of the `Death Date` push would not go red.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.42 → v 2.43` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — the pass-9 blocking finding is fixed and verified by reproduction against the
+real recogniser: the stem is gone, the match is exact against the producer's own label set
+(extracted byte-identically to a shared constant) plus the partnership's status keys, and the
+anchorType guard closes the person-anchored hole. All five reproduced cases and 23 further
+attack subtypes are kept; every producer label on its own date — including the custom-status
+fallback — is still recognised, so the duplicates do not return. The deathKnown path no
+longer writes a dated-today event, and nothing regressed (deathDateKnown still persists, the
+node marker is unchanged). All three removed helpers had no other caller, the two remaining
+`appendEventsToPerson` call sites are legitimate, and partnership events via the Events tab
+and the Timeline board add/edit still write correctly. PropertiesPanel.tsx is coherent and
+nothing was lost from it. Three non-blocking findings remain — one med-low residual
+(`Divorce` noun via the statusKey branch), one low prefix-branch note, one low test gap —
+none is a shipped-behaviour defect. Clean against P1–P36 and L1–L6; P19-corollary/P2
+(fuzzy parallel recogniser, resolved) and a write-then-hide inconsistency (resolved) were
+the applicable patterns this pass.

@@ -2,6 +2,25 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the one-event-per-date batch (2026-09-20)
+
+Gate passes 9 and 10 (pass 9 REJECTED, pass 10 APPROVED). Three residuals,
+none blocking.
+
+- **A user event literally titled "Divorce" on the divorce date is hidden.**
+  `divorce` is the one status key whose spelling differs from its label
+  (`Divorced`), and the recogniser also accepts a partnership's own status
+  keys, so the noun matches. Arguably correct — an event called "Divorce" on
+  the divorce date IS the divorce — which is why it was left. Revisit if
+  anyone reports a missing event by that name.
+- **No test covers the "Type changed to…" / "Status changed to…" prefix
+  branch on its own.** It is exercised through the higher-level filters, but
+  a direct case would pin it.
+- **`EventCreator` lists the raw stored events unfiltered**, so the old
+  person-date and partnership-status records still appear there. Harmless —
+  it is a creation surface, not a timeline — but inconsistent with the
+  Timeline and the Events tab now that both hide them.
+
 ## Flaky test spotted during gate pass 8 (2026-09-20)
 
 - **`DiagramEditor.test.tsx` "starts interactive demo…" times out under load.**

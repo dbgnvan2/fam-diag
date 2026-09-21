@@ -1387,6 +1387,48 @@ describe('PropertiesPanel', () => {
         ).toBe(false);
     });
 
+    it('marks a death as known without inventing a date for it', () => {
+        // Ticking "deceased, date unknown" used to write a Death Date event
+        // dated TODAY — a date the death did not happen on. A death with no
+        // date cannot be placed on a timeline honestly.
+        const updatePerson = vi.fn();
+        const person: Person = {
+            id: 'p-death',
+            name: 'Unknown Death',
+            x: 0,
+            y: 0,
+            gender: 'male',
+            partnerships: [],
+            events: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={person}
+                people={[person]}
+                eventCategories={['Nodal']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={updatePerson}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Dates' }));
+        fireEvent.click(screen.getByTitle('Check if deceased (date unknown)'));
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+        const [, updates] = updatePerson.mock.calls[0];
+        expect(updates.deathDateKnown).toBe(true);
+        const appended = (updates.events || []) as Array<{ subtype?: string }>;
+        expect(
+            appended.some((event) => (event.subtype || '').toLowerCase() === 'death date')
+        ).toBe(false);
+    });
+
     it('saves a partnership date without appending an event for it', () => {
         const updatePerson = vi.fn();
         const updatePartnership = vi.fn();
