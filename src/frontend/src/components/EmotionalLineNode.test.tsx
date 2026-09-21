@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import EmotionalLineNode from './EmotionalLineNode';
 import { Stage, Layer } from 'react-konva';
 import type { Person, EmotionalLine } from '../types';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 describe('EmotionalLineNode', () => {
     it('renders without crashing', () => {
@@ -430,4 +431,43 @@ describe('EmotionalLineNode', () => {
         expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
     });
 
+
+    /**
+     * Emotional pattern lines are the thinnest thing on the canvas and the
+     * main way into a pattern's properties.
+     */
+    it('gives every clickable pattern line a wide hit region', () => {
+        const emotionalLine: EmotionalLine = {
+            id: 'el-hit',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'fusion',
+            lineStyle: 'fusion-dotted-wide',
+            lineEnding: 'none',
+        };
+        const person1: Person = { id: 'p1', x: 0, y: 0, name: 'A', partnerships: [] };
+        const person2: Person = { id: 'p2', x: 200, y: 200, name: 'B', partnerships: [] };
+        const stageRef = React.createRef<any>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={emotionalLine}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+        const clickable = stageRef
+            .current!.find('Line')
+            .filter((line: any) => typeof line.eventListeners?.click !== 'undefined' || line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
+        expect(clickable.length).toBeGreaterThan(0);
+        clickable.forEach((line: any) => {
+            expect(line.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
+        });
+    });
 });

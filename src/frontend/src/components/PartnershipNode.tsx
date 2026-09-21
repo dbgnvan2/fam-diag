@@ -3,6 +3,7 @@ import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
 import { computeDefaultFamilyName, partnershipSeparationMarks } from '../utils/partnershipUtils';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 interface PartnershipNodeProps {
   partnership: Partnership;
@@ -151,7 +152,8 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           <Line
               points={[pLeft_x_center, 0, pRight_x_center, 0]}
               stroke="transparent" // invisible, just for hit detection
-              strokeWidth={20}
+              strokeWidth={LINE_HIT_STROKE_WIDTH}
+              hitStrokeWidth={LINE_HIT_STROKE_WIDTH}
           />
           <Line
               points={[pLeft_x_center, 0, pRight_x_center, 0]}

@@ -4,6 +4,7 @@ import { Stage, Layer } from 'react-konva';
 import ChildConnection from './ChildConnection';
 import type { Person, Partnership } from '../types';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 describe('ChildConnection', () => {
   const partnership: Partnership = {
@@ -142,5 +143,37 @@ describe('ChildConnection', () => {
     // ChildConnection never renders cutoff decorations — those are in FamilyCutoffArc
     const shapes = group.getChildren().filter((node: any) => node.getClassName() === 'Shape');
     expect(shapes).toHaveLength(0);
+  });
+
+  /**
+   * A child connection is drawn 1px wide. Clicking it to open the Properties
+   * panel meant landing inside a single pixel, which is close to impossible
+   * once the canvas is zoomed out.
+   */
+  it('gives the child line a hit region far wider than the line it draws', () => {
+    const stageRef = React.createRef<Stage>();
+    render(
+      <Stage ref={stageRef}>
+        <Layer>
+          <ChildConnection
+            child={{ id: 'child-1', name: 'Child', x: 50, y: 200, partnerships: [] }}
+            partnership={partnership}
+            partner1={partner1}
+            partner2={partner2}
+            isSelected={false}
+            onSelect={() => {}}
+            onContextMenu={() => {}}
+          />
+        </Layer>
+      </Stage>
+    );
+    const group = stageRef.current!.getLayers()[0].getChildren()[0] as any;
+    const [visible, hit] = group.getChildren();
+
+    expect(visible.strokeWidth()).toBe(1);
+    // The clickable line is the one carrying the handlers.
+    expect(hit.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
+    expect(hit.strokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
+    expect(hit.hitStrokeWidth()).toBeGreaterThan(visible.strokeWidth() * 10);
   });
 });

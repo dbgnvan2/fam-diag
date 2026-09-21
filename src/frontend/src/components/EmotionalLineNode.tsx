@@ -1,6 +1,7 @@
 import { Group, Line, Rect, Text } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 const getDashStyle = (lineStyle: EmotionalLine['lineStyle']) => {
     switch (lineStyle) {
@@ -147,7 +148,7 @@ const EmotionalLineNode = ({
     const lineProps = {
         stroke: isSelected ? 'blue' : baseColor,
         strokeWidth,
-        hitStrokeWidth: 24,
+        hitStrokeWidth: LINE_HIT_STROKE_WIDTH,
         onClick: handleSelect,
         onTap: handleSelect,
         onContextMenu: handleContextMenu,
@@ -215,7 +216,8 @@ const EmotionalLineNode = ({
                     <Line
                         points={linePoints}
                         stroke="transparent"
-                        strokeWidth={28}
+                        strokeWidth={LINE_HIT_STROKE_WIDTH}
+                        hitStrokeWidth={LINE_HIT_STROKE_WIDTH}
                         onClick={handleSelect}
                         onTap={handleSelect}
                         onContextMenu={handleContextMenu}
@@ -283,7 +285,8 @@ const EmotionalLineNode = ({
                     <Line
                         points={linePoints}
                         stroke="transparent"
-                        strokeWidth={28}
+                        strokeWidth={LINE_HIT_STROKE_WIDTH}
+                        hitStrokeWidth={LINE_HIT_STROKE_WIDTH}
                         onClick={handleSelect}
                         onTap={handleSelect}
                         onContextMenu={handleContextMenu}

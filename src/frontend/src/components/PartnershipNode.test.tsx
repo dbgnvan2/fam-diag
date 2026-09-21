@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import PartnershipNode from './PartnershipNode';
 import { Stage, Layer } from 'react-konva';
 import type { Partnership, Person } from '../types';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 describe('PartnershipNode', () => {
     const partner1: Person = { id: 'p1', name: 'p1', x: 0, y: 0, gender: 'male', partnerships: [] };
@@ -219,5 +220,19 @@ describe('PartnershipNode', () => {
             marriedStartDate: '1969-03-03',
         });
         expect(countSlashes(stageRef, 50)).toBe(0);
+    });
+
+    it('gives the partnership line a hit region far wider than the line it draws', () => {
+        const stageRef = renderWith({});
+        const lines = stageRef.current!.find('Line');
+        const connector = lines.filter((line: any) => {
+            const pts = line.points();
+            return pts.length === 4 && pts[1] === 0 && pts[3] === 0;
+        });
+        const hit = connector.find((line: any) => line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
+        expect(hit).toBeTruthy();
+        // The visible line stays 2px; only the clickable region grew.
+        const drawn = connector.find((line: any) => line.strokeWidth() === 2);
+        expect(drawn).toBeTruthy();
     });
 });

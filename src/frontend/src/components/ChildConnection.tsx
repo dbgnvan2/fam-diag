@@ -2,6 +2,7 @@ import { Line, Group } from 'react-konva';
 import type { Partnership, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
+import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 interface ChildConnectionProps {
   child: Person;
@@ -50,7 +51,8 @@ const ChildConnection = ({ child, partnership, partner1, partner2, isSelected, o
         <Line
             points={points}
             stroke="transparent"
-            strokeWidth={10}
+            strokeWidth={LINE_HIT_STROKE_WIDTH}
+            hitStrokeWidth={LINE_HIT_STROKE_WIDTH}
             onClick={handleSelect}
             onTap={handleSelect}
             onContextMenu={(e) => onContextMenu(e, child.id, partnership.id)}
