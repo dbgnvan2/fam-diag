@@ -22,6 +22,7 @@ import { earliestPartnershipDate } from '../../utils/partnershipUtils';
 import { hasSameEvent } from '../../utils/eventDedup';
 import { withoutPersonDateRecords } from '../../utils/personDateEvents';
 import { withoutPartnershipStatusRecords } from '../../utils/partnershipStatusEvents';
+import { withoutPatternEditRecords } from '../../utils/patternEventRecords';
 import {
   blockShapeForPerson,
   buildTimelineHoverText,
@@ -633,7 +634,9 @@ export default function TimelineBoardModal({
             });
           }
           const eplEvents = [
-            ...(line.events || []),
+            // Edit records are hidden: one event for the pattern, one each for
+            // its start and end dates (utils/patternEventRecords.ts).
+            ...withoutPatternEditRecords(line.events || []),
             ...synthesizeEmotionalLineDateEvents(
               line,
               people.find((p) => p.id === line.person1_id)?.name,

@@ -44,6 +44,7 @@ import {
 import { baseEventId, hasSameEvent } from './eventDedup';
 import { withoutPersonDateRecords } from './personDateEvents';
 import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
+import { withoutPatternEditRecords } from './patternEventRecords';
 import { eventDisplayName } from './timelineItemText';
 import { computeBloodPaths, computeKinRoutes, type BloodPath, type KinRoute } from './kinship';
 import {
@@ -424,7 +425,7 @@ export function collectSystemEvents({
     const p2 = personById.get(line.person2_id)?.name || '';
     const pairLabel = [p1, p2].filter(Boolean).join(' ↔ ') || 'Pattern';
     const dateEvents = synthesizeEmotionalLineDateEvents(line, p1, p2);
-    [...(line.events || []), ...dateEvents].forEach((event) => {
+    [...withoutPatternEditRecords(line.events || []), ...dateEvents].forEach((event) => {
       push({
         event,
         relationClass: 'sibling',

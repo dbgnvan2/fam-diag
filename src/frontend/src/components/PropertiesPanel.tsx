@@ -28,6 +28,7 @@ import { hasSameEvent } from '../utils/eventDedup';
 import { RELATIONSHIP_TYPE_STATUS_ROWS } from '../constants/relationshipStatusLabels';
 import { withoutPersonDateRecords } from '../utils/personDateEvents';
 import { withoutPartnershipStatusRecords } from '../utils/partnershipStatusEvents';
+import { withoutPatternEditRecords } from '../utils/patternEventRecords';
 import {
   synthesizePersonDateEvents,
   synthesizePartnershipDateEvents,
@@ -1044,40 +1045,6 @@ const PropertiesPanel = ({
 
   type EmotionalDateField = 'startDate' | 'endDate';
 
-  const buildEmotionalLineEvent = (
-    line: EmotionalLine,
-    field: EmotionalDateField,
-    dateValue: string
-  ): EmotionalProcessEvent | null => {
-    if (!DATE_PATTERN.test(dateValue)) return null;
-    const person1 = people.find((person) => person.id === line.person1_id);
-    const person2 = people.find((person) => person.id === line.person2_id);
-    if (!person1 || !person2) return null;
-    const stageLabel = field === 'startDate' ? 'Pattern Start' : 'Pattern End';
-    const typeLabel = toTitleCase(line.relationshipType);
-    const statusText = toTitleCase(line.status || 'ongoing');
-    return {
-      id: createEventId(),
-      date: dateValue,
-      startDate: dateValue,
-      category: 'Emotional Pattern',
-      eventType: 'EPE' as const,
-      anchorType: 'EMOTIONAL_PROCESS_EP' as const,
-      anchorId: line.id,
-      status: 'discrete' as const,
-      subtype: `${typeLabel} – ${statusText} – ${stageLabel}`,
-      intensity: 0,
-      frequency: 0,
-      impact: 0,
-      howWell: DEFAULT_HOW_WELL,
-      otherPersonName: person2.name || '',
-      primaryPersonName: person1.name || '',
-      wwwwh: DEFAULT_OBSERVATION,
-      observations: line.notes || DEFAULT_OBSERVATION,
-      eventClass: 'emotional-pattern' as const,
-      createdAt: Date.now(),
-    };
-  };
   const buildEmotionalPatternMeasurementEvent = (
     line: EmotionalLine,
     intensity: number,
@@ -1324,52 +1291,16 @@ const PropertiesPanel = ({
       const next = emotionalDraft[field] ?? '';
       if (prev !== next) {
         updates[field] = next || undefined;
-        if (next) {
-          const event = buildEmotionalLineEvent(emotionalDraft, field, next);
-          if (event) newEvents.push(event);
-        }
+        // No event is written for the date itself. Each edit used to APPEND
+        // one and never replace the last, so a corrected start date left the
+        // old one behind — on top of the Pattern Started / Pattern Ended that
+        // syntheticDateEvents already renders from the field.
       }
     });
-    // Create event for non-date property changes (relationshipType, status, lineStyle, etc.)
-    const nonDateChanged = (['relationshipType', 'status', 'lineStyle'] as const).some(
-      (field) => stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
-    );
-    if (nonDateChanged) {
-      const today = new Date().toISOString().slice(0, 10);
-      const person1 = people.find((p) => p.id === emotionalDraft.person1_id);
-      const person2 = people.find((p) => p.id === emotionalDraft.person2_id);
-      const changes: string[] = [];
-      if (stringDiffers(emotionalDraft.relationshipType, selectedEmotionalLine.relationshipType)) {
-        changes.push(`Type: ${humanizeOptionLabel(emotionalDraft.relationshipType)}`);
-      }
-      if (stringDiffers(emotionalDraft.status, selectedEmotionalLine.status)) {
-        changes.push(`Status: ${humanizeOptionLabel(emotionalDraft.status || 'ongoing')}`);
-      }
-      if (stringDiffers(emotionalDraft.lineStyle, selectedEmotionalLine.lineStyle)) {
-        changes.push(`Style: ${humanizeOptionLabel(emotionalDraft.lineStyle)}`);
-      }
-      newEvents.push({
-        id: createEventId(),
-        date: today,
-        startDate: today,
-        category: 'Emotional Pattern',
-        eventType: 'EPE' as const,
-        anchorType: 'EMOTIONAL_PROCESS_EP' as const,
-        anchorId: selectedEmotionalLine.id,
-        status: 'discrete' as const,
-        subtype: changes.join(', '),
-        intensity: 0,
-        frequency: 0,
-        impact: 0,
-        howWell: DEFAULT_HOW_WELL,
-        otherPersonName: person2?.name || '',
-        primaryPersonName: person1?.name || '',
-        wwwwh: DEFAULT_OBSERVATION,
-        observations: DEFAULT_OBSERVATION,
-        eventClass: 'emotional-pattern' as const,
-        createdAt: Date.now(),
-      });
-    }
+    // Changing a pattern's type, status or line style no longer appends an
+    // event dated TODAY. It recorded an edit, not something that happened
+    // between two people, and it was the source of repeated identical
+    // blocks on the timeline. The pattern's own fields carry its state.
     if (emotionalMetricDirty) {
       const metricEvent = buildEmotionalPatternMeasurementEvent(
         { ...selectedEmotionalLine, ...emotionalDraft },
@@ -1457,7 +1388,9 @@ const PropertiesPanel = ({
         const person1 = people.find((p) => p.id === line.person1_id);
         const person2 = people.find((p) => p.id === line.person2_id);
         return [
-          ...ownEvents,
+          // The pattern's own tab: one event for it, one each for its start
+          // and end — edit records hidden (utils/patternEventRecords.ts).
+          ...withoutPatternEditRecords(ownEvents),
           ...synthesizeEmotionalLineDateEvents(line, person1?.name, person2?.name),
         ];
       }
@@ -1502,7 +1435,7 @@ const PropertiesPanel = ({
       if (line.person1_id !== person.id && line.person2_id !== person.id) return;
       const p1 = people.find((q) => q.id === line.person1_id);
       const p2 = people.find((q) => q.id === line.person2_id);
-      (line.events || []).forEach((event) => {
+      withoutPatternEditRecords(line.events || []).forEach((event) => {
         if (isAlreadyCloned(event.id)) return;
         extra.push(event);
       });

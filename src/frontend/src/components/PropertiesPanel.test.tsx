@@ -39,6 +39,52 @@ describe('PropertiesPanel', () => {
         expect(screen.getByDisplayValue('Test notes')).toBeInTheDocument();
     });
 
+    it('saves a pattern date without appending an event for it', () => {
+        // A pattern is one event; its start and end dates are separate events
+        // rendered from the date fields. Saving used to APPEND a record on
+        // every date change, so correcting a start date left the old one
+        // behind as well as duplicating Pattern Started.
+        const updateEmotionalLine = vi.fn();
+        const line: EmotionalLine = {
+            id: 'el-date',
+            person1_id: 'p1',
+            person2_id: 'p2',
+            relationshipType: 'conflict',
+            lineStyle: 'conflict-solid-wide',
+            lineEnding: 'none',
+            startDate: '2020-01-01',
+            events: [],
+        };
+        render(
+            <PropertiesPanel
+                selectedItem={line}
+                people={[
+                    { id: 'p1', name: 'A', x: 0, y: 0, partnerships: [] },
+                    { id: 'p2', name: 'B', x: 100, y: 0, partnerships: [] },
+                ]}
+                eventCategories={['Job']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={updateEmotionalLine}
+                onClose={() => {}}
+            />
+        );
+        const startInputs = screen.getAllByDisplayValue('2020-01-01');
+        fireEvent.change(startInputs[0], { target: { value: '2021-06-06' } });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+        expect(updateEmotionalLine).toHaveBeenCalled();
+        const [, updates] = updateEmotionalLine.mock.calls[0];
+        expect(updates.startDate).toBe('2021-06-06');
+        const appended = (updates.events || []) as Array<{ subtype?: string }>;
+        expect(
+            appended.some((event) => / – Pattern (Start|End)$/.test(event.subtype || ''))
+        ).toBe(false);
+    });
+
     it('updates the line color when the picker changes', () => {
         const updateEmotionalLine = vi.fn();
         const emotionalLine: EmotionalLine = {
