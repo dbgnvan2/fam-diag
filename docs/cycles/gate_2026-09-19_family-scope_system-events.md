@@ -1311,3 +1311,608 @@ that uses `'ended'` — the old three-line rendering asserted separated *and* di
 removed helper and branches had no other readers; the `'divorced'` normalisation survives inside the
 new function. All three gates are green on the exact commit to be pushed. Clean against P1–P36 and
 L1–L6; one low-severity hand-maintained-key note (finding 1), no shipped-behaviour defect.
+
+---
+
+# Pass 12 — widen the click area on partnership, child and pattern lines (0fc332f)
+
+Date: 2026-09-21
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `7a698ea...HEAD` (1 commit)
+Verdict: **APPROVED**
+
+## Commits
+
+- 0fc332f Widen the click area on partnership, child and pattern lines
+
+## Gates (run on current HEAD `0fc332f`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 61 files, 635 passed, 13 skipped (648) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## The change
+
+`constants/hitAreas.ts` exports `LINE_HIT_STROKE_WIDTH = 28`. Applied via Konva
+`hitStrokeWidth` (which widens the clickable region without changing the drawn stroke) to
+the three line kinds that are the way into the Properties panel: the PRL horizontal
+connector (PartnershipNode, was 20), the parent–child connection (ChildConnection, was
+10), and the emotional pattern line (EmotionalLineNode, was 24). `FamilyCutoffArc` is
+deliberately left at 16 because it is drawn ON a child connection.
+
+## (a) Every clickable line in the three components got the wider region — enumerated, none missed
+
+**EmotionalLineNode** (the many-render-path component) — read branch by branch. `lineProps`
+(line 148) now carries `hitStrokeWidth: LINE_HIT_STROKE_WIDTH` and is spread (`{...lineProps}`)
+onto **every** rendered Line: the `cutoff` branch's 3 lines (:305–307), the fusion band's 2–3
+lines (:333), the dotted/dashed/long-dash/distance line (:348), the sawtooth/conflict band's 1–3
+lines (:374), the default line (:413), and the perpendicular ending marks in `renderEndings`
+(:473, :477, :484, :488 — which also carry `onClick`, so they were already click targets and now
+share the wider region). The two transparent hit lines in the `open-connection` (:216–224) and
+`projection` (:285–293) branches now set `strokeWidth` AND `hitStrokeWidth` to the constant
+(previously `strokeWidth={28}` alone, which already defaulted hit to 28 — explicit now, no width
+change). Arrows (`makeArrow`) and every marker/text label (date labels, adequate labels,
+open-connection/projection markers) are `listening={false}` — not click targets, correctly
+untouched. No clickable line left at 24 or missing.
+
+**PartnershipNode** — the only line click target is the horizontal connector: the transparent
+hit line (:152–157) now uses the constant for both `strokeWidth` and `hitStrokeWidth` (was 20);
+the click itself is carried by the enclosing draggable Group's `onClick`/`onContextMenu`, so the
+wider line widens the Group's grab area. The two PDLs (:111–123) and the separation/divorce slash
+marks (:206–212) have no click handlers — pre-existing, out of scope (they were never the way into
+the panel).
+
+**ChildConnection** — the transparent hit line (:51–59) now uses the constant (was 10); the
+visible line (strokeWidth 1) carries no handler, the hit line is the click target. `FamilyCutoffArc`
+is the only other child-line overlay and is correctly left at 16 (verified: `hitStrokeWidth={16}`
+at FamilyCutoffArc.tsx:109).
+
+## (b) Overlap at 28 — real spacing worked out, no element unselectable
+
+- **Sibling drop lines**: sibling x-spacing is 42px (dataImport.ts:777/823), 50px
+  (usePersonOperations.ts:197), 70px (useVoiceHandlers.ts:285) depending on the creation path.
+  The commit's "roughly 40px" is the tightest case. At 28px hit (±14px half-width) two adjacent
+  drop lines leave a **14px gap** at the tightest spacing — no overlap, no stealing.
+- **EPL close to a PRL**: emotional lines render after (on top of) partnerships, so where they
+  overlap the EPL wins — the pre-existing rule. EPL 24→28 (+2px radius) and PRL 20→28 (+4px
+  radius) slightly widen the overlap band, but the PRL stays selectable everywhere an EPL is not
+  within 14px. This is the intended trade-off (wider EPL = easier EPL selection), not a new class
+  of problem.
+- **Cutoff arc over a child line**: arc hit 16px (topmost) over the child line's 28px. The arc
+  stays selectable within its ±8px; the child line is now selectable in the 8–14px band that was
+  previously dead/arc-only (the arc's 16px exceeded the old child 10px). Net **improvement** — no
+  element unselectable.
+- **Twins** (multipleBirthGroupId): two child lines share a `connectionAnchorX` so they converge
+  at the PRL and their 28px regions overlap near the anchor; each remains selectable along its
+  lower diverging segment. Minor, pre-existing in nature.
+
+## (c) The new tests genuinely fail on the old per-component values — proven by mutation
+
+All three components were reverted to their old literals (PartnershipNode 20, ChildConnection 10,
+EmotionalLineNode `hitStrokeWidth: 24`), keeping the constant and the tests untouched, and the
+three test files were run:
+
+- ChildConnection "gives the child line a hit region far wider…" → RED (`expected 'auto' to be 28`)
+- EmotionalLineNode "gives every clickable pattern line a wide hit region" → RED (`expected 24 to be 28`)
+- PartnershipNode "gives the partnership line a hit region far wider…" → RED (`expected undefined to be truthy`)
+
+Files restored with `git checkout`; the three files then pass (28/28). The tests assert the hit
+region against the imported constant, not against a hard-copied literal, so they are anchored to
+the single source of truth.
+
+## (d) Nothing else regressed — verified structurally
+
+- **PRL vertical drag**: the hit line is a child of the draggable Group (`draggable`,
+  `dragDirection="vertical"`, `onDragEnd` on the Group); it has no `draggable`/`listening={false}`
+  of its own, so mousedown+drag bubbles to the Group unchanged — only the grab area widened. No
+  drag regression.
+- **Family-name box, indicators, context menus**: the family box Group renders after (on top of)
+  the connector Group, so its top edge (connectorY+8) overlapping the hit line's +14px reach does
+  not lose clicks — the topmost box wins; indicators sit at boxY+boxH+2, well below the line;
+  `onContextMenu` is unchanged on the Group, the hit line, and every EPL line. Full suite (635
+  passed) plus both typecheck gates are green.
+
+## Findings (ranked)
+
+None blocking.
+
+### 1. Test-coverage gap — low · EmotionalLineNode.test.tsx
+
+The hit-width test renders a single lineStyle (`fusion-dotted-wide`) and so exercises only the
+fusion branch. The `open-connection` and `projection` transparent hit lines (which use the
+constant directly rather than via `lineProps`) and the `cutoff` / sawtooth / conflict branches
+(which use `lineProps`) are not asserted by the test. They are structurally correct (verified by
+reading), but a future revert of one of the two transparent-hit-line widths would not go red.
+Extend the test with an `open-connection` or `projection` fixture and a `cutoff` fixture.
+
+### 2. Design-note accuracy — low · constants/hitAreas.ts:18
+
+The docblock's "sibling drop-lines sit roughly 40px apart" is the tightest of three real spacings
+(42px import / 50px manual / 70px voice). The 28px choice is safe against all three (≥14px gap
+even at 42px), so the compromise holds; the single number slightly understates the headroom on the
+manual/voice paths.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.44 → v 2.45` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- `hitStrokeWidth` click-through is verified structurally (Konva hit-graph + draw order), not by
+  jsdom hit-testing, which jsdom does not honour.
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — the change is verified by reproduction, not the commit message. Every clickable
+line in the three target components was enumerated and confirmed to carry the 28px hit region
+(including all six EmotionalLineNode render paths and the perpendicular endings); the overlap
+arithmetic at 28px (sibling drop lines ≥14px gap at the tightest 42px spacing, EPL-over-PRL
+topmost-wins, cutoff arc over child line actually improved) leaves no element unselectable; the
+three new tests are proven by mutation to go red when the components are reverted to their old
+20/10/24 values; and PRL drag, the family-name box, indicators, and context menus are all intact.
+All three gates are green on the exact commit to be pushed. Clean against P1–P36 and L1–L6; two
+low-severity notes recorded above (test-coverage gap, docblock understatement), no
+shipped-behaviour defect.
+
+---
+
+# Pass 13 — a son's wife is a daughter-in-law, not a daughter (274f996)
+
+Date: 2026-09-21
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `7a698ea...HEAD` (2 commits); the substance is `274f996` (`0fc332f` was pass 12 — APPROVED)
+Verdict: **REJECTED**
+
+## Commits
+
+- 0fc332f Widen the click area on partnership, child and pattern lines (pass 12 — APPROVED)
+- 274f996 Call a son's wife a daughter-in-law, not a daughter (this pass)
+
+## Gates (run on current HEAD `274f996`)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 61 files, 647 passed, 13 skipped (660) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## Root cause — confirmed by reading, not the commit message
+
+`Reach.lineal` was doing two jobs: (1) gating whether the traversal may walk UP from a node (a
+married-in partner's family of origin is out of scope, D1), and (2) deciding `marriedIn =
+!lineal`, i.e. whether someone is blood-related. Those are different questions. The fix adds
+`blood` and `descended` to `Reach`: an up edge only confers blood while `!descended` (go up then
+down, never up again), `marriedIn` is now derived from `!blood`, and `isBetter` prefers blood
+then lineal then closeness. Labels consult a new `IN_LAW_NOUNS` table per generation.
+
+## (a) Scope MEMBERSHIP invariant — VERIFIED by differential probe
+
+The OLD `computeFamilyScope` was extracted byte-for-byte from `git show 7a698ea` and run
+side-by-side with the new one across **11 family shapes × every person as root × 8 option sets =
+664 runs** (four-gen+cousins, Betty in-law, adopted child with birth+adoptive parent partnerships,
+step-family, remarriage, half-siblings, married-to-two-siblings, root's spouse with parents,
+linear chain, consanguineous cousin-marriage diamond, and the cyclic bad-import fixture).
+
+- `personIds`: **identical in all 664 runs**.
+- `partnershipIds`: **identical in all 664 runs**.
+- `generation`: identical in every **acyclic** fixture; differs only in the **cyclic bad-import**
+  fixture (12 runs, e.g. root=b: `a:0→2`, `d:-1→1`). There generation is inherently ambiguous
+  ("a is its own grandparent") and the blood-first tiebreak picks a different arbitrary offset;
+  `personIds`/`partnershipIds` stay identical, and `test_m1a9` only asserts `size ≤ people.length`
+  and root-present, so it is unaffected.
+
+So the traversal change does **not** alter who is in scope or which partnerships are visible; it
+only re-derives the `marriedIn` set (and, in degenerate cyclic data, generation offsets).
+
+## (b) Blood rule — attacked with the requested genealogies (all correct)
+
+Asserted directly on `scope.marriedIn` (the mechanism), not on labels:
+
+- half-sibling (shares one parent) → **blood** (not married-in). ✓
+- step-parent's child by another marriage → **married-in** (not blood). ✓
+- cousins (via shared grandparent) → **blood**. ✓
+- a person married to two siblings in the same family → **married-in** (reached twice, still
+  not blood). ✓
+- the root's own spouse → **married-in** (`blood:false`), but labelled **Wife/Husband** via the
+  spousal path, not Sister-in-law. ✓
+
+## (c) New tests fail against the old rule — VERIFIED by reproduction
+
+`familyScope.ts` was reverted to `7a698ea` (old `marriedIn = !lineal`, no blood/descended),
+keeping the new `systemEvents.ts` + `relationLabels.ts`, and the in-law describe block run:
+
+- `test_inlaw_a_sons_wife_is_a_daughter_in_law_not_a_daughter` → RED
+  `expected 'Daughter' to be 'Daughter-in-law'` — the exact reported symptom.
+- `test_inlaw_she_is_a_sister_in_law_to_her_husbands_siblings` → RED
+  `expected 'Sister' to be 'Sister-in-law'`.
+
+The file was restored (`git checkout`); both then pass. The two tests genuinely guard the fix.
+
+## (d) Step- labels above the lane person — CORRECT for step-parents, WRONG for parents-in-law
+
+Verified by observing the actual `relationNoun` with dated events inside the lane person's
+lifetime (not the commit's word for it):
+
+- step-mother (parent's new spouse, gen -1) → `Step-mother` ✓
+- step-grandmother (grandparent's new spouse, gen -2) → `Step-grandmother` ✓
+
+But the docblock's premise — "the traversal never walks up from a married-in partner, so a
+married-in person a generation up can only be a parent's other partner" — is **false**. A
+married-in spouse regains `lineal` through the **child's up-edge** (root → down → child → up →
+spouse, which sets `lineal:true`), and then walks UP into their own family of origin:
+
+- **parent-in-law** (lane person's spouse's father, gen -1, reached via that child-detour) →
+  labelled **`Step-father`** — should be `Father-in-law`.
+
+The same conflation bites the other direction:
+
+- **step-child** (spouse's child by a prior marriage, gen +1, reached by walking DOWN from the
+  married-in spouse) → labelled **`Son-in-law`** — should be `Step-son`.
+
+Both are common shapes (married-with-kids plus the in-laws diagrammed; blended families). Neither
+is a *regression* — before this commit these people were labelled with blood nouns ("Father",
+"Son"), equally wrong — so the commit is a clear net improvement (Betty, sibling-in-law,
+child-in-law, step-parent, step-grandparent all now correct). But the `IN_LAW_NOUNS` table is
+built on a false premise and still mislabels two reachable relations, on the exact surface the
+commit exists to fix.
+
+## Findings (ranked)
+
+### 1. P19-corollary / false-premise label table — med · `constants/relationLabels.ts:41-55` + `familyScope.ts` Reach
+
+`marriedIn = !blood` collapses two distinct relation classes into one flag: (a) a **spouse of a
+blood relative** (reached by a partner edge — child-in-law, sibling-in-law, step-parent by
+generation sign), and (b) a **child/parent reached through a marriage** (reached by a down/up
+edge from a married-in partner — step-child, parent-in-law). The `IN_LAW_NOUNS` table labels
+class (b) with class (a)'s nouns, because it has no way to tell them apart. Concretely the
+parent-in-law case is mislabelled `Step-father`/`Step-mother` and the step-child case
+`Son/Daughter-in-law`. The `Reach` already carries the distinguishing signal — `lineal` is still
+tracked (partner edge ⇒ `lineal:false`, down/up edge ⇒ `lineal:true`) — but it is no longer
+consulted for labelling. The docblock in `relationLabels.ts:36-39` and the commit message both
+assert the false premise that a parent-in-law is unreachable.
+
+Fix: expose the reach shape alongside `marriedIn` (e.g. keep a `marriedInByEdge` or
+`marriedInViaPartner` set, or have the scope record which married-in ids were reached via a
+partner edge vs a down/up edge) and give the two classes their own nouns (`Step-son`/`Step-
+daughter`, `Father-in-law`/`Mother-in-law`); or, at minimum, correct the docblock so it no longer
+claims a parent-in-law cannot be reached, and record the residual as a documented limitation.
+
+### 2. Vacuous step-parent test — low · `systemEvents.test.ts` (`test_inlaw_a_step_parent_is_not_a_parent_in_law`)
+
+Carol's only dated event is her birth (1945), which `clipToLifetime` drops from Peter's lane
+(b.1965). `result.events.find(ownerEntityId === 'carol')` is therefore `undefined`, the
+`if (carol)` guard skips the `toBe('Step-mother')` assertion, and only
+`carol?.relationNoun not.toBe('Mother')` runs — trivially true. The `Step-mother` label is
+correct (verified by probe with a death date inside the lane person's lifetime), but the test
+does not guard it. Fix: give Carol an event dated within Peter's lifetime (e.g. a death date)
+and assert `toBe('Step-mother')` without the vacuous `if` guard.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.45 → v 2.46` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- The child-detour that leaks a married-in spouse's family of origin into scope (D1's spirit) is
+  pre-existing and not touched by this diff; it is the *mechanism* behind finding 1, noted here
+  for completeness, not a new defect.
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**REJECTED** — 1 medium, 1 low. The core of the fix is correct and well-executed: the blood rule
+is right against every requested genealogy (half-siblings, step-children, cousins, married-to-two-
+siblings, the root's own spouse), scope membership is provably invariant (personIds/partnershipIds
+identical across 664 differential runs, including the cyclic fixture), and the new tests go red
+against the old rule with the exact reported symptom. But finding 1 is a shipped-behaviour defect
+on the very surface the commit fixes: the `IN_LAW_NOUNS` table is built on a false premise and
+mislabels two common relations — a father-in-law becomes `Step-father` and a step-child becomes
+`Son-in-law`. The commit is a net improvement over the old blood-noun labels, but it over-claims
+in its docblock/commit message ("never walks up from a married-in partner") and ships a wrong
+label for shapes the user will actually draw. Distinguish step relations from in-law relations in
+the labelling (finding 1), close the vacuous test (finding 2), then re-run the gate. Clean against
+P1–P36 and L1–L6; P19-corollary (false-premise label table, med) and a vacuous regression test
+(low) were applicable.
+
+---
+
+# Pass 14 — kinship-by-path-shape + one-event-per-pattern (6a58c42, b472fdc)
+
+Date: 2026-09-22
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `7a698ea...HEAD` (4 commits). `0fc332f` was pass 12 (APPROVED); `274f996` was pass 13
+(REJECTED); the two new commits under review are `6a58c42` (kinship) and `b472fdc`
+(emotional patterns).
+Verdict: **REJECTED**
+
+## Commits
+
+- 0fc332f Widen the click area on partnership, child and pattern lines (pass 12 — APPROVED)
+- 274f996 Call a son's wife a daughter-in-law, not a daughter (pass 13 — REJECTED)
+- 6a58c42 Name kinship by the shape of the path, not a single married-in flag
+- b472fdc One event per emotional pattern, plus one each for its start and end
+
+## Gates (run on current HEAD, probes deleted first)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 63 files, 666 passed, 13 skipped (679) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## (a) Kinship — re-attacked every pass-13 shape plus the requested extensions
+
+Verified by reproduction: an executable probe built each genealogy and printed the real
+`relationNoun` from `collectSystemEvents` (production collector, not a hand-copy). Probe
+deleted after use.
+
+Correct, at the production default scope (up=2, down=2):
+
+- father-in-law / mother-in-law → `Father-in-law` / `Mother-in-law` (pass-13 case, FIXED)
+- step-son → `Step-son` (FIXED)
+- sister-in-law (spouse's sibling) → `Sister-in-law`
+- daughter-in-law (son's wife) → `Daughter-in-law`; son-in-law → `Son-in-law`
+- brother-in-law (sibling's husband) → `Brother-in-law`
+- step-mother / step-grandmother (parent's / grandparent's other partner) → correct
+- blood collaterals → `Aunt`, `Nephew`, `Cousin` (the pre-existing generation-keyed fix)
+- half-sibling (shares one parent) → `Sister` (path 1,1)
+- adoptive + birth parents → both `Father`/`Mother`; adoptive sibling → `Sister`
+- a person married to two siblings → both `Wife` (spousal path, correct)
+- cousins who marry each other → the spouse is `Wife` (spousal wins); the route is `blood`
+- great-uncle (needs up=3) → `Great-uncle`
+- first cousin once removed (needs up=3) → `Cousin once removed`
+
+Mislabelled — the `relativeSpouse` route is still keyed on generation alone, so a
+**collateral** blood relative's spouse takes the direct-line noun:
+
+- an aunt's / uncle's spouse (gen −1) → `Step-father` / `Step-mother` / `Step-parent`
+  (should be aunt/uncle by marriage). Reproduced three ways: Jim's aunt Sue's husband →
+  `Step-father`; cousinX's uncle's wife → `Step-parent`; "me"'s uncle's wife → `Step-mother`.
+- a cousin's spouse (gen 0) → `Brother-in-law` (should be cousin-in-law).
+- a nephew's / niece's spouse (gen +1) → `Daughter-in-law` (should be niece-in-law).
+- a great-uncle's spouse (gen −2) → `Step-grandmother` (should be great-aunt by marriage).
+
+Precision gaps (correct-but-vague fallback, not actively wrong):
+
+- a step-parent's child (step-sibling) → `Relative by marriage` (an everyday term,
+  `Step-brother`/`Step-sister`, is lost).
+- a son's wife's child (step-grandchild) → `Relative by marriage`.
+
+## (b) computeBloodPaths prefers the closest shared ancestor — CONFIRMED
+
+Pedigree-collapse fixture (my parents are first cousins, so one grandparent `gpSib` is
+reachable as a maternal grandparent at height 2 AND as a great-uncle via my father at
+height 3). `computeBloodPaths` returned `gpSib → {ups:2, downs:0}` and the lane labelled
+him `Grandfather`, not `Great-uncle`. The up-BFS first-arrival records the minimum height
+(2, via the mother) before the height-3 path is ever considered, and phase 2 pre-claims
+seeds so the farther reading cannot override. Correct.
+
+## (c) The new tests fail against the old (274f996) rules — CONFIRMED by reproduction
+
+`relationLabels.ts` + `systemEvents.ts` were reverted to `274f996` (keeping the new
+`kinship.test.ts` / `systemEvents.test.ts`), and the tests run — 5 failed with the exact
+mislabels the commit message claims:
+
+- `expected 'Step-father' to be 'Father-in-law'`
+- `expected 'Son-in-law' to be 'Step-son'`
+- `expected 'Mother' to be 'Aunt'`
+- `expected 'Son' to be 'Nephew'`
+- `expected 'Sister' to be 'Cousin'`
+
+Sources restored with `git checkout HEAD --`; the tests then pass. The step-parent test is
+also no longer vacuous (Carol carries an in-lifetime event; the assertion is unconditional).
+
+## (d) Scope MEMBERSHIP unchanged — CONFIRMED by construction
+
+`6a58c42` touches only `constants/relationLabels.ts`, `utils/kinship.{ts,test.ts}`,
+`utils/systemEvents.{ts,test.ts}` — `utils/familyScope.ts` is untouched (grep of the commit
+returns 0). `computeKinRoutes`/`computeBloodPaths` are pure read-only helpers and
+`collectSystemEvents` builds new Sets/Maps, so `computeFamilyScope`'s `personIds` /
+`partnershipIds` are byte-identical. `b472fdc` touches only the display/save surfaces and
+the version bump — no scope code.
+
+## Pattern recogniser — attacked, and the LIMITATION judged sound
+
+`isPatternDateRecordEvent` (exactly three EN-DASH parts ending `Pattern Start`/`Pattern End`
+under category `Emotional Pattern`) and `isPatternChangeRecordEvent` (EVERY comma segment
+starts `Type:` / `Status:` / `Style:`) were probed with adversarial subtypes. The pattern's
+creation event (subtype undefined), a measurement (`Fusion – Measurement`, two parts, or a
+colon-bearing measurement), and free-text notes survive both recognisers. The only "user"
+strings the date recogniser still hides are exact three-part templates ending
+`– Pattern Start`/`– Pattern End` (e.g. `Our marriage – finally – Pattern Start`) and, for
+the change recogniser, a note whose every comma segment happens to start with a property
+key — contrived, machine-template shapes, not realistic clinical entries. This does not
+repeat pass 9's `Marriage counselling` class: the category guard plus the exact-shape match
+keep every realistic user event.
+
+LIMITATION (older diagrams' records left visible): the judgement is **sound**. The older
+records in `PRODUCT_DEFAULT.diagram.json` are `eventType: 'NODAL'`, `category` = the line's
+relationship type (`Fusion`/`Cutoff`/`Conflict`), `subtype: null`, `intensity: 0`,
+`anchorType: null`, `startDate: null` (fusion line carries 3, cutoff 3, conflict 1, each
+paired with an `EPE` measurement sharing a timestamp prefix). Every current producer writes
+pattern events as `EPE` with `anchorType: 'EMOTIONAL_PROCESS_EP'`, and `EventCreator` writes
+`NODAL` only to `person.events`, never to a line — so `eventType !== 'EPE'` on a stored
+`line.events` entry is a strong fingerprint **today**. But "safe" must survive imported or
+future data, `NODAL` is a legitimate event type elsewhere, and the recogniser functions take
+only the event (not the line), so the relationshipType marker cannot be consulted without a
+signature change. Given this sweep's own pass-9 lesson (a loose matcher once hid `Marriage
+counselling`), leaving the old duplicates visible and raising them with the user is the
+correct call; a line-aware `eventType !== 'EPE'` heuristic is a reasonable explicit
+follow-up, not something to ship silently.
+
+## Findings (ranked)
+
+### 1. P19-corollary / false-premise label table — med · `constants/relationLabels.ts` RELATIVE_SPOUSE_NOUNS + `utils/kinship.ts` (`relativeSpouse` route)
+
+The pass-13 false premise persists on the `relativeSpouse` axis. Pass 13 rejected
+`IN_LAW_NOUNS` because a single generation-keyed married-in table assumed a married-in
+person one generation up was a parent's partner; `6a58c42` split `ownSpouse` (in-law) from
+`relativeSpouse` (step), fixing father-in-law and step-son — but `relativeSpouse` is still
+keyed on **generation alone**, so it now assumes a blood relative's spouse one generation up
+is a *parent's* spouse (step-parent). A blood relative one generation up is also an
+aunt/uncle, whose spouse is an aunt/uncle by marriage — mislabelled `Step-father` /
+`Step-mother` / `Step-parent`. Same shape for a cousin's spouse (`Brother-in-law`) and a
+nephew's spouse (`Daughter-in-law`). The route records only "spouse of some blood relative,
+generation g", not *which* blood relative, so it cannot distinguish parent's-spouse from
+aunt's-spouse. These are common shapes (married-in aunts/uncles) on the exact surface the
+commit exists to fix, and the relationLabels docblock ("Above the lane person this is a
+step-parent") re-asserts the same false premise pass 13 called out.
+
+Fix: mirror what `bloodNoun` already does — record the blood relative's own path shape
+(`ups,downs`) alongside the `relativeSpouse` route, and name the spouse from that. Parent
+(`1,0`) → step-parent; sibling (`1,1`) → sibling-in-law; child (`0,1`) → child-in-law;
+grandchild (`0,2`) → grandchild-in-law; grandparent (`2,0`) → step-grandparent. For a
+collateral blood relative (uncle `2,1`, cousin `2,2`, nephew `1,2`, great-uncle `3,1`) fall
+back to `Relative by marriage` rather than guessing a direct-line noun, or use the proper
+term where one exists.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.46 → v 2.47` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**REJECTED** — 1 medium. Substantial, verified-correct progress: father-in-law, step-son,
+daughter-in-law, sister-in-law, step-parent, step-grandparent and every collateral blood
+noun are now right (reproduced against the real collector), the closest-ancestor preference
+is proven on a pedigree-collapse fixture, the new tests are proven to go red on the old
+rules with the exact claimed mislabels, scope membership is provably unchanged, all three
+gates are green, and the pattern-recogniser/LIMITATION work is sound (creation, measurements
+and realistic user events all survive; the conservative "leave the old records visible"
+call is correct given pass 9's lesson). But finding 1 is the same false-premise label table
+pass 13 rejected, moved to the `relativeSpouse` axis: an aunt's/uncle's spouse reads
+`Step-father`/`Step-mother`, a cousin's spouse `Brother-in-law`, a nephew's spouse
+`Daughter-in-law`. That is a shipped-behaviour mislabel on the exact surface the commit
+fixes, for common shapes. Clean against P1–P36 and L1–L6; P19-corollary (false-premise label
+table, med) was applicable and remains open on the `relativeSpouse` axis.
+
+---
+
+# Pass 15 — final re-run of the collateral-spouse fix (8597859)
+
+Date: 2026-09-22
+Review: learning-qa failure-pattern sweep (P1–P36 + L1–L6)
+Range: `7a698ea...HEAD` (5 commits). `0fc332f` = pass 12 (APPROVED), `274f996` = pass 13
+(REJECTED), `6a58c42` + `b472fdc` = pass 14 (REJECTED); `8597859` is this pass's fix commit.
+Verdict: **APPROVED**
+
+## Commits
+
+- 0fc332f Widen the click area on partnership, child and pattern lines (pass 12 — APPROVED)
+- 274f996 Call a son's wife a daughter-in-law, not a daughter (pass 13 — REJECTED)
+- 6a58c42 Name kinship by the shape of the path, not a single married-in flag (pass 14 — REJECTED)
+- b472fdc One event per emotional pattern, plus one each for its start and end (pass 14 — reviewed sound)
+- 8597859 Name a relative's spouse by which relative they married (this pass's fix)
+
+## Gates (run on current HEAD `8597859`, probe deleted first)
+
+| Gate | Result |
+|---|---|
+| `npx vitest run` | PASS — 63 files, 670 passed, 13 skipped (683) |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` | PASS (exit 0) |
+
+## (a) The four pass-14 reproductions — all fixed, verified by reproduction
+
+An executable probe (deleted after use) built each genealogy and read the real
+`relationNoun` from `collectSystemEvents`:
+
+- aunt's husband (Jim → Peter → Bob → Sue, 2 up 1 down) → `Uncle by marriage` (was `Step-father`)
+- cousin's spouse (2 up 2 down) → `Cousin-in-law` (was `Brother-in-law`)
+- nephew's wife (Sue → Jim, 1 up 2 down) → `Niece-in-law` (was `Daughter-in-law`)
+- great-uncle's wife (3 up 1 down) → `Great-aunt by marriage` (was `Step-grandmother`)
+
+All four read the correct collateral term; none falls back to the direct-line noun.
+
+## (b) Full kinship sweep against the final code — every shape correct
+
+The same probe ran the whole battery (blood, in-law, step, collateral-spouse, special):
+
+- **Blood**: Father/Mother/Grandfather/Grandmother, Son/Daughter/Grandson, Brother/Sister,
+  Uncle/Aunt, Nephew/Niece, Cousin, Great-uncle (3,1), Cousin once removed (3,2) — all correct.
+  Half-sibling (shared parent) → `Sister`; adoption with two parent partnerships → both
+  `Mother` + adoptive sibling `Sister`.
+- **In-law** (own spouse's relatives): Father-in-law, Mother-in-law, Sister-in-law, Step-son.
+- **Step** (direct-line relative's spouse): Step-mother, Step-grandmother, Daughter-in-law,
+  Son-in-law, Granddaughter-in-law, Brother-in-law (sibling's husband).
+- **Collateral spouse**: Aunt by marriage (uncle's wife, 2,1), Nephew-in-law (niece's husband,
+  1,2), Cousin-in-law (2,2), Great-aunt by marriage (3,1); first-cousin-once-removed's spouse
+  (3,2) → `Relative by marriage` (the documented fallback, no everyday term).
+- **Special**: cousins who marry → the spouse reads `Wife` (spousal wins; the *route* is
+  `blood` — the documented pass-14 behaviour, not a regression); a person married to two
+  spouses → both `Wife`; pedigree collapse → `Grandfather` (closest ancestor, not Great-uncle).
+
+No mislabel found. The two pass-14 "precision gaps" remain and are unchanged, not newly wrong:
+a step-sibling and a step-grandchild still read `Relative by marriage` (a vague-but-honest
+fallback for a `relativeSpouse` whose further edges degrade to `distant`; an everyday term —
+Step-brother/Step-sister/Step-grandchild — exists but is not implemented). Carried, non-blocking.
+
+## (c) The new tests fail against the old generation-only rule — CONFIRMED by mutation
+
+`relativeSpouseNoun` was temporarily bypassed and the `relativeSpouse` branch reverted to
+`marriageNoun('relativeSpouse', generation, gender)` (the pass-14 generation-only rule),
+keeping the new tests. `kinship.test.ts` went RED on exactly the two new collateral tests:
+
+- `expected 'Step-father' to be 'Uncle by marriage'`
+- `expected 'Daughter-in-law' to be 'Niece-in-law'`
+
+The two direct-line tests (`Step-mother`, `Daughter-in-law`) pass under both rules — they were
+always right. `systemEvents.ts` restored with `git checkout`; the file then passes all 15 tests.
+
+## (d) Direct line — no regression
+
+Verified against the real collector: Step-mother, Step-grandmother, Daughter-in-law,
+Son-in-law, Granddaughter-in-law, Brother-in-law (sibling's husband) and Sister-in-law all
+keep their terms. The `relativeSpouseNoun` gate is exactly the direct-line condition
+(`downs === 0 || ups === 0` → the step/in-law table), so a parent's spouse, a grandparent's
+spouse, a child's spouse and a grandchild's spouse never reach `COLLATERAL_SPOUSE_NOUNS`.
+
+## b472fdc (one event per pattern) — re-confirmed sound
+
+`8597859` touches only `relationLabels.ts`, `kinship.{ts,test.ts}` and `systemEvents.ts`
+(grep of `git show 8597859 --name-only` confirms); `patternEventRecords.ts` and its test are
+byte-identical to what pass 14 reviewed and found sound. The recogniser battery re-runs green
+(`patternEventRecords.test.ts` + `systemEvents.test.ts`: 38 passed), so the creation /
+measurement / user-event survival and the conservative "leave the old records visible" call
+are unchanged.
+
+## Findings (ranked)
+
+None blocking.
+
+### 1. Test-name overclaim — low · `kinship.test.ts` (`test_kin_a_spouse_who_is_also_a_blood_relative_is_named_by_blood`, added in 6a58c42)
+
+The test asserts only `routes.get('cousinY')?.route === 'blood'` — the *mechanism* — while the
+user-facing noun for a cousin who is also your spouse is `Wife` (the `isPartnerOfLanePerson`
+branch fires before the kin route in `collectSystemEvents`). The behaviour is correct and was
+documented in pass 14 ("spousal wins; the route is blood"); only the test *name* overstates
+what its assertion covers. Pre-existing (not introduced by 8597859); non-blocking.
+
+## Not covered
+
+- `src/frontend/src/data/version.ts` (version bump `v 2.47 → v 2.48` only).
+- `.claude/worktrees/eloquent-liskov-52df2a` (worktree submodule pointer, pre-existing).
+- The step-sibling / step-grandchild `Relative by marriage` fallback (a documented precision
+  gap carried from pass 14, not a defect).
+- learning-qa scope limits: concurrency/races, authn/authz, injection/security, performance,
+  dependency/supply-chain, API-contract compatibility, general test quality.
+
+## Verdict
+
+**APPROVED** — the pass-14 medium finding is closed on the `relativeSpouse` axis. All four
+reproductions now read the correct collateral term (Uncle/Aunt by marriage, Cousin-in-law,
+Niece-in-law, Great-aunt by marriage), verified against the real collector rather than the
+commit message. The full sweep is clean: every blood, in-law, step, collateral-spouse and
+special shape — half-siblings, adoption with two parent partnerships, cousins who marry,
+married-to-two-spouses, pedigree collapse, great-uncles, first cousins once removed — labels
+correctly, and the direct line (step-parent, step-grandparent, child-in-law, grandchild-in-law,
+sibling-in-law) is provably unchanged. The new tests genuinely go red on the old
+generation-only rule with the exact pass-14 mislabels, and b472fdc is byte-identical to what
+pass 14 approved. All three gates are green on the exact commit to be pushed. One low
+non-blocking note (a pre-existing test-name overclaim) and the two carried precision gaps
+remain; neither is a shipped-behaviour defect. Clean against P1–P36 and L1–L6; P19-corollary
+(false-premise label table) was the pattern applicable and it is now closed.
