@@ -688,9 +688,11 @@ describe('in-law and step relations', () => {
   });
 
   it('test_inlaw_a_step_parent_is_not_a_parent_in_law', () => {
-    // Someone married to a parent, reached across that parent, is a step
-    // relation: the traversal never walks up from a married-in partner, so a
-    // married-in person a generation up can only be a parent's partner.
+    // A parent's other partner is a step-parent. This used to guard its real
+    // assertion behind `if (carol)`, and Carol's only event (her 1945 birth)
+    // was clipped out of Peter's lifetime — so the assertion never ran and
+    // only a trivially-true `not.toBe('Mother')` did. She now carries an
+    // event inside his lifetime and the assertion is unconditional.
     const { people, partnerships } = inLawFamily();
     const withStep: Person[] = [
       ...people.map((entry) =>
@@ -701,6 +703,7 @@ describe('in-law and step relations', () => {
         birthSex: 'female',
         partnerships: ['prStep'],
         birthDate: '1945-01-01',
+        events: [event('carol-late', 'Illness', '2005-01-01')],
       }),
     ];
     const withStepPartnerships = [...partnerships, partnership('prStep', 'bob', 'carol', [])];
@@ -712,8 +715,7 @@ describe('in-law and step relations', () => {
       now: new Date('2026-09-21T00:00:00Z'),
     });
     const carol = result.events.find((entry) => entry.ownerEntityId === 'carol');
-    if (carol) expect(carol.relationNoun).toBe('Step-mother');
-    // Either way she must never be labelled a plain "Mother".
-    expect(carol?.relationNoun).not.toBe('Mother');
+    expect(carol).toBeDefined();
+    expect(carol!.relationNoun).toBe('Step-mother');
   });
 });

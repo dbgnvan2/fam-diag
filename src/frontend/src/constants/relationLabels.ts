@@ -30,32 +30,70 @@ export const RELATION_NOUNS: Record<number, Record<RelationGender, string>> = {
 };
 
 /**
- * Kinship nouns for someone who married in rather than being born into the
- * family. Betty Baker is her father-in-law's son's wife: at his generation +1
- * and flagged married-in, so "Daughter" is wrong — she is his daughter-in-law.
- *
- * Above the lane person these are STEP relations, not in-laws: the traversal
- * never walks up from a married-in partner, so a married-in person a
- * generation up is a parent's other partner, never a spouse's parent.
+ * Kinship nouns for people related by marriage, keyed by HOW the marriage is
+ * crossed — see utils/kinship.ts. A single "married in" table cannot work: a
+ * son's wife (a relative's spouse) is a daughter-in-law, but a wife's son by
+ * an earlier marriage (a spouse's relative) is a step-son, and both sit one
+ * generation below the lane person.
  */
-export const IN_LAW_NOUNS: Record<number, Record<RelationGender, string>> = {
-  [-2]: {
-    male: 'Step-grandfather',
-    female: 'Step-grandmother',
-    unknown: 'Step-grandparent',
-  },
+type NounTable = Record<number, Record<RelationGender, string>>;
+
+/** A blood relative's partner. Above the lane person this is a step-parent. */
+export const RELATIVE_SPOUSE_NOUNS: NounTable = {
+  [-2]: { male: 'Step-grandfather', female: 'Step-grandmother', unknown: 'Step-grandparent' },
   [-1]: { male: 'Step-father', female: 'Step-mother', unknown: 'Step-parent' },
   0: { male: 'Brother-in-law', female: 'Sister-in-law', unknown: 'Sibling-in-law' },
   1: { male: 'Son-in-law', female: 'Daughter-in-law', unknown: 'Child-in-law' },
-  2: {
-    male: 'Grandson-in-law',
-    female: 'Granddaughter-in-law',
-    unknown: 'Grandchild-in-law',
-  },
+  2: { male: 'Grandson-in-law', female: 'Granddaughter-in-law', unknown: 'Grandchild-in-law' },
+};
+
+/** The own partner's ancestors. */
+export const SPOUSE_ANCESTOR_NOUNS: NounTable = {
+  [-2]: { male: 'Grandfather-in-law', female: 'Grandmother-in-law', unknown: 'Grandparent-in-law' },
+  [-1]: { male: 'Father-in-law', female: 'Mother-in-law', unknown: 'Parent-in-law' },
+};
+
+/** The own partner's children by someone else. */
+export const SPOUSE_DESCENDANT_NOUNS: NounTable = {
+  1: { male: 'Step-son', female: 'Step-daughter', unknown: 'Step-child' },
+  2: { male: 'Step-grandson', female: 'Step-granddaughter', unknown: 'Step-grandchild' },
+};
+
+/** The own partner's siblings. */
+export const SPOUSE_SIBLING_NOUNS: NounTable = {
+  0: { male: 'Brother-in-law', female: 'Sister-in-law', unknown: 'Sibling-in-law' },
 };
 
 /** Anyone married in beyond the named generations above. */
 export const DISTANT_IN_LAW_NOUN = 'Relative by marriage';
+
+/**
+ * Blood relatives who are not in the direct line, keyed by the shape of the
+ * path to them: `ups,downs` — generations up to the shared ancestor, then
+ * down. A sibling shares parents (1 up, 1 down); an uncle shares
+ * grandparents but is a generation up (2 up, 1 down).
+ */
+export const COLLATERAL_NOUNS: Record<string, Record<RelationGender, string>> = {
+  '1,1': { male: 'Brother', female: 'Sister', unknown: 'Sibling' },
+  '2,1': { male: 'Uncle', female: 'Aunt', unknown: 'Aunt/Uncle' },
+  '1,2': { male: 'Nephew', female: 'Niece', unknown: 'Nibling' },
+  '2,2': { male: 'Cousin', female: 'Cousin', unknown: 'Cousin' },
+  '3,1': { male: 'Great-uncle', female: 'Great-aunt', unknown: 'Great-aunt/uncle' },
+  '1,3': { male: 'Grand-nephew', female: 'Grand-niece', unknown: 'Grand-nibling' },
+  '2,3': {
+    male: 'Cousin once removed',
+    female: 'Cousin once removed',
+    unknown: 'Cousin once removed',
+  },
+  '3,2': {
+    male: 'Cousin once removed',
+    female: 'Cousin once removed',
+    unknown: 'Cousin once removed',
+  },
+};
+
+/** A blood relative further out than the named shapes above. */
+export const DISTANT_BLOOD_NOUN = 'Blood relative';
 
 /** Fallbacks for generations beyond the named nouns above. */
 export const DISTANT_ANCESTOR_NOUN = 'Ancestor';

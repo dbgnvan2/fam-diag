@@ -26,8 +26,13 @@ import { computeFamilyScope, defaultFocusForRoot, type FamilyScope } from './fam
 import {
   DISTANT_ANCESTOR_NOUN,
   DISTANT_DESCENDANT_NOUN,
+  COLLATERAL_NOUNS,
+  DISTANT_BLOOD_NOUN,
   DISTANT_IN_LAW_NOUN,
-  IN_LAW_NOUNS,
+  RELATIVE_SPOUSE_NOUNS,
+  SPOUSE_ANCESTOR_NOUNS,
+  SPOUSE_DESCENDANT_NOUNS,
+  SPOUSE_SIBLING_NOUNS,
   EVENT_PHRASES,
   PARENTAL_UNION_NOUN,
   RELATION_NOUNS,
@@ -40,6 +45,7 @@ import { baseEventId, hasSameEvent } from './eventDedup';
 import { withoutPersonDateRecords } from './personDateEvents';
 import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
 import { eventDisplayName } from './timelineItemText';
+import { computeBloodPaths, computeKinRoutes, type BloodPath, type KinRoute } from './kinship';
 import {
   synthesizeEmotionalLineDateEvents,
   synthesizePartnershipDateEvents,
@@ -82,20 +88,49 @@ const genderOf = (person?: Person): RelationGender => {
   return 'unknown';
 };
 
-const kinshipNoun = (
-  generation: number,
-  gender: RelationGender,
-  marriedIn = false
-): string => {
-  // Someone who married in is not a blood relation: a son's wife is a
-  // daughter-in-law, not a daughter.
-  if (marriedIn) {
-    const inLawRow = IN_LAW_NOUNS[generation];
-    return inLawRow ? inLawRow[gender] : DISTANT_IN_LAW_NOUN;
-  }
+const kinshipNoun = (generation: number, gender: RelationGender): string => {
   const row = RELATION_NOUNS[generation];
   if (row) return row[gender];
   return generation < 0 ? DISTANT_ANCESTOR_NOUN : DISTANT_DESCENDANT_NOUN;
+};
+
+/**
+ * The noun for a blood relative, from the shape of the path to them. The
+ * direct line is named by generation (Father, Grandson); everyone else by how
+ * far up the shared ancestor is and how far back down (Uncle, Cousin). Keyed
+ * on generation alone, an uncle one generation up read as "Father".
+ */
+const bloodNoun = (
+  path: BloodPath | undefined,
+  generation: number,
+  gender: RelationGender
+): string => {
+  if (!path) return kinshipNoun(generation, gender);
+  const { ups, downs } = path;
+  if (downs === 0) return kinshipNoun(-ups, gender); // direct ancestor
+  if (ups === 0) return kinshipNoun(downs, gender); // direct descendant
+  const row = COLLATERAL_NOUNS[`${ups},${downs}`];
+  return row ? row[gender] : DISTANT_BLOOD_NOUN;
+};
+
+/**
+ * The noun for someone related by marriage. The route decides the family of
+ * terms and the generation picks the word; anything without an everyday term
+ * is a "relative by marriage" rather than a guess.
+ */
+const marriageNoun = (route: KinRoute, generation: number, gender: RelationGender): string => {
+  const table =
+    route === 'ownSpouseUp'
+      ? SPOUSE_ANCESTOR_NOUNS
+      : route === 'ownSpouseDown'
+      ? SPOUSE_DESCENDANT_NOUNS
+      : route === 'ownSpouseSide'
+      ? SPOUSE_SIBLING_NOUNS
+      : route === 'relativeSpouse'
+      ? RELATIVE_SPOUSE_NOUNS
+      : null;
+  const row = table?.[generation];
+  return row ? row[gender] : DISTANT_IN_LAW_NOUN;
 };
 
 const phraseFor = (event: EmotionalProcessEvent): string => {
@@ -210,6 +245,15 @@ export function collectSystemEvents({
   const ring =
     scope ?? computeFamilyScope(people, partnerships, personId, defaultFocusForRoot(personId));
 
+  // How each person is related to the lane: by birth, as a relative's spouse,
+  // or as a spouse's relative. The term depends on where the marriage is
+  // crossed, which a single married-in flag cannot express.
+  const bloodIds = new Set(
+    [...ring.personIds].filter((id) => !ring.marriedIn.has(id))
+  );
+  const kinRoutes = computeKinRoutes(people, partnerships, personId, bloodIds);
+  const bloodPaths = computeBloodPaths(people, partnerships, personId, bloodIds);
+
   const inRing = (id?: string): boolean => {
     if (!id) return false;
     if (id === personId) return true;
@@ -282,15 +326,13 @@ export function collectSystemEvents({
     } else if (isPartnerOfLanePerson) {
       relationClass = 'spousal';
       noun = SPOUSE_NOUNS[genderOf(relative)];
-    } else if (generation < 0) {
-      relationClass = 'ascendant';
-      noun = kinshipNoun(generation, genderOf(relative), marriedIn);
-    } else if (generation > 0) {
-      relationClass = 'descendant';
-      noun = kinshipNoun(generation, genderOf(relative), marriedIn);
     } else {
-      relationClass = 'sibling';
-      noun = kinshipNoun(0, genderOf(relative), marriedIn);
+      relationClass = generation < 0 ? 'ascendant' : generation > 0 ? 'descendant' : 'sibling';
+      const route = kinRoutes.get(relative.id) ?? (marriedIn ? 'distant' : 'blood');
+      noun =
+        route === 'blood'
+          ? bloodNoun(bloodPaths.get(relative.id), generation, genderOf(relative))
+          : marriageNoun(route, generation, genderOf(relative));
     }
 
     const ownEvents = [
