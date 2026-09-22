@@ -198,7 +198,7 @@ describe('kinship — blood always wins', () => {
     });
     const blood = new Set([...scope.personIds].filter((id) => !scope.marriedIn.has(id)));
     const routes = computeKinRoutes(people, partnerships, 'cousinX', blood);
-    expect(routes.get('cousinY')).toBe('blood');
+    expect(routes.get('cousinY')?.route).toBe('blood');
   });
 });
 
@@ -267,5 +267,71 @@ describe('kinship — collateral blood relatives', () => {
     expect(result.events.find((entry) => entry.ownerEntityId === 'cousin')?.relationNoun).toBe(
       'Cousin'
     );
+  });
+});
+
+describe('kinship — the spouse of a collateral relative', () => {
+  /**
+   * Gate pass 14: a blood relative's spouse was named by generation alone, so
+   * the spouse of an aunt, a cousin or a nephew took the direct-line term.
+   * Jim's aunt Sue's husband came out as his "Step-father".
+   */
+  it('test_kin_an_aunts_husband_is_an_uncle_by_marriage_not_a_step_father', () => {
+    // Jim → Peter → Bob → Sue is two up, one down: an aunt. Her husband is
+    // one generation up, exactly like a step-father — but he is not one.
+    expect(nounFor('jim', 'sueHusband')).toBe('Uncle by marriage');
+  });
+
+  it('test_kin_a_parents_second_wife_is_still_a_step_mother', () => {
+    // The direct line must keep the step term: Carol married Peter's father.
+    expect(nounFor('peter', 'carol')).toBe('Step-mother');
+  });
+
+  it('test_kin_a_nephews_wife_is_a_niece_in_law_not_a_daughter_in_law', () => {
+    const { people, partnerships } = buildFamily();
+    const withNephewWife: Person[] = [
+      ...people.map((entry) =>
+        entry.id === 'jim' ? { ...entry, partnerships: ['prJim'] } : entry
+      ),
+      person('jimWife', {
+        birthSex: 'female',
+        partnerships: ['prJim'],
+        birthDate: '1993-01-01',
+        events: [
+          {
+            id: 'jimWife-late',
+            date: '2020-01-01',
+            startDate: '2020-01-01',
+            category: 'Checkup',
+            eventType: 'NODAL',
+            status: 'discrete',
+            intensity: 0,
+            howWell: 0,
+            otherPersonName: '',
+            wwwwh: '',
+            observations: '',
+            eventClass: 'individual',
+          },
+        ],
+      }),
+    ];
+    const withJimPartnership = [...partnerships, partnership('prJim', 'jim', 'jimWife', [])];
+    // From Sue's lane Jim is her nephew (one up, two down); his wife is a
+    // niece-in-law, not a daughter-in-law.
+    const result = collectSystemEvents({
+      personId: 'sue',
+      scope: computeFamilyScope(withNephewWife, withJimPartnership, 'sue', defaultFocusForRoot('sue')),
+      people: withNephewWife,
+      partnerships: withJimPartnership,
+      now: new Date('2026-09-22T00:00:00Z'),
+    });
+    expect(result.events.find((entry) => entry.ownerEntityId === 'jimWife')?.relationNoun).toBe(
+      'Niece-in-law'
+    );
+  });
+
+  it('test_kin_a_sons_wife_is_still_a_daughter_in_law', () => {
+    // The direct line must keep the in-law term.
+    expect(nounFor('bob', 'betty')).toBe('Daughter-in-law');
   });
 });

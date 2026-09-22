@@ -47,6 +47,26 @@ export const RELATIVE_SPOUSE_NOUNS: NounTable = {
   2: { male: 'Grandson-in-law', female: 'Granddaughter-in-law', unknown: 'Grandchild-in-law' },
 };
 
+/**
+ * The spouse of a COLLATERAL blood relative, keyed by that relative's path
+ * shape (`ups,downs`). The direct line is handled by RELATIVE_SPOUSE_NOUNS:
+ * a parent's spouse is a step-parent, a child's a child-in-law. But an aunt's
+ * husband is not a step-father — keyed on generation alone he came out as
+ * one. "By marriage" is kept explicit, since a genogram is read for exactly
+ * the difference between blood and marriage.
+ */
+export const COLLATERAL_SPOUSE_NOUNS: Record<string, Record<RelationGender, string>> = {
+  '1,1': { male: 'Brother-in-law', female: 'Sister-in-law', unknown: 'Sibling-in-law' },
+  '2,1': { male: 'Uncle by marriage', female: 'Aunt by marriage', unknown: 'Aunt/Uncle by marriage' },
+  '1,2': { male: 'Nephew-in-law', female: 'Niece-in-law', unknown: 'Nibling-in-law' },
+  '2,2': { male: 'Cousin-in-law', female: 'Cousin-in-law', unknown: 'Cousin-in-law' },
+  '3,1': {
+    male: 'Great-uncle by marriage',
+    female: 'Great-aunt by marriage',
+    unknown: 'Great-aunt/uncle by marriage',
+  },
+};
+
 /** The own partner's ancestors. */
 export const SPOUSE_ANCESTOR_NOUNS: NounTable = {
   [-2]: { male: 'Grandfather-in-law', female: 'Grandmother-in-law', unknown: 'Grandparent-in-law' },

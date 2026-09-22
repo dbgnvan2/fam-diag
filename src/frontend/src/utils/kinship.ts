@@ -58,6 +58,15 @@ const next = (route: KinRoute, edge: Edge): KinRoute => {
 };
 
 /**
+ * A person's route, and — for a relative's spouse — WHICH blood relative they
+ * married. The route alone was not enough: an aunt's husband and a parent's
+ * second husband are both a blood relative's spouse one generation up, but
+ * one is an uncle by marriage and the other a step-father. The relative's own
+ * path shape tells them apart.
+ */
+export type KinInfo = { route: KinRoute; viaId?: string };
+
+/**
  * Purpose: the kin route to every person reachable from the lane person.
  * Tests:   kinship.test.ts::test_kin_father_in_law_is_not_a_step_father
  *
@@ -68,15 +77,15 @@ export function computeKinRoutes(
   partnerships: Partnership[],
   laneId: string,
   bloodIds: Set<string>
-): Map<string, KinRoute> {
+): Map<string, KinInfo> {
   const personById = new Map(people.map((person) => [person.id, person]));
   const partnershipById = new Map(partnerships.map((entry) => [entry.id, entry]));
-  const routes = new Map<string, KinRoute>();
+  const routes = new Map<string, KinInfo>();
   if (!personById.has(laneId)) return routes;
 
   // Blood always wins, whatever order the search would reach it in.
-  bloodIds.forEach((id) => routes.set(id, 'blood'));
-  routes.set(laneId, 'blood');
+  bloodIds.forEach((id) => routes.set(id, { route: 'blood' }));
+  routes.set(laneId, { route: 'blood' });
 
   const neighbours = (id: string): Array<{ id: string; edge: Edge }> => {
     const person = personById.get(id);
@@ -119,15 +128,18 @@ export function computeKinRoutes(
     neighbours(id).forEach(({ id: target, edge }) => {
       if (routes.has(target)) return; // already has a closer (or blood) route
       let targetRoute: KinRoute;
+      let viaId: string | undefined;
       if (route === 'blood') {
         if (edge !== 'partner') return; // blood-to-blood moves are the scope's job
         // Crossing a marriage from a blood relative: from the lane person it is
-        // their own partner, from anyone else it is that relative's spouse.
+        // their own partner, from anyone else it is that relative's spouse —
+        // and we remember which relative, to name the spouse by them.
         targetRoute = id === laneId ? 'ownSpouse' : 'relativeSpouse';
+        viaId = id === laneId ? undefined : id;
       } else {
         targetRoute = next(route, edge);
       }
-      routes.set(target, targetRoute);
+      routes.set(target, { route: targetRoute, viaId });
       enqueueFrom(target, targetRoute);
     });
   }

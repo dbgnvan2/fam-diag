@@ -27,6 +27,7 @@ import {
   DISTANT_ANCESTOR_NOUN,
   DISTANT_DESCENDANT_NOUN,
   COLLATERAL_NOUNS,
+  COLLATERAL_SPOUSE_NOUNS,
   DISTANT_BLOOD_NOUN,
   DISTANT_IN_LAW_NOUN,
   RELATIVE_SPOUSE_NOUNS,
@@ -112,6 +113,26 @@ const bloodNoun = (
   if (ups === 0) return kinshipNoun(downs, gender); // direct descendant
   const row = COLLATERAL_NOUNS[`${ups},${downs}`];
   return row ? row[gender] : DISTANT_BLOOD_NOUN;
+};
+
+/**
+ * The noun for a blood relative's spouse, from that relative's own path shape.
+ * The direct line keeps the step / in-law terms; a collateral relative's
+ * spouse takes the collateral term "by marriage". Without the relative's
+ * shape this fell back to generation alone, which named an aunt's husband a
+ * "Step-father".
+ */
+const relativeSpouseNoun = (
+  relativePath: BloodPath | undefined,
+  generation: number,
+  gender: RelationGender
+): string => {
+  if (!relativePath) return marriageNoun('relativeSpouse', generation, gender);
+  const { ups, downs } = relativePath;
+  // A direct ancestor's or descendant's spouse: step-parent, child-in-law.
+  if (downs === 0 || ups === 0) return marriageNoun('relativeSpouse', generation, gender);
+  const row = COLLATERAL_SPOUSE_NOUNS[`${ups},${downs}`];
+  return row ? row[gender] : DISTANT_IN_LAW_NOUN;
 };
 
 /**
@@ -329,11 +350,23 @@ export function collectSystemEvents({
       noun = SPOUSE_NOUNS[genderOf(relative)];
     } else {
       relationClass = generation < 0 ? 'ascendant' : generation > 0 ? 'descendant' : 'sibling';
-      const route = kinRoutes.get(relative.id) ?? (marriedIn ? 'distant' : 'blood');
-      noun =
-        route === 'blood'
-          ? bloodNoun(bloodPaths.get(relative.id), generation, genderOf(relative))
-          : marriageNoun(route, generation, genderOf(relative));
+      const kin = kinRoutes.get(relative.id) ?? {
+        route: (marriedIn ? 'distant' : 'blood') as KinRoute,
+      };
+      const gender = genderOf(relative);
+      if (kin.route === 'blood') {
+        noun = bloodNoun(bloodPaths.get(relative.id), generation, gender);
+      } else if (kin.route === 'relativeSpouse') {
+        // Named by WHICH blood relative they married: a parent's spouse is a
+        // step-parent, but an aunt's husband is an uncle by marriage.
+        noun = relativeSpouseNoun(
+          kin.viaId ? bloodPaths.get(kin.viaId) : undefined,
+          generation,
+          gender
+        );
+      } else {
+        noun = marriageNoun(kin.route, generation, gender);
+      }
     }
 
     const ownEvents = [
