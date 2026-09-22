@@ -6,14 +6,12 @@ Deferred items, each with the reason it was not done at the time. Newest first.
 
 Gate passes 13-15 (13 and 14 REJECTED, 15 APPROVED). Carried items:
 
-- **Legacy duplicate emotional-pattern events — awaiting the user's call.**
-  Diagrams written by earlier code hold per-edit pattern records in an older
-  shape: NODAL, category = the line's relationship type ("Fusion"),
-  intensity 0, no subtype. Pass 14 agreed that shape has no marker separating
-  it from an event the user created, so they are left visible rather than
-  guessed at. The shipped demo's fusion line still shows 8 events and the
-  cutoff line 7. Options: a one-time cleanup the user reviews before it runs,
-  or deleting them by hand.
+- **Legacy duplicate emotional-pattern events — decided 2026-09-22: the user
+  deletes them by hand.** Diagrams written by earlier code hold per-edit
+  pattern records in an older shape (NODAL, category = the line's
+  relationship type such as "Fusion", intensity 0, no subtype) with no marker
+  that separates them from user-written events, so no automatic cleanup will
+  be written. New saves no longer create them.
 - **Two kin shapes fall back to "Relative by marriage".** A step-sibling (the
   own partner's child's sibling) and a step-grandchild reached through a
   relative's spouse have no dedicated term. Vague but not wrong.
