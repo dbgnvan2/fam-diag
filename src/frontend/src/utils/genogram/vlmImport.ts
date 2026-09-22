@@ -20,8 +20,8 @@ export type VLMImportOptions = {
   model: string;
   maxImageDimension?: number; // Default: 1600
   imageQuality?: number; // 0-1, default: 0.85
-  maxTokens?: number; // Default: 4000
-  timeoutMs?: number; // Default: 60000
+  maxTokens?: number; // Default: 16000
+  timeoutMs?: number; // Default: 180000
   onProgress?: (message: string) => void;
   /** Optional abort signal — if aborted, the API call is cancelled. */
   signal?: AbortSignal;
@@ -67,8 +67,8 @@ export async function vlmImport(
     model,
     maxImageDimension = 1600,
     imageQuality = 0.85,
-    maxTokens = 4000,
-    timeoutMs = 60000,
+    maxTokens = 16000,
+    timeoutMs = 180000,
     onProgress,
     signal,
   } = options;
@@ -318,11 +318,8 @@ RULES:
       throw new Error(`Claude Vision API error (${res.status}): ${error}`);
     }
 
-    const data = (await res.json()) as { content: Array<{ type: string; text: string }> };
-    const textContent = data.content.find((c) => c.type === 'text');
-    if (!textContent) throw new Error('No text response from Claude Vision');
-
-    return textContent.text;
+    const data = (await res.json()) as ClaudeVisionResponse;
+    return extractVisionText(data, maxTokens);
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
@@ -334,6 +331,39 @@ RULES:
     }
     throw error;
   }
+}
+
+export type ClaudeVisionResponse = {
+  content: Array<{ type: string; text?: string }>;
+  stop_reason?: string | null;
+  stop_details?: { category?: string | null; explanation?: string | null } | null;
+};
+
+/**
+ * Pull the text answer out of a Messages API response, turning the stop
+ * reasons that leave no usable JSON into specific errors.
+ *
+ * Exported for unit testing.
+ */
+export function extractVisionText(data: ClaudeVisionResponse, maxTokens: number): string {
+  if (data.stop_reason === 'refusal') {
+    const category = data.stop_details?.category ? ` (category: ${data.stop_details.category})` : '';
+    throw new Error(`Claude declined to process this image${category}.`);
+  }
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error(
+      `Claude Vision response was cut off at the max_tokens limit (${maxTokens}). ` +
+        'The diagram may be too large for one pass, or the model used the budget for thinking.'
+    );
+  }
+  const text = (data.content ?? [])
+    .filter((c) => c.type === 'text' && typeof c.text === 'string')
+    .map((c) => c.text as string)
+    .join('');
+  if (!text.trim()) {
+    throw new Error(`No text response from Claude Vision (stop_reason: ${data.stop_reason ?? 'unknown'})`);
+  }
+  return text;
 }
 
 /**

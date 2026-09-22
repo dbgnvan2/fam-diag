@@ -18,7 +18,14 @@ export type AIModelOption = {
 // Custom user-added models are stored separately via `utils/customModels.ts`.
 export const AI_MODELS: AIModelOption[] = [
   // Anthropic — all current Claude models are vision-capable.
+  // Newest first within each tier. Earlier entries are kept so saved selections
+  // from older versions of the app still resolve.
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', provider: 'anthropic', supportsVision: true },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', provider: 'anthropic', supportsVision: true },
+  { id: 'claude-opus-5', label: 'Claude Opus 5', provider: 'anthropic', supportsVision: true },
+  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', provider: 'anthropic', supportsVision: true },
   { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', provider: 'anthropic', supportsVision: true },
+  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', provider: 'anthropic', supportsVision: true },
   { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (default)', provider: 'anthropic', supportsVision: true },
   { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', provider: 'anthropic', supportsVision: true },
 

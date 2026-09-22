@@ -57,6 +57,7 @@ import { earliestPartnershipDate } from '../utils/partnershipUtils';
 import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
+import { checkVisionImportReadiness } from '../utils/visionImportReadiness';
 import { ImportLog } from '../utils/importLog';
 import {
   convertExtractedToDiagram,
@@ -3344,15 +3345,18 @@ useEffect(() => {
           'claude-sonnet-4-6';
         const apiKey = localStorage.getItem('anthropic_api_key') || '';
         const activeModel = lookupModel(modelId);
+        log.info(
+          `AI settings: model=${modelId} ` +
+            `(${activeModel ? `${activeModel.provider}, ${activeModel.supportsVision ? 'vision' : 'text-only'}` : 'not in model list'}) ` +
+            `anthropicApiKey=${apiKey.trim() ? 'present' : 'missing'}`
+        );
 
-        if (!apiKey || !activeModel || activeModel.provider !== 'anthropic' || !activeModel.supportsVision) {
-          throw new Error(
-            'Claude Vision is required for image import. ' +
-              'Please set your Anthropic API key and select a Vision model in AI Settings.'
-          );
+        const readiness = checkVisionImportReadiness(apiKey, modelId, activeModel);
+        if (!readiness.ok) {
+          throw new Error(`Claude Vision is required for image import. ${readiness.message}`);
         }
 
-        log.info(`Using VLM for extraction: ${activeModel.label}`);
+        log.info(`Using VLM for extraction: ${readiness.model.label}`);
 
         // Import vlmImport at the top if not already imported
         const { vlmImport, GENOGRAM_IMPORT_COST_ESTIMATE } = await import('../utils/genogram/vlmImport');
@@ -3365,11 +3369,13 @@ useEffect(() => {
         // Extract facts from image using VLM
         const facts = await vlmImport(imageBlob, {
           apiKey,
-          model: activeModel.id,
+          model: readiness.model.id,
           maxImageDimension: 1600, // Can be made configurable from settings later
           imageQuality: 0.85,
-          maxTokens: 4000,
-          timeoutMs: 60000,
+          // Newer Claude models (Opus 5+, Sonnet 5, Fable 5.1) think by default, and
+          // thinking tokens count against max_tokens, so leave room for both.
+          maxTokens: 16000,
+          timeoutMs: 180000,
           onProgress: (msg) => setImageDiagramProgress(msg),
           signal: abortController.signal,
         });

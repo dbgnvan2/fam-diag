@@ -35,4 +35,23 @@ describe('AI_MODELS', () => {
       expect(m.supportsVision).toBe(true);
     });
   });
+
+  it('includes current Claude models alongside earlier ones', () => {
+    const ids = AI_MODELS.filter((m) => m.provider === 'anthropic').map((m) => m.id);
+    [
+      'claude-fable-5-1',
+      'claude-opus-5-5',
+      'claude-opus-5',
+      'claude-opus-4-8',
+      'claude-opus-4-7',
+      'claude-sonnet-5',
+      'claude-sonnet-4-6',
+      'claude-haiku-4-5-20251001',
+    ].forEach((id) => expect(ids).toContain(id));
+  });
+
+  it('has no duplicate model ids', () => {
+    const ids = AI_MODELS.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });

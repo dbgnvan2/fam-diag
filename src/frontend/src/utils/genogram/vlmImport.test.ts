@@ -7,7 +7,7 @@
  * browser-only and are exercised via the browser smoke test, not here.
  */
 import { describe, it, expect } from 'vitest';
-import { parseVLMResponse, factCheckVLMFacts } from './vlmImport';
+import { parseVLMResponse, factCheckVLMFacts, extractVisionText } from './vlmImport';
 import { applyDataRules } from './genogramRules';
 
 describe('parseVLMResponse', () => {
@@ -55,5 +55,33 @@ describe('parseVLMResponse', () => {
 describe('factCheckVLMFacts re-export', () => {
   it('is the same function as applyDataRules', () => {
     expect(factCheckVLMFacts).toBe(applyDataRules);
+  });
+});
+
+describe('extractVisionText', () => {
+  it('returns the text block, skipping thinking blocks', () => {
+    const text = extractVisionText(
+      { content: [{ type: 'thinking', text: '' }, { type: 'text', text: '{"people":[]}' }], stop_reason: 'end_turn' },
+      16000
+    );
+    expect(text).toBe('{"people":[]}');
+  });
+
+  it('throws a specific error on max_tokens truncation', () => {
+    expect(() =>
+      extractVisionText({ content: [{ type: 'text', text: '{"people":[' }], stop_reason: 'max_tokens' }, 4000)
+    ).toThrow(/max_tokens limit \(4000\)/);
+  });
+
+  it('throws a specific error on refusal, including the category', () => {
+    expect(() =>
+      extractVisionText({ content: [], stop_reason: 'refusal', stop_details: { category: 'cyber' } }, 16000)
+    ).toThrow(/declined.*category: cyber/);
+  });
+
+  it('throws when there is no text, naming the stop reason', () => {
+    expect(() => extractVisionText({ content: [], stop_reason: 'end_turn' }, 16000)).toThrow(
+      /No text response.*end_turn/
+    );
   });
 });
