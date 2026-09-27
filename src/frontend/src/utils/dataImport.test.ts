@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { factsToDiagramImportData } from './dataImport';
+import { factsToDiagramImportData, parseTranscriptToDraftDiagram } from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
 import type { Person } from '../types';
 
@@ -45,13 +45,38 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       expect(find(people, 'Charlie Cole').deathDate).toBe('2014-01-01');
     });
 
-    it('marks deceased-with-unknown-year using a placeholder death date', () => {
+    it('marks deceased-with-unknown-year as deceased without inventing a death date', () => {
+      // Regression: this used to write deathDate '1900-01-01', a made-up value
+      // that dated deaths before births and misplaced people on the timeline.
+      // deathDateKnown is the model's "deceased, date unknown" flag and still
+      // draws the X (PersonNode renderDeathOverlay).
       const facts: FactsImportData = {
-        people: [{ name: 'Charlie Cole', sex: 'male', deceased: true, deathYear: null }],
+        people: [{ name: 'Charlie Cole', sex: 'male', deceased: true, deathYear: null, birthYear: 1950 }],
       };
       const { people } = factsToDiagramImportData(facts);
-      // Placeholder so the person renders as deceased; user can correct the year.
-      expect(find(people, 'Charlie Cole').deathDate).toBe('1900-01-01');
+      const charlie = find(people, 'Charlie Cole');
+      expect(charlie.deathDate).toBeUndefined();
+      expect(charlie.deathDateKnown).toBe(true);
+      expect(charlie.birthDate).toBe('1950-01-01');
+    });
+
+    it('leaves gender unset for sex="unknown" instead of defaulting to female', () => {
+      const facts: FactsImportData = {
+        people: [
+          { name: 'Ghost', sex: 'unknown' },
+          // A name on the gender-override list must not override an explicit unknown.
+          { name: 'Mary', sex: 'unknown' },
+        ],
+      };
+      const { people } = factsToDiagramImportData(facts);
+      expect(find(people, 'Ghost').gender).toBeUndefined();
+      expect(find(people, 'Mary').gender).toBeUndefined();
+    });
+
+    it('leaves gender unset when sex is absent and the name gives no evidence', () => {
+      const facts: FactsImportData = { people: [{ name: 'Quinlan' }] };
+      const { people } = factsToDiagramImportData(facts);
+      expect(find(people, 'Quinlan').gender).toBeUndefined();
     });
 
     it('does not set a death date for a living person', () => {
@@ -567,5 +592,73 @@ describe('factsToDiagramImportData — R21 Reingold-Tilford centering', () => {
     const x = (n: string) => find(people, n).x;
     expect(x('BigKid')).toBeLessThan(x('MidKid'));
     expect(x('MidKid')).toBeLessThan(x('SmallKid'));
+  });
+});
+
+describe('factsToDiagramImportData — facts (non-image) path does not fabricate', () => {
+  it('homicide_suicide event without a year marks deceased but invents no date', () => {
+    // Regression: this used to write deathDate '1973-01-01' when no year was given.
+    const facts: FactsImportData = {
+      family: { parents: ['Anna Ray', 'Bert Ray'] },
+      clinical: { events: [{ person: 'Anna Ray', type: 'homicide_suicide' }] },
+    };
+    const { people } = factsToDiagramImportData(facts);
+    const anna = find(people, 'Anna Ray');
+    expect(anna.deathDate).toBeUndefined();
+    expect(anna.deathDateKnown).toBe(true);
+  });
+
+  it('homicide_suicide event with a year uses that year', () => {
+    const facts: FactsImportData = {
+      family: { parents: ['Anna Ray', 'Bert Ray'] },
+      clinical: { events: [{ person: 'Anna Ray', type: 'homicide_suicide', year: 1981 }] },
+    };
+    const { people } = factsToDiagramImportData(facts);
+    expect(find(people, 'Anna Ray').deathDate).toBe('1981-01-01');
+  });
+
+  it('does not assign a sex to people whose names give no evidence', () => {
+    const facts: FactsImportData = {
+      relationships: [{ a: 'Quinlan Ray', b: 'Don Ray', type: 'married' }],
+    };
+    const { people } = factsToDiagramImportData(facts);
+    expect(find(people, 'Quinlan Ray').gender).toBeUndefined();
+    // Name-override evidence still applies.
+    expect(find(people, 'Don Ray').gender).toBe('male');
+  });
+});
+
+describe('parseTranscriptToDraftDiagram — does not fabricate', () => {
+  it('a killed-then-suicide mention marks both deceased without inventing 1973', () => {
+    // Regression: both people used to get deathDate '1973-01-01'.
+    const transcript = 'Quinlan killed Tavi and then killed himself.';
+    const { people } = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    for (const name of ['Quinlan', 'Tavi']) {
+      const person = find(people, name);
+      expect(person.deathDate).toBeUndefined();
+      expect(person.deathDateKnown).toBe(true);
+    }
+  });
+
+  it('keeps a real death year from the transcript', () => {
+    const { people } = parseTranscriptToDraftDiagram('Quinlan died 1990.', 't.txt');
+    expect(find(people, 'Quinlan').deathDate).toBe('1990-01-01');
+    expect(find(people, 'Quinlan').deathDateKnown).toBeUndefined();
+  });
+
+  it('does not default unknown names to female', () => {
+    const { people } = parseTranscriptToDraftDiagram('Quinlan and Tavi married in 1980.', 't.txt');
+    expect(find(people, 'Quinlan').gender).toBeUndefined();
+    expect(find(people, 'Tavi').gender).toBeUndefined();
+  });
+
+  it('placeholder children from a child count get no invented sex', () => {
+    const { people } = parseTranscriptToDraftDiagram(
+      'Quinlan and Tavi married in 1980. Quinlan and Tavi have two children.',
+      't.txt'
+    );
+    const placeholders = people.filter((p) => / Child \d+$/.test(p.name));
+    expect(placeholders).toHaveLength(2);
+    placeholders.forEach((child) => expect(child.gender).toBeUndefined());
   });
 });

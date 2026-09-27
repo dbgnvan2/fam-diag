@@ -210,6 +210,17 @@ export const inferGenderFromName = (value: string): Person['gender'] | undefined
   return undefined;
 };
 
+/**
+ * Sex for a person created by an import (transcript, facts, image, session
+ * capture): the source's explicit value, else name-override evidence, else
+ * unset. Never a default — an unknown sex stays unknown rather than being
+ * recorded as female.
+ */
+export const resolveImportedGender = (
+  explicit: string | undefined,
+  name: string
+): Person['gender'] | undefined => explicit || inferGenderFromName(name);
+
 export const findLikelyExistingPerson = (
   peopleByName: Map<string, Person>,
   normalizedName: string

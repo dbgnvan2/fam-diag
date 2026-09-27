@@ -17,6 +17,7 @@ import {
   inferGenderFromName,
   findLikelyExistingPerson,
   normalizeImportedChildLayout,
+  resolveImportedGender,
 } from './dataNormalization';
 
 // ---------------------------------------------------------------------------
@@ -125,7 +126,7 @@ export const parseTranscriptToDraftDiagram = (
       lastName: normalized.split(/\s+/).slice(1).join(' ') || undefined,
       x: 0,
       y: 0,
-      gender: inferGenderFromName(normalized) || 'female',
+      gender: resolveImportedGender(undefined, normalized),
       partnerships: [],
       events: [],
     };
@@ -309,7 +310,7 @@ export const parseTranscriptToDraftDiagram = (
   peopleList.forEach((person, index) => {
     person.x = 120 + (index % 6) * 150;
     person.y = 140 + Math.floor(index / 6) * 180;
-    person.gender = inferGenderFromName(person.name) || person.gender || 'female';
+    person.gender = inferGenderFromName(person.name) || person.gender;
     const notes = personNotes.get(person.name);
     if (notes?.length) {
       person.notes = notes.join(' ');
@@ -321,7 +322,8 @@ export const parseTranscriptToDraftDiagram = (
       ];
     }
     if (deceasedNames.has(person.name) && !person.deathDate) {
-      person.deathDate = '1973-01-01';
+      // The transcript says they died but gives no year: mark deceased, date unknown.
+      person.deathDateKnown = true;
     }
   });
 
@@ -397,7 +399,6 @@ export const parseTranscriptToDraftDiagram = (
         firstName: childName,
         x: anchorX + (i - (needed - 1) / 2) * 42,
         y: baseY,
-        gender: i % 2 === 0 ? 'female' : 'male',
         partnerships: [],
         parentPartnership: partnership.id,
         notes: 'Placeholder child generated from transcript statement about child count.',
@@ -636,7 +637,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       lastName: normalized.split(/\s+/).slice(1).join(' ') || undefined,
       x: 0,
       y: 0,
-      gender: inferGenderFromName(normalized) || 'female',
+      gender: resolveImportedGender(undefined, normalized),
       partnerships: [],
       events: [],
     };
@@ -666,7 +667,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   people.forEach((person, idx) => {
     person.x = 120 + (idx % 6) * 150;
     person.y = 140 + Math.floor(idx / 6) * 170;
-    person.gender = inferGenderFromName(person.name) || person.gender || 'female';
+    person.gender = inferGenderFromName(person.name) || person.gender;
   });
 
   // Apply genogram image import metadata (sex, dates, coordinates)
@@ -691,9 +692,12 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
         matchedPerson.y = POSITION_PADDING + (importedPerson.y / 100) * (CANVAS_HEIGHT - 2 * POSITION_PADDING);
       }
 
-      // Apply sex if specified and overrides default inference
-      if (importedPerson.sex && importedPerson.sex !== 'unknown') {
-        matchedPerson.gender = importedPerson.sex === 'male' ? 'male' : 'female';
+      // The drawn shape is the evidence for sex. An explicit "unknown" clears any
+      // name-based guess; anything other than male/female leaves gender as it was.
+      if (importedPerson.sex === 'male' || importedPerson.sex === 'female') {
+        matchedPerson.gender = importedPerson.sex;
+      } else if (importedPerson.sex === 'unknown') {
+        delete matchedPerson.gender;
       }
 
       // Apply birth and death dates
@@ -703,8 +707,9 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       if (importedPerson.deceased && importedPerson.deathYear) {
         matchedPerson.deathDate = `${importedPerson.deathYear}-01-01`;
       } else if (importedPerson.deceased && !importedPerson.deathYear) {
-        // Mark as deceased with unknown death year
-        matchedPerson.deathDate = '1900-01-01'; // Placeholder, user can edit
+        // Deceased, year not written: flag it rather than invent a date.
+        // deathDateKnown still draws the X (PersonNode renderDeathOverlay).
+        matchedPerson.deathDateKnown = true;
       }
 
       // NOTE: Not processing notes from image import at this time
@@ -864,7 +869,11 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     };
     person.events = [...(person.events || []), event];
     if ((evt.type || '').toLowerCase().includes('homicide_suicide') && !person.deathDate) {
-      person.deathDate = evt.year ? `${evt.year}-01-01` : '1973-01-01';
+      if (evt.year) {
+        person.deathDate = `${evt.year}-01-01`;
+      } else {
+        person.deathDateKnown = true;
+      }
     }
   });
 

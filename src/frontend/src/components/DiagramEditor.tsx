@@ -111,7 +111,7 @@ import {
   parseIsoDateToTimestamp,
   attachEventClassToEntities,
   attachFamilyEventsToPartnerships,
-  inferGenderFromName,
+  resolveImportedGender,
   normalizeImportedChildLayout,
 } from '../utils/dataNormalization';
 import {
@@ -2682,7 +2682,7 @@ useEffect(() => {
           lastName: payload.lastName,
           birthDate: payload.birthDate,
           deathDate: payload.deathDate,
-          gender: payload.gender || inferGenderFromName(baseName) || 'female',
+          gender: resolveImportedGender(payload.gender, baseName),
           notes: payload.notes,
           x: 120 + (nextPeople.length % 10) * 90,
           y: 140 + Math.floor(nextPeople.length / 10) * 90,
@@ -2704,7 +2704,7 @@ useEffect(() => {
           const newPerson: Person = {
             id: (operation.matchHints?.personId as string) || nanoid(),
             name: fallbackName,
-            gender: inferGenderFromName(fallbackName) || 'female',
+            gender: resolveImportedGender(undefined, fallbackName),
             x: 120 + (nextPeople.length % 10) * 90,
             y: 140 + Math.floor(nextPeople.length / 10) * 90,
             partnerships: [],
@@ -2757,7 +2757,7 @@ useEffect(() => {
           payload: { personName: payload.partner2Name || payload.partner2 },
           matchHints: { personName: payload.partner2Name || payload.partner2 },
         };
-        [p1Op, p2Op].forEach((synthetic, syntheticIndex) => {
+        [p1Op, p2Op].forEach((synthetic) => {
           const matchedIndex = findPersonIndexForSessionOp(nextPeople, synthetic);
           if (matchedIndex >= 0) return;
           const name = (synthetic.payload?.personName as string | undefined)?.trim();
@@ -2765,7 +2765,7 @@ useEffect(() => {
           nextPeople.push({
             id: nanoid(),
             name,
-            gender: inferGenderFromName(name) || (syntheticIndex === 0 ? 'male' : 'female'),
+            gender: resolveImportedGender(undefined, name),
             x: 120 + (nextPeople.length % 10) * 90,
             y: 140 + Math.floor(nextPeople.length / 10) * 90,
             partnerships: [],
