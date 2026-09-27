@@ -2429,11 +2429,20 @@ useEffect(() => {
     [backupCount, buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, readDiagramJsonFromHandle, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
   );
 
+  // Always points to the latest saveDiagramToCurrentTarget so async flows
+  // (e.g. triggerSaveAs) read fresh state after a reset, not a stale closure.
+  const saveDiagramToCurrentTargetRef = useRef(saveDiagramToCurrentTarget);
+  saveDiagramToCurrentTargetRef.current = saveDiagramToCurrentTarget;
+
+  // File autosave. saveDiagramToCurrentTarget gets a new identity on every
+  // render (buildDiagramPayload is not memoized) and the editor re-renders every
+  // 500 ms while dirty, so it is read through the ref rather than listed as a
+  // dependency — otherwise the timer restarts before it can ever fire.
   useEffect(() => {
     if (!isDirty) return;
     if (!diagramFileHandleRef.current) return;
     const timeout = window.setTimeout(() => {
-      void saveDiagramToCurrentTarget({
+      void saveDiagramToCurrentTargetRef.current({
         requestedFileName: fileName,
         forceChooseLocation: false,
         allowPicker: false,
@@ -2451,7 +2460,6 @@ useEffect(() => {
     pageNotes,
     partnerships,
     people,
-    saveDiagramToCurrentTarget,
     triangles,
   ]);
 
@@ -3235,11 +3243,6 @@ useEffect(() => {
     saveAsOnConfirmRef.current = onConfirm;
     setSaveAsDialogOpen(true);
   }, []);
-
-  // Always points to the latest saveDiagramToCurrentTarget so async flows
-  // (e.g. triggerSaveAs) read fresh state after a reset, not a stale closure.
-  const saveDiagramToCurrentTargetRef = useRef(saveDiagramToCurrentTarget);
-  saveDiagramToCurrentTargetRef.current = saveDiagramToCurrentTarget;
 
   /**
    * triggerSaveAs — unified "Save As" entry point.
