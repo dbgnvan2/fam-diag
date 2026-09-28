@@ -91,6 +91,7 @@ import {
 } from '../utils/emotionalLineNormalization';
 import {
   getStoredValue,
+  parseStoredDiagramArray,
   setStoredValue,
   parseStoredUserSettings,
   parseStoredArraySetting,
@@ -165,17 +166,15 @@ const readLocalStorageDiagramSnapshot = () => {
   if (typeof window === 'undefined') {
     return { people: initialPeople, partnerships: initialPartnerships, emotionalLines: initialEmotionalLines, pageNotes: initialPageNotes, triangles: initialTriangles };
   }
-  const tryParse = <T,>(key: Parameters<typeof getStoredValue>[0], fallback: T): T => {
-    const raw = getStoredValue(key);
-    if (!raw) return fallback;
-    try { const p = JSON.parse(raw); return Array.isArray(p) ? (p as T) : fallback; } catch { return fallback; }
-  };
+  const storedPartnerships = parseStoredDiagramArray<Partnership>('partnerships');
   return {
-    people: tryParse<Person[]>('people', initialPeople),
-    partnerships: attachFamilyEventsToPartnerships(tryParse<Partnership[]>('partnerships', initialPartnerships)),
-    emotionalLines: tryParse<EmotionalLine[]>('emotionalLines', initialEmotionalLines),
-    pageNotes: tryParse<PageNote[]>('pageNotes', initialPageNotes),
-    triangles: tryParse<Triangle[]>('triangles', initialTriangles),
+    people: parseStoredDiagramArray<Person>('people') ?? initialPeople,
+    partnerships: storedPartnerships
+      ? attachFamilyEventsToPartnerships(storedPartnerships)
+      : initialPartnerships,
+    emotionalLines: parseStoredDiagramArray<EmotionalLine>('emotionalLines') ?? initialEmotionalLines,
+    pageNotes: parseStoredDiagramArray<PageNote>('pageNotes') ?? initialPageNotes,
+    triangles: parseStoredDiagramArray<Triangle>('triangles') ?? initialTriangles,
   };
 };
 const DIAGRAM_FILE_PICKER_TYPES = [
@@ -222,46 +221,15 @@ const DiagramEditor = () => {
     emotional: '#d81b60',
     social: '#2e7d32',
   };
-  const [people, setPeople] = useState<Person[]>(() => {
-    if (typeof window === 'undefined') return initialPeople;
-    const stored = getStoredValue('people');
-    if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length > 0) return parsed; } catch { /* ignore */ }
-    }
-    return initialPeople;
-  });
-  const [partnerships, setPartnerships] = useState<Partnership[]>(() => {
-    if (typeof window === 'undefined') return initialPartnerships;
-    const stored = getStoredValue('partnerships');
-    if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length > 0) return attachFamilyEventsToPartnerships(parsed); } catch { /* ignore */ }
-    }
-    return initialPartnerships;
-  });
-  const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(() => {
-    if (typeof window === 'undefined') return initialEmotionalLines;
-    const stored = getStoredValue('emotionalLines');
-    if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
-    }
-    return initialEmotionalLines;
-  });
-  const [pageNotes, setPageNotes] = useState<PageNote[]>(() => {
-    if (typeof window === 'undefined') return initialPageNotes;
-    const stored = getStoredValue('pageNotes');
-    if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
-    }
-    return initialPageNotes;
-  });
-  const [triangles, setTriangles] = useState<Triangle[]>(() => {
-    if (typeof window === 'undefined') return initialTriangles;
-    const stored = getStoredValue('triangles');
-    if (stored) {
-      try { const parsed = JSON.parse(stored); if (Array.isArray(parsed)) return parsed; } catch { /* ignore */ }
-    }
-    return initialTriangles;
-  });
+  // Restore the diagram from localStorage. A stored empty array is an emptied
+  // diagram and is kept; only a missing key (first run) falls back to the
+  // product default. Same rule as readLocalStorageDiagramSnapshot.
+  const [initialSnapshot] = useState(readLocalStorageDiagramSnapshot);
+  const [people, setPeople] = useState<Person[]>(initialSnapshot.people);
+  const [partnerships, setPartnerships] = useState<Partnership[]>(initialSnapshot.partnerships);
+  const [emotionalLines, setEmotionalLines] = useState<EmotionalLine[]>(initialSnapshot.emotionalLines);
+  const [pageNotes, setPageNotes] = useState<PageNote[]>(initialSnapshot.pageNotes);
+  const [triangles, setTriangles] = useState<Triangle[]>(initialSnapshot.triangles);
   const [fileName, setFileName] = useState(() => {
     if (typeof window === 'undefined') return initialFileName;
     const stored = getStoredValue('fileName');
@@ -555,20 +523,8 @@ const DiagramEditor = () => {
     emotionalLines: Map<string, { notesPosition?: { x: number; y: number } }>;
     pageNotes: Map<string, { x: number; y: number }>;
   } | null>(null);
-  const savedSnapshotRef = useRef((() => {
-    const ls = readLocalStorageDiagramSnapshot();
-    return JSON.stringify({
-      people: ls.people,
-      partnerships: ls.partnerships,
-      emotionalLines: ls.emotionalLines,
-      pageNotes: ls.pageNotes,
-      triangles: ls.triangles,
-      functionalIndicatorDefinitions: initialIndicatorDefinitions,
-      eventCategories: initialEventCategories,
-      relationshipTypes: initialRelationshipTypes,
-      relationshipStatuses: initialRelationshipStatuses,
-    });
-  })());
+  // Replaced on mount by markSnapshotClean with the restored state.
+  const savedSnapshotRef = useRef('');
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
@@ -1675,7 +1631,9 @@ const DiagramEditor = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     try {
-      applyIndicatorDefinitionArray(initialIndicatorDefinitions);
+      // Apply the definitions restored from storage (not the defaults, which
+      // replaced custom definitions and deleted the indicators using them).
+      applyIndicatorDefinitionArray(functionalIndicatorDefinitions);
     } catch {
       // keep fallback defaults if initialization ever fails
       setTriangles(initialTriangles);
@@ -2560,12 +2518,14 @@ useEffect(() => {
       Array.isArray(data.eventCategories) && data.eventCategories.length > 0
         ? data.eventCategories
         : eventCategories,
+      // Same fallback as the setters above: a file without these lists keeps
+      // the current ones, so the baseline must too (not the defaults).
       Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0
         ? data.relationshipTypes
-        : DEFAULT_DIAGRAM_STATE.relationshipTypes,
+        : relationshipTypes,
       Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0
         ? data.relationshipStatuses
-        : DEFAULT_DIAGRAM_STATE.relationshipStatuses
+        : relationshipStatuses
     );
     setLastSavedAt(null);
   };

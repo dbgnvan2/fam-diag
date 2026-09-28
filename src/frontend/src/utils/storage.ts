@@ -104,6 +104,25 @@ export const parseStoredArraySetting = (key: keyof typeof STORAGE_KEYS): string[
   }
 };
 
+/**
+ * A diagram entity array (people, partnerships, …) from localStorage: the
+ * stored array, including an empty one, or null when the key is missing or
+ * unreadable. An empty array is a real, emptied diagram — callers must not
+ * swap it for the default diagram.
+ */
+export const parseStoredDiagramArray = <T,>(
+  key: 'people' | 'partnerships' | 'emotionalLines' | 'triangles' | 'pageNotes'
+): T[] | null => {
+  const raw = getStoredValue(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
+};
+
 export const parseStoredIndicatorDefinitions = (): FunctionalIndicatorDefinition[] | null => {
   const raw = getStoredValue('indicatorDefinitions');
   if (!raw) return null;
@@ -326,13 +345,19 @@ export const listFileBackups = async (
   return results;
 };
 
-/** Clear all localStorage keys holding diagram entity data (people, partnerships, etc.). */
+/**
+ * Reset the stored diagram to empty (File > New). The entity keys are written
+ * as empty arrays rather than removed: a missing key means "first run" and
+ * loads the product default diagram, so removing them brought the default
+ * family back if the page reloaded before the next autosave.
+ */
 export const clearDiagramLocalStorage = () => {
   if (typeof window === 'undefined') return;
-  const diagramKeys: (keyof typeof STORAGE_KEYS)[] = [
-    'people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes', 'fileName',
+  const entityKeys: (keyof typeof STORAGE_KEYS)[] = [
+    'people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes',
   ];
-  for (const k of diagramKeys) {
-    localStorage.removeItem(STORAGE_KEYS[k]);
+  for (const k of entityKeys) {
+    localStorage.setItem(STORAGE_KEYS[k], '[]');
   }
+  localStorage.removeItem(STORAGE_KEYS.fileName);
 };

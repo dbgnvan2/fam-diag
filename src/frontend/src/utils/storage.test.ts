@@ -4,6 +4,8 @@ import {
   trySetStoredValue,
   isRightClickHintHidden,
   setRightClickHintHidden,
+  clearDiagramLocalStorage,
+  parseStoredDiagramArray,
 } from './storage';
 
 describe('storage — guarded writes', () => {
@@ -44,5 +46,35 @@ describe('storage — guarded writes', () => {
     // A store that accepts the write but does not keep it (some private modes).
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {});
     expect(setRightClickHintHidden(true)).toBe(false);
+  });
+});
+
+describe('storage — diagram entity arrays', () => {
+  afterEach(() => localStorage.clear());
+
+  it('parseStoredDiagramArray keeps a stored empty array (an emptied diagram)', () => {
+    localStorage.setItem(STORAGE_KEYS.people, '[]');
+    expect(parseStoredDiagramArray('people')).toEqual([]);
+  });
+
+  it('parseStoredDiagramArray returns null for a missing, non-array or unreadable value', () => {
+    expect(parseStoredDiagramArray('people')).toBeNull();
+    localStorage.setItem(STORAGE_KEYS.people, '{"a":1}');
+    expect(parseStoredDiagramArray('people')).toBeNull();
+    localStorage.setItem(STORAGE_KEYS.people, 'not json');
+    expect(parseStoredDiagramArray('people')).toBeNull();
+  });
+
+  it('clearDiagramLocalStorage stores an empty diagram rather than removing the keys', () => {
+    // Removing them meant "first run" on reload and brought the default family back.
+    localStorage.setItem(STORAGE_KEYS.people, '[{"id":"x"}]');
+    localStorage.setItem(STORAGE_KEYS.fileName, 'old.json');
+    localStorage.setItem(STORAGE_KEYS.ideas, 'kept');
+    clearDiagramLocalStorage();
+    for (const key of ['people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes'] as const) {
+      expect(localStorage.getItem(STORAGE_KEYS[key])).toBe('[]');
+    }
+    expect(localStorage.getItem(STORAGE_KEYS.fileName)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEYS.ideas)).toBe('kept');
   });
 });
