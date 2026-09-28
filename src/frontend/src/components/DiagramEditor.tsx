@@ -2674,7 +2674,9 @@ useEffect(() => {
         : '',
       merged.droppedPartnerships ? `${merged.droppedPartnerships} partnerships involving them` : '',
       merged.droppedLines ? `${merged.droppedLines} emotional pattern lines involving them` : '',
-      merged.droppedTriangles ? `${merged.droppedTriangles} triangles involving them` : '',
+      merged.droppedTriangles
+        ? `${merged.droppedTriangles} triangles that involved them or no longer had three different people`
+        : '',
     ].filter(Boolean);
     if (notMerged.length) {
       alert(`Merged. Not added:\n- ${notMerged.join('\n- ')}`);

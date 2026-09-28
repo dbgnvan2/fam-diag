@@ -217,3 +217,19 @@ describe('mergeDiagramData — new child of an existing couple', () => {
     ).toEqual(before);
   });
 });
+
+describe('mergeDiagramData — collapsed triangles are counted', () => {
+  it('counts a triangle whose people merge into fewer than three (regression: dropped silently)', () => {
+    // Two incoming people both match Adam Stone, so the triangle has only two
+    // distinct people after remapping and cannot be kept.
+    const data: DiagramImportData = {
+      people: [person('x1', 'Adam Stone', 0, 0), person('x2', 'adam stone', 0, 0), person('x3', 'Beth Stone', 0, 0)],
+      partnerships: [],
+      emotionalLines: [],
+      triangles: [{ id: 'tri', person1_id: 'x1', person2_id: 'x2', person3_id: 'x3' } as Triangle],
+    };
+    const result = mergeDiagramData(existingDiagram(), data);
+    expect(result.triangles).toHaveLength(0);
+    expect(result.droppedTriangles).toBe(1);
+  });
+});

@@ -65,7 +65,10 @@ export type DiagramMergeResult = {
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   /** Names of incoming people not added (facts mode, no existing match). */
   skippedPeopleNames: string[];
-  /** Incoming items dropped because they referenced a skipped person. */
+  /**
+   * Incoming items dropped because they referenced a skipped person (or, for
+   * triangles, because two of their people merged into one).
+   */
   droppedPartnerships: number;
   droppedLines: number;
   droppedTriangles: number;
@@ -430,7 +433,11 @@ export const mergeDiagramData = (
       remappedTriangle.person2_id,
       remappedTriangle.person3_id,
     ]);
-    if (uniquePeople.size !== 3) return;
+    if (uniquePeople.size !== 3) {
+      // Two of its people merged into one existing person: not a triangle.
+      droppedTriangles += 1;
+      return;
+    }
     const key = triangleKey(remappedTriangle);
     const existingMatch = existingTriangleByKey.get(key);
     if (existingMatch) {
