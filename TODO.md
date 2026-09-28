@@ -2,6 +2,46 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the autosave and import-fabrication batch (2026-09-27)
+
+Gate `docs/cycles/gate_2026-09-27_autosave_import-fabrication.md` APPROVED.
+An earlier run on the same day diffed against a stale base (before
+`a82f52c`) and reviewed the wrong code; it was discarded after rebasing.
+Carried items:
+
+- **Session-capture import has no direct test.** The three call sites in
+  `DiagramEditor.tsx` that stopped defaulting sex (`upsert_person`,
+  `add_person_event` fallback, `upsert_partnership` synthetic partners) are
+  covered only through the `resolveImportedGender` helper.
+- **`resolveImportedGender` stores any truthy explicit value verbatim**, so a
+  future caller passing an image-import `sex` of `'unknown'` would record it
+  as a gender. Unreachable today; the image path clears on `'unknown'`.
+- **Unknown sex still renders as a circle.** `PersonNode.deriveGenderSymbol`
+  falls back to `female_cis` when gender is unset. Needs a decision on the
+  unknown-sex symbol (earlier notes say triangle).
+- **`deathDateKnown` has no Timeline block.** A deceased person with an
+  unknown date shows the X on the canvas but no Death entry in
+  `syntheticDateEvents`.
+- **Facts-import placeholder children are lost.** Children generated from
+  text like "had two children" are added after the `people` list is built,
+  so they are missing from the output while their IDs stay in
+  `partnership.children` (`utils/dataImport.ts`, `factsToDiagramImportData`).
+- **Session events with no date get today's date**
+  (`DiagramEditor.tsx`, `add_person_event`).
+- **Manual "Add Person" and voice commands default to female**
+  (`usePersonOperations.addPerson`, `useVoiceHandlers`). User-created, not
+  imports, so left as is pending a decision.
+- **Open findings from the 2026-09-27 full review** (not yet fixed): transcript
+  regexes with the `i` flag create people named "She"/"Mother"; facts-mode
+  merge adds partnerships to skipped people; merge re-lays out the whole
+  diagram and mutates partnership state; remarriage layout in image import;
+  Open/Load/Restore discard unsaved work without a prompt; clean-snapshot
+  baseline disagrees with state; timeline year bounds use local time; name
+  prefix match merges distinct people; VLM response validation is shallow;
+  ~940 lines of tests cover the unreachable review-modal image path;
+  `removePerson` leaves dangling partnership IDs; `alignAllAnchors` lives in
+  the component with a dead branch.
+
 ## From the kinship and emotional-pattern batch (2026-09-22)
 
 Gate passes 13-15 (13 and 14 REJECTED, 15 APPROVED). Carried items:

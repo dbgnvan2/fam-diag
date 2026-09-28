@@ -122,3 +122,25 @@ one that competes. Keep load-bearing z-indexes in `constants/zIndex.ts` and asse
 between those constants, so the claim is checkable rather than remembered. Verify the ordering
 in the browser with elements that actually overlap — an on-screen check where the two never
 intersect proves nothing.
+
+---
+
+## L7 — A debounce timer keyed on a callback that changes every render
+
+**Issue.** Autosave never ran while the diagram had unsaved changes. Both timers — the
+localStorage `useAutosave` calls and the linked-file autosave effect — listed a callback in
+their effect dependencies. DiagramEditor passes inline arrows (new identity every render), and
+`saveDiagramToCurrentTarget` was rebuilt every render because `buildDiagramPayload` is a plain
+function. While dirty, the editor re-renders every 500 ms for the "unsaved for Ns" clock, so
+each timer was cleared and restarted twice a second and never reached its 1-minute delay.
+
+**Root cause.** A debounce keyed on something other than the data it debounces. The callback's
+identity changes for reasons unrelated to what should be saved.
+
+**What would have caught it.** A test that advances fake time in the same steps the app
+re-renders (500 ms), not in one jump. The bug is invisible when time is advanced in a single
+call, because no re-render happens in between.
+
+**Rule.** Key a timer effect only on the values that should restart it (the data, the delay).
+Read callbacks through a ref updated every render. When a component has an interval that
+forces re-renders, test every timer in it by stepping time at that interval.
