@@ -25,7 +25,16 @@ export type VLMImportOptions = {
   onProgress?: (message: string) => void;
   /** Optional abort signal — if aborted, the API call is cancelled. */
   signal?: AbortSignal;
+  /** Retries after a retryable failure (429, 5xx, 529 overloaded, network). Default: 2 */
+  maxRetries?: number;
+  /** First retry delay; doubles each retry. A Retry-After header wins. Default: 2000 */
+  retryBaseDelayMs?: number;
 };
+
+/** HTTP statuses worth retrying: rate limit, server errors, Anthropic "overloaded". */
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504, 529]);
+/** Upper bound on any single wait, including a server-sent Retry-After. */
+const MAX_RETRY_DELAY_MS = 60_000;
 
 /**
  * Cost estimate for image processing.
@@ -71,6 +80,8 @@ export async function vlmImport(
     timeoutMs = 180000,
     onProgress,
     signal,
+    maxRetries = 2,
+    retryBaseDelayMs = 2000,
   } = options;
 
   // Step 1: Downscale image if needed
@@ -86,14 +97,14 @@ export async function vlmImport(
 
   // Step 2: Call Anthropic Vision API
   onProgress?.('[vlmImport] Sending to Claude Vision...');
-  const response = await callClaudeVision(
-    scaledImageBase64,
-    apiKey,
-    model,
-    maxTokens,
-    timeoutMs,
-    signal
-  );
+  const response = await callClaudeVision(scaledImageBase64, apiKey, model, maxTokens, timeoutMs, signal, {
+    maxRetries,
+    baseDelayMs: retryBaseDelayMs,
+    onRetry: (attempt, reason, delayMs) =>
+      onProgress?.(
+        `[vlmImport] ${reason}; retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt + 1} of ${maxRetries + 1})...`
+      ),
+  });
 
   // Step 3: Parse and validate response
   onProgress?.('[vlmImport] Parsing response...');
@@ -184,16 +195,57 @@ async function downscaleAndEncode(
   });
 }
 
+export type VisionRetryOptions = {
+  maxRetries: number;
+  baseDelayMs: number;
+  onRetry?: (attempt: number, reason: string, delayMs: number) => void;
+};
+
+/** Wait `ms`, rejecting early with AbortError-style cancellation if `signal` aborts. */
+const waitUnlessAborted = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('Cancelled by user'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error('Cancelled by user'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+
+/** Retry-After (seconds or HTTP date) in ms, or null. */
+const retryAfterMs = (res: Response): number | null => {
+  const header = res.headers.get('retry-after');
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+};
+
 /**
  * Call Anthropic Claude Vision API directly from browser.
+ *
+ * Each attempt has its own timeout. A retryable failure (see
+ * RETRYABLE_STATUSES, or a network error) is retried with exponential
+ * backoff; a timeout, a user cancel, or any other status fails at once.
+ *
+ * Exported for unit testing.
  */
-async function callClaudeVision(
+export async function callClaudeVision(
   imageBase64: string,
   apiKey: string,
   model: string,
   maxTokens: number,
   timeoutMs: number,
-  externalSignal?: AbortSignal
+  externalSignal?: AbortSignal,
+  retry: VisionRetryOptions = { maxRetries: 2, baseDelayMs: 2000 }
 ): Promise<string> {
   const systemPrompt = `You are an expert at reading hand-drawn genograms (family-tree diagrams used in family-systems therapy), including ones that are photographed at an angle, faint, or drawn in pencil. You will be given ONE image of a genogram. Extract its content into a single JSON object and return ONLY that JSON — no prose, no markdown fences.
 
@@ -274,62 +326,85 @@ RULES:
 
   const userMessage = 'Extract all people and relationships from this genogram image.';
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  // Forward external abort signal to the fetch controller
-  if (externalSignal) {
-    if (externalSignal.aborted) controller.abort();
-    else externalSignal.addEventListener('abort', () => controller.abort());
-  }
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: [
+  const requestBody = JSON.stringify({
+    model,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: [
           {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
-              },
-              { type: 'text', text: userMessage },
-            ],
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
           },
+          { type: 'text', text: userMessage },
         ],
-      }),
-      signal: controller.signal,
-    });
+      },
+    ],
+  });
 
-    clearTimeout(timeoutId);
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    // Forward the external abort signal to this attempt's controller.
+    const forwardAbort = () => controller.abort();
+    if (externalSignal?.aborted) controller.abort();
+    else externalSignal?.addEventListener('abort', forwardAbort, { once: true });
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', forwardAbort);
+    };
 
-    if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Claude Vision API error (${res.status}): ${error}`);
-    }
+    let retryReason: string;
+    let serverDelayMs: number | null = null;
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: requestBody,
+        signal: controller.signal,
+      });
+      cleanup();
 
-    const data = (await res.json()) as ClaudeVisionResponse;
-    return extractVisionText(data, maxTokens);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      // Distinguish between user cancellation and timeout
-      if (externalSignal?.aborted) {
-        throw new Error('Cancelled by user');
+      if (res.ok) {
+        const data = (await res.json()) as ClaudeVisionResponse;
+        return extractVisionText(data, maxTokens);
       }
-      throw new Error(`Claude Vision request timed out after ${timeoutMs}ms`);
+      const errorText = await res.text();
+      if (!RETRYABLE_STATUSES.has(res.status) || attempt >= retry.maxRetries) {
+        throw new Error(`Claude Vision API error (${res.status}): ${errorText}`);
+      }
+      retryReason = `Claude Vision returned ${res.status}`;
+      serverDelayMs = retryAfterMs(res);
+    } catch (error) {
+      cleanup();
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Distinguish between user cancellation and timeout. Neither is retried:
+        // a timed-out request already used its full budget.
+        if (externalSignal?.aborted) {
+          throw new Error('Cancelled by user');
+        }
+        throw new Error(`Claude Vision request timed out after ${timeoutMs}ms`);
+      }
+      // fetch rejects with a TypeError when the network request itself fails.
+      if (!(error instanceof TypeError) || attempt >= retry.maxRetries) {
+        throw error;
+      }
+      retryReason = `Network error (${error.message})`;
     }
-    throw error;
+
+    const delayMs = Math.min(
+      MAX_RETRY_DELAY_MS,
+      serverDelayMs ?? retry.baseDelayMs * 2 ** attempt
+    );
+    retry.onRetry?.(attempt + 1, retryReason, delayMs);
+    await waitUnlessAborted(delayMs, externalSignal);
   }
 }
 
@@ -392,12 +467,163 @@ export function parseVLMResponse(text: string): FactsImportData {
     throw new Error('VLM response is not a JSON object');
   }
 
-  // Ensure arrays are arrays
-  if (facts.people && !Array.isArray(facts.people)) facts.people = [];
-  if (facts.relationships && !Array.isArray(facts.relationships)) facts.relationships = [];
-  if (facts.uncertainties && !Array.isArray(facts.uncertainties)) facts.uncertainties = [];
+  return sanitizeVLMFacts(facts as unknown as Record<string, unknown>);
+}
 
-  return facts;
+// ---------------------------------------------------------------------------
+// Field-level validation of the model's JSON. Everything downstream
+// (applyDataRules, factsToDiagramImportData) assumes the FactsImportData
+// types: a string `children` was iterated one character at a time and a
+// numeric name crashed `.trim()`. Values that cannot be used are dropped or
+// cleared, and each drop is recorded in `uncertainties` so the import log
+// shows it.
+// ---------------------------------------------------------------------------
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : typeof value === 'number' ? String(value) : undefined;
+
+/** A year as a number: accepts 1968 or "1968"; anything else is undefined. */
+const asYear = (value: unknown): number | undefined => {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 && n < 3000 ? n : undefined;
+};
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+/** An array of strings, dropping non-string entries; a lone string becomes [string]. */
+const asStringList = (value: unknown, onDrop: (count: number) => void): string[] | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') return [value];
+  if (!Array.isArray(value)) {
+    onDrop(1);
+    return [];
+  }
+  const kept = value.map(asString).filter((entry): entry is string => entry !== undefined);
+  if (kept.length !== value.length) onDrop(value.length - kept.length);
+  return kept;
+};
+
+const SEXES = new Set(['male', 'female', 'unknown']);
+const CONFIDENCES = new Set(['high', 'med', 'low']);
+
+/**
+ * Coerce parsed model output to FactsImportData, dropping what cannot be used.
+ *
+ * Exported for unit testing.
+ */
+export function sanitizeVLMFacts(raw: Record<string, unknown>): FactsImportData {
+  const notes: string[] = [];
+  const dropped = (what: string) => (count: number) => {
+    if (count > 0) notes.push(`[warn] VLM response: dropped ${count} malformed ${what}.`);
+  };
+
+  const uncertainties =
+    asStringList(raw.uncertainties, dropped('uncertainty entries')) ?? undefined;
+
+  let people: FactsImportData['people'];
+  if (raw.people !== undefined && raw.people !== null) {
+    const list = Array.isArray(raw.people) ? raw.people : [];
+    if (!Array.isArray(raw.people)) notes.push('[warn] VLM response: "people" was not a list; ignored.');
+    people = [];
+    let bad = 0;
+    for (const entry of list) {
+      const name = isRecord(entry) ? asString(entry.name) : undefined;
+      if (!isRecord(entry) || name === undefined) {
+        bad += 1;
+        continue;
+      }
+      const sex = asString(entry.sex)?.toLowerCase();
+      const confidence = asString(entry.confidence)?.toLowerCase();
+      const twinGroup = asString(entry.twinGroup);
+      people.push({
+        name,
+        sex: sex && SEXES.has(sex) ? (sex as 'male' | 'female' | 'unknown') : undefined,
+        deceased: typeof entry.deceased === 'boolean' ? entry.deceased : undefined,
+        // A year the model sent as null ("not written") stays null; junk is cleared.
+        birthYear: asYear(entry.birthYear) ?? (entry.birthYear === null ? null : undefined),
+        deathYear: asYear(entry.deathYear) ?? (entry.deathYear === null ? null : undefined),
+        confidence: confidence && CONFIDENCES.has(confidence) ? (confidence as 'high' | 'med' | 'low') : undefined,
+        notes: asString(entry.notes),
+        x: asNumber(entry.x),
+        y: asNumber(entry.y),
+        twinGroup: twinGroup && twinGroup.trim() ? twinGroup : undefined,
+      });
+    }
+    dropped('people entries (no usable name)')(bad);
+  }
+
+  let relationships: FactsImportData['relationships'];
+  if (raw.relationships !== undefined && raw.relationships !== null) {
+    const list = Array.isArray(raw.relationships) ? raw.relationships : [];
+    if (!Array.isArray(raw.relationships)) notes.push('[warn] VLM response: "relationships" was not a list; ignored.');
+    relationships = [];
+    let bad = 0;
+    for (const entry of list) {
+      if (!isRecord(entry)) {
+        bad += 1;
+        continue;
+      }
+      relationships.push({
+        a: asString(entry.a),
+        b: asString(entry.b),
+        type: asString(entry.type),
+        status: asString(entry.status),
+        evidence: asString(entry.evidence),
+        children: asStringList(entry.children, dropped('child references')),
+      });
+    }
+    dropped('relationship entries')(bad);
+  }
+
+  let family: FactsImportData['family'];
+  if (isRecord(raw.family)) {
+    family = {
+      parents: asStringList(raw.family.parents, dropped('family.parents entries')),
+      marriageYear: asYear(raw.family.marriageYear),
+      childrenCountMentioned: asNumber(raw.family.childrenCountMentioned),
+      childrenMentionedByName: asStringList(
+        raw.family.childrenMentionedByName,
+        dropped('family.childrenMentionedByName entries')
+      ),
+    };
+  }
+
+  let clinical: FactsImportData['clinical'];
+  if (isRecord(raw.clinical)) {
+    const events = Array.isArray(raw.clinical.events)
+      ? raw.clinical.events.filter(isRecord).map((evt) => ({
+          person: asString(evt.person),
+          type: asString(evt.type),
+          year: asYear(evt.year),
+        }))
+      : undefined;
+    clinical = {
+      explicitSchizophreniaMentions: asStringList(
+        raw.clinical.explicitSchizophreniaMentions,
+        dropped('schizophrenia mentions')
+      ),
+      explicitNoDiagnosisMentions: asStringList(
+        raw.clinical.explicitNoDiagnosisMentions,
+        dropped('no-diagnosis mentions')
+      ),
+      events,
+    };
+  }
+
+  const allUncertainties = [...(uncertainties ?? []), ...notes];
+  return {
+    sourceFile: asString(raw.sourceFile),
+    processedAt: asString(raw.processedAt),
+    family,
+    relationships,
+    clinical,
+    uncertainties: allUncertainties.length ? allUncertainties : uncertainties,
+    people,
+  };
 }
 
 /**
