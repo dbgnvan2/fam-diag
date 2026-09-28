@@ -2505,6 +2505,7 @@ useEffect(() => {
       });
     });
 
+    let undatedEventCount = 0;
     selectedOps.forEach((operation) => {
       if (operation.type === 'upsert_person') {
         const matchedIndex = findPersonIndexForSessionOp(nextPeople, operation);
@@ -2571,7 +2572,10 @@ useEffect(() => {
         const target = nextPeople[personIndex];
         const event: EmotionalProcessEvent = {
           id: payload.id || nanoid(),
-          date: payload.date || new Date().toISOString().slice(0, 10),
+          // No date in the capture: leave it blank rather than stamping today,
+          // which would place the event at the wrong point on the timeline.
+          date: payload.date || '',
+          startDate: payload.startDate || payload.date || '',
           category: payload.category || 'Session Event',
           eventType: payload.eventType || 'NODAL',
           status: payload.status || 'discrete',
@@ -2591,6 +2595,7 @@ useEffect(() => {
         const fingerprint = dedupeEventFingerprint(target.id, event);
         if (existingFingerprints.has(fingerprint)) return;
         existingFingerprints.add(fingerprint);
+        if (!event.startDate) undatedEventCount += 1;
         nextPeople[personIndex] = {
           ...target,
           events: [...(target.events || []), event],
@@ -2641,7 +2646,14 @@ useEffect(() => {
     setPendingSessionCaptureData(null);
     setPendingSessionCaptureFileName('');
     setSessionCaptureSelections({});
-    alert(`Applied ${selectedOps.length} reviewed session operations.`);
+    alert(
+      `Applied ${selectedOps.length} reviewed session operations.` +
+        (undatedEventCount
+          ? `\n${undatedEventCount} event${undatedEventCount === 1 ? '' : 's'} had no date and ${
+              undatedEventCount === 1 ? 'was' : 'were'
+            } added without one.`
+          : '')
+    );
   };
 
   const mergeDiagramState = (data: DiagramImportData, options?: { allowNewPeople?: boolean }) => {
