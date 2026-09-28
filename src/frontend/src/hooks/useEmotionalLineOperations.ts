@@ -8,7 +8,6 @@ import { DEFAULT_LINE_COLOR, intensityValueForLineStyle } from '../utils/emotion
 interface UseEmotionalLineOperationsDeps {
   people: Person[];
   triangles: Triangle[];
-  emotionalLines: EmotionalLine[];
   emotionalPatternDraft: EmotionalPatternDraft | null;
   setEmotionalLines: Dispatch<SetStateAction<EmotionalLine[]>>;
   setTriangles: Dispatch<SetStateAction<Triangle[]>>;
@@ -25,7 +24,6 @@ interface UseEmotionalLineOperationsDeps {
 export function useEmotionalLineOperations({
   people,
   triangles,
-  emotionalLines,
   emotionalPatternDraft,
   setEmotionalLines,
   setTriangles,
@@ -150,7 +148,7 @@ export function useEmotionalLineOperations({
   };
 
   const removeEmotionalLine = (emotionalLineId: string) => {
-    setEmotionalLines(emotionalLines.filter((el) => el.id !== emotionalLineId));
+    setEmotionalLines((prev) => prev.filter((el) => el.id !== emotionalLineId));
     setContextMenu(null);
   };
 

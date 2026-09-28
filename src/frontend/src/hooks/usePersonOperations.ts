@@ -258,7 +258,8 @@ export function usePersonOperations({
     const partnershipToRemove = partnerships.find(p => p.id === partnershipId);
     if (!partnershipToRemove) return;
 
-    setPartnerships(partnerships.filter(p => p.id !== partnershipId));
+    // Functional update: two removals in one event must both apply.
+    setPartnerships((prev) => prev.filter((p) => p.id !== partnershipId));
 
     setPeopleAligned(prev =>
       prev.map(p => {
@@ -301,6 +302,12 @@ export function usePersonOperations({
       alignAllAnchors(
         prev
           .filter((p) => p.id !== personId)
+          // Surviving partners drop the removed partnerships from their own list.
+          .map((p) =>
+            p.partnerships?.some((pid) => childrenNeedingCleanup.has(pid))
+              ? { ...p, partnerships: p.partnerships.filter((pid) => !childrenNeedingCleanup.has(pid)) }
+              : p
+          )
           .map((p) => {
             if (p.parentPartnership && childrenNeedingCleanup.has(p.parentPartnership)) {
               const copy = { ...p };
@@ -343,12 +350,11 @@ export function usePersonOperations({
   };
 
   const removeChildFromPartnership = (childId: string, partnershipId: string) => {
-    setPartnerships(partnerships.map(p => {
-        if (p.id === partnershipId) {
-            return { ...p, children: p.children.filter(id => id !== childId) };
-        }
-        return p;
-    }));
+    setPartnerships((prev) =>
+      prev.map((p) =>
+        p.id === partnershipId ? { ...p, children: p.children.filter((id) => id !== childId) } : p
+      )
+    );
 
     setPeopleAligned(prev =>
       prev.map(p => {

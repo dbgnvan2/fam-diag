@@ -2028,7 +2028,6 @@ useEffect(() => {
   } = useEmotionalLineOperations({
     people,
     triangles,
-    emotionalLines,
     emotionalPatternDraft,
     setEmotionalLines,
     setTriangles,
