@@ -180,7 +180,9 @@ Claude Vision call. Entry point: File > **Import Family Diagram** (`AppRibbon.ts
 Pipeline:
 1. `utils/genogram/vlmImport.ts` — downscales the image and calls the Anthropic API
    (browser-direct; key from `localStorage['anthropic_api_key']`). Prompt encodes standard
-   genogram notation + drawn-line and twin rules. Returns `FactsImportData`.
+   genogram notation + drawn-line and twin rules. Retries 408/429/5xx/529 and network
+   errors with backoff; `sanitizeVLMFacts` coerces the model's JSON to the expected types
+   and logs anything it drops. Returns `FactsImportData`.
 2. `applyDataRules` in `utils/genogram/genogramRules.ts` — PHASE 1 fact-check/auto-fix
    rules **R1–R6** (filter pregnancy/miscarriage markers, dedupe names, clean dangling
    refs, block sibling marriages).
@@ -190,7 +192,10 @@ Pipeline:
    (R18), and the horizontal `applyFamilyXLayout` (R19 no-overlap + couple-brackets-kids,
    R20 married-in mate anchoring, R21 Reingold-Tilford centering). Age is only a soft
    check — it never overrides a drawn line.
-4. `ImageDiagramReviewModal.tsx` — review draft before it loads.
+4. `handleImageDiagramAnalyze` in `DiagramEditor.tsx` adds the result straight to the
+   diagram. There is no review step: an unused review modal (`ImageDiagramReviewModal`
+   and the `imageAnalysis` / `extractedDataToDiagram` / `diagramLayout` /
+   `personInventory` utilities) could never be reached and was deleted on 2026-09-27.
 
 The full rule catalogue (R1–R21) is documented in the `genogramRules.ts` header and mirrored
 in the layout comment block of `dataImport.ts`. Design/status: [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md).

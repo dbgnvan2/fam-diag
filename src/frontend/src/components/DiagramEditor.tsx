@@ -16,8 +16,6 @@ import type {
   SymptomGroup,
   PageNote,
 } from '../types';
-import type { ExtractedDiagramData } from '../types/imageAnalysis';
-import type { PersonInventoryItem } from '../utils/personInventory';
 import { nanoid } from 'nanoid';
 import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
@@ -59,14 +57,6 @@ import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
 import { checkVisionImportReadiness } from '../utils/visionImportReadiness';
 import { ImportLog } from '../utils/importLog';
-import {
-  convertExtractedToDiagram,
-  applyNotesPositions,
-} from '../utils/extractedDataToDiagram';
-import {
-  autoLayoutExtractedDiagram,
-  applyHorizontalConnectorY,
-} from '../utils/diagramLayout';
 import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
@@ -331,8 +321,6 @@ const DiagramEditor = () => {
   const [imageDiagramAnalyzing, setImageDiagramAnalyzing] = useState(false);
   const [imageDiagramProgress, setImageDiagramProgress] = useState<string>('');
   const imageDiagramAbortRef = useRef<AbortController | null>(null);
-  const [extractedDiagramData, setExtractedDiagramData] = useState<ExtractedDiagramData | null>(null);
-  const [personInventory, setPersonInventory] = useState<PersonInventoryItem[]>([]);
   const [predictionSets, setPredictionSets] = useState<PredictionSet[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_DIAGRAM_STATE.predictionSets;
     const stored = getStoredValue('predictions');
@@ -2906,8 +2894,6 @@ useEffect(() => {
         setPeople((prev) => [...prev, ...people]);
         setPartnerships((prev) => [...prev, ...partnerships]);
         setImageDiagramModalOpen(false);
-        setExtractedDiagramData(null);
-        setPersonInventory([]);
         log.info(`Imported ${people.length} people and ${partnerships.length} partnerships.`);
         log.info(`Estimated cost per image: ~$${GENOGRAM_IMPORT_COST_ESTIMATE.estimatedCostPerImage.toFixed(3)} USD`);
       } catch (error) {
@@ -2932,51 +2918,6 @@ useEffect(() => {
     setImageDiagramProgress('');
     setImageDiagramModalOpen(false);
   }, []);
-
-  const handleImageDiagramCreateDiagram = useCallback(
-    async (reviewedInventory: PersonInventoryItem[]) => {
-      if (!extractedDiagramData) return;
-
-      // Convert reviewed inventory back to ReviewedDiagramData
-      const reviewed = {
-        persons: extractedDiagramData.persons.map((p) => {
-          const item = reviewedInventory.find((inv) => inv.id === p.id);
-          return {
-            id: p.id,
-            name: item?.name || p.extractedName,
-            gender: (item?.gender || p.gender) as 'male' | 'female' | 'unknown',
-            notes: item?.notes,
-            removed: false,
-          };
-        }),
-        relationships: extractedDiagramData.relationships,
-      };
-
-      // Convert to Person and Partnership objects
-      const { people: newPeople, partnerships: newPartnerships } = convertExtractedToDiagram(reviewed);
-
-      // Auto-layout the extracted diagram
-      const positions = autoLayoutExtractedDiagram(newPeople, newPartnerships);
-
-      // Apply positions to people, then derive notesPosition from final x/y.
-      const positionedPeople = applyNotesPositions(
-        newPeople.map((p) => ({ ...p, ...positions[p.id] }))
-      );
-
-      // Now that people have final y values, compute horizontalConnectorY per partnership.
-      const connectedPartnerships = applyHorizontalConnectorY(positionedPeople, newPartnerships);
-
-      // Add to current diagram
-      setPeople((prev) => [...prev, ...positionedPeople]);
-      setPartnerships((prev) => [...prev, ...connectedPartnerships]);
-
-      // Close modal and reset state
-      setImageDiagramModalOpen(false);
-      setExtractedDiagramData(null);
-      setPersonInventory([]);
-    },
-    [extractedDiagramData]
-  );
 
   const {
     handleSave,
@@ -4611,14 +4552,6 @@ useEffect(() => {
             }}
             onImageDiagramCancel={handleImageDiagramCancel}
             onImageDiagramAnalyze={handleImageDiagramAnalyze}
-            imageDiagramReviewOpen={imageDiagramModalOpen && extractedDiagramData !== null}
-            personInventory={personInventory}
-            onImageDiagramCreateDiagram={handleImageDiagramCreateDiagram}
-            onImageDiagramReviewClose={() => {
-              setImageDiagramModalOpen(false);
-              setExtractedDiagramData(null);
-              setPersonInventory([]);
-            }}
             aiSettingsOpen={aiSettingsOpen}
             aiSettingsAnthropicApiKey={aiSettingsAnthropicApiKey}
             aiSettingsDeepseekApiKey={aiSettingsDeepseekApiKey}

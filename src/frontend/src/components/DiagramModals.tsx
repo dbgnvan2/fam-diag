@@ -20,7 +20,6 @@ import type {
   DemoTourStep,
   BuildDemoStep,
 } from '../types/diagramEditor';
-import type { PersonInventoryItem } from '../utils/personInventory';
 import type { RibbonHelpKey } from '../data/helpContent';
 import type { FamilyScope } from '../utils/familyScope';
 import ImportModeDialog from './modals/ImportModeDialog';
@@ -47,7 +46,6 @@ import SessionEventModal from './modals/SessionEventModal';
 import IdeasPanel from './IdeasPanel';
 import SaveAsDialog from './modals/SaveAsDialog';
 import ImageDiagramModal from './modals/ImageDiagramModal';
-import ImageDiagramReviewModal from './modals/ImageDiagramReviewModal';
 import AISettingsModal from './modals/AISettingsModal';
 import ImportLogModal from './modals/ImportLogModal';
 import readmeContent from '../../../../README.md?raw';
@@ -276,10 +274,6 @@ interface DiagramModalsProps {
   onImageDiagramClose: () => void;
   onImageDiagramCancel?: () => void;
   onImageDiagramAnalyze: (imageBlob: Blob) => Promise<void>;
-  imageDiagramReviewOpen: boolean;
-  personInventory: PersonInventoryItem[];
-  onImageDiagramCreateDiagram: (reviewedInventory: PersonInventoryItem[]) => Promise<void>;
-  onImageDiagramReviewClose: () => void;
 
   // AISettingsModal
   aiSettingsOpen: boolean;
@@ -476,10 +470,6 @@ export default function DiagramModals({
   onImageDiagramClose,
   onImageDiagramCancel,
   onImageDiagramAnalyze,
-  imageDiagramReviewOpen,
-  personInventory,
-  onImageDiagramCreateDiagram,
-  onImageDiagramReviewClose,
   aiSettingsOpen,
   aiSettingsAnthropicApiKey,
   aiSettingsDeepseekApiKey,
@@ -774,19 +764,12 @@ export default function DiagramModals({
         onClose={onSaveAsClose}
       />
       <ImageDiagramModal
-        open={imageDiagramModalOpen && !imageDiagramReviewOpen}
+        open={imageDiagramModalOpen}
         onClose={onImageDiagramClose}
         onCancel={onImageDiagramCancel}
         onAnalyze={onImageDiagramAnalyze}
         isLoading={imageDiagramAnalyzing}
         progressMessage={imageDiagramProgress}
-      />
-      <ImageDiagramReviewModal
-        open={imageDiagramReviewOpen}
-        onClose={onImageDiagramReviewClose}
-        inventory={personInventory}
-        onCreateDiagram={onImageDiagramCreateDiagram}
-        isLoading={imageDiagramAnalyzing}
       />
       <AISettingsModal
         open={aiSettingsOpen}
