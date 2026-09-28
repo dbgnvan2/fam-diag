@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { factsToDiagramImportData, parseTranscriptToDraftDiagram } from './dataImport';
+import { capitalisableKeywords, factsToDiagramImportData, parseTranscriptToDraftDiagram } from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
 import type { Partnership as DiagramPartnership, Person } from '../types';
 
@@ -847,5 +847,45 @@ describe('factsToDiagramImportData — every referenced person is in the output'
     const { people, partnerships } = factsToDiagramImportData(facts);
     expectNoDanglingIds(people, partnerships);
     expect(find(people, 'Unlisted Kid').parentPartnership).toBe(partnerships[0].id);
+  });
+});
+
+describe('parseTranscriptToDraftDiagram — keywords with a leading capital', () => {
+  it('still reads Title Case keywords (regression: dropping the i flag made them case-sensitive)', () => {
+    const transcript = [
+      'Tom And Ann Married In 1970.',
+      'Bob Smith Was Born 1960.',
+      'Ann Died 1995.',
+      'Tom And Bob Argued constantly.',
+      'Ann Was Cut Off From Joy.',
+    ].join(' ');
+    const result = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    const byName = (n: string) => result.people.find((p) => p.name === n);
+    expect(result.partnerships).toHaveLength(1);
+    expect(result.partnerships[0].relationshipStartDate).toBe('1970-01-01');
+    expect(byName('Bob Smith')?.birthDate).toBe('1960-01-01');
+    expect(byName('Ann')?.deathDate).toBe('1995-01-01');
+    expect(result.emotionalLines.map((l) => l.relationshipType).sort()).toEqual(['conflict', 'cutoff']);
+  });
+
+  it('still does not turn capitalised non-names into people', () => {
+    expect(
+      parseTranscriptToDraftDiagram('Mother And Father Married In 1950. She Died 1980.', 't.txt').people
+    ).toEqual([]);
+  });
+});
+
+describe('capitalisableKeywords', () => {
+  it('lets each keyword start with a capital, leaving classes and escapes alone', () => {
+    const re = capitalisableKeywords(/\b([A-Z][a-z]+)\s+died\s+(\d{4})[^A-Z\n]{0,3}/g);
+    expect(re.source).toBe('\\b([A-Z][a-z]+)\\s+[Dd]ied\\s+(\\d{4})[^A-Z\\n]{0,3}');
+    expect(re.flags).toBe('g');
+    expect('Ann Died 1995'.match(re)?.[0]).toBe('Ann Died 1995');
+    expect('Ann died 1995'.match(re)?.[0]).toBe('Ann died 1995');
+  });
+
+  it('handles alternations, groups and multi-word phrases', () => {
+    const re = capitalisableKeywords(/(?:did\s+)?(no contact|cut\s*off)\b(?:himself|herself)/);
+    expect(re.source).toBe('(?:[Dd]id\\s+)?([Nn]o [Cc]ontact|[Cc]ut\\s*[Oo]ff)\\b(?:[Hh]imself|[Hh]erself)');
   });
 });
