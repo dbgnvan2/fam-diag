@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { factsToDiagramImportData, parseTranscriptToDraftDiagram } from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
-import type { Person } from '../types';
+import type { Partnership as DiagramPartnership, Person } from '../types';
 
 const find = (people: Person[], name: string) => {
   const p = people.find((person) => person.name === name);
@@ -744,5 +744,73 @@ describe('factsToDiagramImportData — image import keeps distinct labels distin
       relationships: [{ a: 'Mary', b: 'Tom Jones', type: 'married' }],
     };
     expect(factsToDiagramImportData(facts).people).toHaveLength(2);
+  });
+});
+
+describe('factsToDiagramImportData — a parent with children by two partners', () => {
+  // Each of Paul's children must sit strictly between its own two parents
+  // (R13/R19). Paul himself is not checked against Gpa/Gma: by design (R20/R21)
+  // grandparents bracket Paul's whole family unit, not Paul.
+  const expectKidsBracketed = (people: Person[], partnerships: DiagramPartnership[]) => {
+    const paulId = people.find((p) => p.name === 'Paul')!.id;
+    const paulsFamilies = partnerships.filter((f) => f.partner1_id === paulId || f.partner2_id === paulId);
+    expect(paulsFamilies).toHaveLength(2);
+    for (const fam of paulsFamilies) {
+      const a = people.find((p) => p.id === fam.partner1_id)!;
+      const b = people.find((p) => p.id === fam.partner2_id)!;
+      const lo = Math.min(a.x, b.x);
+      const hi = Math.max(a.x, b.x);
+      for (const childId of fam.children) {
+        const child = people.find((p) => p.id === childId)!;
+        expect(child.x, `${child.name} between ${a.name} and ${b.name}`).toBeGreaterThan(lo);
+        expect(child.x, `${child.name} between ${a.name} and ${b.name}`).toBeLessThan(hi);
+      }
+    }
+  };
+
+  const remarriage = (withGrandparents: boolean): FactsImportData => ({
+    people: [
+      ...(withGrandparents
+        ? [
+            { name: 'Gpa', sex: 'male' as const, x: 40, y: 5 },
+            { name: 'Gma', sex: 'female' as const, x: 60, y: 5 },
+          ]
+        : []),
+      { name: 'Wife1', sex: 'female', x: 30, y: 40 },
+      { name: 'Paul', sex: 'male', x: 50, y: 40 },
+      { name: 'Wife2', sex: 'female', x: 70, y: 40 },
+      { name: 'KidA1', sex: 'male', x: 25, y: 80 },
+      { name: 'KidA2', sex: 'female', x: 35, y: 80 },
+      { name: 'KidB', sex: 'female', x: 70, y: 80 },
+    ],
+    relationships: [
+      ...(withGrandparents ? [{ a: 'Gpa', b: 'Gma', type: 'married', children: ['Paul'] }] : []),
+      { a: 'Paul', b: 'Wife1', type: 'married', status: 'divorce', children: ['KidA1', 'KidA2'] },
+      { a: 'Paul', b: 'Wife2', type: 'married', children: ['KidB'] },
+    ],
+  });
+
+  it('places each family under its own couple when the parent has drawn parents', () => {
+    // Regression: only Paul's first family was laid out as a tree; KidB landed
+    // outside Paul–Wife2 (x=340 with Paul=160, Wife2=240).
+    const { people, partnerships } = factsToDiagramImportData(remarriage(true));
+    expectKidsBracketed(people, partnerships);
+    const x = (n: string) => find(people, n).x;
+    expect(x('Wife1')).toBeLessThan(x('Paul'));
+    expect(x('Paul')).toBeLessThan(x('Wife2'));
+  });
+
+  it('places each family under its own couple when the parent is a top root', () => {
+    const { people, partnerships } = factsToDiagramImportData(remarriage(false));
+    expectKidsBracketed(people, partnerships);
+    const x = (n: string) => find(people, n).x;
+    expect(x('Wife1')).toBeLessThan(x('Paul'));
+    expect(x('Paul')).toBeLessThan(x('Wife2'));
+  });
+
+  it('keeps the two half-sibling groups apart', () => {
+    const { people } = factsToDiagramImportData(remarriage(true));
+    const x = (n: string) => find(people, n).x;
+    expect(Math.max(x('KidA1'), x('KidA2'))).toBeLessThan(x('KidB'));
   });
 });

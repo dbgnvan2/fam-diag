@@ -532,16 +532,45 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
     else anchorOf.set(pt.id, null);
   }
 
-  const anchoredFamilyOf = (person: Person) =>
-    familiesWithKids.find((pt) => anchorOf.get(pt.id) === person.id);
+  // A family's "owner" is the partner its layout hangs from: the R20 anchor, or —
+  // for a top couple with no drawn parents — a partner who has children with
+  // more than one partner. A person can own several families (remarriage); they
+  // are laid out side by side with the owner placed once between them.
+  const familyCount = new Map<string, number>();
+  for (const pt of familiesWithKids) {
+    for (const id of [pt.partner1_id, pt.partner2_id]) familyCount.set(id, (familyCount.get(id) ?? 0) + 1);
+  }
+  const ownerOf = (fam: Partnership): string | null => {
+    const anchor = anchorOf.get(fam.id) ?? null;
+    if (anchor) return anchor;
+    if ((familyCount.get(fam.partner1_id) ?? 0) > 1) return fam.partner1_id;
+    if ((familyCount.get(fam.partner2_id) ?? 0) > 1) return fam.partner2_id;
+    return null;
+  };
+  const otherPartnerOf = (fam: Partnership, personId: string) =>
+    fam.partner1_id === personId ? fam.partner2_id : fam.partner1_id;
+  // The owner's families, split by which side of the owner the other partner
+  // was drawn on, each side ordered left to right by the other partner's drawn X.
+  const ownedFamilies = (person: Person) => {
+    const own = familiesWithKids
+      .filter((pt) => ownerOf(pt) === person.id)
+      .sort((a, b) => drawnXOf(otherPartnerOf(a, person.id)) - drawnXOf(otherPartnerOf(b, person.id)));
+    const ownX = drawnXOf(person.id);
+    return {
+      all: own,
+      left: own.filter((pt) => drawnXOf(otherPartnerOf(pt, person.id)) < ownX),
+      right: own.filter((pt) => drawnXOf(otherPartnerOf(pt, person.id)) >= ownX),
+    };
+  };
   const residentKids = (fam: Partnership) => childrenOf(fam.id).filter((c) => !marriedIn.has(c.id));
 
   // --- Pass 1: measure subtree widths (bottom-up) ---
   const widthCache = new Map<string, number>();
   const measuring = new Set<string>();
   const measurePerson = (person: Person): number => {
-    const fam = anchoredFamilyOf(person);
-    return fam ? measureFamily(fam) : SLOT;
+    const { all } = ownedFamilies(person);
+    if (all.length === 0) return SLOT;
+    return all.reduce((sum, fam) => sum + measureFamily(fam), 0) + SIBLING_GAP * (all.length - 1);
   };
   const measureFamily = (fam: Partnership): number => {
     const cached = widthCache.get(fam.id);
@@ -562,17 +591,43 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
   // --- Pass 2: place top-down; each unit occupies [left, left + width] ---
   const placed = new Set<string>();
   const placePerson = (person: Person, left: number): void => {
-    const fam = anchoredFamilyOf(person);
-    if (!fam) {
+    const { all, left: leftFams, right: rightFams } = ownedFamilies(person);
+    if (all.length === 0) {
       person.x = left + SLOT / 2;
       placed.add(person.id);
       return;
     }
-    placeFamily(fam, left);
+    if (all.length === 1) {
+      placeFamily(all[0], left);
+      return;
+    }
+    // Several families: those drawn to the owner's left, then the owner, then
+    // those drawn to the right. Each family's other partner goes on its outer
+    // side; the owner is placed once, between the two groups.
+    let cursor = left;
+    let lastLeftMax: number | null = null;
+    let firstRightMin: number | null = null;
+    for (const fam of leftFams) {
+      const span = placeFamily(fam, cursor, { sharedId: person.id, otherSide: 'left' });
+      lastLeftMax = span.maxC;
+      cursor += measureFamily(fam) + SIBLING_GAP;
+    }
+    for (const fam of rightFams) {
+      const span = placeFamily(fam, cursor, { sharedId: person.id, otherSide: 'right' });
+      if (firstRightMin === null) firstRightMin = span.minC;
+      cursor += measureFamily(fam) + SIBLING_GAP;
+    }
+    person.x =
+      lastLeftMax !== null ? lastLeftMax + COUPLE_MARGIN : (firstRightMin as number) - COUPLE_MARGIN;
+    placed.add(person.id);
   };
-  const placeFamily = (fam: Partnership, left: number): void => {
+  const placeFamily = (
+    fam: Partnership,
+    left: number,
+    shared?: { sharedId: string; otherSide: 'left' | 'right' }
+  ): { minC: number; maxC: number } => {
     const famKey = `fam:${fam.id}`;
-    if (placed.has(famKey)) return;
+    if (placed.has(famKey)) return { minC: left + COUPLE_MARGIN, maxC: left + COUPLE_MARGIN };
     placed.add(famKey);
     const kids = residentKids(fam);
     const centers: number[] = [];
@@ -585,6 +640,15 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
     }
     const minC = centers.length ? Math.min(...centers) : left + COUPLE_MARGIN;
     const maxC = centers.length ? Math.max(...centers) : left + COUPLE_MARGIN;
+    if (shared) {
+      // The shared owner is placed by placePerson; only set the other partner.
+      const other = byId.get(otherPartnerOf(fam, shared.sharedId));
+      if (other) {
+        other.x = shared.otherSide === 'left' ? minC - COUPLE_MARGIN : maxC + COUPLE_MARGIN;
+        placed.add(other.id);
+      }
+      return { minC, maxC };
+    }
     const p1 = byId.get(fam.partner1_id);
     const p2 = byId.get(fam.partner2_id);
     let leftP = p1;
@@ -601,6 +665,7 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
       rightP.x = maxC + COUPLE_MARGIN;
       placed.add(rightP.id);
     }
+    return { minC, maxC };
   };
 
   // Roots = families whose anchor is a top person (no drawn parents) or null,
@@ -619,6 +684,15 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
   let cursor = 0;
   for (const fam of rootFamilies) {
     if (placed.has(`fam:${fam.id}`)) continue;
+    // A root owned by someone with several families is placed through its
+    // owner, so all of that person's families land together, once.
+    const owner = ownerOf(fam);
+    const ownerPerson = owner ? byId.get(owner) : undefined;
+    if (ownerPerson && ownedFamilies(ownerPerson).all.length > 1) {
+      placePerson(ownerPerson, cursor);
+      cursor += measurePerson(ownerPerson) + ROOT_GAP;
+      continue;
+    }
     placeFamily(fam, cursor);
     cursor += measureFamily(fam) + ROOT_GAP;
   }
