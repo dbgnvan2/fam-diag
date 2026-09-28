@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { ageInYears } from '../utils/dateFormatting';
+import { isSexUnknown } from '../utils/personSex';
 
 interface PersonNodeProps {
   person: Person;
@@ -213,6 +214,9 @@ const PersonNode = ({
   const birthSex = deriveBirthSex(person, genderSymbol);
   const genderIdentity = deriveGenderIdentity(person, genderSymbol);
   const isMale = birthSex === 'male';
+  // No sex recorded: drawn as a triangle with the neutral fill, not as the
+  // female circle the derivations above fall back to.
+  const sexUnknown = isSexUnknown(person);
   const lifeStatus = person.lifeStatus ?? 'alive';
   const shapeSize = person.size ?? 60;
   const borderCustomEnabled = person.borderEnabled ?? !!person.borderColor;
@@ -223,8 +227,9 @@ const PersonNode = ({
   const strokeWidth = isSelected ? BASE_STROKE_WIDTH * 2 : BASE_STROKE_WIDTH;
   const showBackground = person.backgroundEnabled ?? false;
   const backgroundColor = person.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
-  const defaultShapeFillColor =
-    birthSex === 'male'
+  const defaultShapeFillColor = sexUnknown
+    ? DEFAULT_INTERSEX_FILL_COLOR
+    : birthSex === 'male'
       ? DEFAULT_MALE_FILL_COLOR
       : birthSex === 'female'
       ? DEFAULT_FEMALE_FILL_COLOR
@@ -410,6 +415,9 @@ const PersonNode = ({
     const isCis =
       (birthSex === 'female' && genderIdentity === 'feminine') ||
       (birthSex === 'male' && genderIdentity === 'masculine');
+    if (sexUnknown) {
+      return renderShape('triangle-up');
+    }
     // AI agents always render as a single hexagon (no split shape)
     if (isCis || birthSex === 'ai-agent') {
       return renderShape(birthShape);

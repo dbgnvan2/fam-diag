@@ -55,6 +55,38 @@ describe('PersonNode', () => {
         expect(hexagons.length).toBe(1);
     });
 
+    const renderAndGetGroup = (subject: Person) => {
+        const stageRef = React.createRef<Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PersonNode person={subject} {...baseProps} functionalIndicatorDefinitions={definitions} />
+                </Layer>
+            </Stage>
+        );
+        return stageRef.current.getLayers()[0].getChildren()[0];
+    };
+    const triangles = (group: any) =>
+        group.getChildren().filter(
+            (node: any) => node.getClassName() === 'Line' && node.attrs.closed && node.attrs.points?.length === 6
+        );
+    const circles = (group: any) => group.getChildren().filter((node: any) => node.getClassName() === 'Circle');
+
+    it('renders a person with no sex recorded as a triangle, not a circle (regression)', () => {
+        const unknown: Person = { id: 'u1', name: 'Unknown', x: 0, y: 0, partnerships: [] };
+        const group = renderAndGetGroup(unknown);
+        expect(triangles(group).length).toBe(1);
+        expect(circles(group).length).toBe(0);
+    });
+
+    it('still renders a female as a circle and a male with no triangle', () => {
+        const female = renderAndGetGroup({ id: 'f1', name: 'F', x: 0, y: 0, gender: 'female', partnerships: [] });
+        expect(circles(female).length).toBe(1);
+        expect(triangles(female).length).toBe(0);
+        const male = renderAndGetGroup({ id: 'm1', name: 'M', x: 0, y: 0, gender: 'male', partnerships: [] });
+        expect(triangles(male).length).toBe(0);
+    });
+
     it('renders miscarriage triangle with cross', () => {
         const stageRef = React.createRef<Stage>();
         const miscarriage: Person = { id: 'p2', name: 'Loss', x: 0, y: 0, partnerships: [], lifeStatus: 'miscarriage' };
@@ -193,7 +225,13 @@ describe('PersonNode', () => {
         expect(hasCombined).toBe(true);
     });
 
-    it('renders a maturity circle at the upper-left when siblingMaturityLevel is set', () => {
+    // The maturity badge is a small square (Rect, fill #f0f4ff) at the upper-left.
+    // These two tests used to count Circle children, which matched the person's
+    // own body circle, not the badge.
+    const maturityBadges = (group: any) =>
+        group.find('Rect').filter((n: any) => n.attrs.fill === '#f0f4ff');
+
+    it('renders a maturity badge at the upper-left when siblingMaturityLevel is set', () => {
         const stageRef = React.createRef<Stage>();
         const maturePerson: Person = {
             id: 'p-mat',
@@ -212,16 +250,16 @@ describe('PersonNode', () => {
         );
         const stage = stageRef.current;
         const group = stage.getLayers()[0].getChildren()[0];
-        // Circle for the maturity badge
-        // Circle for the maturity badge should be present
-        const circles = group.getChildren().filter((n: any) => n.getClassName() === 'Circle');
-        expect(circles.length).toBeGreaterThan(0);
+        const badges = maturityBadges(group);
+        expect(badges.length).toBe(1);
+        expect(badges[0].x()).toBeLessThan(0);
+        expect(badges[0].y()).toBeLessThan(0);
         // Text label should show the maturity level
         const texts = group.find('Text');
         expect(texts.some((n: any) => n.text() === '3')).toBe(true);
     });
 
-    it('does not render a maturity circle when siblingMaturityLevel is not set', () => {
+    it('does not render a maturity badge when siblingMaturityLevel is not set', () => {
         const stageRef = React.createRef<Stage>();
         render(
             <Stage ref={stageRef}>
@@ -232,8 +270,7 @@ describe('PersonNode', () => {
         );
         const stage = stageRef.current;
         const group = stage.getLayers()[0].getChildren()[0];
-        const circles = group.getChildren().filter((n: any) => n.getClassName() === 'Circle');
-        expect(circles.length).toBe(0);
+        expect(maturityBadges(group).length).toBe(0);
     });
 
     it('renders the sibling effective position code to the left of the person', () => {
