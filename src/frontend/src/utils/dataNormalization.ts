@@ -219,7 +219,12 @@ export const inferGenderFromName = (value: string): Person['gender'] | undefined
 export const resolveImportedGender = (
   explicit: string | undefined,
   name: string
-): Person['gender'] | undefined => explicit || inferGenderFromName(name);
+): Person['gender'] | undefined => {
+  // An explicit "unknown" is evidence that the sex is not known: store nothing
+  // and do not fall back to a name-based guess.
+  if (explicit && explicit.trim().toLowerCase() === 'unknown') return undefined;
+  return explicit || inferGenderFromName(name);
+};
 
 export const findLikelyExistingPerson = (
   peopleByName: Map<string, Person>,

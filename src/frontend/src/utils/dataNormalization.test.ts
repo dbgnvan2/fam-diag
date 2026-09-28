@@ -92,3 +92,10 @@ describe('normalizeImportedChildLayout', () => {
     expect(result.partnerships).toEqual([]);
   });
 });
+
+describe('resolveImportedGender — explicit unknown', () => {
+  it('treats an explicit "unknown" as unknown, not as a stored gender or a name guess', () => {
+    expect(resolveImportedGender('unknown', 'Mary')).toBeUndefined();
+    expect(resolveImportedGender('Unknown', 'Quinlan')).toBeUndefined();
+  });
+});
