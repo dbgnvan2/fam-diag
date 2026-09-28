@@ -29,6 +29,7 @@ import {
   clearDiagramLocalStorage,
 } from '../utils/storage';
 import type { BackupVersions } from '../utils/storage';
+import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import {
   DEMO_DIAGRAM_DATA,
   DEFAULT_DEMO_FILE_NAME,
@@ -219,6 +220,7 @@ export function useFileOperations({
   const handleRestoreBackupVersion = (versionKey: string) => {
     const raw = backupRestoreVersions?.[versionKey];
     if (!raw) return;
+    if (!confirmDiscardUnsavedChanges(isDirty, `Restore backup ${versionKey.toUpperCase()}`)) return;
     try {
       const data = JSON.parse(raw);
       replaceDiagramState(data, diagramFileHandleRef.current?.name || fileName);
@@ -232,13 +234,14 @@ export function useFileOperations({
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setDiagramFileHandle(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
         const jsonString = event.target?.result as string;
         try {
             const data = JSON.parse(jsonString);
+            if (!confirmDiscardUnsavedChanges(isDirty, `Open "${file.name}"`)) return;
+            setDiagramFileHandle(null);
             replaceDiagramState(data, file.name);
         } catch (error) {
             alert('Error parsing file');
@@ -351,6 +354,7 @@ export function useFileOperations({
           const file = await handle.getFile();
           const jsonString = await file.text();
           const data = JSON.parse(jsonString);
+          if (!confirmDiscardUnsavedChanges(isDirty, `Open "${file.name}"`)) return;
           setDiagramFileHandle(handle);
           replaceDiagramState(data, file.name);
         } catch (error) {

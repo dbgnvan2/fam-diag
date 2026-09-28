@@ -106,6 +106,7 @@ import {
   setRightClickHintHidden,
 } from '../utils/storage';
 import type { BackupVersions } from '../utils/storage';
+import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -1879,6 +1880,7 @@ useEffect(() => {
       const file = await handle.getFile();
       const text = await file.text();
       const data = JSON.parse(text);
+      if (!confirmDiscardUnsavedChanges(isDirty, `Restore backup "${handle.name}"`)) return;
       replaceDiagramState(data, diagramName);
     } catch {
       alert('Could not restore backup file.');
@@ -3220,6 +3222,7 @@ useEffect(() => {
     if (!pendingImportData) return;
     try {
       if (mode === 'replace') {
+        if (!confirmDiscardUnsavedChanges(isDirty, `Replace the current diagram with "${pendingImportFileName}"`)) return;
         const normalizeLayout = pendingImportSource === 'transcript' || pendingImportSource === 'facts';
         replaceDiagramState(pendingImportData, pendingImportFileName, { normalizeLayout });
       } else {
@@ -3598,6 +3601,7 @@ useEffect(() => {
       const file = await pendingReopenHandle.getFile();
       const text = await file.text();
       const data = JSON.parse(text) as Record<string, unknown>;
+      if (!confirmDiscardUnsavedChanges(isDirty, `Reopen "${pendingReopenHandle.name as string}"`)) return;
       replaceDiagramState(data, pendingReopenHandle.name as string);
       setDiagramFileHandle(pendingReopenHandle);
       setPendingReopenHandle(null);
@@ -3605,7 +3609,7 @@ useEffect(() => {
     } catch {
       alert('Could not read the file. Please use File > Open to locate it manually.');
     }
-  }, [pendingReopenHandle, ensureDiagramHandlePermission, replaceDiagramState, setDiagramFileHandle]);
+  }, [pendingReopenHandle, ensureDiagramHandlePermission, isDirty, replaceDiagramState, setDiagramFileHandle]);
 
   const handleCanvasScrollHint = () => {
     if (scrollHintShownRef.current) return;
