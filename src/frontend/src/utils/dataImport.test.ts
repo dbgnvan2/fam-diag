@@ -814,3 +814,38 @@ describe('factsToDiagramImportData — a parent with children by two partners', 
     expect(Math.max(x('KidA1'), x('KidA2'))).toBeLessThan(x('KidB'));
   });
 });
+
+describe('factsToDiagramImportData — every referenced person is in the output', () => {
+  const expectNoDanglingIds = (people: Person[], partnerships: DiagramPartnership[]) => {
+    const ids = new Set(people.map((p) => p.id));
+    for (const fam of partnerships) {
+      expect(ids.has(fam.partner1_id)).toBe(true);
+      expect(ids.has(fam.partner2_id)).toBe(true);
+      fam.children.forEach((childId) => expect(ids.has(childId), `child ${childId}`).toBe(true));
+    }
+  };
+
+  it('keeps placeholder children generated from "had two children" (regression: lost)', () => {
+    const facts: FactsImportData = {
+      relationships: [{ a: 'Quinlan Ray', b: 'Don Ray', type: 'married', evidence: 'They had two children.' }],
+    };
+    const { people, partnerships } = factsToDiagramImportData(facts);
+    expectNoDanglingIds(people, partnerships);
+    const placeholders = people.filter((p) => / Child \d+$/.test(p.name));
+    expect(placeholders).toHaveLength(2);
+    placeholders.forEach((child) => {
+      expect(child.parentPartnership).toBe(partnerships[0].id);
+      expect(child.gender).toBeUndefined();
+    });
+  });
+
+  it('keeps a child named only in a relationship, not in people[] (image import)', () => {
+    const facts: FactsImportData = {
+      people: [{ name: 'Pa', sex: 'male' }, { name: 'Ma', sex: 'female' }],
+      relationships: [{ a: 'Pa', b: 'Ma', children: ['Unlisted Kid'] }],
+    };
+    const { people, partnerships } = factsToDiagramImportData(facts);
+    expectNoDanglingIds(people, partnerships);
+    expect(find(people, 'Unlisted Kid').parentPartnership).toBe(partnerships[0].id);
+  });
+});

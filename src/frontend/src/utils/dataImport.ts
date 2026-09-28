@@ -726,6 +726,11 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
 
 export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => {
   const peopleByName = new Map<string, Person>();
+  // Every person getPerson creates goes into this list at creation. It used to
+  // be copied from peopleByName once, early, so people created later (children
+  // named only in a relationship, placeholder children) were missing from the
+  // output while their ids stayed in partnership.children.
+  const people: Person[] = [];
   // An image import (facts.people present) carries a unique label per person —
   // the VLM prompt disambiguates repeated letters as "M (b.1968)" — so names
   // match exactly. The fuzzy first-name / prefix match is for free-text facts,
@@ -751,6 +756,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
       events: [],
     };
     peopleByName.set(normalized, next);
+    people.push(next);
     return next;
   };
 
@@ -772,7 +778,6 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     if (p.name) getPerson(p.name);
   });
 
-  const people = [...peopleByName.values()];
   people.forEach((person, idx) => {
     person.x = 120 + (idx % 6) * 150;
     person.y = 140 + Math.floor(idx / 6) * 170;
