@@ -10,6 +10,7 @@ import type {
   SymptomGroup,
 } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { ageInYears } from '../utils/dateFormatting';
 
 interface PersonNodeProps {
   person: Person;
@@ -480,24 +481,9 @@ const PersonNode = ({
     );
   };
 
-  const parseDate = (iso?: string) => {
-    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-
   const ageLabel = useMemo(() => {
-    const birth = parseDate(person.birthDate);
-    if (!birth) return null;
-    const end = parseDate(person.deathDate) ?? new Date();
-    let age = end.getFullYear() - birth.getFullYear();
-    const monthDiff = end.getMonth() - birth.getMonth();
-    const dayDiff = end.getDate() - birth.getDate();
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-      age -= 1;
-    }
-    if (age < 0) return null;
-    return `Age ${age}`;
+    const age = ageInYears(person.birthDate, person.deathDate, new Date());
+    return age === null ? null : `Age ${age}`;
   }, [person.birthDate, person.deathDate]);
 
   const nameProps =

@@ -108,6 +108,7 @@ import {
 import type { BackupVersions } from '../utils/storage';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import { mergeDiagramData } from '../utils/diagramMerge';
+import { timelineYearBounds as computeTimelineYearBounds } from '../utils/dateFormatting';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -831,17 +832,14 @@ const DiagramEditor = () => {
     return entries;
   }, [people, partnerships, emotionalLines]);
 
-  const timelineYearBounds = useMemo(() => {
-    if (!timelineEntries.length) {
-      const currentYear = new Date().getFullYear();
-      return { min: currentYear, max: currentYear };
-    }
-    const minYear = new Date(timelineEntries[0].timestamp).getFullYear();
-    let maxYear = new Date(timelineEntries[timelineEntries.length - 1].timestamp).getFullYear();
-    const currentYear = new Date().getFullYear();
-    if (maxYear < currentYear) maxYear = currentYear;
-    return { min: minYear, max: maxYear };
-  }, [timelineEntries]);
+  const timelineYearBounds = useMemo(
+    () =>
+      computeTimelineYearBounds(
+        timelineEntries.map((entry) => entry.timestamp),
+        new Date().getFullYear()
+      ),
+    [timelineEntries]
+  );
 
   // Bootstrap from localStorage once on initial mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps

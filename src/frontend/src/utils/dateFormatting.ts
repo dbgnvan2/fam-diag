@@ -6,3 +6,53 @@ export const expandPartialDate = (text: string): string => {
   if (YEAR_MONTH.test(text)) return `${text}-01`;
   return text;
 };
+
+// Diagram dates are calendar dates stored as 'YYYY-MM-DD'. Date.parse reads
+// that form as UTC midnight, so reading it back with local getters
+// (getFullYear, getMonth, getDate) gives the previous day — and on Jan 1 the
+// previous year — anywhere west of UTC. The helpers below work on the calendar
+// values directly or with UTC getters.
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Calendar parts of a 'YYYY-MM-DD' string, or null if it is not one. */
+export const parseCalendarDate = (iso?: string | null) => {
+  const match = iso ? ISO_DATE.exec(iso) : null;
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { year, month, day };
+};
+
+/**
+ * Timeline slider range from event timestamps (Date.parse of 'YYYY-MM-DD',
+ * i.e. UTC midnight), extended to include the current year.
+ */
+export const timelineYearBounds = (sortedTimestamps: number[], currentYear: number) => {
+  if (!sortedTimestamps.length) return { min: currentYear, max: currentYear };
+  const min = new Date(sortedTimestamps[0]).getUTCFullYear();
+  const last = new Date(sortedTimestamps[sortedTimestamps.length - 1]).getUTCFullYear();
+  return { min, max: Math.max(last, currentYear) };
+};
+
+/**
+ * Whole years between a birth date and a death date (or today, a local
+ * calendar date). Null when the birth date is missing or invalid, or the
+ * result would be negative.
+ */
+export const ageInYears = (birthIso: string | undefined, deathIso: string | undefined, today: Date) => {
+  const birth = parseCalendarDate(birthIso);
+  if (!birth) return null;
+  const end = parseCalendarDate(deathIso) ?? {
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+    day: today.getDate(),
+  };
+  let age = end.year - birth.year;
+  if (end.month < birth.month || (end.month === birth.month && end.day < birth.day)) {
+    age -= 1;
+  }
+  return age < 0 ? null : age;
+};
