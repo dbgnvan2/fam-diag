@@ -709,3 +709,40 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
     );
   });
 });
+
+describe('factsToDiagramImportData — image import keeps distinct labels distinct', () => {
+  it('does not merge "M" and "M (b.1968)" into one person', () => {
+    // The VLM prompt requires a unique label per person and disambiguates
+    // repeated letters with a suffix. The fuzzy prefix match used for
+    // transcripts merged them, making the daughter her own mother's child.
+    const facts: FactsImportData = {
+      people: [
+        { name: 'M', sex: 'female', birthYear: 1940 },
+        { name: 'D', sex: 'male', birthYear: 1938 },
+        { name: 'M (b.1968)', sex: 'female', birthYear: 1968 },
+      ],
+      relationships: [{ a: 'D', b: 'M', type: 'married', children: ['M (b.1968)'] }],
+    };
+    const { people, partnerships } = factsToDiagramImportData(facts);
+    expect(people.map((p) => p.name).sort()).toEqual(['D', 'M', 'M (b.1968)']);
+    const daughter = find(people, 'M (b.1968)');
+    expect(daughter.birthDate).toBe('1968-01-01');
+    expect(daughter.parentPartnership).toBe(partnerships[0].id);
+    expect(find(people, 'M').parentPartnership).toBeUndefined();
+  });
+
+  it('keeps "Mary" and "Mary Jones" distinct in an image import', () => {
+    const facts: FactsImportData = {
+      people: [{ name: 'Mary', sex: 'female' }, { name: 'Mary Jones', sex: 'female' }],
+    };
+    expect(factsToDiagramImportData(facts).people).toHaveLength(2);
+  });
+
+  it('still matches a first name to a full name in a non-image facts import', () => {
+    const facts: FactsImportData = {
+      family: { parents: ['Mary Jones', 'Tom Jones'], childrenMentionedByName: [] },
+      relationships: [{ a: 'Mary', b: 'Tom Jones', type: 'married' }],
+    };
+    expect(factsToDiagramImportData(facts).people).toHaveLength(2);
+  });
+});

@@ -652,10 +652,18 @@ function applyFamilyXLayout(people: Person[], partnerships: Partnership[]): void
 
 export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportData => {
   const peopleByName = new Map<string, Person>();
+  // An image import (facts.people present) carries a unique label per person —
+  // the VLM prompt disambiguates repeated letters as "M (b.1968)" — so names
+  // match exactly. The fuzzy first-name / prefix match is for free-text facts,
+  // where "Mary" and "Mary Jones" are usually one person; on labels it merged
+  // "M" with "M (b.1968)".
+  const exactNamesOnly = Boolean(facts.people && facts.people.length > 0);
   const getPerson = (name: string) => {
     const normalized = name.trim();
     if (!normalized) return null;
-    const existing = findLikelyExistingPerson(peopleByName, normalized);
+    const existing = exactNamesOnly
+      ? peopleByName.get(normalized)
+      : findLikelyExistingPerson(peopleByName, normalized);
     if (existing) return existing;
     const next: Person = {
       id: nanoid(),
@@ -932,7 +940,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   //
   // Also: SKIP normalizeImportedChildLayout — it auto-repositions too aggressively.
   // ===========================================================================
-  const isImageImport = Boolean(facts.people && facts.people.length > 0);
+  const isImageImport = exactNamesOnly;
 
   if (isImageImport) {
     // === Step 0: (removed) — no spatial inference of parent-child links ===
