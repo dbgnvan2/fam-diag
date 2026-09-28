@@ -662,3 +662,50 @@ describe('parseTranscriptToDraftDiagram — does not fabricate', () => {
     placeholders.forEach((child) => expect(child.gender).toBeUndefined());
   });
 });
+
+describe('parseTranscriptToDraftDiagram — only names become people', () => {
+  const names = (transcript: string) =>
+    parseTranscriptToDraftDiagram(transcript, 't.txt').people.map((p) => p.name).sort();
+
+  it('does not turn pronouns or role words into people (regression: the `i` flag)', () => {
+    // With /gi, [A-Z][a-z]+ matched any word: this produced Mother, Father and She.
+    expect(names('My mother and father got married in 1950. She died 1980.')).toEqual([]);
+  });
+
+  it('skips capitalised role words and sentence starters', () => {
+    expect(names('Mother and Father married in 1950.')).toEqual([]);
+    expect(names('She and Tom argued all the time.')).toEqual([]);
+    expect(names('The family had 3 children.')).toEqual([]);
+  });
+
+  it('still finds real names in every pattern it supports', () => {
+    const transcript = [
+      'Tom and Ann married in 1970.',
+      'Tom and Ann had 2 children.',
+      'Bob Smith was born 1960.',
+      'Ann died 1995.',
+      'Tom and Bob argued constantly.',
+      'Ann was cut off from her sister Joy.',
+    ].join(' ');
+    const result = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    const byName = (n: string) => result.people.find((p) => p.name === n);
+    expect(byName('Tom')).toBeDefined();
+    expect(byName('Ann')?.deathDate).toBe('1995-01-01');
+    expect(byName('Bob Smith')?.birthDate).toBe('1960-01-01');
+    expect(byName('Joy')).toBeDefined();
+    expect(result.partnerships).toHaveLength(1);
+    expect(result.partnerships[0].relationshipStartDate).toBe('1970-01-01');
+    const types = result.emotionalLines.map((l) => l.relationshipType).sort();
+    expect(types).toEqual(['conflict', 'cutoff']);
+  });
+
+  it('accepts a capitalised diagnosis keyword', () => {
+    const result = parseTranscriptToDraftDiagram(
+      'Tom and Joy married in 1970. Joy was Diagnosed with Schizophrenia in 1990.',
+      't.txt'
+    );
+    expect(result.people.find((p) => p.name === 'Joy')?.functionalIndicators?.[0]?.definitionId).toBe(
+      'indicator-schizophrenia-spectrum'
+    );
+  });
+});

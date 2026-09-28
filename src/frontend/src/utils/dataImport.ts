@@ -12,6 +12,7 @@ import type {
   SessionCaptureImportData,
 } from '../types/diagramEditor';
 import { DEFAULT_LINE_COLOR } from './emotionalPatternOptions';
+import transcriptParsingConfig from '../data/transcriptParsing.json';
 import {
   sentenceCaseName,
   inferGenderFromName,
@@ -79,6 +80,11 @@ export const normalizeRelationshipStatus = (value?: string): Partnership['relati
 // ---------------------------------------------------------------------------
 // Transcript → draft diagram
 // ---------------------------------------------------------------------------
+
+/** Capitalised words that are never a person's name (data/transcriptParsing.json). */
+const NON_NAME_WORDS = new Set(
+  transcriptParsingConfig.nonNameWords.map((word) => word.toLowerCase())
+);
 
 export const parseTranscriptToDraftDiagram = (
   transcript: string,
@@ -208,19 +214,30 @@ export const parseTranscriptToDraftDiagram = (
     });
   };
 
+  // The patterns match on capitalisation, so they must stay case-sensitive:
+  // with the `i` flag, [A-Z][a-z]+ matched any word and "She died 1980" made a
+  // person called "She". Sentence starters and role words ("Mother and Father
+  // married") are still capitalised, so every captured name is also checked
+  // against the non-name list in data/transcriptParsing.json.
+  const isName = (...candidates: string[]) =>
+    candidates.every((candidate) => !NON_NAME_WORDS.has(candidate.trim().toLowerCase()));
+
   const marryPattern = /\b([A-Z][a-z]+)\s+(?:did\s+)?marry(?:\s+to)?\s+([A-Z][a-z]+)\b/g;
   for (const match of transcript.matchAll(marryPattern)) {
+    if (!isName(match[1], match[2])) continue;
     addPartnership(match[1], match[2], 'married', 'married');
   }
 
-  const couplePattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bmarried(?:\s+in\s+(\d{4}))?/gi;
+  const couplePattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bmarried(?:\s+in\s+(\d{4}))?/g;
   for (const match of transcript.matchAll(couplePattern)) {
+    if (!isName(match[1], match[2])) continue;
     const year = match[3] ? `${match[3]}-01-01` : undefined;
     addPartnership(match[1], match[2], 'married', 'married', year);
   }
 
-  const parentPattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bhad\s+(\d+)\s+children\b/gi;
+  const parentPattern = /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\bhad\s+(\d+)\s+children\b/g;
   for (const match of transcript.matchAll(parentPattern)) {
+    if (!isName(match[1], match[2])) continue;
     parentCouples.push({
       parent1: sentenceCaseName(match[1]),
       parent2: sentenceCaseName(match[2]),
@@ -228,13 +245,15 @@ export const parseTranscriptToDraftDiagram = (
     });
   }
 
-  const dxPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,120}\bdiagnos(?:ed|is|e)\b[^.\n]{0,120}\bschizophrenia\b/gi;
+  const dxPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,120}\b[Dd]iagnos(?:ed|is|e)\b[^.\n]{0,120}\b[Ss]chizophrenia\b/g;
   for (const match of transcript.matchAll(dxPattern)) {
+    if (!isName(match[1])) continue;
     diagnosedSchizophrenia.add(sentenceCaseName(match[1]));
   }
 
-  const killPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,140}\bkilled\s+([A-Z][a-z]+)\b[^.\n]{0,80}\bkilled\s+(?:himself|herself)\b/gi;
+  const killPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,140}\bkilled\s+([A-Z][a-z]+)\b[^.\n]{0,80}\bkilled\s+(?:himself|herself)\b/g;
   for (const match of transcript.matchAll(killPattern)) {
+    if (!isName(match[1], match[2])) continue;
     addPartnership(match[1], match[2], 'dating', 'ended', undefined, 'Transcript references homicide-suicide sequence.');
     const killer = sentenceCaseName(match[1]);
     const victim = sentenceCaseName(match[2]);
@@ -244,20 +263,22 @@ export const parseTranscriptToDraftDiagram = (
     addNote(victim, `Transcript: killed by ${killer}.`);
   }
 
-  const bornPattern = /\b([A-Z][a-z]+)\s+([A-Z][a-z]+)[^.\n]{0,30}\bborn\s+(\d{4})/gi;
+  const bornPattern = /\b([A-Z][a-z]+)\s+([A-Z][a-z]+)[^.\n]{0,30}\bborn\s+(\d{4})/g;
   for (const match of transcript.matchAll(bornPattern)) {
+    if (!isName(match[1], match[2])) continue;
     const person = getPerson(`${match[1]} ${match[2]}`);
     person.birthDate = `${match[3]}-01-01`;
   }
 
-  const diedPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,40}\bdied\s+(\d{4})/gi;
+  const diedPattern = /\b([A-Z][a-z]+)\b[^.\n]{0,40}\bdied\s+(\d{4})/g;
   for (const match of transcript.matchAll(diedPattern)) {
+    if (!isName(match[1])) continue;
     const person = getPerson(match[1]);
     person.deathDate = `${match[2]}-01-01`;
   }
 
   const coupleChildrenPattern =
-    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,140}\b(?:have|had)\s+(one|two|three|four|five|\d+)\s+children\b/gi;
+    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,140}\b(?:have|had)\s+(one|two|three|four|five|\d+)\s+children\b/g;
   const countFromWord = (value: string) => {
     const lowered = value.toLowerCase();
     const map: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
@@ -266,6 +287,7 @@ export const parseTranscriptToDraftDiagram = (
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
   for (const match of transcript.matchAll(coupleChildrenPattern)) {
+    if (!isName(match[1], match[2])) continue;
     const a = sentenceCaseName(match[1]);
     const b = sentenceCaseName(match[2]);
     const key = [a, b].sort().join('::');
@@ -276,33 +298,38 @@ export const parseTranscriptToDraftDiagram = (
   }
 
   const conflictPattern =
-    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\b(argu(?:e|ed|ing)|argur(?:e|ed|ing)|go at it|fight(?:ing)?|conflict)\b/gi;
+    /\b([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)[^.\n]{0,120}\b(argu(?:e|ed|ing)|argur(?:e|ed|ing)|go at it|fight(?:ing)?|conflict)\b/g;
   for (const match of transcript.matchAll(conflictPattern)) {
+    if (!isName(match[1], match[2])) continue;
     addEmotionalPatternDraft(match[1], match[2], 'conflict', `Transcript conflict phrase: "${match[0].trim()}"`);
   }
 
   const cutoffPattern =
-    /\b([A-Z][a-z]+)[^.\n]{0,90}\b(no contact|cut\s*off|cutoff|estranged|distance|distant)\b[^.\n]{0,80}\b(with|from)\b[^A-Z\n]{0,12}([A-Z][a-z]+)/gi;
+    /\b([A-Z][a-z]+)[^.\n]{0,90}\b(no contact|cut\s*off|cutoff|estranged|distance|distant)\b[^.\n]{0,80}\b(with|from)\b[^A-Z\n]{0,12}([A-Z][a-z]+)/g;
   for (const match of transcript.matchAll(cutoffPattern)) {
+    if (!isName(match[1], match[4])) continue;
     addEmotionalPatternDraft(match[1], match[4], 'cutoff', `Transcript cutoff phrase: "${match[0].trim()}"`);
   }
 
   const fusionPattern =
-    /\b([A-Z][a-z]+)[^.\n]{0,120}\b(reactive|fused|fusion|enmeshed|overly close)\b[^.\n]{0,80}\b(around|with|to)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+    /\b([A-Z][a-z]+)[^.\n]{0,120}\b(reactive|fused|fusion|enmeshed|overly close)\b[^.\n]{0,80}\b(around|with|to)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/g;
   for (const match of transcript.matchAll(fusionPattern)) {
+    if (!isName(match[1], match[4])) continue;
     addEmotionalPatternDraft(match[1], match[4], 'fusion', `Transcript fusion phrase: "${match[0].trim()}"`);
   }
 
   const projectionPatternNamed =
-    /\b([A-Z][a-z]+)\s+(?:and|&)\s+([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+    /\b([A-Z][a-z]+)\s+(?:and|&)\s+([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/g;
   for (const match of transcript.matchAll(projectionPatternNamed)) {
+    if (!isName(match[1], match[2], match[4])) continue;
     addEmotionalPatternDraft(match[1], match[4], 'projection', `Transcript projection phrase: "${match[0].trim()}"`);
     addEmotionalPatternDraft(match[2], match[4], 'projection', `Transcript projection phrase: "${match[0].trim()}"`);
   }
 
   const projectionPatternSingle =
-    /\b([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/gi;
+    /\b([A-Z][a-z]+)[^.\n]{0,100}\b(focused on|project(?:ed|ion)\s+onto|overly focused on)\b[^A-Z\n]{0,16}([A-Z][a-z]+)/g;
   for (const match of transcript.matchAll(projectionPatternSingle)) {
+    if (!isName(match[1], match[3])) continue;
     addEmotionalPatternDraft(match[1], match[3], 'projection', `Transcript projection phrase: "${match[0].trim()}"`);
   }
 

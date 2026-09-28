@@ -1,0 +1,17 @@
+{
+  "_comment": "Capitalised words the transcript parser must never treat as a person's name. They start sentences or name a role ('Mother and Father married'), not a person. Matched case-insensitively against each captured name. Edit here, not in utils/dataImport.ts.",
+  "nonNameWords": [
+    "i", "he", "she", "they", "we", "you", "it", "him", "them", "us", "me",
+    "his", "her", "hers", "their", "theirs", "our", "ours", "my", "mine", "your", "yours", "its",
+    "the", "a", "an", "this", "that", "these", "those", "there", "here",
+    "then", "when", "after", "before", "and", "but", "so", "or", "if", "because", "while", "since",
+    "later", "eventually", "also", "both", "each", "all", "some", "one", "two",
+    "in", "on", "at", "by", "from", "with", "of", "for", "to",
+    "mother", "father", "mom", "mum", "dad", "parents", "parent",
+    "brother", "sister", "sibling", "siblings", "son", "daughter", "child", "children", "kids",
+    "grandmother", "grandfather", "grandma", "grandpa", "granny", "grandparents",
+    "aunt", "uncle", "cousin", "niece", "nephew",
+    "wife", "husband", "spouse", "partner", "boyfriend", "girlfriend",
+    "family", "everyone", "nobody", "somebody", "someone"
+  ]
+}
