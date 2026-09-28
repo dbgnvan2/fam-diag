@@ -35,6 +35,11 @@ import {
   sanitizePeopleIndicators,
 } from './dataNormalization';
 
+/** Horizontal gap between a new child and the previous child in the row. */
+const NEW_CHILD_SPACING = 90;
+/** How far below a couple's connector line a first child is placed. */
+const CHILD_ROW_BELOW_CONNECTOR = 120;
+
 export type DiagramMergeCurrent = {
   people: Person[];
   partnerships: Partnership[];
@@ -489,8 +494,43 @@ export const mergeDiagramData = (
   const finalPartnerships = mergedPartnerships.map(
     (partnership) => laidOutPartnershipById.get(partnership.id) || partnership
   );
+  // The layout above only covers new couples. A new child of a couple that
+  // already existed would otherwise keep the import file's coordinates (from a
+  // different drawing): put it in that couple's child row, after the existing
+  // children, or centred under the couple if it is their first. Existing
+  // people do not move.
+  const placedNewChildren = new Map<string, Person>();
+  const personById = new Map(peopleWithLinks.map((person) => [person.id, person]));
+  for (const fam of finalPartnerships) {
+    if (addedPartnershipIds.has(fam.id)) continue;
+    const newKids = peopleWithLinks.filter(
+      (person) => newPersonIds.has(person.id) && person.parentPartnership === fam.id
+    );
+    if (!newKids.length) continue;
+    const existingKids = peopleWithLinks.filter(
+      (person) => !newPersonIds.has(person.id) && person.parentPartnership === fam.id
+    );
+    let rowY: number;
+    let startX: number;
+    if (existingKids.length) {
+      rowY = Math.max(...existingKids.map((kid) => kid.y));
+      startX = Math.max(...existingKids.map((kid) => kid.x)) + NEW_CHILD_SPACING;
+    } else {
+      const partnerA = personById.get(fam.partner1_id);
+      const partnerB = personById.get(fam.partner2_id);
+      if (!partnerA || !partnerB) continue;
+      rowY = fam.horizontalConnectorY + CHILD_ROW_BELOW_CONNECTOR;
+      startX = (partnerA.x + partnerB.x) / 2 - ((newKids.length - 1) * NEW_CHILD_SPACING) / 2;
+    }
+    newKids.forEach((kid, index) => {
+      placedNewChildren.set(kid.id, { ...kid, x: startX + index * NEW_CHILD_SPACING, y: rowY });
+    });
+  }
+
   const alignedPeople = alignAllAnchors(
-    peopleWithLinks.map((person) => laidOutPeopleById.get(person.id) || person),
+    peopleWithLinks.map(
+      (person) => placedNewChildren.get(person.id) || laidOutPeopleById.get(person.id) || person
+    ),
     finalPartnerships
   );
   const sanitizedPeople = sanitizePeopleIndicators(alignedPeople, mergedDefinitions);

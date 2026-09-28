@@ -172,3 +172,48 @@ describe('mergeDiagramData — normal merge', () => {
     expect(result.emotionalLines[0].person2_id).toBe('mom');
   });
 });
+
+describe('mergeDiagramData — new child of an existing couple', () => {
+  const importNewChild = (): DiagramImportData => ({
+    // The couple matches Adam and Beth Stone by name, so this partnership
+    // merges into the existing 'fam'; the child is new. The import file's
+    // coordinates are from a different drawing.
+    people: [
+      person('x-dad', 'Adam Stone', 5000, 5000, { partnerships: ['x-fam'] }),
+      person('x-mom', 'Beth Stone', 5200, 5000, { partnerships: ['x-fam'] }),
+      person('x-kid', 'Fay Stone', 5100, 5300, { parentPartnership: 'x-fam' }),
+    ],
+    partnerships: [partnership('x-fam', 'x-dad', 'x-mom', ['x-kid'])],
+    emotionalLines: [],
+  });
+
+  it('places the child in the couple\'s child row, after the existing children (regression: kept import coordinates)', () => {
+    const current = existingDiagram();
+    const result = mergeDiagramData(current, importNewChild());
+    const fay = result.people.find((p) => p.name === 'Fay Stone')!;
+    expect(fay.parentPartnership).toBe('fam');
+    const existingKids = current.people.filter((p) => p.parentPartnership === 'fam');
+    expect(fay.y).toBe(Math.max(...existingKids.map((k) => k.y)));
+    expect(fay.x).toBeGreaterThan(Math.max(...existingKids.map((k) => k.x)));
+    expect(fay.x).toBeLessThan(1000);
+  });
+
+  it('centres a first child under a couple that had none, below their line', () => {
+    const current = existingDiagram();
+    current.people = current.people.filter((p) => !p.parentPartnership);
+    current.partnerships = [{ ...current.partnerships[0], children: [] }];
+    const result = mergeDiagramData(current, importNewChild());
+    const fay = result.people.find((p) => p.name === 'Fay Stone')!;
+    expect(fay.x).toBe(250); // midway between Adam (100) and Beth (400)
+    expect(fay.y).toBeGreaterThan(180); // below the couple's connector line
+  });
+
+  it('still leaves the existing people where they were', () => {
+    const current = existingDiagram();
+    const before = current.people.map((p) => ({ id: p.id, x: p.x, y: p.y }));
+    const result = mergeDiagramData(current, importNewChild());
+    expect(
+      result.people.filter((p) => before.some((b) => b.id === p.id)).map((p) => ({ id: p.id, x: p.x, y: p.y }))
+    ).toEqual(before);
+  });
+});
