@@ -107,6 +107,7 @@ import {
 } from '../utils/storage';
 import type { BackupVersions } from '../utils/storage';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
+import { mergeDiagramData } from '../utils/diagramMerge';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -2481,17 +2482,17 @@ useEffect(() => {
     const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
     const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
     const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
-    const normalizedImportedPeople = normalizeLayout
+    const normalized = normalizeLayout
       ? normalizeImportedChildLayout(cleaned.people, cleaned.partnerships, {
           expandParentSpan: true,
           autoResizeDenseFamilies: true,
         })
-      : cleaned.people;
-    const aligned = alignAllAnchors(normalizedImportedPeople, cleaned.partnerships);
+      : { people: cleaned.people, partnerships: cleaned.partnerships };
+    const aligned = alignAllAnchors(normalized.people, normalized.partnerships);
     const sanitizedPeople = sanitizePeopleIndicators(aligned, nextDefinitions);
     const peopleWithEvents = attachEventClassToEntities(sanitizedPeople, 'individual');
     const partnershipsWithEvents = attachFamilyEventsToPartnerships(
-      attachEventClassToEntities(cleaned.partnerships, 'relationship')
+      attachEventClassToEntities(normalized.partnerships, 'relationship')
     );
     const linesWithEvents = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
     const peopleIdSet = new Set(peopleWithEvents.map((person) => person.id));
@@ -2792,395 +2793,28 @@ useEffect(() => {
   };
 
   const mergeDiagramState = (data: DiagramImportData, options?: { allowNewPeople?: boolean }) => {
-    const allowNewPeople = options?.allowNewPeople ?? true;
-    if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
-      throw new Error('Invalid file format');
-    }
-
-    const incomingDefs: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
-      ? data.functionalIndicatorDefinitions
-      : [];
-    const definitionById = new Map(functionalIndicatorDefinitions.map((def) => [def.id, def]));
-    incomingDefs.forEach((def) => {
-      if (def?.id && !definitionById.has(def.id)) {
-        definitionById.set(def.id, def);
-      }
-    });
-    const mergedDefinitions = [...definitionById.values()];
-    applyIndicatorDefinitionArray(mergedDefinitions);
-
-    const cleaned = removeOrphanedMiscarriages(data.people, data.partnerships);
-    const normalizedLines = normalizeEmotionalLines(data.emotionalLines);
-    const normalizedTriangles = normalizeTriangles(Array.isArray(data.triangles) ? data.triangles : []);
-    const incomingPeople = attachEventClassToEntities(cleaned.people, 'individual');
-    const incomingPartnerships = attachFamilyEventsToPartnerships(
-      attachEventClassToEntities(cleaned.partnerships, 'relationship')
+    const merged = mergeDiagramData(
+      { people, partnerships, emotionalLines, triangles, pageNotes, functionalIndicatorDefinitions },
+      data,
+      { allowNewPeople: options?.allowNewPeople, alignAllAnchors }
     );
-    const incomingLines = attachEventClassToEntities(normalizedLines, 'emotional-pattern');
-
-    const usedPersonIds = new Set(people.map((p) => p.id));
-    const usedPartnershipIds = new Set(partnerships.map((p) => p.id));
-    const usedLineIds = new Set(emotionalLines.map((line) => line.id));
-    const usedTriangleIds = new Set(triangles.map((triangle) => triangle.id));
-
-    const personIdMap = new Map<string, string>();
-    const partnershipIdMap = new Map<string, string>();
-    const lineIdMap = new Map<string, string>();
-
-    const nextUniqueId = (preferred: string | undefined, used: Set<string>) => {
-      if (preferred && !used.has(preferred)) {
-        used.add(preferred);
-        return preferred;
-      }
-      let next = nanoid();
-      while (used.has(next)) {
-        next = nanoid();
-      }
-      used.add(next);
-      return next;
-    };
-
-    const normalizeNameKey = (person: Pick<Person, 'name' | 'firstName' | 'lastName'>) => {
-      const combined = [person.firstName, person.lastName].filter(Boolean).join(' ').trim();
-      const base = (combined || person.name || '').trim().toLowerCase();
-      return base.replace(/[^a-z0-9]+/g, ' ').trim();
-    };
-    const normalizeFirstName = (person: Pick<Person, 'name' | 'firstName'>) => {
-      const first = (person.firstName || person.name || '').trim().split(/\s+/)[0] || '';
-      return first.toLowerCase();
-    };
-    const normalizeLastName = (person: Pick<Person, 'name' | 'lastName'>) => {
-      const fromField = (person.lastName || '').trim();
-      if (fromField) return fromField.toLowerCase();
-      const tokens = (person.name || '').trim().split(/\s+/).filter(Boolean);
-      return tokens.length > 1 ? tokens[tokens.length - 1].toLowerCase() : '';
-    };
-
-    const mergeEvents = (
-      current?: EmotionalProcessEvent[],
-      incoming?: EmotionalProcessEvent[]
-    ): EmotionalProcessEvent[] | undefined => {
-      const merged = [...(current || [])];
-      const seen = new Set(merged.map((event) => event.id));
-      (incoming || []).forEach((event) => {
-        if (!seen.has(event.id)) {
-          merged.push(event);
-          seen.add(event.id);
-        }
-      });
-      return merged.length ? merged : undefined;
-    };
-
-    const mergeIndicators = (
-      current?: Person['functionalIndicators'],
-      incoming?: Person['functionalIndicators']
-    ): Person['functionalIndicators'] => {
-      const merged = [...(current || [])];
-      const seen = new Set(merged.map((entry) => `${entry.definitionId}:${entry.status}`));
-      (incoming || []).forEach((entry) => {
-        const key = `${entry.definitionId}:${entry.status}`;
-        if (!seen.has(key)) {
-          merged.push(entry);
-          seen.add(key);
-        }
-      });
-      return merged.length ? merged : undefined;
-    };
-
-    const existingPersonByNameKey = new Map<string, Person>();
-    const existingPersonByFirst = new Map<string, Person[]>();
-    people.forEach((person) => {
-      const key = normalizeNameKey(person);
-      if (key && !existingPersonByNameKey.has(key)) {
-        existingPersonByNameKey.set(key, person);
-      }
-      const first = normalizeFirstName(person);
-      if (first) {
-        const bucket = existingPersonByFirst.get(first) || [];
-        bucket.push(person);
-        existingPersonByFirst.set(first, bucket);
-      }
-    });
-
-    const updatedPeopleById = new Map<string, Person>(people.map((person) => [person.id, person]));
-    const newPeople: Person[] = [];
-
-    incomingPeople.forEach((incomingPerson) => {
-      const key = normalizeNameKey(incomingPerson);
-      const incomingFirst = normalizeFirstName(incomingPerson);
-      const incomingLast = normalizeLastName(incomingPerson);
-      let existingMatch = key ? existingPersonByNameKey.get(key) : undefined;
-      if (!existingMatch && incomingFirst) {
-        const candidates = existingPersonByFirst.get(incomingFirst) || [];
-        if (incomingLast) {
-          existingMatch = candidates.find(
-            (candidate) => normalizeLastName(candidate) === incomingLast
-          );
-        } else if (candidates.length === 1) {
-          // If incoming record is single-name (e.g., "Donald"), attach to the unique existing first-name match.
-          existingMatch = candidates[0];
-        }
-      }
-      if (existingMatch) {
-        personIdMap.set(incomingPerson.id, existingMatch.id);
-        const mergedPerson: Person = {
-          ...existingMatch,
-          firstName: existingMatch.firstName || incomingPerson.firstName,
-          lastName: existingMatch.lastName || incomingPerson.lastName,
-          maidenName: existingMatch.maidenName || incomingPerson.maidenName,
-          birthDate: existingMatch.birthDate || incomingPerson.birthDate,
-          deathDate: existingMatch.deathDate || incomingPerson.deathDate,
-          gender: existingMatch.gender || incomingPerson.gender,
-          notes:
-            existingMatch.notes && incomingPerson.notes
-              ? existingMatch.notes.includes(incomingPerson.notes)
-                ? existingMatch.notes
-                : `${existingMatch.notes}\n${incomingPerson.notes}`
-              : existingMatch.notes || incomingPerson.notes,
-          lifeStatus: existingMatch.lifeStatus || incomingPerson.lifeStatus,
-          adoptionStatus: existingMatch.adoptionStatus || incomingPerson.adoptionStatus,
-          parentConnectionPattern:
-            existingMatch.parentConnectionPattern || incomingPerson.parentConnectionPattern,
-          functionalIndicators: mergeIndicators(
-            existingMatch.functionalIndicators,
-            incomingPerson.functionalIndicators
-          ),
-          events: mergeEvents(existingMatch.events, incomingPerson.events),
-        };
-        updatedPeopleById.set(existingMatch.id, mergedPerson);
-        return;
-      }
-
-      if (!allowNewPeople) {
-        // Facts-mode merge: ignore unmatched names instead of creating noisy/duplicate people.
-        return;
-      }
-
-      const newId = nextUniqueId(incomingPerson.id, usedPersonIds);
-      personIdMap.set(incomingPerson.id, newId);
-      const nextPerson: Person = {
-        ...incomingPerson,
-        id: newId,
-        partnerships: [],
-      };
-      newPeople.push(nextPerson);
-      if (key) {
-        existingPersonByNameKey.set(key, nextPerson);
-      }
-      const first = normalizeFirstName(nextPerson);
-      if (first) {
-        const bucket = existingPersonByFirst.get(first) || [];
-        bucket.push(nextPerson);
-        existingPersonByFirst.set(first, bucket);
-      }
-    });
-
-    const basePeopleMerged = [...updatedPeopleById.values(), ...newPeople];
-
-    const partnershipPairKey = (partner1: string, partner2: string) =>
-      [partner1, partner2].sort().join('::');
-
-    const existingPartnershipByPair = new Map<string, Partnership>();
-    partnerships.forEach((partnership) => {
-      existingPartnershipByPair.set(
-        partnershipPairKey(partnership.partner1_id, partnership.partner2_id),
-        partnership
-      );
-    });
-
-    const mergedPartnerships = [...partnerships];
-    incomingPartnerships.forEach((partnership) => {
-      const partner1 = personIdMap.get(partnership.partner1_id) ?? partnership.partner1_id;
-      const partner2 = personIdMap.get(partnership.partner2_id) ?? partnership.partner2_id;
-      const pairKey = partnershipPairKey(partner1, partner2);
-      const existingMatch = existingPartnershipByPair.get(pairKey);
-      if (existingMatch) {
-        partnershipIdMap.set(partnership.id, existingMatch.id);
-        const mergedChildren = [
-          ...new Set([
-            ...(existingMatch.children || []),
-            ...(partnership.children || []).map((childId) => personIdMap.get(childId) ?? childId),
-          ]),
-        ];
-        const merged: Partnership = {
-          ...existingMatch,
-          relationshipType:
-            existingMatch.relationshipType === 'dating' ? partnership.relationshipType : existingMatch.relationshipType,
-          relationshipStatus:
-            existingMatch.relationshipStatus === 'married' && partnership.relationshipStatus !== 'married'
-              ? partnership.relationshipStatus
-              : existingMatch.relationshipStatus,
-          relationshipStartDate: existingMatch.relationshipStartDate || partnership.relationshipStartDate,
-          marriedStartDate: existingMatch.marriedStartDate || partnership.marriedStartDate,
-          separationDate: existingMatch.separationDate || partnership.separationDate,
-          divorceDate: existingMatch.divorceDate || partnership.divorceDate,
-          statusDates: {
-            ...(existingMatch.statusDates || {}),
-            ...(partnership.statusDates || {}),
-          },
-          notes:
-            existingMatch.notes && partnership.notes
-              ? existingMatch.notes.includes(partnership.notes)
-                ? existingMatch.notes
-                : `${existingMatch.notes}\n${partnership.notes}`
-              : existingMatch.notes || partnership.notes,
-          children: mergedChildren,
-          events: mergeEvents(existingMatch.events, partnership.events),
-        };
-        const index = mergedPartnerships.findIndex((candidate) => candidate.id === existingMatch.id);
-        if (index >= 0) mergedPartnerships[index] = merged;
-        return;
-      }
-
-      const newId = nextUniqueId(partnership.id, usedPartnershipIds);
-      partnershipIdMap.set(partnership.id, newId);
-      const added: Partnership = {
-        ...partnership,
-        id: newId,
-        partner1_id: partner1,
-        partner2_id: partner2,
-        children: (partnership.children || []).map((childId) => personIdMap.get(childId) ?? childId),
-      };
-      mergedPartnerships.push(added);
-      existingPartnershipByPair.set(pairKey, added);
-    });
-
-    const lineKey = (line: EmotionalLine) =>
-      [
-        ...[line.person1_id, line.person2_id].sort(),
-        line.relationshipType,
-        line.lineStyle,
-        line.lineEnding,
-      ].join('::');
-
-    const existingLineByKey = new Map<string, EmotionalLine>();
-    emotionalLines.forEach((line) => {
-      existingLineByKey.set(lineKey(line), line);
-    });
-
-    const mergedLines = [...emotionalLines];
-    incomingLines.forEach((line) => {
-      const remappedLine: EmotionalLine = {
-        ...line,
-        person1_id: personIdMap.get(line.person1_id) ?? line.person1_id,
-        person2_id: personIdMap.get(line.person2_id) ?? line.person2_id,
-      };
-      const key = lineKey(remappedLine);
-      const existingMatch = existingLineByKey.get(key);
-      if (existingMatch) {
-        lineIdMap.set(line.id, existingMatch.id);
-        const merged: EmotionalLine = {
-          ...existingMatch,
-          status: existingMatch.status || remappedLine.status,
-          startDate: existingMatch.startDate || remappedLine.startDate,
-          endDate: existingMatch.endDate || remappedLine.endDate,
-          notes:
-            existingMatch.notes && remappedLine.notes
-              ? existingMatch.notes.includes(remappedLine.notes)
-                ? existingMatch.notes
-                : `${existingMatch.notes}\n${remappedLine.notes}`
-              : existingMatch.notes || remappedLine.notes,
-          events: mergeEvents(existingMatch.events, remappedLine.events),
-        };
-        const index = mergedLines.findIndex((candidate) => candidate.id === existingMatch.id);
-        if (index >= 0) mergedLines[index] = merged;
-        return;
-      }
-      const newId = nextUniqueId(line.id, usedLineIds);
-      lineIdMap.set(line.id, newId);
-      const added = { ...remappedLine, id: newId };
-      mergedLines.push(added);
-      existingLineByKey.set(key, added);
-    });
-
-    const triangleKey = (triangle: Triangle) =>
-      [triangle.person1_id, triangle.person2_id, triangle.person3_id].sort().join('::');
-
-    const existingTriangleByKey = new Map<string, Triangle>();
-    triangles.forEach((triangle) => {
-      existingTriangleByKey.set(triangleKey(triangle), triangle);
-    });
-
-    const mergedTriangles = [...triangles];
-    normalizedTriangles.forEach((triangle) => {
-      const remappedTriangle: Triangle = {
-        ...triangle,
-        person1_id: personIdMap.get(triangle.person1_id) ?? triangle.person1_id,
-        person2_id: personIdMap.get(triangle.person2_id) ?? triangle.person2_id,
-        person3_id: personIdMap.get(triangle.person3_id) ?? triangle.person3_id,
-      };
-      const uniquePeople = new Set([
-        remappedTriangle.person1_id,
-        remappedTriangle.person2_id,
-        remappedTriangle.person3_id,
-      ]);
-      if (uniquePeople.size !== 3) return;
-      const key = triangleKey(remappedTriangle);
-      const existingMatch = existingTriangleByKey.get(key);
-      if (existingMatch) {
-        const index = mergedTriangles.findIndex((candidate) => candidate.id === existingMatch.id);
-        if (index >= 0) {
-          mergedTriangles[index] = {
-            ...existingMatch,
-            color: existingMatch.color || remappedTriangle.color,
-            intensity: existingMatch.intensity || remappedTriangle.intensity || 'medium',
-          };
-        }
-        return;
-      }
-      const newId = nextUniqueId(triangle.id, usedTriangleIds);
-      const added = { ...remappedTriangle, id: newId };
-      mergedTriangles.push(added);
-      existingTriangleByKey.set(key, added);
-    });
-
-    const peopleWithLinks: Person[] = basePeopleMerged.map((person) => {
-      const personPartnerships = mergedPartnerships
-        .filter((partnership) => partnership.partner1_id === person.id || partnership.partner2_id === person.id)
-        .map((partnership) => partnership.id);
-      const remappedParent = person.parentPartnership
-        ? partnershipIdMap.get(person.parentPartnership) ?? person.parentPartnership
-        : undefined;
-      const remappedBirthParent = person.birthParentPartnership
-        ? partnershipIdMap.get(person.birthParentPartnership) ?? person.birthParentPartnership
-        : undefined;
-      const parentExists = remappedParent
-        ? mergedPartnerships.some((partnership) => partnership.id === remappedParent)
-        : false;
-      const birthParentExists = remappedBirthParent
-        ? mergedPartnerships.some((partnership) => partnership.id === remappedBirthParent)
-        : false;
-      return {
-        ...person,
-        parentPartnership: parentExists ? remappedParent : person.parentPartnership,
-        birthParentPartnership: birthParentExists ? remappedBirthParent : person.birthParentPartnership,
-        partnerships: [...new Set([...(person.partnerships || []), ...personPartnerships])],
-      };
-    });
-
-    const normalizedImportedPeople = normalizeImportedChildLayout(peopleWithLinks, mergedPartnerships, {
-      expandParentSpan: true,
-      autoResizeDenseFamilies: true,
-    });
-    const alignedPeople = alignAllAnchors(normalizedImportedPeople, mergedPartnerships);
-    const sanitizedPeople = sanitizePeopleIndicators(alignedPeople, mergedDefinitions);
-    const importedPageNotes = Array.isArray(data.pageNotes) ? data.pageNotes : [];
-    const mergedPageNotes = (() => {
-      const usedNoteIds = new Set(pageNotes.map((note) => note.id));
-      return [
-        ...pageNotes,
-        ...importedPageNotes.map((note) => ({
-          ...note,
-          id: nextUniqueId(note.id, usedNoteIds),
-        })),
-      ];
-    })();
-
-    setPeople(sanitizedPeople);
-    setPartnerships(mergedPartnerships);
-    setEmotionalLines(mergedLines);
-    setPageNotes(mergedPageNotes);
-    setTriangles(mergedTriangles);
+    applyIndicatorDefinitionArray(merged.functionalIndicatorDefinitions);
+    setPeople(merged.people);
+    setPartnerships(merged.partnerships);
+    setEmotionalLines(merged.emotionalLines);
+    setPageNotes(merged.pageNotes);
+    setTriangles(merged.triangles);
+    const notMerged = [
+      merged.skippedPeopleNames.length
+        ? `${merged.skippedPeopleNames.length} people with no match in this diagram: ${merged.skippedPeopleNames.join(', ')}`
+        : '',
+      merged.droppedPartnerships ? `${merged.droppedPartnerships} partnerships involving them` : '',
+      merged.droppedLines ? `${merged.droppedLines} emotional pattern lines involving them` : '',
+      merged.droppedTriangles ? `${merged.droppedTriangles} triangles involving them` : '',
+    ].filter(Boolean);
+    if (notMerged.length) {
+      alert(`Merged. Not added:\n- ${notMerged.join('\n- ')}`);
+    }
 
     const mergedCategories = [
       ...new Set([

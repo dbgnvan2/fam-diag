@@ -16,7 +16,7 @@ interface UseVoiceHandlersDeps {
   partnerships: Partnership[];
   emotionalLines: EmotionalLine[];
   speechRecognitionRef: MutableRefObject<SpeechRecognition | null>;
-  alignAllAnchors: (people: Person[]) => Person[];
+  alignAllAnchors: (people: Person[], partnershipSource?: Partnership[]) => Person[];
   setVoiceCommandOperations: Dispatch<SetStateAction<VoiceCommandOperation[]>>;
   setVoiceCommandErrors: Dispatch<SetStateAction<string[]>>;
   setVoiceStatusMessage: Dispatch<SetStateAction<string>>;
@@ -310,12 +310,12 @@ export function useVoiceHandlers({
       });
     });
 
-    const normalizedPeople = normalizeImportedChildLayout(nextPeople, nextPartnerships, {
+    const normalized = normalizeImportedChildLayout(nextPeople, nextPartnerships, {
       expandParentSpan: true,
       autoResizeDenseFamilies: true,
     });
-    setPeople(alignAllAnchors(normalizedPeople));
-    setPartnerships(nextPartnerships);
+    setPeople(alignAllAnchors(normalized.people, normalized.partnerships));
+    setPartnerships(normalized.partnerships);
     setEmotionalLines(nextEmotionalLines);
     setVoiceStatusMessage(
       `Applied ${reviewed.operations.length} command${reviewed.operations.length === 1 ? '' : 's'}.`

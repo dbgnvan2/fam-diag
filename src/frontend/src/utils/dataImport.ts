@@ -412,15 +412,15 @@ export const parseTranscriptToDraftDiagram = (
     }
   });
 
-  const normalizedPeople = normalizeImportedChildLayout(peopleList, partnerships, {
+  const normalized = normalizeImportedChildLayout(peopleList, partnerships, {
     expandParentSpan: true,
     autoResizeDenseFamilies: true,
   });
 
   return {
     fileMeta: { fileName: `processed-${sourceFileName.replace(/\.[^.]+$/, '')}.json` },
-    people: normalizedPeople,
-    partnerships,
+    people: normalized.people,
+    partnerships: normalized.partnerships,
     emotionalLines,
     functionalIndicatorDefinitions: [
       { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum', group: 'emotional', color: '#7b1fa2', useLetter: true },
@@ -1133,8 +1133,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
 
   // Skip normalizeImportedChildLayout for VLM imports — it auto-repositions too aggressively
   // and would override the carefully-extracted VLM coordinates and sequence.
-  const normalizedPeople = isImageImport
-    ? people
+  const normalized = isImageImport
+    ? { people, partnerships }
     : normalizeImportedChildLayout(people, partnerships, {
         expandParentSpan: true,
         autoResizeDenseFamilies: true,
@@ -1142,8 +1142,8 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
 
   return {
     fileMeta: { fileName: `facts-import-${facts.processedAt || 'processed'}.json` },
-    people: normalizedPeople,
-    partnerships,
+    people: normalized.people,
+    partnerships: normalized.partnerships,
     emotionalLines: [],
     triangles: [],
     functionalIndicatorDefinitions: [

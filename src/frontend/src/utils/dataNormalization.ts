@@ -260,12 +260,23 @@ type NormalizeImportedLayoutOptions = {
   autoResizeDenseFamilies?: boolean;
 };
 
+/**
+ * Tidy the layout of imported people: align couples, space children under
+ * their parents, place spouses beside married children, resolve overlaps and
+ * position partnership notes.
+ *
+ * Pure: the input arrays and their objects are not modified. Changed people
+ * and partnerships are returned as new objects; unchanged ones are returned
+ * as-is. (It used to write horizontalConnectorY and notesPosition straight
+ * into the caller's partnership objects, which were React state on the merge
+ * path.)
+ */
 export const normalizeImportedChildLayout = (
   people: Person[],
   partnerships: Partnership[],
   options?: NormalizeImportedLayoutOptions
-): Person[] => {
-  if (!people.length || !partnerships.length) return people;
+): { people: Person[]; partnerships: Partnership[] } => {
+  if (!people.length || !partnerships.length) return { people, partnerships };
 
   const expandParentSpan = options?.expandParentSpan ?? false;
   const autoResizeDenseFamilies = options?.autoResizeDenseFamilies ?? false;
@@ -282,6 +293,17 @@ export const normalizeImportedChildLayout = (
     return clone;
   };
   const getCurrentPerson = (id: string) => updates.get(id) || personById.get(id) || null;
+
+  const partnershipUpdates = new Map<string, Partnership>();
+  const getEditablePartnership = (partnership: Partnership) => {
+    const existing = partnershipUpdates.get(partnership.id);
+    if (existing) return existing;
+    const clone = { ...partnership };
+    partnershipUpdates.set(partnership.id, clone);
+    return clone;
+  };
+  const getCurrentPartnership = (partnership: Partnership) =>
+    partnershipUpdates.get(partnership.id) || partnership;
 
   const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(value, max));
@@ -355,7 +377,8 @@ export const normalizeImportedChildLayout = (
         const sharedSize = Math.min(childEditable.size ?? 60, spouseEditable.size ?? 60);
         childEditable.size = sharedSize;
         spouseEditable.size = sharedSize;
-        spousePartnership.horizontalConnectorY = Math.max(childEditable.y, spouseEditable.y) + 60;
+        getEditablePartnership(spousePartnership).horizontalConnectorY =
+          Math.max(childEditable.y, spouseEditable.y) + 60;
       });
     });
   };
@@ -404,7 +427,8 @@ export const normalizeImportedChildLayout = (
         const stagger = (partnershipIndex % 3) * 14;
         partner1Editable.y += stagger;
         partner2Editable.y += stagger;
-        partnership.horizontalConnectorY = Math.max(partner1Editable.y, partner2Editable.y) + 60;
+        getEditablePartnership(partnership).horizontalConnectorY =
+          Math.max(partner1Editable.y, partner2Editable.y) + 60;
       }
     }
 
@@ -468,7 +492,7 @@ export const normalizeImportedChildLayout = (
 
     const groups = new Map<string, Person[]>();
     children.forEach((child) => {
-      const key = (child as any).multipleBirthGroupId || `single:${child.id}`;
+      const key = child.multipleBirthGroupId || `single:${child.id}`;
       const existing = groups.get(key);
       if (existing) {
         existing.push(child);
@@ -493,10 +517,10 @@ export const normalizeImportedChildLayout = (
         if (!editable) return;
         const clampedAnchor = clamp(anchor, minX, maxX);
         editable.x = clampedAnchor;
-        if ((editable as any).multipleBirthGroupId) {
-          (editable as any).connectionAnchorX = clampedAnchor;
-        } else if ((editable as any).connectionAnchorX !== undefined) {
-          delete (editable as any).connectionAnchorX;
+        if (editable.multipleBirthGroupId) {
+          editable.connectionAnchorX = clampedAnchor;
+        } else if (editable.connectionAnchorX !== undefined) {
+          delete editable.connectionAnchorX;
         }
       });
     });
@@ -559,20 +583,21 @@ export const normalizeImportedChildLayout = (
     children.forEach((child) => {
       const editable = getEditablePerson(child.id);
       if (!editable) return;
-      if ((editable as any).multipleBirthGroupId && typeof (child as any).connectionAnchorX === 'number') {
-        const clamped = clamp((child as any).connectionAnchorX, minX, maxX);
-        (editable as any).connectionAnchorX = clamped;
+      if (editable.multipleBirthGroupId && typeof child.connectionAnchorX === 'number') {
+        const clamped = clamp(child.connectionAnchorX, minX, maxX);
+        editable.connectionAnchorX = clamped;
         editable.x = clamped;
-      } else if ((editable as any).connectionAnchorX !== undefined) {
-        delete (editable as any).connectionAnchorX;
+      } else if (editable.connectionAnchorX !== undefined) {
+        delete editable.connectionAnchorX;
       }
     });
 
-    if (!partnership.notes || (partnership as any).notesPosition) return;
+    const currentPartnership = getCurrentPartnership(partnership);
+    if (!currentPartnership.notes || currentPartnership.notesPosition) return;
     const noteWidth = 260;
     const noteHeight = 96;
     let noteX = (partner1.x + partner2.x) / 2 + 24;
-    let noteY = partnership.horizontalConnectorY + 88;
+    let noteY = currentPartnership.horizontalConnectorY + 88;
     for (let tries = 0; tries < 20; tries += 1) {
       const intersectsPerson = people.some((p) => {
         const current = getCurrentPerson(p.id);
@@ -589,7 +614,7 @@ export const normalizeImportedChildLayout = (
         );
       });
       if (!intersectsPerson && !noteIntersects(noteX, noteY, noteWidth, noteHeight)) {
-        (partnership as any).notesPosition = { x: noteX, y: noteY };
+        getEditablePartnership(partnership).notesPosition = { x: noteX, y: noteY };
         occupiedNoteRects.push({ x: noteX, y: noteY, w: noteWidth, h: noteHeight });
         break;
       }
@@ -600,6 +625,11 @@ export const normalizeImportedChildLayout = (
 
   enforceChildSpouseSequence();
 
-  if (updates.size === 0) return people;
-  return people.map((person) => updates.get(person.id) || person);
+  return {
+    people: updates.size === 0 ? people : people.map((person) => updates.get(person.id) || person),
+    partnerships:
+      partnershipUpdates.size === 0
+        ? partnerships
+        : partnerships.map((partnership) => partnershipUpdates.get(partnership.id) || partnership),
+  };
 };

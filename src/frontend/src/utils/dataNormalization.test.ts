@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveImportedGender, inferGenderFromName } from './dataNormalization';
+import type { Partnership, Person } from '../types';
+import {
+  resolveImportedGender,
+  inferGenderFromName,
+  normalizeImportedChildLayout,
+} from './dataNormalization';
 
 describe('resolveImportedGender', () => {
   it('uses the explicit value from the import source', () => {
@@ -24,5 +29,66 @@ describe('resolveImportedGender', () => {
     for (const name of ['John', 'Margaret', 'Tavi', 'donald smith']) {
       expect(resolveImportedGender(undefined, name)).toBe(inferGenderFromName(name));
     }
+  });
+});
+
+describe('normalizeImportedChildLayout', () => {
+  const deepFreeze = <T,>(value: T): T => {
+    if (value && typeof value === 'object') {
+      Object.values(value as Record<string, unknown>).forEach(deepFreeze);
+      Object.freeze(value);
+    }
+    return value;
+  };
+
+  // A child-bearing couple whose child has a spouse (so connector Y is
+  // rewritten twice) and a partnership note with no position (so one is placed).
+  const fixture = () => {
+    const people: Person[] = [
+      { id: 'gp1', name: 'GP One', x: 100, y: 100, gender: 'male', partnerships: ['top'] },
+      { id: 'gp2', name: 'GP Two', x: 300, y: 120, gender: 'female', partnerships: ['top'] },
+      { id: 'kid', name: 'Kid', x: 200, y: 300, gender: 'male', partnerships: ['low'], parentPartnership: 'top' },
+      { id: 'sp', name: 'Spouse', x: 500, y: 320, gender: 'female', partnerships: ['low'] },
+      { id: 'gk', name: 'Grandkid', x: 300, y: 500, gender: 'female', partnerships: [], parentPartnership: 'low' },
+    ];
+    const partnerships: Partnership[] = [
+      { id: 'top', partner1_id: 'gp1', partner2_id: 'gp2', horizontalConnectorY: 150, relationshipType: 'married', relationshipStatus: 'married', children: ['kid'], notes: 'note' },
+      { id: 'low', partner1_id: 'kid', partner2_id: 'sp', horizontalConnectorY: 350, relationshipType: 'married', relationshipStatus: 'married', children: ['gk'] },
+    ];
+    return { people, partnerships };
+  };
+
+  it('does not modify its inputs (regression: wrote into the caller\'s partnerships)', () => {
+    const { people, partnerships } = fixture();
+    deepFreeze(people);
+    deepFreeze(partnerships);
+    expect(() =>
+      normalizeImportedChildLayout(people, partnerships, { expandParentSpan: true, autoResizeDenseFamilies: true })
+    ).not.toThrow();
+  });
+
+  it('returns the partnership changes it used to write in place', () => {
+    const { people, partnerships } = fixture();
+    const result = normalizeImportedChildLayout(people, partnerships, {
+      expandParentSpan: true,
+      autoResizeDenseFamilies: true,
+    });
+    const top = result.partnerships.find((p) => p.id === 'top')!;
+    const low = result.partnerships.find((p) => p.id === 'low')!;
+    // Note placed for the partnership that had notes and no position.
+    expect(top.notesPosition).toBeDefined();
+    // The married child's couple connector follows the aligned partners.
+    const kid = result.people.find((p) => p.id === 'kid')!;
+    const sp = result.people.find((p) => p.id === 'sp')!;
+    expect(low.horizontalConnectorY).toBe(Math.max(kid.y, sp.y) + 60);
+    // Inputs untouched.
+    expect(partnerships.find((p) => p.id === 'top')!.notesPosition).toBeUndefined();
+  });
+
+  it('returns the same arrays when there is nothing to lay out', () => {
+    const people: Person[] = [{ id: 'a', name: 'A', x: 0, y: 0, partnerships: [] }];
+    const result = normalizeImportedChildLayout(people, []);
+    expect(result.people).toBe(people);
+    expect(result.partnerships).toEqual([]);
   });
 });
