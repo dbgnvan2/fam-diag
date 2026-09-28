@@ -62,3 +62,39 @@ describe('DiagramEditor — import replace with unsaved changes', () => {
     await waitFor(() => expect(screen.queryByText('Create New Family')).not.toBeInTheDocument());
   });
 });
+
+describe('DiagramEditor — Build Demo with unsaved changes', () => {
+  let confirmSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    localStorage.clear();
+    confirmSpy = vi.spyOn(window, 'confirm');
+  });
+  afterEach(() => confirmSpy.mockRestore());
+
+  const openBuildDemoFromHelpMenu = () => {
+    fireEvent.click(screen.getByRole('button', { name: /^Help$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Build Demo$/i }));
+  };
+
+  it('declining keeps the diagram and does not open the demo (regression: ribbon bypassed the guard)', () => {
+    render(<DiagramEditor />);
+    confirmSpy.mockReturnValue(true);
+    fireEvent.contextMenu(screen.getByRole('presentation'));
+    fireEvent.click(screen.getByText('Add Person'));
+    confirmSpy.mockClear();
+
+    confirmSpy.mockReturnValue(false);
+    openBuildDemoFromHelpMenu();
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: /build demo walkthrough/i })).not.toBeInTheDocument();
+  });
+
+  it('confirming opens the demo at step 1', () => {
+    render(<DiagramEditor />);
+    confirmSpy.mockReturnValue(true);
+    fireEvent.contextMenu(screen.getByRole('presentation'));
+    fireEvent.click(screen.getByText('Add Person'));
+    openBuildDemoFromHelpMenu();
+    expect(screen.getByText(/Build Step 1 of/i)).toBeInTheDocument();
+  });
+});

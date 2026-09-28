@@ -77,8 +77,8 @@ export interface AppRibbonProps {
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setDemoTourStepIndex: React.Dispatch<React.SetStateAction<number>>;
   setDemoTourOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setBuildDemoStepIndex: React.Dispatch<React.SetStateAction<number>>;
-  setBuildDemoOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Guarded start: asks before replacing unsaved work, then loads step 1. */
+  handleStartBuildDemo: () => void;
   setTrainingVideosOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReadmeViewerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setNotesLayerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
@@ -176,8 +176,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setSessionNotesOpen,
   setDemoTourStepIndex,
   setDemoTourOpen,
-  setBuildDemoStepIndex,
-  setBuildDemoOpen,
+  handleStartBuildDemo,
   setTrainingVideosOpen,
   setReadmeViewerOpen,
   setNotesLayerEnabled,
@@ -322,10 +321,9 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     },
     {
       label: 'Build Demo',
-      action: () => {
-        setBuildDemoStepIndex(0);
-        setBuildDemoOpen(true);
-      },
+      // Through the guarded handler: opening the modal directly let its step
+      // buttons replace the diagram without the unsaved-changes prompt.
+      action: handleStartBuildDemo,
     },
     { label: 'Help Docs', action: () => setReadmeViewerOpen(true) },
   ];
