@@ -144,3 +144,21 @@ call, because no re-render happens in between.
 **Rule.** Key a timer effect only on the values that should restart it (the data, the delay).
 Read callbacks through a ref updated every render. When a component has an interval that
 forces re-renders, test every timer in it by stepping time at that interval.
+
+---
+
+## L8 — A render test that counted a node type the subject itself draws
+
+**Issue.** Two PersonNode tests checked the sibling-maturity badge by counting `Circle`
+children. The badge is a square; the circle they found was the person's own body (people with
+no sex set drew as circles). When unknown sex started drawing as a triangle, the "badge is
+shown" test failed — it had never looked at the badge.
+
+**Root cause.** The assertion matched a property (node class) shared by the thing under test
+and its surroundings, so it passed whether or not the badge existed.
+
+**What would have caught it.** Deleting the badge and running the test. It would have stayed
+green.
+
+**Rule.** Identify the rendered element by something only it has (its fill, a name, a test id),
+and confirm the test goes red when that element is removed.

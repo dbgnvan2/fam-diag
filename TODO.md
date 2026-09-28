@@ -7,40 +7,39 @@ Deferred items, each with the reason it was not done at the time. Newest first.
 Gate `docs/cycles/gate_2026-09-27_autosave_import-fabrication.md` APPROVED.
 An earlier run on the same day diffed against a stale base (before
 `a82f52c`) and reviewed the wrong code; it was discarded after rebasing.
-Carried items:
+Carried items, updated after the follow-up batch (`ea340c8`..`98e3900`, gates
+`gate_2026-09-27b` REJECTED, `gate_2026-09-27c` REJECTED, then the final pass):
 
-- **Session-capture import has no direct test.** The three call sites in
-  `DiagramEditor.tsx` that stopped defaulting sex (`upsert_person`,
-  `add_person_event` fallback, `upsert_partnership` synthetic partners) are
-  covered only through the `resolveImportedGender` helper.
-- **`resolveImportedGender` stores any truthy explicit value verbatim**, so a
-  future caller passing an image-import `sex` of `'unknown'` would record it
-  as a gender. Unreachable today; the image path clears on `'unknown'`.
-- **Unknown sex still renders as a circle.** `PersonNode.deriveGenderSymbol`
-  falls back to `female_cis` when gender is unset. Needs a decision on the
-  unknown-sex symbol (earlier notes say triangle).
 - **`deathDateKnown` has no Timeline block.** A deceased person with an
   unknown date shows the X on the canvas but no Death entry in
   `syntheticDateEvents`.
-- **Facts-import placeholder children are lost.** Children generated from
-  text like "had two children" are added after the `people` list is built,
-  so they are missing from the output while their IDs stay in
-  `partnership.children` (`utils/dataImport.ts`, `factsToDiagramImportData`).
-- **Session events with no date get today's date**
-  (`DiagramEditor.tsx`, `add_person_event`).
 - **Manual "Add Person" and voice commands default to female**
-  (`usePersonOperations.addPerson`, `useVoiceHandlers`). User-created, not
-  imports, so left as is pending a decision.
-- **Open findings from the 2026-09-27 full review** (not yet fixed): transcript
-  regexes with the `i` flag create people named "She"/"Mother"; facts-mode
-  merge adds partnerships to skipped people; merge re-lays out the whole
-  diagram and mutates partnership state; remarriage layout in image import;
-  Open/Load/Restore discard unsaved work without a prompt; clean-snapshot
-  baseline disagrees with state; timeline year bounds use local time; name
-  prefix match merges distinct people; VLM response validation is shallow;
-  ~940 lines of tests cover the unreachable review-modal image path;
-  `removePerson` leaves dangling partnership IDs; `alignAllAnchors` lives in
-  the component with a dead branch.
+  (`usePersonOperations.addPerson`, `useVoiceHandlers`). Decided 2026-09-27:
+  leave as is (user-created, changeable at once).
+- **Three unsaved-changes prompts are still inline** (`handleNewFile`,
+  `handleLoadDemoDiagram`, `handleStartBuildDemo` in `useFileOperations.ts`)
+  with their own wording, instead of `confirmDiscardUnsavedChanges`. Same
+  behaviour; low (gate 2026-09-27c #3).
+- **`DiagramEditor.startupState.test.tsx` "nothing stored" case** asserts only
+  `people.length > 0`; it could compare against the product default. Low
+  (gate 2026-09-27c #4).
+- **Merge places a new child of an existing couple without a collision
+  check** against other people in that row (`diagramMerge.ts`). Low (gate
+  2026-09-27c #5).
+- **Session-capture `howWell` defaults to 5** when the capture gives none,
+  while `intensity`, `frequency` and `impact` default to 0 (unset). Check
+  whether 5 is an intended neutral value or another invented one.
+- **Four implementation-plan docs still enumerate the deleted review-modal
+  pipeline** (`imageAnalysis`, `personInventory`, `extractedDataToDiagram`,
+  `diagramLayout`, `inventoryExport`, `ImageDiagramReviewModal`) as the
+  current path: `docs/implementation_plan_2026-05-22.md`, `-06-06.md`,
+  `-06-07.md`, `-06-07c.md`. `features.md` and the CLAUDE.md index were
+  updated, but these plans need a RETIRED banner (L1). Low (gate
+  2026-09-27d #1).
+
+Decided and done on 2026-09-27: the unreachable review-modal image path was
+deleted (`a5ce83a`); unknown sex draws as a triangle (`5e5df44`); undated
+session-capture events are left undated (`98e3900`).
 
 ## From the kinship and emotional-pattern batch (2026-09-22)
 
