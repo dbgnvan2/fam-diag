@@ -21,6 +21,15 @@ Deferred items, each with the reason it was not done at the time. Newest first.
   stored `date` is only refreshed when it is saved through the event dialog;
   `EventCreator`, `personEventBundle` and `PredictionsPanel` read stored
   events directly.
+- **Gate LOW #1 (`docs/cycles/gate_2026-09-30_review-fixes.md`):**
+  `anchorTypeForOwner` / `eventClassForOwner` (`utils/eventDraft.ts`) key on
+  `owner.kind` only, so a family event that lacks its own `anchorType` /
+  `eventClass` would be saved as `RELATIONSHIP_PRL` / `relationship`.
+  Unreachable today (family events are created with `FAMILY` / `family` and
+  edits keep them); carried rather than fixed after the APPROVED verdict so
+  the pushed code is the code the gate read. Fix: branch on
+  `owner.list === 'familyEvents'`, with a test that a family event edited from
+  a person's Events tab keeps both values.
 - **Symptom saves from the Timeline do not create a new symptom type** for an
   unknown name (no `ensureSymptomDefinition` passed in); the event is stored
   unlinked rather than linked to a wrong type.
