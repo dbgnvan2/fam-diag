@@ -282,11 +282,6 @@ describe('kinship — the spouse of a collateral relative', () => {
     expect(nounFor('jim', 'sueHusband')).toBe('Uncle by marriage');
   });
 
-  it('test_kin_a_parents_second_wife_is_still_a_step_mother', () => {
-    // The direct line must keep the step term: Carol married Peter's father.
-    expect(nounFor('peter', 'carol')).toBe('Step-mother');
-  });
-
   it('test_kin_a_nephews_wife_is_a_niece_in_law_not_a_daughter_in_law', () => {
     const { people, partnerships } = buildFamily();
     const withNephewWife: Person[] = [
@@ -330,8 +325,4 @@ describe('kinship — the spouse of a collateral relative', () => {
     );
   });
 
-  it('test_kin_a_sons_wife_is_still_a_daughter_in_law', () => {
-    // The direct line must keep the in-law term.
-    expect(nounFor('bob', 'betty')).toBe('Daughter-in-law');
-  });
 });

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject } from 'react';
 import { nanoid } from 'nanoid';
 import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
-import type { SessionNoteFileRecord } from '../types/diagramEditor';
+import type { SessionNoteDirectoryHandle, SessionNoteFileRecord } from '../types/diagramEditor';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import { buildSessionEventDraft, isSessionNoteDirty } from '../utils/sessionNoteEvents';
 import {
@@ -38,7 +38,7 @@ interface SessionNoteHandlerDeps {
     SetStateAction<{ type: 'person' | 'partnership' | 'emotional'; id: string } | null>
   >;
   setSessionEventDraft: Dispatch<SetStateAction<EmotionalProcessEvent | null>>;
-  sessionSaveDirectoryHandleRef: MutableRefObject<any>;
+  sessionSaveDirectoryHandleRef: MutableRefObject<SessionNoteDirectoryHandle | null>;
   composeSessionNotePayload: () => SessionNoteFileRecord;
   /** The stored library, or null when it is there but cannot be read. */
   getSessionNotesLibrary: () => SessionNoteFileRecord[] | null;
@@ -186,6 +186,11 @@ export function useSessionNoteHandlers({
       'application/json'
     );
     if (!savedToLocation) {
+      // A folder was chosen but the write failed: say so, rather than let
+      // the panel keep showing that folder as where the note went.
+      if (sessionSaveDirectoryHandleRef.current) {
+        alertFn('The note could not be written to the chosen folder, so it is being downloaded instead.');
+      }
       const blob = new Blob([serialized], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -230,7 +235,8 @@ export function useSessionNoteHandlers({
   };
 
   const handleSessionChooseLocation = async () => {
-    const picker = (window as any).showDirectoryPicker;
+    const picker = (window as Window & { showDirectoryPicker?: () => Promise<SessionNoteDirectoryHandle> })
+      .showDirectoryPicker;
     if (typeof picker !== 'function') {
       alert(
         'Directory picker is not supported in this browser. Files will download to your default location.'

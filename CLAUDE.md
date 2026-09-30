@@ -50,7 +50,7 @@ Vercel build: `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` �
 
 ### Save = create event
 
-Every Save button creates an `EmotionalProcessEvent`. Every event MUST set `date` AND `startDate`, `anchorType` and `anchorId`, `eventClass`, `createdAt`, and a meaningful `subtype`. Partnership events get cloned to both partners. See [event-system.md](docs/event-system.md#save--create-event-every-save-button-creates-an-event) for the builder template and existing builders.
+Every Save button creates an `EmotionalProcessEvent`, through `utils/eventDraft.ts` — the one save path the Properties panel, Timeline, canvas dialogs and session notes share. Never default an event's date to today or fill in a rating the user did not give (author decision 2026-09-30). Every event MUST set `date` AND `startDate`, `anchorType` and `anchorId`, `eventClass`, `createdAt`, and a meaningful `subtype`. Partnership events get cloned to both partners. See [event-system.md](docs/event-system.md#save--create-event-every-save-button-creates-an-event) for the builder template and existing builders.
 
 ### Two unrelated "intensity" concepts
 
@@ -61,7 +61,7 @@ Never conflate. Details in [event-system.md](docs/event-system.md#intensity--two
 
 ### EventCard has 5 call sites — any change touches all
 
-`EventsSection.tsx`, `PropertiesPanel.tsx` (Symptoms, Patterns, Family `renderFamilyEventCard()`), and `SessionEventModal.tsx`. Every card MUST have `onEdit` AND `onDelete`. Date is `startDate || date || ''`. See [event-system.md](docs/event-system.md#eventcard--5-call-sites-any-change-touches-all).
+`EventsSection.tsx` (own rows, and read-only system-event rows) and `PropertiesPanel.tsx` (Symptoms, Patterns, Family `renderFamilyEventCard()`). Every editable card MUST have `onEdit` AND `onDelete`, and they must act on the event's OWNER (a person's tab lists its partnerships' and patterns' events). Date is `startDate || date || ''`. See [event-system.md](docs/event-system.md#eventcard--5-call-sites-any-change-touches-all).
 
 ### Modal positioning
 
@@ -69,7 +69,7 @@ Use `position: fixed` on the dialog itself, not `position: absolute` inside a fl
 
 ### Date-field synthesis (Events tab ↔ Timeline must stay in sync)
 
-`PropertiesPanel.getDisplayEvents()` and `TimelineBoardModal` both call `utils/syntheticDateEvents.ts` to surface raw date fields as virtual events. To add a new "date field that should appear as an event," update `syntheticDateEvents.ts` only — both consumers pick it up.
+The Properties panel's `displayRows` and `TimelineBoardModal` both call `utils/syntheticDateEvents.ts` to surface raw date fields as events. A date field has exactly ONE event: editing it edits the field, and deleting it clears the date (`DateSlot`, author decision 2026-09-30). To add a new "date field that should appear as an event," add a slot in `syntheticDateEvents.ts` only — both consumers and the save path pick it up.
 
 ## Consistency protocol
 
@@ -83,7 +83,7 @@ The #1 source of bugs here is fixing something in one place and missing the othe
 
 ### Cross-check lists
 
-- **Save handlers** → all `build*Event()` functions (template in [event-system.md](docs/event-system.md))
+- **Save handlers** → `utils/eventDraft.ts`, plus the `build*Event()` functions left in `PropertiesPanel.tsx` (see [event-system.md](docs/event-system.md))
 - **EventCard rendering** → the 5 call sites above
 - **Event modal/form** → `EventModal.tsx`, `SessionEventModal.tsx`, `EventsSection.tsx`, `PropertiesPanel.tsx` (openNewEvent/openEditEvent/saveEvent), `EventCard.tsx`
 - **Event constants** → all consumers of `eventConstants.ts` (the above plus any new files)

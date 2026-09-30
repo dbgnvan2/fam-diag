@@ -249,3 +249,41 @@ describe('Patterns tab dialog saves every field it edits', () => {
   });
 });
 
+
+describe('builders — every saved event is complete (GTEST-08)', () => {
+  const expectComplete = (event: EmotionalProcessEvent, anchorType: string, anchorId: string) => {
+    expect(event).toMatchObject({ anchorType, anchorId });
+    expect(event).toHaveProperty('date');
+    expect(event).toHaveProperty('startDate');
+    expect(event.startDate).toBe(event.date);
+    expect(event.eventClass).toBeTruthy();
+    expect(event.createdAt).toBeGreaterThan(0);
+    expect(event.subtype).toBeTruthy();
+  };
+
+  it('a Papero score change writes a complete PAPERO event with no invented date', () => {
+    const { onUpdatePerson } = renderPanel({});
+    fireEvent.click(screen.getByRole('tab', { name: 'Papero' }));
+    const engagement = screen.getByText('Engagement with Issue').parentElement!.querySelector('select') as HTMLSelectElement;
+    fireEvent.change(engagement, { target: { value: '3' } });
+    const withEvents = onUpdatePerson.mock.calls.find(([, updates]) => updates.events);
+    expect(withEvents).toBeDefined();
+    const [, updates] = withEvents!;
+    const papero = updates.events[updates.events.length - 1];
+    expectComplete(papero, 'PERSON', 'p1');
+    expect(papero).toMatchObject({ eventType: 'PAPERO', subtype: 'Engagement with Issue', intensity: 3, date: '' });
+  });
+
+  it('a pattern measurement writes a complete EPE event, undated, carrying the last measured intensity', () => {
+    const measured = line({
+      events: [{ ...eplEvent, id: 'm1', category: 'Emotional Pattern', subtype: 'Conflict – Measurement', intensity: 2, frequency: 1, impact: 1 }],
+    });
+    const { onUpdateEmotionalLine } = renderPanel({ selectedItem: measured, allEmotionalLines: [measured] });
+    fireEvent.change(screen.getByLabelText('Frequency:'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    const [, updates] = onUpdateEmotionalLine.mock.calls[0];
+    const measurement = updates.events[updates.events.length - 1];
+    expectComplete(measurement, 'EMOTIONAL_PROCESS_EP', 'l1');
+    expect(measurement).toMatchObject({ eventType: 'EPE', frequency: 3, intensity: 2, date: '' });
+  });
+});

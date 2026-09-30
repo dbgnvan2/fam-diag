@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import EventModal from '../EventModal';
+import TimelineYearInput from './TimelineYearInput';
 import {
   synthesizeEmotionalLineDateEvents,
   synthesizePartnershipDateEvents,
@@ -97,6 +98,8 @@ const MIN_BLOCK_PX = 34;
 
 type TimelineLane = {
   id: string;
+  /** A person's own lane, or a partnership's Family lane (id `family-<id>`). */
+  kind: 'person' | 'family';
   label: string;
   items: TimelineBlockItem[];
   /** Person lanes only: which relatives contributed system events. */
@@ -482,6 +485,7 @@ export default function TimelineBoardModal({
       });
       lanes.push({
         id: `family-${partnership.id}`,
+        kind: 'family',
         label: `Family: ${partner1Name} + ${partner2Name}`,
         items: familyItems,
       });
@@ -713,7 +717,7 @@ export default function TimelineBoardModal({
           });
         });
       }
-      lanes.push({ id: person.id, label: person.name || 'Unnamed', items, systemMeta });
+      lanes.push({ id: person.id, kind: 'person', label: person.name || 'Unnamed', items, systemMeta });
     });
     return lanes;
   })();
@@ -1026,21 +1030,13 @@ export default function TimelineBoardModal({
               >
                 ▲
               </button>
-              <input
-                type="number"
-                value={selectedStartYear ?? ''}
+              <TimelineYearInput
+                ariaLabel="Start year"
+                value={selectedStartYear ?? null}
                 min={timelineYearBoundsForFilter.min}
                 max={selectedEndYear ?? timelineYearBoundsForFilter.max}
                 onFocus={() => setTimelineYearPickTarget('start')}
-                onChange={(e) => {
-                  const parsed = Number(e.target.value);
-                  if (!Number.isFinite(parsed)) return;
-                  const next = Math.max(
-                    timelineYearBoundsForFilter.min,
-                    Math.min(parsed, selectedEndYear ?? timelineYearBoundsForFilter.max)
-                  );
-                  setTimelineFilterStartYear(next);
-                }}
+                onCommit={setTimelineFilterStartYear}
                 style={{
                   width: 84,
                   border: timelineYearPickTarget === 'start' ? '2px solid #3f7ad6' : undefined,
@@ -1075,21 +1071,13 @@ export default function TimelineBoardModal({
               >
                 ▲
               </button>
-              <input
-                type="number"
-                value={selectedEndYear ?? ''}
+              <TimelineYearInput
+                ariaLabel="End year"
+                value={selectedEndYear ?? null}
                 min={selectedStartYear ?? timelineYearBoundsForFilter.min}
                 max={timelineYearBoundsForFilter.max}
                 onFocus={() => setTimelineYearPickTarget('end')}
-                onChange={(e) => {
-                  const parsed = Number(e.target.value);
-                  if (!Number.isFinite(parsed)) return;
-                  const next = Math.min(
-                    timelineYearBoundsForFilter.max,
-                    Math.max(parsed, selectedStartYear ?? timelineYearBoundsForFilter.min)
-                  );
-                  setTimelineFilterEndYear(next);
-                }}
+                onCommit={setTimelineFilterEndYear}
                 style={{
                   width: 84,
                   border: timelineYearPickTarget === 'end' ? '2px solid #3f7ad6' : undefined,
@@ -1293,9 +1281,10 @@ export default function TimelineBoardModal({
                 return (
                   <div key={lane.id} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', borderTop: '1px dashed #d7d7d7' }}>
                     <div
-                      style={{ background: '#f6f6f8', padding: '14px 10px', fontWeight: 700, cursor: lane.id === 'family' ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}
+                      style={{ background: '#f6f6f8', padding: '14px 10px', fontWeight: 700, cursor: lane.kind === 'family' ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', gap: 6 }}
                       onClick={() => {
-                        if (lane.id === 'family') return;
+                        // A Family lane is a partnership, not a person.
+                        if (lane.kind === 'family') return;
                         setTimelineBoardSelection({
                           laneLabel: lane.label,
                           entityType: 'person',
@@ -1305,7 +1294,7 @@ export default function TimelineBoardModal({
                       }}
                     >
                       <span>{lane.label}</span>
-                      {lane.id !== 'family' && (
+                      {lane.kind === 'person' && (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); startAddEventForPerson(lane.id); }}

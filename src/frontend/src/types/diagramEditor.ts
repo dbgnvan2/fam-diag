@@ -17,6 +17,28 @@ import type {
 // Storage / Settings
 // ---------------------------------------------------------------------------
 
+/**
+ * The parts of the File System Access API the session notes use. Browsers
+ * without it fall back to a download.
+ */
+export type SessionNoteDirectoryHandle = {
+  name?: string;
+  getFileHandle: (
+    name: string,
+    options: { create: boolean }
+  ) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }>;
+};
+
+/** One entry of a canvas context menu; `children` makes a submenu. */
+export type ContextMenuItem = {
+  label: string;
+  onClick?: () => void;
+  children?: ContextMenuItem[];
+};
+
+/** An open canvas context menu. */
+export type ContextMenuState = { x: number; y: number; items: ContextMenuItem[] };
+
 export type StoredUserSettings = {
   eventCategories?: string[];
   relationshipTypes?: string[];

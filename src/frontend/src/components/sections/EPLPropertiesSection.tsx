@@ -11,55 +11,7 @@ import {
 } from '../../constants/functionalIndicatorScales';
 import { emotionalPatternIntensityOptions } from '../../utils/emotionalPatternOptions';
 import DatePickerField from '../DatePickerField';
-
-const FUSION_INTENSITY_HELP = [
-  'Minimal – The amount of loss of self to one’s spouse is minimal. Whatever symptom occurs is easily managed, without limitation in functioning, and appears only during periods of heightened anxiety.',
-  'Mild –Some loss of self that can result in more frequent but still mild symptoms that cause distress and occasionally interfere with functioning.',
-  'Moderate – A greater sensitivity to conflict and greater readiness to go along with the other to avoid it. More frequent or moderate symptoms that reduce the ability to function but can be managed by the person unless anxiety gets too high.',
-  'Major – Considerable loss of self to the other such that most important decisions are made by the other spouse. Serious or chronic symptoms that require substantial alteration in the life of the person and/or family',
-  'Severe – Person has become almost a complete no self in the relationship and extremely vulnerable to very serious symptoms that essentially dictate all of life’s choices.',
-];
-const FUSION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const CONFLICT_INTENSITY_HELP = [
-  'Minimum – very occasional bickering, little or no arguments.',
-  'Mild – frequent bickering, short-lived or infrequent quarelling.',
-  'Moderate – frequent arguments, high irritability of partners, raised voices.',
-  'Major – frequent arguments, physical contact (pushing, shoving, occasional slapping), involvement of others.',
-  'Maximal – frequent arguments and striking one another, involvement of outside agencies to restore order.',
-];
-const CONFLICT_INTENSITY_LEVEL_LABELS = ['Minimum', 'Mild', 'Moderate', 'Major', 'Maximal'];
-const DISTANCE_INTENSITY_HELP = [
-  'Minimal – Occasional use of distance to manage tension (superficial contact, seeking out other relationships and/or activities).',
-  'Mild – regular use of distance to manage tension.',
-  'Moderate – Use of emotional distance even during calmer times; little ability to discuss personal issues.',
-  'Major – chronic distance maintained with tense periods of silence or frequent absences; large / frequent geographic distance.',
-  'Severe – Distance is structured into separate lifestyles or living arrangements.',
-];
-const DISTANCE_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const PROJECTION_INTENSITY_HELP = [
-  'Minimal – Parental worry/anxiety about the child is very occasional; child is asymptomatic. Parents meet the reality needs of the child without significantly incorporating the child into parental problems or emotionally overinvesting either positively or negative in the child.',
-  'Mild – Parents\' worry is episodic. Symptoms of the child tend to be occasional and easily managed with no serious impairment of the child\'s functioning. Sporadic anxious focus on the child.',
-  'Moderate – Parental worry about the child may be episodic or more constant. There is some impairment of the child\'s functioning that becomes more acute during periods of heightened parental anxiety. More of the parent\'s self is invested in the child and can play out in either an over positive or an over negative way.',
-  'Major – Anxious parental focus on the child is more intense contributing to serious impairment of the child\'s functioning. This may not become evident until adolescence or until the child attempts to leave home. The life of the family is frequently oriented around the child and symptoms in the child.',
-  'Severe – The intensity of the attachment between child and parents is so severe the child fails to lift off from parents or substitute institution. A chronic fixed triangle with the parents contributes to a schizophrenic level of impairment.',
-];
-const PROJECTION_INTENSITY_LEVEL_LABELS = ['Minimal', 'Mild', 'Moderate', 'Major', 'Severe'];
-const OPEN_CONNECTION_INTENSITY_HELP = [
-  'Light – A basic openness exists between the two people. Communication is functional but limited in depth.',
-  'Moderate – Regular meaningful exchange. Both people are willing to share personal information and listen without judgment.',
-  'Strong – Deep trust and transparency. Both parties can share vulnerabilities and provide mutual support consistently.',
-  'Heavy – A highly connected relationship with significant emotional investment. Each person is deeply attuned to the other.',
-  'Heavy Max – The fullest expression of open connection. Complete transparency, mutual respect, and deep emotional attunement.',
-];
-const OPEN_CONNECTION_INTENSITY_LEVEL_LABELS = ['Light', 'Moderate', 'Strong', 'Heavy', 'Heavy Max'];
-
-const CUTOFF_INTENSITY_HELP = [
-  '0–20: Extreme to Vulnerable — Total or near-total isolation. Contact is rare, strictly superficial, and highly reactive. Any stress may trigger a complete cut-off.',
-  '20–40: Distanced Connectivity — Personal topics are avoided; triangling is the primary coping mechanism. Families drift apart and only rally briefly during crises.',
-  '40–60: Intentional to Principled — Members make deliberate choices about contact and topics. Some triangling persists under moderate stress but principles begin to govern participation.',
-  '60–80: Resilient to Transparent — Regular, significant contact is maintained easily. Relationships are grounded in reality, guided by strong principles, and tolerate high anxiety without collapsing.',
-];
-const CUTOFF_INTENSITY_LEVEL_LABELS = ['0–20', '20–40', '40–60', '60–80'];
+import { EMOTIONAL_PATTERN_INTENSITY_SCALES } from '../../constants/eventConstants';
 
 const PRESET_COLORS = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
 
@@ -83,48 +35,48 @@ const getIntensityChooserConfig = (relationshipType: EmotionalLine['relationship
   if (relationshipType === 'fusion') {
     return {
       title: '+ / - Adequate Intensity Level',
-      helpLines: FUSION_INTENSITY_HELP,
-      labels: FUSION_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.fusion.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.fusion.labels,
       buttonLabel: '+ / - Adequate intensity level help',
     };
   }
   if (relationshipType === 'conflict') {
     return {
       title: 'Conflict Intensity Level',
-      helpLines: CONFLICT_INTENSITY_HELP,
-      labels: CONFLICT_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.conflict.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.conflict.labels,
       buttonLabel: 'Conflict intensity level help',
     };
   }
   if (relationshipType === 'distance') {
     return {
       title: 'Distance Intensity Level',
-      helpLines: DISTANCE_INTENSITY_HELP,
-      labels: DISTANCE_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.distance.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.distance.labels,
       buttonLabel: 'Distance intensity level help',
     };
   }
   if (relationshipType === 'cutoff') {
     return {
       title: 'Cutoff / Differentiation Scale',
-      helpLines: CUTOFF_INTENSITY_HELP,
-      labels: CUTOFF_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.cutoff.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.cutoff.labels,
       buttonLabel: 'Cutoff intensity level help',
     };
   }
   if (relationshipType === 'projection') {
     return {
       title: 'Family Projection Intensity Scale',
-      helpLines: PROJECTION_INTENSITY_HELP,
-      labels: PROJECTION_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.projection.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.projection.labels,
       buttonLabel: 'Family projection intensity level help',
     };
   }
   if (relationshipType === 'open-connection') {
     return {
       title: 'Open Connection Intensity Scale',
-      helpLines: OPEN_CONNECTION_INTENSITY_HELP,
-      labels: OPEN_CONNECTION_INTENSITY_LEVEL_LABELS,
+      helpLines: EMOTIONAL_PATTERN_INTENSITY_SCALES.openConnection.help,
+      labels: EMOTIONAL_PATTERN_INTENSITY_SCALES.openConnection.labels,
       buttonLabel: 'Open connection intensity level help',
     };
   }

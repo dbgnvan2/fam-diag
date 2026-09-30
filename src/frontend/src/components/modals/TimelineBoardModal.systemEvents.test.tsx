@@ -153,10 +153,12 @@ describe('TimelineBoardModal — person lane completeness', () => {
 
   it('test_m7a1_birth_and_death_still_render_once', () => {
     renderBoard();
-    const birthMatches = hoverTexts().match(/Birth/g) || [];
-    expect(birthMatches.length).toBeGreaterThanOrEqual(1);
-    // Own birth is not duplicated by the shared synthesizer.
-    expect(birthMatches.length).toBeLessThanOrEqual(2);
+    // Exactly one block each: Root's own birth, and his father's death.
+    const blocks = Array.from(document.querySelectorAll('[data-hover-text]')).map(
+      (element) => element.getAttribute('data-hover-text') || ''
+    );
+    expect(blocks.filter((text) => text.startsWith('Birth — Root'))).toHaveLength(1);
+    expect(blocks.filter((text) => text.startsWith('Death — Dad'))).toHaveLength(1);
   });
 
   it('test_m7a2_own_family_and_triangle_events_on_person_lane', () => {

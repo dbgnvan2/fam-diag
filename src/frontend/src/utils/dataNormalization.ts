@@ -30,13 +30,7 @@ const sanitizePersonIndicatorsWithSet = (person: Person, allowed: Set<string>) =
   if (filtered.length === person.functionalIndicators.length) {
     return person;
   }
-  const updated: Person = { ...person };
-  if (filtered.length) {
-    updated.functionalIndicators = filtered;
-  } else {
-    delete (updated as any).functionalIndicators;
-  }
-  return updated;
+  return { ...person, functionalIndicators: filtered.length ? filtered : undefined };
 };
 
 export const sanitizePeopleIndicators = (
@@ -52,9 +46,7 @@ export const sanitizePeopleIndicators = (
         return person;
       }
       changed = true;
-      const updated = { ...person };
-      delete (updated as any).functionalIndicators;
-      return updated;
+      return { ...person, functionalIndicators: undefined };
     });
     return changed ? next : peopleList;
   }

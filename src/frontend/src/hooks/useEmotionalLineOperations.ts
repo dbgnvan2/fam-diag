@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEvent } from '../types';
 import type { EmotionalPatternDraft } from '../types/diagramEditor';
@@ -20,7 +21,7 @@ interface UseEmotionalLineOperationsDeps {
   setSelectedEmotionalLineId: Dispatch<SetStateAction<string | null>>;
   setSelectedChildId: Dispatch<SetStateAction<string | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
 }
 
 export function useEmotionalLineOperations({
@@ -127,7 +128,8 @@ export function useEmotionalLineOperations({
       eventType: 'EPE',
       anchorType: 'EMOTIONAL_PROCESS_EP',
       anchorId: newEmotionalLine.id,
-      status: (status as any) || 'ongoing',
+      // A pattern is 'ongoing' or 'ended'; its event status is 'ongoing' or 'end'.
+      status: status === 'ended' ? 'end' : 'ongoing',
       // The slider is the line's graphic level (its style), not a measured
       // event intensity — CLAUDE.md "two unrelated intensity concepts".
       intensity: 0,

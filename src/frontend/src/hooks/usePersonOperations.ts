@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import type { Dispatch, SetStateAction } from 'react';
 import { nanoid } from 'nanoid';
 import type { Person, Partnership, EmotionalLine, Triangle } from '../types';
@@ -19,7 +20,7 @@ interface UsePersonOperationsProps {
   setSelectedEmotionalLineId: Dispatch<SetStateAction<string | null>>;
   setSelectedChildId: Dispatch<SetStateAction<string | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
 }
 
 export function usePersonOperations({

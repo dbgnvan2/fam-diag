@@ -28,11 +28,10 @@ describe('familyScope on the dixie 3 generations fixture', () => {
     expect(root).toBeDefined();
 
     const scope = computeFamilyScope(people, partnerships, root!.id, { up: 0, down: 2 });
-    expect(scope.personIds.size).toBeGreaterThan(1);
-    expect(scope.personIds.size).toBeLessThan(people.length);
-    scope.personIds.forEach((id) => {
-      expect(people.some((person) => person.id === id)).toBe(true);
-    });
+    // Exact membership, measured on the file: M, her partner D, and their
+    // descendants. A bound ("fewer than everyone") could not catch a leak.
+    const names = [...scope.personIds].map((id) => people.find((person) => person.id === id)?.name).sort();
+    expect(names).toEqual(['D (b.1971)', 'E (b.2014)', 'E (child, b.2010-twin)', 'K (b.2010)', 'M (b.1968)']);
   });
 
   it('test_m1a13_dixie_two_up_reaches_grandparents', () => {
@@ -50,8 +49,7 @@ describe('familyScope on the dixie 3 generations fixture', () => {
     const { people, partnerships } = loadDiagram();
     const root = people.find((person) => person.name?.startsWith('K (b.2010)'));
     const depth = computeScopeDepth(people, partnerships, root!.id);
-    expect(depth.maxUp).toBeGreaterThanOrEqual(2);
-    expect(depth.maxDown).toBeGreaterThanOrEqual(0);
-    expect(Number.isFinite(depth.maxUp)).toBe(true);
+    // K is the youngest generation of a three-generation file.
+    expect(depth).toEqual({ maxUp: 2, maxDown: 0 });
   });
 });

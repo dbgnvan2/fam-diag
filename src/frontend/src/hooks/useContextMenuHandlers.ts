@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import type { Dispatch, SetStateAction } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type {
@@ -36,7 +37,7 @@ interface UseContextMenuHandlersDeps {
   relationshipTypes: string[];
   functionalFactCategories: FunctionalFactCategoryDefinition[];
   // State setters
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
   setSelectedPeopleIds: Dispatch<SetStateAction<string[]>>;
   setSelectedPartnershipId: Dispatch<SetStateAction<string | null>>;
   setSelectedEmotionalLineId: Dispatch<SetStateAction<string | null>>;

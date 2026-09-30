@@ -77,7 +77,6 @@ export function useUpdateHandlers({
   setSelectedChildId,
 }: UseUpdateHandlersDeps) {
   const handleUpdatePerson = (personId: string, updatedProps: Partial<Person>) => {
-    console.log('Updating person:', personId, updatedProps);
     const updater = (prev: Person[]) =>
       prev.map((p) => (p.id === personId ? { ...p, ...updatedProps } : p));
     if (isStyleOnlyUpdate(updatedProps)) {
@@ -191,7 +190,6 @@ export function useUpdateHandlers({
   };
 
   const handleUpdateEmotionalLine = (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => {
-    console.log('Updating emotional line:', emotionalLineId, updatedProps);
     setEmotionalLines((prev) =>
       prev.map((el) => (el.id !== emotionalLineId ? el : normalizeEmotionalLine({ ...el, ...updatedProps })))
     );

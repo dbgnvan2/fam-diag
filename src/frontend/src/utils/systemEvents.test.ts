@@ -3,7 +3,7 @@
  *       docs/implementation_plan_2026-09-19.md#M7.D
  */
 import { describe, it, expect } from 'vitest';
-import { collectSystemEvents } from './systemEvents';
+import { clipToLifetime, collectSystemEvents, type SystemEvent } from './systemEvents';
 import { computeFamilyScope, defaultFocusForRoot } from './familyScope';
 import type {
   EmotionalLine,
@@ -349,11 +349,47 @@ describe('collectSystemEvents', () => {
   });
 
   it('test_m7c6_same_event_from_two_relations_appears_once', () => {
-    const result = collect();
-    const keys = result.events.map(
-      (entry) => `${entry.ownerEntityType}:${entry.ownerEntityId}:${entry.event.id}`
+    // One parental event held three ways, as older diagrams do: the original
+    // on the partnership and a -p1 / -p2 clone on each parent. The old
+    // fixture reached no event twice, so the dedup could be deleted unseen.
+    const { people, partnerships } = buildSystem();
+    const shared = event('shared-move', 'Relocation', '1988-08-08');
+    const withClones = people.map((entry) =>
+      entry.id === 'dad'
+        ? { ...entry, events: [{ ...shared, id: 'shared-move-p1' }] }
+        : entry.id === 'mum'
+          ? { ...entry, events: [{ ...shared, id: 'shared-move-p2' }] }
+          : entry
     );
-    expect(new Set(keys).size).toBe(keys.length);
+    const withOriginal = partnerships.map((entry) =>
+      entry.id === 'prP' ? { ...entry, events: [shared] } : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withClones, withOriginal),
+      people: withClones,
+      partnerships: withOriginal,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.events.filter((entry) => entry.event.id.startsWith('shared-move'))).toHaveLength(1);
+  });
+
+  it('test_m7e2_relative_ids_are_the_people_who_contributed_events', () => {
+    // Exact, not a floor. Dad contributes only through the parents'
+    // partnership once his own death is removed, so counting owner entities
+    // (prP, sister, son) would differ from counting people (dad, mum,
+    // sister, son).
+    const { people, partnerships } = buildSystem();
+    const quietDad = people.map((entry) => (entry.id === 'dad' ? { ...entry, deathDate: undefined } : entry));
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(quietDad, partnerships),
+      people: quietDad,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect([...result.relativeIds].sort()).toEqual(['dad', 'mum', 'sister', 'son']);
+    expect(result.relativeCount).toBe(4);
   });
 
   it('test_m7c4_emotional_pattern_between_relatives_is_collected', () => {
@@ -768,5 +804,24 @@ describe('in-law and step relations', () => {
     const carol = result.events.find((entry) => entry.ownerEntityId === 'carol');
     expect(carol).toBeDefined();
     expect(carol!.relationNoun).toBe('Step-mother');
+  });
+});
+
+describe('clipToLifetime — "today" is a local calendar date', () => {
+  // Only fails on the old code where local midnight is before UTC midnight
+  // (east of UTC); run with TZ=Pacific/Auckland to see it bite.
+  it('keeps an event dated today whatever the time of day', () => {
+    const lane = { id: 'p', name: 'P', x: 0, y: 0, partnerships: [], birthDate: '1970-01-01' } as Person;
+    const today = new Date(2026, 8, 30, 0, 30); // 00:30 local time on 30 Sep 2026
+    const entry = {
+      event: event('today', 'Illness', '2026-09-30'),
+      relationClass: 'sibling',
+      relationLabel: '',
+      relationNoun: '',
+      ownerName: '',
+      ownerEntityType: 'person',
+      ownerEntityId: 'x',
+    } as SystemEvent;
+    expect(clipToLifetime([entry], lane, today).kept).toHaveLength(1);
   });
 });

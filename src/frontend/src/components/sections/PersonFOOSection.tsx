@@ -4,29 +4,7 @@
  */
 import React from 'react';
 import type { Person } from '../../types';
-
-const FAMILY_STABILITY_LABELS = ['Excellent', 'Good', 'Average', 'Semi-stable', 'Unstable'];
-const FAMILY_STABILITY_HELP = [
-  'Excellent – very high percentage (90%) of members represent good functioning across their lifetimes.',
-  'Good – high percentage of family members (75-80%) represent good functioning across their lifetimes, few problems and existing problems are well managed.',
-  'Average – majority of family members display stable adequate functioning across their lifetimes, some problems in family functioning but generally problems are either episodic or do not represent serious drops in overall family functioning.',
-  'Semi-stable – majority of family members stable over their lifetimes but prolonged periods of drops in overall family functioning, perhaps including the present time.',
-  'Unstable – majority of members have serious symptoms and major impairment of life functioning.',
-];
-const FAMILY_INTACTNESS_LABELS = [
-  'Excellent',
-  'Good',
-  'Average',
-  'Semi-fragmented',
-  'Fragmented',
-];
-const FAMILY_INTACTNESS_HELP = [
-  'Excellent – very high percentage (90%) of family members across three generations are alive and available for contact.',
-  'Good – a high percentage (75-80%) of family members across three generations are alive and available for contact.',
-  'Average – a majority of family members across three generations are alive and available for contact.',
-  'Semi-fragmented – relatively few members of the family across three generations are alive and available for contact.',
-  'Fragmented – basic family unit is dissolved and whereabouts of living family members is unknown.',
-];
+import { FAMILY_INTACTNESS_SCALE, FAMILY_STABILITY_SCALE } from '../../constants/eventConstants';
 
 const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
 const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
@@ -181,17 +159,17 @@ const PersonFOOSection = ({
         'familyStability',
         'Family Stability',
         personDraft.familyStability,
-        FAMILY_STABILITY_LABELS,
+        FAMILY_STABILITY_SCALE.labels,
         'Family Stability Scale',
-        FAMILY_STABILITY_HELP
+        FAMILY_STABILITY_SCALE.help
       )}
       {renderScaleChooser(
         'familyIntactness',
         'Family Intactness',
         personDraft.familyIntactness,
-        FAMILY_INTACTNESS_LABELS,
+        FAMILY_INTACTNESS_SCALE.labels,
         'Family Intactness Scale',
-        FAMILY_INTACTNESS_HELP
+        FAMILY_INTACTNESS_SCALE.help
       )}
     </div>
   );

@@ -68,3 +68,19 @@ export const localDateString = (now: Date = new Date()): string => {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
+
+/** End of a timeline year, the canvas cutoff for that year. */
+export const timelineCutoffForYear = (year: number | null): number | null =>
+  year == null ? null : Date.UTC(year, 11, 31, 23, 59, 59, 999);
+
+/**
+ * The canvas timeline rule: a date at or before the cutoff is visible, and
+ * anything with no usable date is visible at every year.
+ */
+export const isVisibleAtCutoff = (cutoffTimestamp: number | null) => (date?: string | null): boolean => {
+  if (cutoffTimestamp == null) return true;
+  if (!date) return true;
+  const ts = Date.parse(date);
+  if (Number.isNaN(ts)) return true;
+  return ts <= cutoffTimestamp;
+};

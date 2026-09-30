@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject } from 'react';
 import type {
@@ -80,7 +81,7 @@ interface UseFileOperationsDeps {
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
   setPersonSectionPopup: Dispatch<SetStateAction<PersonSectionPopupState>>;
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
   setTimelineSelectionIds: Dispatch<SetStateAction<string[]>>;
   setIdeasText: Dispatch<SetStateAction<string>>;
   setLastSavedAt: Dispatch<SetStateAction<number | null>>;

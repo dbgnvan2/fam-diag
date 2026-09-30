@@ -1,10 +1,6 @@
 import React from 'react';
 
-interface MenuItem {
-  label: string;
-  onClick?: () => void;
-  children?: MenuItem[];
-}
+import type { ContextMenuItem as MenuItem } from '../types/diagramEditor';
 
 interface ContextMenuProps {
   x: number;

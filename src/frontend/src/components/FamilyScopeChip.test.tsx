@@ -109,15 +109,16 @@ describe('FamilyScopeChip', () => {
     expect(screen.queryByTestId('family-scope-hidden')).not.toBeInTheDocument();
   });
 
-  it('test_m3a4_steppers_respond_to_keyboard', () => {
+  it('test_m3a4_steppers_are_focusable_native_buttons', () => {
+    // Keyboard activation (Enter / Space) is the browser's default for a
+    // native <button>, which jsdom does not simulate. What can be asserted
+    // is that each stepper IS a focusable native button whose click adjusts
+    // the scope — the old test named "keyboard" but passed on the click alone.
     const props = renderChip();
     const plus = screen.getByTestId('family-scope-up-up');
+    expect(plus.tagName).toBe('BUTTON');
     plus.focus();
     expect(plus).toHaveFocus();
-    // A focused <button> fires click on Enter/Space via the browser default;
-    // jsdom needs the click dispatched, so assert the element is reachable and
-    // activates through the same handler.
-    fireEvent.keyDown(plus, { key: 'Enter' });
     fireEvent.click(plus);
     expect(props.onAdjustUp).toHaveBeenCalledWith(1);
   });

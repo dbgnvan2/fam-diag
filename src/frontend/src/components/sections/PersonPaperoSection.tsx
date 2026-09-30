@@ -5,15 +5,10 @@
  */
 import React, { useState } from 'react';
 import type { Person, PaperoScores } from '../../types';
-import { EVENT_SUBTYPES, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY } from '../../constants/eventConstants';
+import { EVENT_CATEGORIES, EVENT_SUBTYPES, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY } from '../../constants/eventConstants';
 
-const PAPERO_CATEGORIES = [
-  'Resourceful',
-  'Connectedness & Integration',
-  'Tension Management',
-  'Systems Thinking',
-  'Goal Structure',
-] as const;
+// The categories are EVENT_CATEGORIES.PAPERO — one list, not a copy.
+const PAPERO_CATEGORIES = EVENT_CATEGORIES.PAPERO;
 
 const CATEGORY_LEFT_LABELS: Record<string, string> = {
   'Resourceful': 'Avoidance',

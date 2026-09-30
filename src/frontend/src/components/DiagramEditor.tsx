@@ -1,3 +1,4 @@
+import type { ContextMenuState, SessionNoteDirectoryHandle } from '../types/diagramEditor';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type {
   Person,
@@ -54,6 +55,7 @@ import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import { checkAddChildToPartnership, earliestPartnershipDate } from '../utils/partnershipUtils';
 import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
+import { normalizePredictionSets } from '../utils/predictionSets';
 import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
@@ -102,7 +104,11 @@ import type { BackupVersions } from '../utils/storage';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import { mergeDiagramData } from '../utils/diagramMerge';
 import { alignMultipleBirthAnchors } from '../utils/multipleBirthAnchors';
-import { localDateString, timelineYearBounds as computeTimelineYearBounds } from '../utils/dateFormatting';
+import {
+  isVisibleAtCutoff,
+  timelineCutoffForYear,
+  timelineYearBounds as computeTimelineYearBounds,
+} from '../utils/dateFormatting';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -254,7 +260,7 @@ const DiagramEditor = () => {
   const [selectedPartnershipId, setSelectedPartnershipId] = useState<string | null>(null);
   const [selectedEmotionalLineId, setSelectedEmotionalLineId] = useState<string | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [emotionalPatternModalOpen, setEmotionalPatternModalOpen] = useState(false);
   const [emotionalPatternDraft, setEmotionalPatternDraft] = useState<EmotionalPatternDraft | null>(null);
   const [clientProfileDraft, setClientProfileDraft] = useState<ClientProfileDraft | null>(null);
@@ -329,13 +335,7 @@ const DiagramEditor = () => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Migrate old flat Prediction[] → PredictionSet[] (pre-refactor data)
-          if (parsed.length > 0 && !('predictions' in parsed[0]) && 'conditions' in parsed[0]) {
-            return [{ id: nanoid(), name: 'Migrated Predictions', createdDate: localDateString(), predictions: parsed }];
-          }
-          return parsed;
-        }
+        if (Array.isArray(parsed)) return normalizePredictionSets(parsed);
       } catch { /* ignore */ }
     }
     return DEFAULT_DIAGRAM_STATE.predictionSets;
@@ -833,10 +833,7 @@ const DiagramEditor = () => {
     };
   }, [timelinePlaying, timelineYearBounds]);
 
-  const timelineCutoffTimestamp = useMemo(() => {
-    if (timelineYear == null) return null;
-    return Date.UTC(timelineYear, 11, 31, 23, 59, 59, 999);
-  }, [timelineYear]);
+  const timelineCutoffTimestamp = useMemo(() => timelineCutoffForYear(timelineYear), [timelineYear]);
 
   const timelineSliderDisabled = timelineYearBounds.min === timelineYearBounds.max;
   const displayTimelineYear = timelineYear ?? timelineYearBounds.min;
@@ -871,15 +868,7 @@ const DiagramEditor = () => {
   };
 
 
-  const isVisibleAtTimeline = useCallback(
-    (date?: string | null) => {
-      if (!timelineCutoffTimestamp) return true;
-      const ts = parseIsoDateToTimestamp(date);
-      if (ts == null) return true;
-      return ts <= timelineCutoffTimestamp;
-    },
-    [timelineCutoffTimestamp]
-  );
+  const isVisibleAtTimeline = useMemo(() => isVisibleAtCutoff(timelineCutoffTimestamp), [timelineCutoffTimestamp]);
 
   useEffect(() => {
     setSelectedPeopleIds((prev) =>
@@ -1186,7 +1175,7 @@ const DiagramEditor = () => {
   );
   const sessionAutosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionAutosavePhaseRef = useRef<'backup' | 'file'>('backup');
-  const sessionSaveDirectoryHandleRef = useRef<any>(null);
+  const sessionSaveDirectoryHandleRef = useRef<SessionNoteDirectoryHandle | null>(null);
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
   const serializeDiagram = useCallback(
     (
@@ -2411,7 +2400,7 @@ useEffect(() => {
     } else {
       setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
     }
-    setPredictionSets(Array.isArray(data.predictionSets) ? data.predictionSets : []);
+    setPredictionSets(normalizePredictionSets(data.predictionSets));
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
     setTimelineSelectionIds([]);

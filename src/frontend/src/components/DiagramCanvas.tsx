@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import React, { useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
@@ -65,8 +66,8 @@ type DragGroupRef = MutableRefObject<{
 
 interface DiagramCanvasProps {
   // Context menu
-  contextMenu: { x: number; y: number; items: any[] } | null;
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  contextMenu: ContextMenuState | null;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
 
   // Person section popup
   personSectionPopup: PersonSectionPopupState;

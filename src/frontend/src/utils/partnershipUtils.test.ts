@@ -19,6 +19,7 @@ import {
   partnershipSeparationMarks,
 } from './partnershipUtils';
 import { buildPartnershipVisibility } from './familyScope';
+import { isVisibleAtCutoff, timelineCutoffForYear } from './dateFormatting';
 import type { Partnership, Person } from '../types';
 
 const partnership = (overrides: Partial<Partnership> = {}): Partnership => ({
@@ -32,13 +33,8 @@ const partnership = (overrides: Partial<Partnership> = {}): Partnership => ({
   ...overrides,
 });
 
-/** The production rule: no date means "visible at every year". */
-const isVisibleAtTimeline = (cutoffYear: number) => (date?: string | null) => {
-  if (!date) return true;
-  const ts = Date.parse(date);
-  if (Number.isNaN(ts)) return true;
-  return ts <= Date.UTC(cutoffYear, 11, 31, 23, 59, 59, 999);
-};
+/** The canvas's own timeline rule (utils/dateFormatting), not a copy of it. */
+const isVisibleAtTimeline = (cutoffYear: number) => isVisibleAtCutoff(timelineCutoffForYear(cutoffYear));
 
 describe('earliestPartnershipDate', () => {
   it('test_prl_marriage_only_partnership_reports_its_marriage_date', () => {

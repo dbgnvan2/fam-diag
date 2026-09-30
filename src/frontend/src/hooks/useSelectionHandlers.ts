@@ -1,3 +1,4 @@
+import type { ContextMenuState } from '../types/diagramEditor';
 import type { Dispatch, SetStateAction } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type {
@@ -32,7 +33,7 @@ interface UseSelectionHandlersDeps {
   setPageNoteDraft: Dispatch<SetStateAction<{ title: string; text: string; fillColor: string } | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
   setSelectedFamilyId: Dispatch<SetStateAction<string | null>>;
-  setContextMenu: Dispatch<SetStateAction<{ x: number; y: number; items: any[] } | null>>;
+  setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
   // Passed functions
   addChildToPartnership: (childIdOverride?: string, partnershipIdOverride?: string) => void;
   handleUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;

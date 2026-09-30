@@ -15,6 +15,7 @@
  * happens anywhere here: symptom, nodal, EPE, FF, SIR and PAPERO events all
  * come through (D15).
  */
+import { localDateString } from './dateFormatting';
 import type {
   EmotionalLine,
   EmotionalProcessEvent,
@@ -205,7 +206,10 @@ export function clipToLifetime(
 ): { kept: SystemEvent[]; lifetimeFilterApplied: boolean } {
   const lower = toTimestamp(person.birthDate);
   if (lower == null) return { kept: systemEvents, lifetimeFilterApplied: false };
-  const upper = toTimestamp(person.deathDate) ?? now.getTime();
+  // Event dates parse as UTC midnight, so "now" is taken the same way: the
+  // local calendar date at UTC midnight. Comparing with the raw clock clipped
+  // an event dated today for part of each day east of UTC.
+  const upper = toTimestamp(person.deathDate) ?? Date.parse(localDateString(now));
 
   const kept = systemEvents.filter((entry) => {
     if (entry.relationClass === 'self') return true;

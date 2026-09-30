@@ -703,7 +703,7 @@ const PropertiesPanel = ({
     if (!personDraft) return;
     const { name, value, type } = e.target;
     const isCheckbox = type === 'checkbox';
-    let nextValue: any = value;
+    let nextValue: string | number | boolean | undefined = value;
     if (isCheckbox) {
       nextValue = (e.target as HTMLInputElement).checked;
     } else if (name === 'birthOrderOverride') {
@@ -727,7 +727,7 @@ const PropertiesPanel = ({
     } else if (name === 'siblingMaturityLevel') {
       nextValue = value ? (parseInt(value, 10) as 1 | 2 | 3 | 4 | 5) : undefined;
     }
-    let updates: Partial<Person> = { [name]: nextValue };
+    let updates = { [name]: nextValue } as Partial<Person>;
     if (name === 'birthSex') {
       // '' is "Unknown / not recorded".
       const birthSex = (nextValue || undefined) as Person['birthSex'];
@@ -1123,7 +1123,7 @@ const PropertiesPanel = ({
     PARTNERSHIP_STRING_FIELDS.forEach((field) => {
       if (stringDiffers(partnershipDraft[field], selectedPartnership[field])) {
         const value = partnershipDraft[field];
-        (updates as any)[field] = value && value !== '' ? value : undefined;
+        (updates as Record<string, unknown>)[field] = value && value !== '' ? value : undefined;
       }
     });
     // No "type/status changed" event is written. It was dated TODAY rather
@@ -1210,7 +1210,7 @@ const PropertiesPanel = ({
     EMOTIONAL_STRING_FIELDS.forEach((field) => {
       if (stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])) {
         const value = emotionalDraft[field];
-        (updates as any)[field] = value && value !== '' ? value : undefined;
+        (updates as Record<string, unknown>)[field] = value && value !== '' ? value : undefined;
       }
     });
     if (emotionalDraft.person1_id !== selectedEmotionalLine.person1_id) {
@@ -1466,7 +1466,7 @@ const PropertiesPanel = ({
   const symptomRows = useMemo(() => {
     if (!selectedPerson) return [] as Array<{
       key: string;
-      category: SymptomGroup;
+      category: string;
       type: string;
       definitionId?: string;
       sourceEventId?: string;
@@ -1483,7 +1483,8 @@ const PropertiesPanel = ({
       string,
       {
         key: string;
-        category: SymptomGroup;
+        // The stored group; older data can hold other spellings.
+        category: string;
         type: string;
         definitionId?: string;
         sourceEventId?: string;
@@ -1517,7 +1518,7 @@ const PropertiesPanel = ({
           : undefined;
         buckets.set(key, {
           key,
-          category: category as any,
+          category,
           type,
           definitionId: sourceDef?.id,
           sourceEventId: event.id,
@@ -1539,7 +1540,7 @@ const PropertiesPanel = ({
       if (!existing || indicatorTimestamp >= existing.lastTimestamp) {
         buckets.set(key, {
           key,
-          category: category as any,
+          category,
           type,
           definitionId: definition.id,
           sourceEventId: existing?.sourceEventId,
@@ -1979,9 +1980,12 @@ const PropertiesPanel = ({
       { id: 'events' as const, label: 'Events' },
     ];
 
+    // The wrapper carries data-ev-id so Edit can open the editor next to the
+    // card; nothing rendered the attribute before, so it opened at the
+    // viewport corner.
     const renderFamilyEventCard = (ev: EmotionalProcessEvent) => (
+      <div key={ev.id} data-ev-id={ev.id}>
       <EventCard
-        key={ev.id}
         date={ev.startDate || ev.date || ''}
         type={EVENT_TYPE_LABELS[ev.eventType as keyof typeof EVENT_TYPE_LABELS] || ev.eventType || '—'}
         category={ev.category || '—'}
@@ -1995,6 +1999,7 @@ const PropertiesPanel = ({
         }}
         onDelete={() => onDeleteFamilyEvent?.(familyPartnership.id, ev.id)}
       />
+      </div>
     );
 
     return (

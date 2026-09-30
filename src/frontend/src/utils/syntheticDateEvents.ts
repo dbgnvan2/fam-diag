@@ -9,10 +9,10 @@
  * the Timeline could show items the Events tab never lists, which is
  * confusing for users.
  *
- * Solution: synthesize phantom events for those date fields at read time so
- * both views see the same set of items. New date edits done through the
- * Properties panel still create real events via the existing build*Event
- * helpers — synthesis only fills gaps in older data.
+ * Solution: synthesize the events for those date fields at read time so
+ * both views see the same set of items. The field is the record: saving a
+ * date writes the field, not an event, and editing the synthesized event
+ * edits the field (utils/eventDraft.ts). Each field has exactly one event.
  */
 import { RELATIONSHIP_STATUS_INTENSITY } from '../constants/timelineBlockStyle';
 import {
