@@ -162,3 +162,52 @@ green.
 
 **Rule.** Identify the rendered element by something only it has (its fill, a name, a test id),
 and confirm the test goes red when that element is removed.
+
+---
+
+## L9 — One operation copied into several components drifts apart
+
+**Issue.** Editing and saving an event was written four times: in the
+Properties panel, the Timeline, the canvas triangle/family dialogs and the
+session notes. Only the panel turned the dialog's string values into numbers
+and kept `date` equal to `startDate`; only the Timeline sent an edit to the
+entity that owned the event; none sent a date field's event back to the
+field. Each copy had been "fixed" on its own, so every copy had a different
+subset of the fixes.
+
+**Root cause.** The same domain operation living in components rather than
+one util (CLAUDE.md hard rule 8), so the consistency protocol had no single
+place to apply a fix.
+
+**What would have caught it.** A test per surface asserting the same saved
+shape (numbers are numbers, date = startDate, anchor set) — the Timeline copy
+would have failed on the first.
+
+**Rule.** When a second surface needs an existing operation, move the
+operation into a util and call it from both. Every event now goes through
+`utils/eventDraft.ts`.
+
+---
+
+## L10 — A form that "corrects" values it does not recognise corrupts them
+
+**Issue.** EventModal reset any category not in its option list to the first
+option on open, and cleared the subtype. The app itself wrote categories the
+list did not contain (identity events, pattern measurements, several menu
+items), so opening one of those events and pressing Save turned it into a
+"Birth" event with no subtype. The dialog title still named what the user
+clicked, so nothing looked wrong. Filling an empty category with the first
+option had the same effect in reverse: a new person event defaulted to
+"Birth", which writes the birth date.
+
+**Root cause.** Validation that repairs silently instead of preserving the
+stored value and letting the user choose.
+
+**What would have caught it.** A test that opens the dialog on every event
+shape the app itself writes and asserts the dialog changes nothing.
+
+**Rule.** A form never rewrites stored data on open. Offer an unknown value as
+an option; leave an empty field empty for the user; only normalise what is
+provably the same value (letter case). Every seed and builder category must
+exist in `eventConstants.ts`.
+

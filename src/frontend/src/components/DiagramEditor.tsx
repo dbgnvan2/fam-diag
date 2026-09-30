@@ -2586,7 +2586,8 @@ useEffect(() => {
           intensity: typeof payload.intensity === 'number' ? payload.intensity : 0,
           frequency: typeof payload.frequency === 'number' ? payload.frequency : 0,
           impact: typeof payload.impact === 'number' ? payload.impact : 0,
-          howWell: typeof payload.howWell === 'number' ? payload.howWell : 5,
+          // 0 is "not rated", as for the other ratings; 5 was an invented score.
+          howWell: typeof payload.howWell === 'number' ? payload.howWell : 0,
           otherPersonName: payload.otherPersonName || '',
           primaryPersonName: target.name || payload.primaryPersonName || '',
           wwwwh: payload.wwwwh || '',

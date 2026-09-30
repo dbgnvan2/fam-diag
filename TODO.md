@@ -2,6 +2,29 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
+## From the review of the unread areas (2026-09-30)
+
+`REVIEW-unread-areas-2026-09-30.md` — all findings fixed in `0eeb243`..HEAD
+(see its "Fix status" section). Left, with the reason:
+
+- **`SiblingConflictOverlay` still derives every person's full sibling
+  analysis on each render** while the overlay is on. The canvas badge path is
+  cached (`effectiveSiblingPositions`); the overlay is opt-in, so it was left.
+- **No full `DiagramCanvas` render test.** The component takes ~100 props;
+  the visibility rules it applies are unit-tested instead
+  (`isTriangleVisible`, `buildPersonVisibility`). GTEST-12 is covered at the
+  rule level only.
+- **The lifetime-clip "today" test only fails on the old code east of UTC**
+  (run with `TZ=Pacific/Auckland`). CI runs in UTC.
+- **Date-field companion events can go stale for readers outside the two
+  views.** The synthesizer always shows the field's date, but a companion's
+  stored `date` is only refreshed when it is saved through the event dialog;
+  `EventCreator`, `personEventBundle` and `PredictionsPanel` read stored
+  events directly.
+- **Symptom saves from the Timeline do not create a new symptom type** for an
+  unknown name (no `ensureSymptomDefinition` passed in); the event is stored
+  unlinked rather than linked to a wrong type.
+
 ## From the autosave and import-fabrication batch (2026-09-27)
 
 Gate `docs/cycles/gate_2026-09-27_autosave_import-fabrication.md` APPROVED.
@@ -26,9 +49,6 @@ Carried items, updated after the follow-up batch (`ea340c8`..`98e3900`, gates
 - **Merge places a new child of an existing couple without a collision
   check** against other people in that row (`diagramMerge.ts`). Low (gate
   2026-09-27c #5).
-- **Session-capture `howWell` defaults to 5** when the capture gives none,
-  while `intensity`, `frequency` and `impact` default to 0 (unset). Check
-  whether 5 is an intended neutral value or another invented one.
 - **Four implementation-plan docs still enumerate the deleted review-modal
   pipeline** (`imageAnalysis`, `personInventory`, `extractedDataToDiagram`,
   `diagramLayout`, `inventoryExport`, `ImageDiagramReviewModal`) as the

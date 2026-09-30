@@ -39,7 +39,7 @@ const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => 
   intensity: typeof event.intensity === 'number' ? event.intensity : 0,
   frequency: typeof event.frequency === 'number' ? event.frequency : 0,
   impact: typeof event.impact === 'number' ? event.impact : 0,
-  howWell: typeof event.howWell === 'number' ? event.howWell : 5,
+  howWell: typeof event.howWell === 'number' ? event.howWell : 0,
   otherPersonName: event.otherPersonName || '',
   primaryPersonName: event.primaryPersonName || '',
   wwwwh: event.wwwwh || '',

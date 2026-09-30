@@ -114,6 +114,8 @@ describe('DiagramEditor — session-capture events without a date', () => {
     const undated = people.find((p) => p.name === 'Quinlan Ray')!.events!.find((e) => e.observations === 'no date given')!;
     expect(undated.date).toBe('');
     expect(undated.startDate).toBe('');
+    // No rating in the capture: unset (0), not an invented 5.
+    expect(undated.howWell).toBe(0);
     const dated = people.find((p) => p.name === 'Tavi Ray')!.events![0];
     expect(dated.date).toBe('2020-05-01');
     expect(dated.startDate).toBe('2020-05-01');
