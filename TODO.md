@@ -21,6 +21,14 @@ Only items that were decided, deliberately, to be left as they are:
   with one event per date field (2026-09-30) it is that field's event.
   Revisit if anyone reports a missing event by that name.
 
+- **Two checks still read source text, deliberately** (gate
+  `gate_2026-09-30b` #3). `constants/zIndex.test.ts` scans components for a
+  bare-number z-index: the rule is about the source itself, so there is no
+  behaviour to test instead. `useContextMenuHandlers.familyScope.test.ts`
+  checks that DiagramEditor passes the scope derivation into the menu hook:
+  that wiring has no seam short of rendering the canvas and right-clicking a
+  Konva node. Every other menu and Timeline check is now behavioural.
+
 ## Done on 2026-09-30
 
 Every other item previously listed here was fixed, with tests, in

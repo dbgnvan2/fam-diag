@@ -7,7 +7,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { capitalisableKeywords, factsToDiagramImportData, parseTranscriptToDraftDiagram } from './dataImport';
+import {
+  capitalisableKeywords,
+  factsToDiagramImportData,
+  parseTranscriptToDraftDiagram,
+  SCHIZOPHRENIA_INDICATOR_DEFINITION,
+} from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
 import type { Partnership as DiagramPartnership, Person } from '../types';
 
@@ -726,6 +731,13 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
       startDate: '',
       intensity: 0,
     });
+    // One definition: the list the import emits, the entry and the event all
+    // name the same id and label (gate 2026-09-30b #1).
+    const definition = result.functionalIndicatorDefinitions?.find(
+      (d) => d.id === SCHIZOPHRENIA_INDICATOR_DEFINITION.id
+    );
+    expect(definition).toEqual(SCHIZOPHRENIA_INDICATOR_DEFINITION);
+    expect(symptom?.subtype).toBe(definition?.label);
   });
 });
 

@@ -295,3 +295,20 @@ describe('partnership gender and separation marks', () => {
     expect(marks.divorced).toBe(false);
   });
 });
+
+describe('partnershipSeparationMarks — an "ended" status date (gate 2026-09-30b #2)', () => {
+  it('draws one slash, the same as an "ended" status — deliberate, from the shared classifier', () => {
+    // Before the shared classifier only the status field counted "ended";
+    // a recorded "ended" date now counts too, so the field and the dates agree.
+    const marks = partnershipSeparationMarks({
+      relationshipStatus: 'dating',
+      statusDates: { ended: '2010-01-01' },
+    } as Partnership);
+    expect(marks).toEqual({ separated: true, divorced: false });
+  });
+
+  it('a whitespace-only "ended" date does not count', () => {
+    const marks = partnershipSeparationMarks({ relationshipStatus: 'dating', statusDates: { ended: ' ' } } as Partnership);
+    expect(marks).toEqual({ separated: false, divorced: false });
+  });
+});

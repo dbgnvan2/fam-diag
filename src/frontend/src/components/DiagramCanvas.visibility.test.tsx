@@ -8,8 +8,6 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type Konva from 'konva';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import DiagramCanvas from './DiagramCanvas';
 import type { EmotionalLine, Person, Triangle } from '../types';
 
@@ -40,7 +38,7 @@ const line: EmotionalLine = {
 
 const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string, unknown> = {}) => {
   const stageRef = React.createRef<Konva.Stage>();
-  const values: Record<string, unknown> = {
+  const values = {
     contextMenu: null,
     personSectionPopup: null,
     personSectionPopupPerson: null,
@@ -102,16 +100,17 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
     propertiesPanelIntent: null,
     ...overrides,
   };
-  // Every other prop is a handler; a spy is enough for a render. The prop
-  // names are read from the component's own interface so a new prop cannot
-  // silently go missing here.
-  const source = readFileSync(join(__dirname, 'DiagramCanvas.tsx'), 'utf8');
-  const block = source.slice(source.indexOf('interface DiagramCanvasProps'), source.indexOf('\n}\n', source.indexOf('interface DiagramCanvasProps')));
-  const props: Record<string, unknown> = { ...values };
-  [...block.matchAll(/^ {2}(\w+)\??:/gm)].forEach(([, key]) => {
-    if (!(key in props)) props[key] = vi.fn();
+  // Every other prop is a handler: any prop the component reads that is not
+  // given above comes back as a spy. The component is called from a wrapper
+  // so its props object can be that Proxy — no list of prop names to keep in
+  // step with the component, and no reading of its source (gate 2026-09-30b #3).
+  const props = new Proxy(values as Record<string, unknown>, {
+    get: (target, key) =>
+      typeof key === 'string' && !(key in target) ? (target[key] = vi.fn()) : target[key as string],
   });
-  render(<DiagramCanvas {...(props as unknown as React.ComponentProps<typeof DiagramCanvas>)} />);
+  const renderComponent = DiagramCanvas as unknown as (componentProps: object) => React.ReactElement;
+  const Wrapper = () => renderComponent(props);
+  render(<Wrapper />);
   const stage = stageRef.current!;
   const texts = stage.find('Text').map((node) => (node as Konva.Text).text());
   const hasTriangleFill = stage

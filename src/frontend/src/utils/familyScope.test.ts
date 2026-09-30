@@ -9,6 +9,7 @@ import {
   computeScopeDepth,
   computeScopeExclusions,
   deriveTimelineSelection,
+  familyTimelineLanes,
   pruneSelectionToScope,
 } from './familyScope';
 import type { EmotionalLine, EmotionalProcessEvent, Partnership, Person, Triangle } from '../types';
@@ -629,5 +630,26 @@ describe('pruneSelectionToScope', () => {
       emotionalLineId: 'line',
     };
     expect(pruneSelectionToScope(null, selection, [])).toBe(selection);
+  });
+});
+
+describe('familyTimelineLanes — the family right-click Timeline', () => {
+  it('test_m4a2_family_right_click_timeline_uses_scope', () => {
+    // With no person selected, the derivation (the active scope) supplies
+    // the person lanes, and the right-clicked family is always a lane.
+    const derive = (personIds: string[], familyIds: string[]) => ({
+      personIds: personIds.length ? personIds : ['scopeA', 'scopeB'],
+      familyIds: familyIds.filter((id) => id !== 'drop-me'),
+    });
+    expect(familyTimelineLanes('fam', [], ['other'], derive)).toEqual({
+      personIds: ['scopeA', 'scopeB'],
+      familyIds: ['fam', 'other'],
+    });
+    // An explicit person selection wins; the family survives a derivation
+    // that would drop it.
+    expect(familyTimelineLanes('drop-me', ['p1'], [], derive)).toEqual({
+      personIds: ['p1'],
+      familyIds: ['drop-me'],
+    });
   });
 });

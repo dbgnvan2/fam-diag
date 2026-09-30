@@ -46,6 +46,7 @@ import {
   defaultFocusForRoot,
   deriveTimelineSelection,
   pruneSelectionToScope,
+  familyTimelineLanes,
 } from '../utils/familyScope';
 import DiagramModals from './DiagramModals';
 import PredictionsPanel from './PredictionsPanel';
@@ -3770,19 +3771,7 @@ useEffect(() => {
             // guarantees this family is part of the family selection.
             // With no explicit person selection, the active family scope
             // supplies the person lanes (D5).
-            const familyIds = selectedFamilyIds.includes(partnershipId)
-              ? selectedFamilyIds
-              : [partnershipId, ...selectedFamilyIds];
-            const derived = deriveTimelineIds(
-              selectedPeopleIds.length ? [...selectedPeopleIds] : [],
-              familyIds
-            );
-            openTimeline({
-              personIds: derived.personIds,
-              familyIds: derived.familyIds.includes(partnershipId)
-                ? derived.familyIds
-                : [partnershipId, ...derived.familyIds],
-            });
+            openTimeline(familyTimelineLanes(partnershipId, selectedPeopleIds, selectedFamilyIds, deriveTimelineIds));
             setContextMenu(null);
           },
         },

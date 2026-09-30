@@ -497,3 +497,28 @@ export function computeScopeDepth(
   });
   return { maxUp, maxDown };
 }
+
+/**
+ * Purpose: the lanes the family right-click "Timeline" opens.
+ * Tests:   familyScope.test.ts::test_m4a2_family_right_click_timeline_uses_scope
+ *
+ * Everything currently selected — the selected families (always including
+ * the one right-clicked) and the selected people — and, with no explicit
+ * person selection, the person lanes the active family scope supplies (D5).
+ * `derive` is the editor's deriveTimelineIds, which applies that scope.
+ */
+export function familyTimelineLanes(
+  partnershipId: string,
+  selectedPeopleIds: string[],
+  selectedFamilyIds: string[],
+  derive: (personIds: string[], familyIds: string[]) => { personIds: string[]; familyIds: string[] }
+): { personIds: string[]; familyIds: string[] } {
+  const familyIds = selectedFamilyIds.includes(partnershipId)
+    ? selectedFamilyIds
+    : [partnershipId, ...selectedFamilyIds];
+  const derived = derive([...selectedPeopleIds], familyIds);
+  return {
+    personIds: derived.personIds,
+    familyIds: derived.familyIds.includes(partnershipId) ? derived.familyIds : [partnershipId, ...derived.familyIds],
+  };
+}

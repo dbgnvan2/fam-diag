@@ -6,7 +6,7 @@
 
 import { nanoid } from 'nanoid';
 import { buildNewEventDraft, normalizeEventForSave } from './eventDraft';
-import type { Person, Partnership, EmotionalLine } from '../types';
+import type { Person, Partnership, EmotionalLine, FunctionalIndicatorDefinition } from '../types';
 import type {
   DiagramImportData,
   FactsImportData,
@@ -27,10 +27,23 @@ import {
 // ---------------------------------------------------------------------------
 
 
-const SCHIZOPHRENIA_INDICATOR = {
+/**
+ * The one definition of the diagnosis indicator the transcript and facts
+ * imports write. Both the definitions list they emit and the entries and
+ * events that reference it use this, so the id, label and group cannot
+ * drift apart (gate 2026-09-30b #1).
+ */
+export const SCHIZOPHRENIA_INDICATOR_DEFINITION: FunctionalIndicatorDefinition = {
   id: 'indicator-schizophrenia-spectrum',
   label: 'Schizophrenia Spectrum',
-  group: 'emotional' as const,
+  group: 'emotional',
+  color: '#7b1fa2',
+  useLetter: true,
+};
+const SCHIZOPHRENIA_INDICATOR = {
+  id: SCHIZOPHRENIA_INDICATOR_DEFINITION.id,
+  label: SCHIZOPHRENIA_INDICATOR_DEFINITION.label,
+  group: SCHIZOPHRENIA_INDICATOR_DEFINITION.group ?? 'emotional',
 };
 
 /**
@@ -523,7 +536,7 @@ export const parseTranscriptToDraftDiagram = (
     partnerships: normalized.partnerships,
     emotionalLines,
     functionalIndicatorDefinitions: [
-      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum', group: 'emotional', color: '#7b1fa2', useLetter: true },
+      { ...SCHIZOPHRENIA_INDICATOR_DEFINITION },
     ],
     eventCategories: ['Mental Health', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
     autoSaveMinutes: 1,
@@ -1330,7 +1343,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
     emotionalLines: [],
     triangles: [],
     functionalIndicatorDefinitions: [
-      { id: 'indicator-schizophrenia-spectrum', label: 'Schizophrenia Spectrum', group: 'emotional', color: '#7b1fa2', useLetter: true },
+      { ...SCHIZOPHRENIA_INDICATOR_DEFINITION },
     ],
     eventCategories: ['Clinical', 'Relationship', 'Hospitalization', 'Loss/Death', 'Other'],
     autoSaveMinutes: 1,
