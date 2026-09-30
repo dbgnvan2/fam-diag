@@ -108,15 +108,14 @@ describe('Timeline entry points use the scope derivation', () => {
     result.current.handlePersonContextMenu(event, person('a'));
     flatten(menu()!.items).find((entry) => entry.path.join('>') === 'Timeline')!.item.onClick!();
     expect(deps.deriveTimelineIds).toHaveBeenCalledWith(['a'], []);
-    expect(deps.setTimelineSelectionIds).toHaveBeenCalledWith(['a', 'derived-person']);
-    expect(deps.setTimelineFamilySelectionIds).toHaveBeenCalledWith(['derived-family']);
+    expect(deps.openTimeline).toHaveBeenCalledWith({ personIds: ['a', 'derived-person'], familyIds: ['derived-family'] });
   });
 
   it('the group menu opens the lanes the derivation returns', () => {
     const { result, deps, event, menu } = setup(['a', 'b']);
     result.current.handlePersonContextMenu(event, person('a'));
     flatten(menu()!.items).find((entry) => entry.item.label === 'Timeline')!.item.onClick!();
-    expect(deps.setTimelineSelectionIds).toHaveBeenCalledWith(['a', 'b', 'derived-person']);
+    expect(deps.openTimeline).toHaveBeenCalledWith({ personIds: ['a', 'b', 'derived-person'], familyIds: ['derived-family'] });
   });
 });
 
@@ -163,8 +162,8 @@ describe('Focus Family submenu', () => {
     });
     item!.onClick!();
     expect(deps.deriveTimelineIdsForRoot).toHaveBeenCalledWith('a', { up: DEFAULT_SCOPE_UP, down: DEFAULT_SCOPE_DOWN });
-    expect(deps.setTimelineSelectionIds).toHaveBeenCalledWith(['a', 'x']);
-    expect(deps.setTimelineFamilySelectionIds).toHaveBeenCalledWith(['f']);
+    // Opened from the focus, so its lanes follow the focus while it is open.
+    expect(deps.openTimeline).toHaveBeenCalledWith({ personIds: ['a', 'x'], familyIds: ['f'] }, { followFocus: true });
   });
 
   it('"Clear focus" appears only while a focus is set', () => {

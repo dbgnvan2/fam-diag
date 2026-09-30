@@ -173,8 +173,8 @@ interface DiagramModalsProps {
   handleUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   handleUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
-  setTimelineSelectionIds: Dispatch<SetStateAction<string[]>>;
-  setTimelineFamilySelectionIds: Dispatch<SetStateAction<string[]>>;
+  timelineOpen: boolean;
+  closeTimeline: () => void;
 
   // SessionNotesPanel
   sessionNotesOpen: boolean;
@@ -394,8 +394,8 @@ export default function DiagramModals({
   handleUpdatePerson,
   handleUpdatePartnership,
   handleUpdateEmotionalLine,
-  setTimelineSelectionIds,
-  setTimelineFamilySelectionIds,
+  timelineOpen,
+  closeTimeline,
   sessionNotesOpen,
   setSessionNotesOpen,
   sessionNoteCoachName,
@@ -667,7 +667,8 @@ export default function DiagramModals({
         onUpdatePerson={handleUpdatePerson}
         onUpdatePartnership={handleUpdatePartnership}
         onUpdateEmotionalLine={handleUpdateEmotionalLine}
-        onClose={() => { setTimelineSelectionIds([]); setTimelineFamilySelectionIds([]); }}
+        open={timelineOpen}
+        onClose={closeTimeline}
       />
       <SessionNotesPanel
         isOpen={sessionNotesOpen}

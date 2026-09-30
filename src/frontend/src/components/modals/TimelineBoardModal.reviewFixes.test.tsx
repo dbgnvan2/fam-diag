@@ -151,3 +151,26 @@ describe('block width floor (needs a ResizeObserver, which jsdom lacks)', () => 
     }
   });
 });
+
+describe('the open flag is separate from the lanes', () => {
+  it('open={false} hides the board even with lanes selected', () => {
+    renderBoard({ open: false });
+    expect(document.querySelectorAll('[data-hover-text]')).toHaveLength(0);
+  });
+
+  it('open={true} shows the board while its lanes are being re-derived to none', () => {
+    renderBoard({ open: true, timelineSelectionIds: [], timelineFamilySelectionIds: [] });
+    expect(screen.getByText('Timeline Board')).toBeInTheDocument();
+  });
+});
+
+describe('lane search', () => {
+  it('narrows the lanes by name and says how many are shown', () => {
+    renderBoard({ timelineSelectionIds: ['root', 'wife'] });
+    expect(screen.getByText('2 lanes')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Find lane'), { target: { value: 'wif' } });
+    expect(screen.getByText('1 of 2 lanes')).toBeInTheDocument();
+    expect(screen.queryByTitle('Add event for Root')).toBeNull();
+    expect(screen.getByTitle('Add event for Wife')).toBeInTheDocument();
+  });
+});

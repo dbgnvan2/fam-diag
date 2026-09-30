@@ -16,22 +16,16 @@ const diagramEditorSource = readFileSync(
   'utf8'
 );
 
-/** Every `setTimelineSelectionIds(...)` call that opens the board (not one that clears it). */
-const openingCalls = (source: string): string[] =>
-  [...source.matchAll(/setTimelineSelectionIds\(([^)]*)\)/g)]
-    .map((match) => match[1].trim())
-    .filter((arg) => arg !== '[]');
-
 describe('family scope reaches every Timeline entry point', () => {
   it('test_m4a2_family_right_click_timeline_uses_scope', () => {
     // The person and group entry points are behaviour-tested in
     // useContextMenuHandlers.test.ts; the family right-click lives in
     // DiagramEditor, which has no hook seam, so its call is checked here.
-    const editorCalls = openingCalls(diagramEditorSource).filter(
-      (arg) => !arg.startsWith('focus.personIds')
-    );
-    expect(editorCalls.length).toBeGreaterThanOrEqual(1);
-    editorCalls.forEach((arg) => expect(arg).toContain('derived.personIds'));
+    // Every Timeline open goes through openTimeline; the family one must
+    // open the lanes the scope derivation returned.
+    const block = diagramEditorSource.slice(diagramEditorSource.indexOf("label: 'Timeline'"));
+    const call = block.slice(block.indexOf('openTimeline('), block.indexOf('openTimeline(') + 300);
+    expect(call).toContain('personIds: derived.personIds');
   });
 
   it('test_m4a2_editor_passes_the_derivation_into_the_context_menu_hook', () => {

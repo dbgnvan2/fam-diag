@@ -708,6 +708,25 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
       'indicator-schizophrenia-spectrum'
     );
   });
+
+  it('records a diagnosis with no invented ratings, backed by a symptom event (regression: 5 / 5 / 5, no event)', () => {
+    const result = parseTranscriptToDraftDiagram(
+      'Tom and Joy married in 1970. Joy was diagnosed with schizophrenia in 1990.',
+      't.txt'
+    );
+    const joy = result.people.find((p) => p.name === 'Joy')!;
+    expect(joy.functionalIndicators?.[0]).toMatchObject({ impact: 0, frequency: 0, intensity: 0 });
+    const symptom = joy.events?.find((e) => e.sourceIndicatorId === 'indicator-schizophrenia-spectrum');
+    expect(symptom).toMatchObject({
+      eventType: 'SYMPTOM',
+      subtype: 'Schizophrenia Spectrum',
+      anchorType: 'PERSON',
+      anchorId: joy.id,
+      date: '',
+      startDate: '',
+      intensity: 0,
+    });
+  });
 });
 
 describe('factsToDiagramImportData — image import keeps distinct labels distinct', () => {

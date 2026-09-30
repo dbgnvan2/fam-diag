@@ -1,4 +1,4 @@
-import type { ContextMenuState } from '../types/diagramEditor';
+import type { ContextMenuState, OpenTimeline } from '../types/diagramEditor';
 import type { Dispatch, SetStateAction } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type {
@@ -46,8 +46,7 @@ interface UseContextMenuHandlersDeps {
   setPageNoteDraft: Dispatch<SetStateAction<{ title: string; text: string; fillColor: string } | null>>;
   setPropertiesPanelItem: Dispatch<SetStateAction<Person | Partnership | EmotionalLine | null>>;
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
-  setTimelineSelectionIds: Dispatch<SetStateAction<string[]>>;
-  setTimelineFamilySelectionIds: Dispatch<SetStateAction<string[]>>;
+  openTimeline: OpenTimeline;
   // From usePersonOperations
   addPerson: (x: number, y: number, overrides?: Partial<Person>) => Person;
   addCoach: (x: number, y: number) => Person;
@@ -123,8 +122,7 @@ export function useContextMenuHandlers({
   setPageNoteDraft,
   setPropertiesPanelItem,
   setPropertiesPanelIntent,
-  setTimelineSelectionIds,
-  setTimelineFamilySelectionIds,
+  openTimeline,
   familyScopeFocus,
   focusFamilyOnPerson,
   clearFamilyFocus,
@@ -521,8 +519,8 @@ export function useContextMenuHandlers({
                     up: DEFAULT_SCOPE_UP,
                     down: DEFAULT_SCOPE_DOWN,
                   });
-                  setTimelineSelectionIds(derived.personIds);
-                  setTimelineFamilySelectionIds(derived.familyIds);
+                  // The lanes follow the focus while the board is open.
+                  openTimeline(derived, { followFocus: true });
                   setContextMenu(null);
                 },
               },
@@ -549,10 +547,9 @@ export function useContextMenuHandlers({
                 // An explicit person selection always wins over the active
                 // family scope (D5).
                 const derived = deriveTimelineIds(nextIds, [...selectedFamilyIds]);
-                setTimelineSelectionIds(derived.personIds);
-                // Carry over any currently-selected families so the user
+                // Carries over any currently-selected families so the user
                 // gets person + family lanes in the same Timeline view.
-                setTimelineFamilySelectionIds(derived.familyIds);
+                openTimeline(derived);
                 setContextMenu(null);
             }
           },
@@ -883,8 +880,7 @@ export function useContextMenuHandlers({
         label: 'Timeline',
         onClick: () => {
           const derived = deriveTimelineIds(selectedPeopleIds, [...selectedFamilyIds]);
-          setTimelineSelectionIds(derived.personIds);
-          setTimelineFamilySelectionIds(derived.familyIds);
+          openTimeline(derived);
           setContextMenu(null);
         },
       },

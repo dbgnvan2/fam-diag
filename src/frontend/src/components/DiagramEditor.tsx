@@ -1,4 +1,4 @@
-import type { ContextMenuState, SessionNoteDirectoryHandle } from '../types/diagramEditor';
+import type { ContextMenuState, OpenTimeline, SessionNoteDirectoryHandle } from '../types/diagramEditor';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type {
   Person,
@@ -20,6 +20,7 @@ import type {
 import { nanoid } from 'nanoid';
 import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
 import { applyEventDraftFieldChange, normalizeEventForSave } from '../utils/eventDraft';
+import { partnershipDateSlots, withoutDateSlotCompanions } from '../utils/syntheticDateEvents';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
 import AppRibbon from './AppRibbon';
 import VoiceInputModal from './modals/VoiceInputModal';
@@ -405,6 +406,24 @@ const DiagramEditor = () => {
   // Partnership/Family ids to show as Family lanes on the timeline (separate
   // from person selection so user can choose person-only, family-only, or both).
   const [timelineFamilySelectionIds, setTimelineFamilySelectionIds] = useState<string[]>([]);
+  // Whether the Timeline board is open. It used to be implied by the lane
+  // arrays being non-empty, so every close cleared them and the lanes could
+  // not be re-derived while the board stayed open.
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  // Opened from the family focus: the lanes follow the focus while open.
+  const [timelineFollowsFocus, setTimelineFollowsFocus] = useState(false);
+  const openTimeline = useCallback<OpenTimeline>((lanes, options) => {
+    setTimelineSelectionIds(lanes.personIds);
+    setTimelineFamilySelectionIds(lanes.familyIds);
+    setTimelineFollowsFocus(!!options?.followFocus);
+    setTimelineOpen(true);
+  }, []);
+  const closeTimeline = useCallback(() => {
+    setTimelineOpen(false);
+    setTimelineFollowsFocus(false);
+    setTimelineSelectionIds([]);
+    setTimelineFamilySelectionIds([]);
+  }, []);
 
   const [notesLayerEnabled, setNotesLayerEnabled] = useState(true);
   const [showSiblingConflicts, setShowSiblingConflicts] = useState(false);
@@ -764,15 +783,13 @@ const DiagramEditor = () => {
     partnerships.forEach((partnership) => {
       const partnerLabel = `${nameMap.get(partnership.partner1_id) || 'Partner 1'} + ${nameMap.get(partnership.partner2_id) || 'Partner 2'}`;
       const base = `${partnership.relationshipType} – ${partnerLabel}`;
-      addEntry(partnership.relationshipStartDate, `${base} start`);
-      addEntry(partnership.marriedStartDate, `${base} married`);
-      addEntry(partnership.separationDate, `${base} separation`);
-      addEntry(partnership.divorceDate, `${base} divorce`);
-      // Statuses without a legacy mirror field (e.g. widowed) live only here.
-      Object.entries(partnership.statusDates || {}).forEach(([status, date]) =>
-        addEntry(date, `${base} ${status}`)
+      // Every date the partnership records, from the same slot list the
+      // synthesizer uses — legacy fields and statusDates-only statuses
+      // (widowed) alike — rather than a hand-kept field list.
+      partnershipDateSlots(partnership).forEach((slot) => addEntry(slot.date, `${base} ${slot.category}`));
+      withoutDateSlotCompanions(partnership.events).forEach((event) =>
+        addEntry(eventStart(event), `${event.category || 'Event'} – ${partnerLabel}`)
       );
-      (partnership.events || []).forEach((event) => addEntry(eventStart(event), `${event.category || 'Event'} – ${partnerLabel}`));
     });
     emotionalLines.forEach((line) => {
       const person1Name = nameMap.get(line.person1_id) || 'Person 1';
@@ -967,6 +984,16 @@ const DiagramEditor = () => {
       ),
     [activeFamilyScope, people, partnerships]
   );
+
+  // A Timeline opened from the family focus re-derives its lanes when the
+  // focus changes (the chip's steppers) while it is open.
+  useEffect(() => {
+    if (!timelineOpen || !timelineFollowsFocus || !activeFamilyScope) return;
+    const derived = deriveTimelineIds([], []);
+    setTimelineSelectionIds(derived.personIds);
+    setTimelineFamilySelectionIds(derived.familyIds);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFamilyScope]);
 
   const personVisibility = useMemo(
     () => buildPersonVisibility(people, activeFamilyScope, isVisibleAtTimeline),
@@ -2403,7 +2430,7 @@ useEffect(() => {
     setPredictionSets(normalizePredictionSets(data.predictionSets));
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
-    setTimelineSelectionIds([]);
+    closeTimeline();
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
     markSnapshotClean(
@@ -2737,7 +2764,7 @@ useEffect(() => {
       // Imported diagrams should open with all elements visible rather than staying on a prior year cutoff.
       setTimelinePlaying(false);
       setTimelineYear(new Date().getFullYear());
-      setTimelineSelectionIds([]);
+      closeTimeline();
       setImportModeDialogOpen(false);
       setPendingImportData(null);
       setPendingImportFileName('');
@@ -2991,7 +3018,7 @@ useEffect(() => {
     setPropertiesPanelIntent,
     setPersonSectionPopup,
     setContextMenu,
-    setTimelineSelectionIds,
+    closeTimeline,
     setIdeasText,
     setLastSavedAt,
     setBackupRestoreOpen,
@@ -3087,7 +3114,7 @@ useEffect(() => {
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);
       setPropertiesPanelItem(null);
-      setTimelineSelectionIds([]);
+      closeTimeline();
       return;
     }
 
@@ -3103,7 +3130,7 @@ useEffect(() => {
         targetId: person.id,
         tab: focus.tab,
       });
-      setTimelineSelectionIds([]);
+      closeTimeline();
       return;
     }
 
@@ -3119,7 +3146,7 @@ useEffect(() => {
         targetId: partnership.id,
         tab: focus.tab,
       });
-      setTimelineSelectionIds([]);
+      closeTimeline();
       return;
     }
 
@@ -3135,7 +3162,7 @@ useEffect(() => {
         targetId: line.id,
         tab: focus.tab,
       });
-      setTimelineSelectionIds([]);
+      closeTimeline();
       return;
     }
 
@@ -3145,7 +3172,7 @@ useEffect(() => {
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);
       setPropertiesPanelItem(null);
-      setTimelineSelectionIds([]);
+      closeTimeline();
       return;
     }
 
@@ -3155,7 +3182,7 @@ useEffect(() => {
     setSelectedChildId(null);
     setPropertiesPanelItem(null);
     if (focus.kind === 'timeline') {
-      setTimelineSelectionIds(focus.personIds);
+      openTimeline({ personIds: focus.personIds, familyIds: [] });
     }
   }, [
     allEmotionalLines,
@@ -3464,8 +3491,7 @@ useEffect(() => {
     setPageNoteDraft,
     setPropertiesPanelItem,
     setPropertiesPanelIntent,
-    setTimelineSelectionIds,
-    setTimelineFamilySelectionIds,
+    openTimeline,
     familyScopeFocus: familyScope.focus,
     focusFamilyOnPerson: familyScope.focusOnPerson,
     clearFamilyFocus: familyScope.clearFocus,
@@ -3725,12 +3751,12 @@ useEffect(() => {
               selectedPeopleIds.length ? [...selectedPeopleIds] : [],
               familyIds
             );
-            setTimelineFamilySelectionIds(
-              derived.familyIds.includes(partnershipId)
+            openTimeline({
+              personIds: derived.personIds,
+              familyIds: derived.familyIds.includes(partnershipId)
                 ? derived.familyIds
-                : [partnershipId, ...derived.familyIds]
-            );
-            setTimelineSelectionIds(derived.personIds);
+                : [partnershipId, ...derived.familyIds],
+            });
             setContextMenu(null);
           },
         },
@@ -4486,8 +4512,8 @@ useEffect(() => {
             handleUpdatePerson={handleUpdatePerson}
             handleUpdatePartnership={handleUpdatePartnership}
             handleUpdateEmotionalLine={handleUpdateEmotionalLine}
-            setTimelineSelectionIds={setTimelineSelectionIds}
-            setTimelineFamilySelectionIds={setTimelineFamilySelectionIds}
+            timelineOpen={timelineOpen}
+            closeTimeline={closeTimeline}
             sessionNotesOpen={sessionNotesOpen}
             setSessionNotesOpen={setSessionNotesOpen}
             sessionNoteCoachName={sessionNoteCoachName}

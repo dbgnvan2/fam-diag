@@ -61,6 +61,8 @@ interface TimelineBoardModalProps {
   // Independent from `timelineSelectionIds` so the user can pick any
   // combination of person + family lanes.
   timelineFamilySelectionIds?: string[];
+  /** Whether the board is shown (the lanes no longer double as this flag). */
+  open?: boolean;
   // The active canvas family scope. Supplies the relation ring for the
   // system events shown on each person lane (D10).
   // Spec: docs/implementation_plan_2026-09-19.md#M7.C.2
@@ -124,6 +126,7 @@ export default function TimelineBoardModal({
   functionalFactCategories = [],
   timelineSelectionIds,
   timelineFamilySelectionIds = [],
+  open,
   familyScope = null,
   onUpdatePerson,
   onUpdatePartnership,
@@ -148,6 +151,9 @@ export default function TimelineBoardModal({
   // System events (a relative's nodal events on this person's lane) are on
   // by default — D13.
   const [showSystemEvents, setShowSystemEvents] = useState(true);
+  // A 2 up / 2 down focus opens 15-25 lanes; this narrows them by name so
+  // one person can be read against a few others without scrolling.
+  const [laneFilter, setLaneFilter] = useState('');
   // The block width floor is a pixel quantity (three characters have to fit),
   // but layout and row packing work in percentages. Measure the lane body so
   // both use ONE floor expressed in the same units — a second floor applied
@@ -386,7 +392,11 @@ export default function TimelineBoardModal({
     [timelineYearDrag, timelineYearPickTarget, timelineFilterEndYear, timelineFilterStartYear]
   );
 
-  if (timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0) return null;
+  // `open` decides whether the board shows; without it (older callers and
+  // tests) the old rule — any lane selected — still applies.
+  if (open === false || (open === undefined && timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0)) {
+    return null;
+  }
 
   const parseTimelineDate = (value?: string) => {
     if (!value) return null;
@@ -726,6 +736,9 @@ export default function TimelineBoardModal({
     });
     return lanes;
   })();
+  const visibleLanes = laneFilter.trim()
+    ? timelineLanes.filter((lane) => lane.label.toLowerCase().includes(laneFilter.trim().toLowerCase()))
+    : timelineLanes;
 
   // Counts for the header (D13) — "N own · M system events from K relatives".
   const systemEventSummary = (() => {
@@ -1014,8 +1027,18 @@ export default function TimelineBoardModal({
                 : ''}
             </span>
             <span style={{ color: '#7a7a7a', fontSize: 12 }}>
-              {timelineLanes.length} lane{timelineLanes.length === 1 ? '' : 's'}
+              {visibleLanes.length === timelineLanes.length
+                ? `${timelineLanes.length} lane${timelineLanes.length === 1 ? '' : 's'}`
+                : `${visibleLanes.length} of ${timelineLanes.length} lanes`}
             </span>
+            <input
+              type="search"
+              aria-label="Find lane"
+              placeholder="Find lane…"
+              value={laneFilter}
+              onChange={(e) => setLaneFilter(e.target.value)}
+              style={{ fontSize: 12, width: 130 }}
+            />
           </div>
         )}
         {timelineYearBoundsForFilter && (
@@ -1232,7 +1255,7 @@ export default function TimelineBoardModal({
                     ))}
                 </div>
               </div>
-              {timelineLanes.map((lane, laneIndex) => {
+              {visibleLanes.map((lane, laneIndex) => {
                 const filteredItems = lane.items.filter((item) => {
                   const startTs = parseTimelineDate(item.startDate);
                   const endTs = parseTimelineDate(item.endDate || item.startDate);

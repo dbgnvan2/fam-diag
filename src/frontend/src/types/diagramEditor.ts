@@ -29,6 +29,14 @@ export type SessionNoteDirectoryHandle = {
   ) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }>;
 };
 
+/** The lanes a Timeline opens with. */
+export type TimelineLanes = { personIds: string[]; familyIds: string[] };
+/**
+ * Opens the Timeline on these lanes. With followFocus the lanes are the
+ * family focus's and are re-derived when the focus changes while it is open.
+ */
+export type OpenTimeline = (lanes: TimelineLanes, options?: { followFocus?: boolean }) => void;
+
 /** One entry of a canvas context menu; `children` makes a submenu. */
 export type ContextMenuItem = {
   label: string;

@@ -5,6 +5,7 @@
  */
 
 import { nanoid } from 'nanoid';
+import { buildNewEventDraft, normalizeEventForSave } from './eventDraft';
 import type { Person, Partnership, EmotionalLine } from '../types';
 import type {
   DiagramImportData,
@@ -24,6 +25,41 @@ import {
 // ---------------------------------------------------------------------------
 // Type guards
 // ---------------------------------------------------------------------------
+
+
+const SCHIZOPHRENIA_INDICATOR = {
+  id: 'indicator-schizophrenia-spectrum',
+  label: 'Schizophrenia Spectrum',
+  group: 'emotional' as const,
+};
+
+/**
+ * Record a diagnosis the source names as a symptom: the indicator entry and a
+ * backing SYMPTOM event, as a symptom saved in the Properties panel has.
+ * The source names the diagnosis only — no severity, frequency, impact or
+ * date — so none is filled in (0 is "not rated"; it used to be 5 / 5 / 5).
+ */
+const recordImportedDiagnosis = (person: Person) => {
+  person.functionalIndicators = [
+    ...(person.functionalIndicators || []).filter((entry) => entry.definitionId !== SCHIZOPHRENIA_INDICATOR.id),
+    { definitionId: SCHIZOPHRENIA_INDICATOR.id, status: 'past', impact: 0, frequency: 0, intensity: 0 },
+  ];
+  const alreadyBacked = (person.events || []).some((event) => event.sourceIndicatorId === SCHIZOPHRENIA_INDICATOR.id);
+  if (alreadyBacked) return;
+  const draft = buildNewEventDraft({
+    eventType: 'SYMPTOM',
+    anchorType: 'PERSON',
+    anchorId: person.id,
+    eventClass: 'individual',
+    primaryPersonName: person.name,
+    seed: { category: SCHIZOPHRENIA_INDICATOR.group, subtype: SCHIZOPHRENIA_INDICATOR.label, status: 'end' },
+  });
+  const event = normalizeEventForSave(
+    { ...draft, sourceIndicatorId: SCHIZOPHRENIA_INDICATOR.id },
+    { anchorType: 'PERSON', anchorId: person.id, eventClass: 'individual', primaryPersonName: person.name }
+  );
+  person.events = [...(person.events || []), event];
+};
 
 export const isDiagramImportData = (data: unknown): data is DiagramImportData => {
   const typed = data as DiagramImportData;
@@ -383,11 +419,7 @@ export const parseTranscriptToDraftDiagram = (
       person.notes = notes.join(' ');
       person.notesEnabled = true;
     }
-    if (diagnosedSchizophrenia.has(person.name)) {
-      person.functionalIndicators = [
-        { definitionId: 'indicator-schizophrenia-spectrum', status: 'past', impact: 5, frequency: 5, intensity: 5 },
-      ];
-    }
+    if (diagnosedSchizophrenia.has(person.name)) recordImportedDiagnosis(person);
     if (deceasedNames.has(person.name) && !person.deathDate) {
       // The transcript says they died but gives no year: mark deceased, date unknown.
       person.deathDateKnown = true;
@@ -992,11 +1024,7 @@ export const factsToDiagramImportData = (facts: FactsImportData): DiagramImportD
   const schizophreniaSet = new Set((facts.clinical?.explicitSchizophreniaMentions || []).map((n) => n.trim()));
   const noDxSet = new Set((facts.clinical?.explicitNoDiagnosisMentions || []).map((n) => n.trim()));
   people.forEach((person) => {
-    if (schizophreniaSet.has(person.name)) {
-      person.functionalIndicators = [
-        { definitionId: 'indicator-schizophrenia-spectrum', status: 'past', impact: 5, frequency: 5, intensity: 5 },
-      ];
-    }
+    if (schizophreniaSet.has(person.name)) recordImportedDiagnosis(person);
     if (noDxSet.has(person.name)) {
       person.notes = person.notes
         ? `${person.notes}\nFacts: explicitly no schizophrenia diagnosis mention.`

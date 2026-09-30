@@ -82,7 +82,7 @@ interface UseFileOperationsDeps {
   setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
   setPersonSectionPopup: Dispatch<SetStateAction<PersonSectionPopupState>>;
   setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
-  setTimelineSelectionIds: Dispatch<SetStateAction<string[]>>;
+  closeTimeline: () => void;
   setIdeasText: Dispatch<SetStateAction<string>>;
   setLastSavedAt: Dispatch<SetStateAction<number | null>>;
   setBackupRestoreOpen: Dispatch<SetStateAction<boolean>>;
@@ -135,7 +135,7 @@ export function useFileOperations({
   setPropertiesPanelIntent,
   setPersonSectionPopup,
   setContextMenu,
-  setTimelineSelectionIds,
+  closeTimeline,
   setIdeasText,
   setLastSavedAt,
   setBackupRestoreOpen,
@@ -172,7 +172,7 @@ export function useFileOperations({
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
     setContextMenu(null);
-    setTimelineSelectionIds([]);
+    closeTimeline();
     setFileName(FALLBACK_FILE_NAME);
     markSnapshotClean(
       [],
