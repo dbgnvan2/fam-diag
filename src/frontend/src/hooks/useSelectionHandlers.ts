@@ -217,10 +217,9 @@ export function useSelectionHandlers({
           openContextualEventCreator(
             { type: 'emotional', id: emotionalLineId },
             emotionalLine,
-            {
-              eventType: 'EPE',
-              category: 'Emotional Pattern',
-            },
+            // The category defaults to the pattern's own type
+            // (useUpdateHandlers.openContextualEventCreator).
+            { eventType: 'EPE' },
             { x: e.evt.clientX, y: e.evt.clientY },
             'Emotional Pattern Add Event'
           );
@@ -278,13 +277,12 @@ export function useSelectionHandlers({
           triangleId,
           {
             eventType: 'TRIANGLE',
+            // A valid TRIANGLE category and subtype (constants/eventConstants),
+            // so the dialog opens on this property and its own scale.
             subtype: processType,
-            category: 'Triangle',
+            category: 'Primary',
             eventClass: 'triangle',
             status: 'ongoing',
-            intensity: 1,
-            frequency: 1,
-            impact: 1,
           },
           pos,
           `Triangle ${label}`
@@ -303,9 +301,9 @@ export function useSelectionHandlers({
             setContextMenu(null);
           },
         }] : []),
-        makeTrianglePropertyItem('Triangle Functioning', 'triangle-functioning'),
-        makeTrianglePropertyItem('Triangle Flexibility', 'triangle-flexibility'),
-        makeTrianglePropertyItem('Triangle Stress Response', 'triangle-stress-response'),
+        makeTrianglePropertyItem('Triangle Functioning', 'Functioning'),
+        makeTrianglePropertyItem('Triangle Flexibility', 'Flexibility'),
+        makeTrianglePropertyItem('Triangle Stress Response', 'Stress Response'),
         {
           label: triangle.notes
             ? triangle.notesEnabled

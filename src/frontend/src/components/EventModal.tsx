@@ -48,6 +48,8 @@ export interface EventModalProps {
   symptomTypeOptions: string[];
   resolvedEventClass: EventClass;
   lockEventType?: boolean;
+  /** The event is a date field's event: its category names the field, so it is shown, not edited. */
+  lockCategory?: boolean;
   modalTitle?: string;
   onChange: (field: keyof EmotionalProcessEvent, value: string) => void;
   onSetDraft: (draft: EmotionalProcessEvent) => void;
@@ -67,6 +69,7 @@ const EventModal = ({
   functionalFactCategoryNames = [],
   nodalCategoryNames = [],
   lockEventType = false,
+  lockCategory = false,
   modalTitle,
   onChange,
   onSetDraft,
@@ -105,7 +108,7 @@ const EventModal = ({
 
   const eventType: EventType = eventDraft.eventType;
   const showPersons = EVENT_TYPE_HAS_PERSONS[eventType];
-  const categoryOptions = eventType === 'NODAL'
+  const baseCategoryOptions = eventType === 'NODAL'
     ? [
         ...EVENT_CATEGORIES.NODAL,
         ...nodalCategoryNames.filter((n) => !EVENT_CATEGORIES.NODAL.includes(n)),
@@ -113,24 +116,32 @@ const EventModal = ({
     : eventType === 'FF' && functionalFactCategoryNames.length > 0
       ? functionalFactCategoryNames
       : EVENT_CATEGORIES[eventType] || [];
+  // A category the list does not know is still the event's category (an
+  // older event, or one written by another part of the app). It is offered
+  // as an option rather than rewritten — rewriting it on open meant that
+  // opening an event and pressing Save changed what the event was.
+  const withCurrentValue = (options: string[], current?: string) =>
+    current && !options.includes(current) ? [...options, current] : options;
+  const categoryOptions = withCurrentValue(baseCategoryOptions, eventDraft.category);
 
-  // On mount: if category or subtype is invalid for the current eventType, auto-correct.
-  // This handles editing old events that have stale/wrong category values.
+  // On mount: a category that differs from a listed one only in letter case
+  // takes the listed spelling. Nothing else is changed: an empty category
+  // stays empty for the user to choose (filling in the first option made a
+  // new person event a "Birth" that nobody picked), and a category or
+  // subtype the list does not know is kept.
   React.useEffect(() => {
-    const catOk = categoryOptions.length === 0 || categoryOptions.includes(eventDraft.category);
-    const subOpts = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
-    const subOk = !subOpts || subOpts.includes(eventDraft.subtype || '');
-    if (!catOk || !subOk) {
-      const newCat = catOk ? eventDraft.category : (categoryOptions[0] ?? eventDraft.category);
-      const newSubOpts = EVENT_SUBTYPES[eventType]?.[newCat] ?? null;
-      const newSub = (catOk && subOk) ? eventDraft.subtype : (newSubOpts?.[0] ?? '');
-      onSetDraft({ ...eventDraft, category: newCat, subtype: newSub });
-    }
+    const current = (eventDraft.category || '').trim();
+    if (!current || baseCategoryOptions.includes(current)) return;
+    const caseMatch = baseCategoryOptions.find((option) => option.toLowerCase() === current.toLowerCase());
+    if (caseMatch) onSetDraft({ ...eventDraft, category: caseMatch });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Subtype dropdown options (FAMILY has a predefined list per category)
-  const subtypeDropdownOptions = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
+  const baseSubtypeOptions = EVENT_SUBTYPES[eventType]?.[eventDraft.category] ?? null;
+  const subtypeDropdownOptions = baseSubtypeOptions
+    ? withCurrentValue(baseSubtypeOptions, eventDraft.subtype)
+    : null;
   const isSymptomSubtype = eventType === 'SYMPTOM';
   const isSymptomEvent = isSymptomSubtype;
 
@@ -220,7 +231,11 @@ const EventModal = ({
         {/* Category — always shown; resets subtype when changed */}
         <div style={rowStyle}>
           <label htmlFor="eventCategory" style={labelStyle}>Category:</label>
-          {categoryOptions.length > 0 ? (
+          {lockCategory ? (
+            <span style={{ ...controlStyle, width: '60%', padding: '4px 0', fontWeight: 600 }}>
+              {eventDraft.category}
+            </span>
+          ) : categoryOptions.length > 0 ? (
             <select
               id="eventCategory"
               value={eventDraft.category}
@@ -231,6 +246,7 @@ const EventModal = ({
               }}
               style={{ ...controlStyle, width: '60%' }}
             >
+              {!eventDraft.category && <option value="">— select —</option>}
               {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}

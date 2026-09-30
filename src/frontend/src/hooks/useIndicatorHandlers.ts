@@ -6,7 +6,30 @@ import {
   sanitizeSinglePersonIndicators,
 } from '../utils/dataNormalization';
 
+/**
+ * Who still records a symptom type: an indicator entry, or a symptom event
+ * linked to it.
+ */
+export const indicatorDefinitionUsage = (
+  people: Person[],
+  definitionId: string
+): { peopleNames: string[]; entryCount: number } => {
+  const peopleNames: string[] = [];
+  let entryCount = 0;
+  people.forEach((person) => {
+    const entries =
+      (person.functionalIndicators || []).filter((entry) => entry.definitionId === definitionId).length +
+      (person.events || []).filter((event) => event.sourceIndicatorId === definitionId).length;
+    if (entries > 0) {
+      peopleNames.push(person.name || 'Unnamed');
+      entryCount += entries;
+    }
+  });
+  return { peopleNames, entryCount };
+};
+
 interface IndicatorHandlerDeps {
+  people: Person[];
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
   indicatorDraftLabel: string;
   defaultSymptomColorByGroup: Record<SymptomGroup, string>;
@@ -17,6 +40,7 @@ interface IndicatorHandlerDeps {
 }
 
 export function useIndicatorHandlers({
+  people,
   functionalIndicatorDefinitions,
   indicatorDraftLabel,
   defaultSymptomColorByGroup,
@@ -141,8 +165,30 @@ export function useIndicatorHandlers({
     );
   };
 
-  const removeFunctionalIndicatorDefinition = (id: string) => {
+  /**
+   * Removing a symptom type is refused while anyone still has it recorded —
+   * removing it used to delete those entries from every person in the
+   * diagram, with no warning. The user deletes each entry, or renames the
+   * symptom on each person (which moves it to another type), first.
+   * Returns true when the definition was removed.
+   */
+  const removeFunctionalIndicatorDefinition = (
+    id: string,
+    alertFn: (message: string) => void = (message) => window.alert(message)
+  ): boolean => {
+    const usage = indicatorDefinitionUsage(people, id);
+    if (usage.entryCount > 0) {
+      const label = functionalIndicatorDefinitions.find((definition) => definition.id === id)?.label || 'This symptom type';
+      alertFn(
+        `"${label}" is still recorded for ${usage.peopleNames.length} ${
+          usage.peopleNames.length === 1 ? 'person' : 'people'
+        } (${usage.entryCount} ${usage.entryCount === 1 ? 'entry' : 'entries'}): ${usage.peopleNames.join(', ')}.\n\n` +
+          'Delete those entries, or change them to another symptom type on each person, before removing it.'
+      );
+      return false;
+    }
     updateIndicatorDefinitions((prev) => prev.filter((definition) => definition.id !== id));
+    return true;
   };
 
   const ensureSymptomDefinition = (label: string, group: SymptomGroup): string | null => {
@@ -164,10 +210,10 @@ export function useIndicatorHandlers({
       }
       return existingByLabel.id;
     }
-    const existingByGroup = functionalIndicatorDefinitions.find((definition) => definition.group === group);
-    if (!trimmed) {
-      return existingByGroup?.id || null;
-    }
+    // A symptom with no name is not linked to any definition. Falling back
+    // to the group's first definition linked it to an unrelated symptom and
+    // overwrote that symptom's scores.
+    if (!trimmed) return null;
     const created: FunctionalIndicatorDefinition = {
       id: nanoid(),
       label: trimmed,

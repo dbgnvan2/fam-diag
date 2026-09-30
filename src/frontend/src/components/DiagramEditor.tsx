@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import { nanoid } from 'nanoid';
 import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
+import { applyEventDraftFieldChange, normalizeEventForSave } from '../utils/eventDraft';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
 import AppRibbon from './AppRibbon';
 import VoiceInputModal from './modals/VoiceInputModal';
@@ -100,7 +101,7 @@ import type { BackupVersions } from '../utils/storage';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import { mergeDiagramData } from '../utils/diagramMerge';
 import { alignMultipleBirthAnchors } from '../utils/multipleBirthAnchors';
-import { timelineYearBounds as computeTimelineYearBounds } from '../utils/dateFormatting';
+import { localDateString, timelineYearBounds as computeTimelineYearBounds } from '../utils/dateFormatting';
 import {
   sanitizePeopleIndicators,
   parseIsoDateToTimestamp,
@@ -330,7 +331,7 @@ const DiagramEditor = () => {
         if (Array.isArray(parsed)) {
           // Migrate old flat Prediction[] → PredictionSet[] (pre-refactor data)
           if (parsed.length > 0 && !('predictions' in parsed[0]) && 'conditions' in parsed[0]) {
-            return [{ id: nanoid(), name: 'Migrated Predictions', createdDate: new Date().toISOString().slice(0, 10), predictions: parsed }];
+            return [{ id: nanoid(), name: 'Migrated Predictions', createdDate: localDateString(), predictions: parsed }];
           }
           return parsed;
         }
@@ -1463,6 +1464,7 @@ const DiagramEditor = () => {
     removeFunctionalIndicatorDefinition,
     ensureSymptomDefinition,
   } = useIndicatorHandlers({
+    people,
     functionalIndicatorDefinitions,
     indicatorDraftLabel,
     defaultSymptomColorByGroup,
@@ -3508,22 +3510,23 @@ useEffect(() => {
     const person1 = people.find((p) => p.id === triangle.person1_id);
     const person2 = people.find((p) => p.id === triangle.person2_id);
     const person3 = people.find((p) => p.id === triangle.person3_id);
-    const today = new Date().toISOString().slice(0, 10);
     const sub = seed?.subtype || 'Functioning';
-    const resolvedTitle = modalTitle || ['Triangle', seed?.category || 'Triangle', sub].filter(Boolean).join(' ');
+    const resolvedTitle = modalTitle || ['Triangle', seed?.category || 'Primary', sub].filter(Boolean).join(' ');
+    // No date and no ratings until the user gives them (author decisions
+    // 2026-09-30); the category and subtype are valid TRIANGLE values.
     setTrianglePropertyModal({
       triangleId,
       position,
       modalTitle: resolvedTitle,
       draft: {
-        date: today,
-        startDate: today,
-        category: 'Triangle',
+        date: '',
+        startDate: '',
+        category: 'Primary',
         subtype: 'Functioning',
         status: 'ongoing',
-        intensity: 1,
-        frequency: 1,
-        impact: 1,
+        intensity: 0,
+        frequency: 0,
+        impact: 0,
         howWell: 0,
         wwwwh: '',
         observations: '',
@@ -3533,8 +3536,9 @@ useEffect(() => {
         id: nanoid(),
         eventType: 'TRIANGLE',
         eventClass: 'triangle',
-        anchorType: 'EMOTIONAL_PROCESS_EP',
+        anchorType: 'TRIANGLE',
         anchorId: triangleId,
+        createdAt: Date.now(),
       },
     });
   };
@@ -3549,20 +3553,21 @@ useEffect(() => {
     if (!partnership) return;
     const partner1 = people.find((p) => p.id === partnership.partner1_id);
     const partner2 = people.find((p) => p.id === partnership.partner2_id);
-    const today = new Date().toISOString().slice(0, 10);
+    // No date and no ratings until the user gives them (author decisions
+    // 2026-09-30).
     setFamilyPropertyModal({
       partnershipId,
       position,
       modalTitle,
       draft: {
-        date: today,
-        startDate: today,
+        date: '',
+        startDate: '',
         category: 'Triangles',
         subtype: 'Functioning',
         status: 'ongoing',
-        intensity: 1,
-        frequency: 1,
-        impact: 1,
+        intensity: 0,
+        frequency: 0,
+        impact: 0,
         howWell: 0,
         wwwwh: '',
         observations: '',
@@ -3571,9 +3576,10 @@ useEffect(() => {
         ...seed,
         id: nanoid(),
         eventType: (seed?.eventType as EventType | undefined) || 'FAMILY',
-        eventClass: seed?.eventClass || 'emotional-pattern',
-        anchorType: 'EMOTIONAL_PROCESS_EP',
+        eventClass: seed?.eventClass || 'family',
+        anchorType: 'FAMILY',
         anchorId: partnershipId,
+        createdAt: Date.now(),
       },
     });
   };
@@ -4625,7 +4631,7 @@ useEffect(() => {
             modalTitle={trianglePropertyModal.modalTitle}
             onChange={(field, value) =>
               setTrianglePropertyModal((prev) =>
-                prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
+                prev ? { ...prev, draft: applyEventDraftFieldChange(prev.draft, field, value) } : prev
               )
             }
             onSetDraft={(draft) =>
@@ -4634,10 +4640,15 @@ useEffect(() => {
             onSave={() => {
               if (!trianglePropertyModal) return;
               const { triangleId, draft } = trianglePropertyModal;
+              const saved = normalizeEventForSave(draft, {
+                anchorType: 'TRIANGLE',
+                anchorId: triangleId,
+                eventClass: 'triangle',
+              });
               setTriangles((prev) =>
                 prev.map((t) =>
                   t.id === triangleId
-                    ? { ...t, events: [...(t.events || []), draft] }
+                    ? { ...t, events: [...(t.events || []), saved] }
                     : t
                 )
               );
@@ -4674,7 +4685,7 @@ useEffect(() => {
             lockEventType
             onChange={(field, value) =>
               setFamilyPropertyModal((prev) =>
-                prev ? { ...prev, draft: { ...prev.draft, [field]: value } } : prev
+                prev ? { ...prev, draft: applyEventDraftFieldChange(prev.draft, field, value) } : prev
               )
             }
             onSetDraft={(draft) =>
@@ -4685,7 +4696,10 @@ useEffect(() => {
               const { partnershipId, draft, editingEventId } = familyPropertyModal;
               const rawCat = (draft.category || '').toLowerCase();
               const normalizedCat = rawCat.startsWith('triangle') ? 'Triangles' : rawCat === 'stress' ? 'Stress' : (draft.category || 'Triangles');
-              const savedDraft = { ...draft, eventType: 'FAMILY' as const, category: normalizedCat };
+              const savedDraft = normalizeEventForSave(
+                { ...draft, eventType: 'FAMILY' as const, category: normalizedCat },
+                { anchorType: 'FAMILY', anchorId: partnershipId, eventClass: 'family' }
+              );
               setPartnerships((prev) =>
                 prev.map((p) => {
                   if (p.id !== partnershipId) return p;

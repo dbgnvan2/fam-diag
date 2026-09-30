@@ -1,3 +1,4 @@
+import { EPE_CATEGORY_BY_PATTERN_TYPE } from '../utils/eventDraft';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Person,
@@ -288,9 +289,13 @@ export function useUpdateHandlers({
       eventType,
       anchorType,
       anchorId: target.id,
+      // eventClass records what the event is attached to; it is set here,
+      // not by the menu item.
       eventClass: getEventClassForTargetType(target.type),
-      date: seed?.date || new Date().toISOString().slice(0, 10),
-      startDate: seed?.startDate || seed?.date || new Date().toISOString().slice(0, 10),
+      // No date unless the seed has one: the user says when it happened
+      // (author decision 2026-09-30 — a default of today is fabrication).
+      date: seed?.startDate || seed?.date || '',
+      startDate: seed?.startDate || seed?.date || '',
     };
     if (target.type === 'person') {
       const person = targetItem as Person;
@@ -347,7 +352,7 @@ export function useUpdateHandlers({
       newEventSeed: {
         ...baseSeed,
         eventType: 'EPE',
-        category: seed?.category || 'Emotional Pattern',
+        category: seed?.category || EPE_CATEGORY_BY_PATTERN_TYPE[line.relationshipType],
         primaryPersonName: person1?.name || '',
         otherPersonName: person2?.name || '',
       },

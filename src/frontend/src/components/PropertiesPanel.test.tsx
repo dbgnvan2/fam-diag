@@ -79,10 +79,8 @@ describe('PropertiesPanel', () => {
         expect(updateEmotionalLine).toHaveBeenCalled();
         const [, updates] = updateEmotionalLine.mock.calls[0];
         expect(updates.startDate).toBe('2021-06-06');
-        const appended = (updates.events || []) as Array<{ subtype?: string }>;
-        expect(
-            appended.some((event) => / – Pattern (Start|End)$/.test(event.subtype || ''))
-        ).toBe(false);
+        // No event of any kind is appended for a date change.
+        expect(updates.events ?? []).toHaveLength(0);
     });
 
     it('updates the line color when the picker changes', () => {
@@ -1070,6 +1068,10 @@ describe('PropertiesPanel', () => {
                 expect.objectContaining({ definitionId: 'fi1', impact: 4 }),
             ]),
         }));
+        // The edit replaced the symptom event; it did not append a second one.
+        const [, symptomUpdates] = updatePerson.mock.calls[updatePerson.mock.calls.length - 1];
+        expect(symptomUpdates.events).toHaveLength(1);
+        expect(symptomUpdates.events[0]).toMatchObject({ impact: 4 });
     });
 
     it('shows the symptom intensity scale and lets the user pick a level from help', () => {
@@ -1369,10 +1371,7 @@ describe('PropertiesPanel', () => {
         // second block on the timeline, and a third once the date was later
         // corrected, because the append never replaced the previous one.
         const [, updates] = updatePerson.mock.calls[0];
-        const appended = (updates.events || []) as Array<{ category?: string; subtype?: string }>;
-        expect(
-            appended.some((event) => (event.subtype || '').toLowerCase() === 'birth date')
-        ).toBe(false);
+        expect(updates.events ?? []).toHaveLength(0);
     });
 
     it('saves Birth Sex, Gender Date, and Gender with events on Save', () => {
@@ -1469,10 +1468,7 @@ describe('PropertiesPanel', () => {
 
         const [, updates] = updatePerson.mock.calls[0];
         expect(updates.deathDateKnown).toBe(true);
-        const appended = (updates.events || []) as Array<{ subtype?: string }>;
-        expect(
-            appended.some((event) => (event.subtype || '').toLowerCase() === 'death date')
-        ).toBe(false);
+        expect(updates.events ?? []).toHaveLength(0);
     });
 
     it('saves a partnership date without appending an event for it', () => {
@@ -1894,7 +1890,9 @@ describe('PropertiesPanel', () => {
         expect(trashBtn).toBeInTheDocument();
 
         fireEvent.click(trashBtn);
-        expect(updatePerson).toHaveBeenCalledWith('p-sym-del', { events: [] });
+        // The indicator the symptom recorded goes with it (regression: it
+        // stayed, and the Timeline brought the "deleted" symptom back).
+        expect(updatePerson).toHaveBeenCalledWith('p-sym-del', { events: [], functionalIndicators: [] });
     });
 
     // ── Emotional Patterns tab: shows "Category" not "Type" ───────────────────────

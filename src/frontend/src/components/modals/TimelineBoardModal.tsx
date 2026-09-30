@@ -9,14 +9,24 @@ import type {
   FunctionalFactCategoryDefinition,
 } from '../../types';
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
-import { nanoid } from 'nanoid';
 import EventModal from '../EventModal';
 import {
   synthesizeEmotionalLineDateEvents,
   synthesizePartnershipDateEvents,
   synthesizePersonDateEvents,
   synthesizePersonIndicatorEvents,
+  withoutDateSlotCompanions,
 } from '../../utils/syntheticDateEvents';
+import {
+  anchorTypeForOwner,
+  applyEventDraftFieldChange,
+  buildNewEventDraft,
+  eventClassForOwner,
+  isDateSlotEventId,
+  normalizeEventForSave,
+  saveEventOnOwner,
+  type EventOwner,
+} from '../../utils/eventDraft';
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
 import { earliestPartnershipDate } from '../../utils/partnershipUtils';
 import { hasSameEvent } from '../../utils/eventDedup';
@@ -168,28 +178,15 @@ export default function TimelineBoardModal({
   const startAddEventForPerson = (personId: string) => {
     const person = people.find((p) => p.id === personId);
     if (!person) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const draft: EmotionalProcessEvent = {
-      id: nanoid(),
+    // No date and no category until the user gives them (author decisions
+    // 2026-09-30: a default of today is fabrication).
+    const draft = buildNewEventDraft({
       eventType: 'NODAL',
-      eventClass: 'individual',
       anchorType: 'PERSON',
       anchorId: personId,
-      category: '',
-      subtype: '',
-      status: 'discrete',
-      intensity: 0,
-      frequency: 0,
-      impact: 0,
-      howWell: 0,
-      date: today,
-      startDate: today,
-      wwwwh: '',
-      observations: '',
+      eventClass: 'individual',
       primaryPersonName: person.name || '',
-      otherPersonName: 'None',
-      createdAt: Date.now(),
-    };
+    });
     setEventModalState({ draft, entityType: 'person', entityId: personId, isNew: true });
   };
 
@@ -212,44 +209,38 @@ export default function TimelineBoardModal({
 
   const cancelEventModal = () => setEventModalState(null);
 
+  // The same save the Properties panel uses (utils/eventDraft.ts): numbers
+  // stored as numbers, date = startDate, a date field's event written back
+  // to the field, and a symptom's indicator kept in step. The Timeline's own
+  // copy of this skipped all of that.
   const saveEventModal = () => {
     if (!eventModalState) return;
     const { draft, entityType, entityId, partnershipTarget } = eventModalState;
-    if (entityType === 'person') {
-      const person = people.find((p) => p.id === entityId);
-      if (!person) { setEventModalState(null); return; }
-      const events = person.events || [];
-      const idx = events.findIndex((e) => e.id === draft.id);
-      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
-      onUpdatePerson(entityId, { events: nextEvents });
-    } else if (entityType === 'partnership') {
-      const partnership = partnerships.find((p) => p.id === entityId);
-      if (!partnership) { setEventModalState(null); return; }
-      if (partnershipTarget === 'familyEvents') {
-        const events = partnership.familyEvents || [];
-        const idx = events.findIndex((e) => e.id === draft.id);
-        const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
-        onUpdatePartnership(entityId, { familyEvents: nextEvents });
-      } else {
-        const events = partnership.events || [];
-        const idx = events.findIndex((e) => e.id === draft.id);
-        const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
-        onUpdatePartnership(entityId, { events: nextEvents });
-      }
-    } else {
-      const line = allEmotionalLines.find((l) => l.id === entityId);
-      if (!line) { setEventModalState(null); return; }
-      const events = line.events || [];
-      const idx = events.findIndex((e) => e.id === draft.id);
-      const nextEvents = idx === -1 ? [...events, draft] : events.map((e) => (e.id === draft.id ? draft : e));
-      onUpdateEmotionalLine(entityId, { events: nextEvents });
-    }
+    const owner: EventOwner = { kind: entityType, id: entityId, list: partnershipTarget };
+    const entity =
+      entityType === 'person'
+        ? people.find((p) => p.id === entityId)
+        : entityType === 'partnership'
+          ? partnerships.find((p) => p.id === entityId)
+          : allEmotionalLines.find((l) => l.id === entityId);
+    if (!entity) { setEventModalState(null); return; }
+    const normalized = normalizeEventForSave(draft, {
+      anchorType: anchorTypeForOwner(entityType),
+      anchorId: entityId,
+      eventClass: eventClassForOwner(entityType),
+    });
+    const updates = saveEventOnOwner(owner, entity, normalized, {
+      definitions: functionalIndicatorDefinitions,
+    });
+    if (entityType === 'person') onUpdatePerson(entityId, updates as Partial<Person>);
+    else if (entityType === 'partnership') onUpdatePartnership(entityId, updates as Partial<Partnership>);
+    else onUpdateEmotionalLine(entityId, updates as Partial<EmotionalLine>);
     setEventModalState(null);
   };
 
   const onEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     setEventModalState((prev) =>
-      prev ? { ...prev, draft: { ...prev.draft, [field]: value } as EmotionalProcessEvent } : prev,
+      prev ? { ...prev, draft: applyEventDraftFieldChange(prev.draft, field, value) } : prev,
     );
   };
 
@@ -442,7 +433,7 @@ export default function TimelineBoardModal({
           entityId: partnership.id,
         });
       }
-      withoutPartnershipStatusRecords(partnership.events || [], partnership).forEach((event) => {
+      withoutPartnershipStatusRecords(withoutDateSlotCompanions(partnership.events), partnership).forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
         familyItems.push({
@@ -510,7 +501,7 @@ export default function TimelineBoardModal({
       const ownEvents = [
         // Date records are hidden, not deleted: the date field is the record
         // and the synthesizer renders exactly one block from it.
-        ...withoutPersonDateRecords(person.events || []),
+        ...withoutPersonDateRecords(withoutDateSlotCompanions(person.events)),
         ...synthesizePersonDateEvents(person),
         ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
       ];
@@ -550,7 +541,7 @@ export default function TimelineBoardModal({
           const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name;
           const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name;
           const prlEvents = [
-            ...withoutPartnershipStatusRecords(partnership.events || [], partnership),
+            ...withoutPartnershipStatusRecords(withoutDateSlotCompanions(partnership.events), partnership),
             ...synthesizePartnershipDateEvents(partnership, partner1Name, partner2Name),
           ];
           prlEvents.forEach((event) => {
@@ -636,7 +627,7 @@ export default function TimelineBoardModal({
           const eplEvents = [
             // Edit records are hidden: one event for the pattern, one each for
             // its start and end dates (utils/patternEventRecords.ts).
-            ...withoutPatternEditRecords(line.events || []),
+            ...withoutPatternEditRecords(withoutDateSlotCompanions(line.events)),
             ...synthesizeEmotionalLineDateEvents(
               line,
               people.find((p) => p.id === line.person1_id)?.name,
@@ -774,55 +765,43 @@ export default function TimelineBoardModal({
       // Spec: docs/implementation_plan_2026-09-19.md#M7.E.3
       return;
     }
-    // Find the existing event in the source entity's events[]. If it's a
-    // synthesized id (no real event yet), build a draft from the timeline
-    // item so the EventModal opens pre-populated and saving promotes it.
+    // A date field's block (or an indicator-backed symptom) opens the event
+    // the synthesizer built — its own type, category and ratings, dated from
+    // the field. Saving it edits the field (utils/eventDraft.ts). It used to
+    // open a rebuilt NODAL/EPE draft that, once saved, hid the field for good.
+    const nameOf = (id?: string) => people.find((p) => p.id === id)?.name;
     let existingEvent: EmotionalProcessEvent | undefined;
     if (item.entityType === 'person') {
-      existingEvent = people.find((p) => p.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
+      const person = people.find((p) => p.id === item.entityId);
+      existingEvent = person
+        ? [
+            ...withoutDateSlotCompanions(person.events),
+            ...synthesizePersonDateEvents(person),
+            ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
+          ].find((e) => e.id === item.eventId)
+        : undefined;
     } else if (item.entityType === 'partnership') {
       const pr = partnerships.find((p) => p.id === item.entityId);
-      const arr = item.partnershipTarget === 'familyEvents' ? pr?.familyEvents : pr?.events;
-      existingEvent = arr?.find((e) => e.id === item.eventId);
+      existingEvent = pr
+        ? item.partnershipTarget === 'familyEvents'
+          ? pr.familyEvents?.find((e) => e.id === item.eventId)
+          : [
+              ...withoutDateSlotCompanions(pr.events),
+              ...synthesizePartnershipDateEvents(pr, nameOf(pr.partner1_id), nameOf(pr.partner2_id)),
+            ].find((e) => e.id === item.eventId)
+        : undefined;
     } else {
-      existingEvent = allEmotionalLines.find((l) => l.id === item.entityId)?.events?.find((e) => e.id === item.eventId);
+      const line = allEmotionalLines.find((l) => l.id === item.entityId);
+      existingEvent = line
+        ? [
+            ...withoutDateSlotCompanions(line.events),
+            ...synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)),
+          ].find((e) => e.id === item.eventId)
+        : undefined;
     }
     if (existingEvent) {
       startEditEvent(item.entityType, item.entityId, existingEvent, item.partnershipTarget);
-      return;
     }
-    // Synthesized event — fabricate a draft from the timeline item itself.
-    const today = new Date().toISOString().slice(0, 10);
-    const start = item.startDate || today;
-    const draft: EmotionalProcessEvent = {
-      id: item.eventId,
-      eventType: item.entityType === 'emotional' ? 'EPE' : 'NODAL',
-      eventClass:
-        item.entityType === 'partnership' ? 'relationship'
-        : item.entityType === 'emotional' ? 'emotional-pattern'
-        : 'individual',
-      anchorType:
-        item.entityType === 'partnership' ? 'RELATIONSHIP_PRL'
-        : item.entityType === 'emotional' ? 'EMOTIONAL_PROCESS_EP'
-        : 'PERSON',
-      anchorId: item.entityId,
-      category: item.label || '',
-      subtype: '',
-      status: 'discrete',
-      intensity: 0,
-      frequency: 0,
-      impact: 0,
-      howWell: 0,
-      date: start,
-      startDate: start,
-      endDate: item.endDate,
-      wwwwh: '',
-      observations: '',
-      primaryPersonName: '',
-      otherPersonName: 'None',
-      createdAt: Date.now(),
-    };
-    startEditEvent(item.entityType, item.entityId, draft);
   };
 
   const handleTimelinePersonPropertyChange = (
@@ -1536,6 +1515,7 @@ export default function TimelineBoardModal({
           symptomTypeOptions={eventModalSymptomTypes}
           resolvedEventClass={eventModalResolvedClass}
           modalTitle={eventModalTitle}
+          lockCategory={isDateSlotEventId(eventModalState.draft.id)}
           onChange={onEventDraftChange}
           onSetDraft={onSetEventDraft}
           onSave={saveEventModal}

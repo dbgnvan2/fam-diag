@@ -134,8 +134,8 @@ const AddEvidenceForm = ({
   onAdd: PredictionsPanelProps['onAddEvidence'];
 }) => {
   const [open, setOpen] = useState(false);
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const [date, setDate] = useState(todayStr);
+  // When the evidence was observed is the user's to give; it starts blank.
+  const [date, setDate] = useState('');
   const [direction, setDirection] = useState<PredictionEvidenceDirection>('supports');
   const [notes, setNotes] = useState('');
 
@@ -146,7 +146,7 @@ const AddEvidenceForm = ({
   const save = () => {
     onAdd(setId, predId, target, targetId, { date, type: 'observation', direction, notes });
     setNotes('');
-    setDate(todayStr);
+    setDate('');
     setDirection('supports');
     setOpen(false);
   };

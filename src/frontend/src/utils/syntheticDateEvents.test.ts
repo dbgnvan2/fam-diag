@@ -232,3 +232,59 @@ describe('synthesizePersonIndicatorEvents', () => {
     expect(out[0].symptomType).toBe('Symptom');
   });
 });
+
+describe('synthesizePartnershipDateEvents — status dates written by the Properties panel', () => {
+  // The panel stores statusDates under canonical keys ('start', 'ongoing',
+  // 'divorce') and mirrors them into the legacy fields. Each date is one event.
+  it('a start date saved by the panel is listed once (regression: "Relationship Started" and "Start")', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ relationshipStartDate: '1980-01-01', statusDates: { start: '1980-01-01' } })
+    );
+    expect(events.map((e) => e.category)).toEqual(['Relationship Started']);
+  });
+
+  it('an "ongoing" date mirrors the start date and is listed once', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ relationshipStartDate: '1981-01-01', statusDates: { ongoing: '1981-01-01' } })
+    );
+    expect(events).toHaveLength(1);
+  });
+
+  it('a divorce saved as statusDates.divorce plus divorceDate is one Divorce event', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ divorceDate: '1985-01-01', statusDates: { divorce: '1985-01-01' } })
+    );
+    expect(events.filter((e) => e.category === 'Divorce')).toHaveLength(1);
+  });
+
+  it('a status with no legacy field (widowed) is its own event with a stable id', () => {
+    const events = synthesizePartnershipDateEvents(makePartnership({ statusDates: { widowed: '2012-02-02' } }));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ category: 'Widowed', id: 'synth-status-widowed-pr1', startDate: '2012-02-02' });
+  });
+
+  it('a real Pattern Started event suppresses the EPL synth', () => {
+    const line = makeEPL({
+      startDate: '2000-01-01',
+      events: [{ ...realBirthEvent('2000-01-01'), id: 'ps', category: 'Pattern Started' }],
+    });
+    expect(synthesizeEmotionalLineDateEvents(line)).toHaveLength(0);
+  });
+});
+
+describe('date-slot companion events', () => {
+  it('a companion stored under the synthetic id is shown with the field date, once', () => {
+    const person = makePerson({
+      birthDate: '1990-01-01',
+      events: [{ ...realBirthEvent('1970-07-07'), id: 'synth-birth-p1', observations: 'at home' }],
+    });
+    const births = synthesizePersonDateEvents(person);
+    expect(births).toHaveLength(1);
+    expect(births[0]).toMatchObject({ startDate: '1990-01-01', date: '1990-01-01', observations: 'at home' });
+  });
+
+  it('a companion with no date on the field is not shown', () => {
+    const person = makePerson({ events: [{ ...realBirthEvent(), id: 'synth-birth-p1' }] });
+    expect(synthesizePersonDateEvents(person)).toHaveLength(0);
+  });
+});

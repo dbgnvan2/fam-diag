@@ -128,3 +128,26 @@ export const intensityValueForLineStyle = (lineStyle: EmotionalLine['lineStyle']
   if (lineStyle === 'high') return 5;
   return 0;
 };
+
+/**
+ * The graphic level (1-5) a line style draws at, for the pattern's own type.
+ * Legacy styles that are not in the type's list use their fixed value, so
+ * the Properties tab and the Patterns tab agree on every line.
+ */
+export const lineStyleLevel = (
+  relationshipType: EmotionalLine['relationshipType'],
+  lineStyle: EmotionalLine['lineStyle']
+): number => {
+  const index = (LINE_STYLE_VALUES[relationshipType] || []).indexOf(lineStyle);
+  return index >= 0 ? index + 1 : intensityValueForLineStyle(lineStyle);
+};
+
+/** The line style for a graphic level (clamped to the type's range). */
+export const lineStyleForLevel = (
+  relationshipType: EmotionalLine['relationshipType'],
+  level: number
+): EmotionalLine['lineStyle'] | null => {
+  const styles = LINE_STYLE_VALUES[relationshipType] || [];
+  if (!styles.length) return null;
+  return styles[Math.max(0, Math.min(styles.length - 1, level - 1))] || null;
+};

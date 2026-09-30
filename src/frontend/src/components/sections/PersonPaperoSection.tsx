@@ -68,7 +68,6 @@ interface PersonPaperoSectionProps {
   selectedPerson: Person;
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   updatePersonDraftState: (updates: Partial<Person>) => void;
-  onSetPersonPristine: (pristine: boolean) => void;
   onScoreChange: (subtypeKey: string, newValue: number, oldValue: number) => void;
 }
 
@@ -77,7 +76,6 @@ const PersonPaperoSection = ({
   selectedPerson,
   onUpdatePerson,
   updatePersonDraftState,
-  onSetPersonPristine,
   onScoreChange,
 }: PersonPaperoSectionProps) => {
   const [helpOpenKey, setHelpOpenKey] = useState<string | null>(null);
@@ -91,7 +89,6 @@ const PersonPaperoSection = ({
     const updated: PaperoScores = { ...scores, [scoreFieldKey]: value };
     onUpdatePerson(selectedPerson.id, { paperoScores: updated });
     updatePersonDraftState({ paperoScores: updated });
-    onSetPersonPristine(true);
     if (value !== oldValue) {
       onScoreChange(subtypeKey, value, oldValue);
     }

@@ -57,7 +57,6 @@ interface PersonFOOSectionProps {
   onChange: React.ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
   updatePersonDraftState: (updates: Partial<Person>) => void;
-  onSetPersonPristine: (pristine: boolean) => void;
   fooHelpOpen: 'familyStability' | 'familyIntactness' | null;
   onFooHelpOpenChange: (field: 'familyStability' | 'familyIntactness' | null) => void;
 }
@@ -68,7 +67,6 @@ const PersonFOOSection = ({
   onChange,
   onUpdatePerson,
   updatePersonDraftState,
-  onSetPersonPristine,
   fooHelpOpen,
   onFooHelpOpenChange,
 }: PersonFOOSectionProps) => {
@@ -138,7 +136,6 @@ const PersonFOOSection = ({
                   onClick={() => {
                     onUpdatePerson(selectedPerson.id, { [field]: option } as Partial<Person>);
                     updatePersonDraftState({ [field]: option } as Partial<Person>);
-                    onSetPersonPristine(true);
                     onFooHelpOpenChange(null);
                   }}
                   style={{

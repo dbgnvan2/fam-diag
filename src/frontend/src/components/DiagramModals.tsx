@@ -140,7 +140,7 @@ interface DiagramModalsProps {
   updateFunctionalIndicatorIcon: (id: string, file: File | null) => void;
   updateFunctionalIndicatorUseLetter: (id: string, useLetter: boolean) => void;
   clearFunctionalIndicatorIcon: (id: string) => void;
-  removeFunctionalIndicatorDefinition: (id: string) => void;
+  removeFunctionalIndicatorDefinition: (id: string) => boolean;
   reorderFunctionalIndicators: (defs: FunctionalIndicatorDefinition[]) => void;
 
   // SIRSettingsModal

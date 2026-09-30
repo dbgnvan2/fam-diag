@@ -16,20 +16,22 @@ const sectionCardStyle: React.CSSProperties = {
   padding: '10px 12px 12px',
 };
 
-const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
-  birthSex === 'male' ? 'masculine' : birthSex === 'intersex' || birthSex === 'ai-agent' ? 'nonbinary' : 'feminine';
-
 interface PersonDatesSectionProps {
   personDraft: Person;
   onChange: React.ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
 }
 
 const PersonDatesSection = ({ personDraft, onChange }: PersonDatesSectionProps) => {
+  // Show what is recorded. A person with no recorded sex (drawn as a
+  // triangle on the canvas) shows "Unknown", not Female — and Female can
+  // then be chosen, which the old default made impossible (selecting the
+  // option already shown fires no change).
   const birthSex =
     personDraft.birthSex ||
-    (personDraft.gender === 'male' ? 'male' : personDraft.gender === 'intersex' ? 'intersex' : 'female');
-  const genderIdentity =
-    personDraft.genderIdentity || defaultGenderIdentityForBirthSex(birthSex as Person['birthSex']);
+    (personDraft.gender === 'male' || personDraft.gender === 'female' || personDraft.gender === 'intersex'
+      ? personDraft.gender
+      : '');
+  const genderIdentity = personDraft.genderIdentity || '';
 
   return (
     <div
@@ -79,6 +81,7 @@ const PersonDatesSection = ({ personDraft, onChange }: PersonDatesSectionProps) 
           onChange={onChange}
           style={{ width: 160 }}
         >
+          <option value="">Unknown / not recorded</option>
           <option value="female">Female</option>
           <option value="male">Male</option>
           <option value="intersex">Intersex</option>
@@ -94,6 +97,7 @@ const PersonDatesSection = ({ personDraft, onChange }: PersonDatesSectionProps) 
           onChange={onChange}
           style={{ width: 180 }}
         >
+          <option value="">Unknown / not recorded</option>
           <option value="feminine">Feminine</option>
           <option value="masculine">Masculine</option>
           <option value="nonbinary">Non-Binary</option>

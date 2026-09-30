@@ -424,7 +424,8 @@ export const parseTranscriptToDraftDiagram = (
       relationshipType: entry.relationshipType,
       lineStyle: entry.lineStyle,
       lineEnding: entry.lineEnding,
-      startDate: new Date().toISOString().slice(0, 10),
+      // The source gives no start date; the import date is not one.
+      startDate: undefined,
       color: DEFAULT_LINE_COLOR,
       notes: entry.notes,
       events: [],

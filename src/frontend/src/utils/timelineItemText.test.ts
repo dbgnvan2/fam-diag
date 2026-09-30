@@ -4,8 +4,6 @@
  * three-letter code and the hover bubble carries the identification.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import {
   blockShapeForPerson,
   buildTimelineHoverText,
@@ -225,18 +223,6 @@ describe('intensityStyle', () => {
 });
 
 describe('eventDisplayName — the symptom marker cannot go stale', () => {
-  it('test_timeline_producer_drops_the_indicator_link_on_a_non_symptom_save', () => {
-    // PropertiesPanel.saveEvent keeps sourceIndicatorId only for SYMPTOM and
-    // FF. Without that, retyping a symptom as a NODAL event left the link
-    // behind and this function would name the event by its subtype.
-    const source = readFileSync(
-      join(__dirname, '../components/PropertiesPanel.tsx'),
-      'utf8'
-    );
-    expect(source).toContain("normalizedType === 'SYMPTOM' || normalizedType === 'FF'");
-    expect(source).not.toMatch(/\n\s*sourceIndicatorId: eventDraft\.sourceIndicatorId,/);
-  });
-
   it('test_timeline_a_nodal_event_without_the_link_keeps_its_category', () => {
     expect(
       eventDisplayName({

@@ -7,18 +7,18 @@ import {
 } from '../utils/personEventBundle';
 
 const createEventId = () => `evt-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-const today = () => new Date().toISOString().slice(0, 10);
 
 const defaultEvent = (personName: string): EmotionalProcessEvent => ({
   id: createEventId(),
-  date: today(),
+  // No date until the user gives one (author decision 2026-09-30).
+  date: '',
   category: 'Individual',
   eventType: 'NODAL',
   status: 'discrete',
   intensity: 0,
   frequency: 0,
   impact: 0,
-  howWell: 5,
+  howWell: 0,
   otherPersonName: '',
   primaryPersonName: personName,
   wwwwh: '',
@@ -32,7 +32,7 @@ const defaultEvent = (personName: string): EmotionalProcessEvent => ({
 const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => ({
   ...event,
   id: event.id || createEventId(),
-  date: event.date || today(),
+  date: event.date || '',
   category: event.category || 'Event',
   eventType: event.eventType || 'NODAL',
   status: event.status || 'discrete',

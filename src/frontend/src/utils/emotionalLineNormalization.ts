@@ -105,7 +105,8 @@ export const buildDefaultTpl = (
   relationshipType: 'fusion',
   lineStyle: 'fusion-dotted-wide',
   lineEnding: 'none',
-  startDate: new Date().toISOString().slice(0, 10),
+  // When the pattern started is not known here; it is not today.
+  startDate: undefined,
   color: triangleColor || DEFAULT_LINE_COLOR,
   events: [],
 });

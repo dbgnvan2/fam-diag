@@ -56,3 +56,15 @@ export const ageInYears = (birthIso: string | undefined, deathIso: string | unde
   }
   return age < 0 ? null : age;
 };
+
+/**
+ * Today as a LOCAL calendar date, 'YYYY-MM-DD'. For records of when
+ * something was done in the app (a prediction created or resolved) — never
+ * as a default for when an event happened, which is the user's to give.
+ * `toISOString().slice(0, 10)` gave the UTC date, which is tomorrow west of
+ * UTC in the evening.
+ */
+export const localDateString = (now: Date = new Date()): string => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};

@@ -27,15 +27,21 @@ const normalizeEventDate = (event: EmotionalProcessEvent) => event.startDate || 
 // ── component ──────────────────────────────────────────────────────
 
 interface EventsSectionProps {
+  /**
+   * The rows to list. The caller decides what belongs on this tab (a
+   * person's tab includes its partnerships' and patterns' events); this
+   * component only applies the user's own Group / Anchor filters. It used to
+   * drop every row not anchored to the entity, which hid a person's own
+   * marriage and family events that the Timeline lane shows.
+   */
   allEvents: EmotionalProcessEvent[];
-  currentAnchorType: EventAnchorType;
-  currentAnchorId: string;
   addEventButtonLabel: string;
   onAddEvent: () => void;
   onEditEvent: (event: EmotionalProcessEvent) => void;
   onDeleteEvent: (id: string) => void;
-  onLinkEvent: (eventId: string, direction: 'prev' | 'next', attach: boolean) => void;
-  onCreateAndAttach: (eventId: string, direction: 'prev' | 'next') => void;
+  /** Row menu actions. The menu is shown only when both are supplied. */
+  onLinkEvent?: (eventId: string, direction: 'prev' | 'next', attach: boolean) => void;
+  onCreateAndAttach?: (eventId: string, direction: 'prev' | 'next') => void;
   /**
    * Events belonging to relatives in the same family system. Shown read-only
    * under the entity's own events; editing opens them on their owner.
@@ -48,8 +54,6 @@ interface EventsSectionProps {
 
 const EventsSection = ({
   allEvents,
-  currentAnchorType,
-  currentAnchorId,
   addEventButtonLabel,
   onAddEvent,
   onEditEvent,
@@ -67,16 +71,11 @@ const EventsSection = ({
 
   const filteredAndSortedEvents = useMemo(() => {
     const filtered = allEvents.filter((event) => {
-      const et = event.eventType;
-      const anchorType = event.anchorType || currentAnchorType;
-      if (eventTypeFilter !== 'ALL' && et !== eventTypeFilter) return false;
-      if (anchorTypeFilter !== 'ALL' && anchorType !== anchorTypeFilter) return false;
-      if (!event.anchorId) return true;
-      if (event.anchorId === currentAnchorId) return true;
-      // EPE events are stored in a person's events but anchored to an emotional line — always show them
-      const resolvedAnchorType = event.anchorType || currentAnchorType;
-      if (resolvedAnchorType === 'EMOTIONAL_PROCESS_EP') return true;
-      return false;
+      // The same type the card shows, so an older event with no stored
+      // eventType is found under the group its card names.
+      if (eventTypeFilter !== 'ALL' && inferEventType(event) !== eventTypeFilter) return false;
+      if (anchorTypeFilter !== 'ALL' && event.anchorType !== anchorTypeFilter) return false;
+      return true;
     });
     const direction = eventSortOrder === 'asc' ? 1 : -1;
     filtered.sort((a, b) => {
@@ -86,7 +85,8 @@ const EventsSection = ({
       return aTime > bTime ? direction : -direction;
     });
     return filtered;
-  }, [allEvents, eventSortOrder, eventTypeFilter, anchorTypeFilter, currentAnchorId, currentAnchorType]);
+  }, [allEvents, eventSortOrder, eventTypeFilter, anchorTypeFilter]);
+  const rowMenuEnabled = !!onLinkEvent && !!onCreateAndAttach;
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -119,13 +119,9 @@ const EventsSection = ({
           style={{ fontSize: 12 }}
         >
           <option value="ALL">All</option>
-          <option value="NODAL">Nodal</option>
-          <option value="SYMPTOM">Symptom</option>
-          <option value="EPE">Emotional Pattern</option>
-          <option value="EA">Emotional Autonomy</option>
-          <option value="FAMILY">Family</option>
-          <option value="FOO">Family of Origin</option>
-          <option value="TRIANGLE">Triangle</option>
+          {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => (
+            <option key={type} value={type}>{EVENT_TYPE_LABELS[type]}</option>
+          ))}
         </select>
         <label htmlFor="anchorTypeFilter">Anchor:</label>
         <select
@@ -149,6 +145,7 @@ const EventsSection = ({
           <div
             key={event.id}
             onContextMenu={(e) => {
+              if (!rowMenuEnabled) return;
               e.preventDefault();
               setEventRowMenu({ eventId: event.id, x: e.clientX, y: e.clientY });
             }}
@@ -221,7 +218,7 @@ const EventsSection = ({
             ))}
         </div>
       )}
-      {eventRowMenu && (
+      {eventRowMenu && onLinkEvent && onCreateAndAttach && (
         <div
           style={{
             position: 'fixed',

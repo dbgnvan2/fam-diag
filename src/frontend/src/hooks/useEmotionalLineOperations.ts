@@ -3,7 +3,7 @@ import type { Person, Partnership, EmotionalLine, Triangle, EmotionalProcessEven
 import type { EmotionalPatternDraft } from '../types/diagramEditor';
 import { nanoid } from 'nanoid';
 import { normalizeEmotionalLine, buildDefaultTpl } from '../utils/emotionalLineNormalization';
-import { DEFAULT_LINE_COLOR, intensityValueForLineStyle } from '../utils/emotionalPatternOptions';
+import { DEFAULT_LINE_COLOR, intensityValueForLineStyle, lineStyleForLevel, lineStyleLevel } from '../utils/emotionalPatternOptions';
 
 interface UseEmotionalLineOperationsDeps {
   people: Person[];
@@ -51,7 +51,7 @@ export function useEmotionalLineOperations({
       relationshipType,
       lineStyle,
       lineEnding,
-      startDate: new Date().toISOString().slice(0, 10),
+      // No start date until the user gives one (author decision 2026-09-30).
       color: DEFAULT_LINE_COLOR,
       events: [],
     };
@@ -66,7 +66,7 @@ export function useEmotionalLineOperations({
       relationshipType: 'fusion',
       status: 'ongoing',
       lineStyle: 'fusion-dotted-wide',
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: '',
       endDate: '',
       intensityLevel: intensityValueForLineStyle('fusion-dotted-wide'),
       frequency: 0,
@@ -99,10 +99,22 @@ export function useEmotionalLineOperations({
       color,
       adequatePersonId,
     } = emotionalPatternDraft;
-    const newEmotionalLine = addEmotionalLine(person1Id, person2Id, relationshipType, lineStyle, 'none');
+    // The dialog's intensity slider sets the line's graphic level; draw the
+    // line at the level chosen (it used to be written only into the event).
+    const styleForLevel =
+      intensityLevel !== lineStyleLevel(relationshipType, lineStyle)
+        ? lineStyleForLevel(relationshipType, intensityLevel)
+        : null;
+    const newEmotionalLine = addEmotionalLine(
+      person1Id,
+      person2Id,
+      relationshipType,
+      styleForLevel || lineStyle,
+      'none'
+    );
     const person1 = people.find((person) => person.id === person1Id);
     const person2 = people.find((person) => person.id === person2Id);
-    const start = startDate || new Date().toISOString().slice(0, 10);
+    const start = startDate || '';
     const seededEvent: EmotionalProcessEvent = {
       id: nanoid(),
       date: start,
@@ -113,10 +125,12 @@ export function useEmotionalLineOperations({
       anchorType: 'EMOTIONAL_PROCESS_EP',
       anchorId: newEmotionalLine.id,
       status: (status as any) || 'ongoing',
-      intensity: intensityLevel,
+      // The slider is the line's graphic level (its style), not a measured
+      // event intensity — CLAUDE.md "two unrelated intensity concepts".
+      intensity: 0,
       frequency,
       impact,
-      howWell: 5,
+      howWell: 0,
       otherPersonName: person2?.name || '',
       primaryPersonName: person1?.name || '',
       wwwwh: '',

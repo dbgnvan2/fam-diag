@@ -21,7 +21,6 @@ const makePerson = (overrides: Partial<Person> = {}): Person => ({
 const baseProps = {
   onUpdatePerson: vi.fn(),
   updatePersonDraftState: vi.fn(),
-  onSetPersonPristine: vi.fn(),
   onScoreChange: vi.fn(),
 };
 
@@ -102,7 +101,6 @@ describe('PersonPaperoSection', () => {
         selectedPerson={person}
         onUpdatePerson={onUpdatePerson}
         updatePersonDraftState={updatePersonDraftState}
-        onSetPersonPristine={vi.fn()}
         onScoreChange={vi.fn()}
       />
     );
@@ -131,7 +129,6 @@ describe('PersonPaperoSection', () => {
         selectedPerson={person}
         onUpdatePerson={onUpdatePerson}
         updatePersonDraftState={vi.fn()}
-        onSetPersonPristine={vi.fn()}
         onScoreChange={vi.fn()}
       />
     );

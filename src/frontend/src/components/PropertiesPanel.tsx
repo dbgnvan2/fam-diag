@@ -31,9 +31,31 @@ import { withoutPartnershipStatusRecords } from '../utils/partnershipStatusEvent
 import { withoutPatternEditRecords } from '../utils/patternEventRecords';
 import {
   synthesizePersonDateEvents,
+  synthesizePersonIndicatorEvents,
   synthesizePartnershipDateEvents,
   synthesizeEmotionalLineDateEvents,
+  withoutDateSlotCompanions,
 } from '../utils/syntheticDateEvents';
+import {
+  EPE_CATEGORY_BY_PATTERN_TYPE,
+  anchorTypeForOwner,
+  applyEventDraftFieldChange,
+  buildNewEventDraft,
+  createEventId,
+  deleteEventFromOwner,
+  eventClassForOwner,
+  isDateSlotEventId,
+  normalizeEventForSave,
+  saveEventOnOwner,
+  type EventOwner,
+  type EventOwnerEntity,
+} from '../utils/eventDraft';
+import {
+  LEGACY_STATUS_DATE_FIELD_BY_KEY,
+  canonicalRelationshipStatusKey,
+  readPartnershipStatusDate,
+  withPartnershipStatusDate,
+} from '../utils/relationshipStatusKeys';
 import PersonNameSection from './sections/PersonNameSection';
 import PersonDatesSection from './sections/PersonDatesSection';
 import PersonFormatSection from './sections/PersonFormatSection';
@@ -48,7 +70,11 @@ import EventsSection from './EventsSection';
 import EventCard from './EventCard';
 import EmotionalPatternModal from './modals/EmotionalPatternModal';
 import type { EmotionalPatternDraft } from '../types/diagramEditor';
-import { LINE_STYLE_VALUES, intensityValueForLineStyle } from '../utils/emotionalPatternOptions';
+import {
+  LINE_STYLE_VALUES,
+  lineStyleForLevel,
+  lineStyleLevel,
+} from '../utils/emotionalPatternOptions';
 
 
 const familyAddBtnStyle: React.CSSProperties = {
@@ -65,25 +91,9 @@ const familyAddBtnStyle: React.CSSProperties = {
 const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
-const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const DEFAULT_OBSERVATION = 'Not recorded - ask client';
-const DEFAULT_HOW_WELL = 1;
 const humanizeOptionLabel = (value: string) =>
   value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-const RELATIONSHIP_STATUS_KEY_ALIASES: Record<string, string> = {
-  started: 'start',
-  start: 'start',
-  divorced: 'divorce',
-  divorce: 'divorce',
-  widowed: 'widowed',
-  ongoing: 'ongoing',
-  ended: 'ended',
-  married: 'married',
-  separated: 'separated',
-};
-const canonicalRelationshipStatusKey = (value: string) =>
-  RELATIONSHIP_STATUS_KEY_ALIASES[value.trim().toLowerCase()] || value.trim().toLowerCase();
 const relationshipStatusRowsForType = (relationshipType: string) =>
   RELATIONSHIP_TYPE_STATUS_ROWS[relationshipType.trim().toLowerCase()] || [];
 const relationshipDateLabelFor = (relationshipType: string, status: string) => {
@@ -92,39 +102,6 @@ const relationshipDateLabelFor = (relationshipType: string, status: string) => {
     (entry) => canonicalRelationshipStatusKey(entry.status) === canonicalStatus
   );
   return mapped?.dateLabel || humanizeOptionLabel(status);
-};
-const emotionalLineStyleLevelFor = (
-  relationshipType: EmotionalLine['relationshipType'],
-  lineStyle: EmotionalLine['lineStyle']
-) => {
-  const lineStyleValues: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
-    fusion: [
-      'fusion-dotted-wide',
-      'fusion-dotted-tight',
-      'fusion-solid-wide',
-      'fusion-solid-tight',
-      'fusion-triple',
-    ],
-    distance: [
-      'distance-dashed-tight',
-      'distance-dashed-wide',
-      'distance-long',
-      'distance-dotted-tight',
-      'distance-dotted-wide',
-    ],
-    cutoff: ['cutoff'],
-    conflict: [
-      'conflict-dotted-wide',
-      'conflict-dotted-tight',
-      'conflict-solid-wide',
-      'conflict-solid-tight',
-      'conflict-double',
-    ],
-    projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
-    'open-connection': ['open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5'],
-  };
-  const index = lineStyleValues[relationshipType].indexOf(lineStyle);
-  return index >= 0 ? index + 1 : 0;
 };
 const AddPatternRow = ({ people, onAdd }: { people: Person[]; onAdd: (otherId: string) => void }) => {
   const [otherId, setOtherId] = React.useState(people[0]?.id ?? '');
@@ -187,15 +164,32 @@ const TAB_HELP_COPY: Record<'properties' | 'functional' | 'events' | 'patterns' 
 };
 const toTitleCase = (value: string) =>
   value.replace(/\b\w/g, (char) => char.toUpperCase());
+// An identity event takes the date of the field it belongs to. With no date
+// there, it has none — "today" is not when anyone's sex or gender was
+// recorded (author decision 2026-09-30: a default of today is fabrication).
 const normalizePersonEventDate = (value?: string) =>
-  value && DATE_PATTERN.test(value) ? value : new Date().toISOString().slice(0, 10);
+  value && DATE_PATTERN.test(value) ? value : '';
 const getBirthSexLabel = (value?: Person['birthSex']) =>
-  value === 'male' ? 'Male' : value === 'intersex' ? 'Intersex' : value === 'ai-agent' ? 'AI Agent' : 'Female';
+  value === 'male'
+    ? 'Male'
+    : value === 'female'
+      ? 'Female'
+      : value === 'intersex'
+        ? 'Intersex'
+        : value === 'ai-agent'
+          ? 'AI Agent'
+          : 'Unknown';
 const getGenderIdentityLabel = (value?: Person['genderIdentity']) => {
+  if (value === 'feminine') return 'Feminine';
   if (value === 'masculine') return 'Masculine';
   if (value === 'nonbinary') return 'Non-Binary';
   if (value === 'agender') return 'Agender';
-  return 'Feminine';
+  return 'Unknown';
+};
+/** Subtype prefix of the identity event each identity field writes. */
+const IDENTITY_EVENT_PREFIX: Record<'birthSex' | 'genderIdentity', string> = {
+  birthSex: 'Birth Sex:',
+  genderIdentity: 'Gender:',
 };
 const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person['genderIdentity'] =>
   birthSex === 'male' ? 'masculine' : birthSex === 'intersex' || birthSex === 'ai-agent' ? 'nonbinary' : 'feminine';
@@ -205,17 +199,6 @@ const defaultGenderIdentityForBirthSex = (birthSex?: Person['birthSex']): Person
 // existing diagrams contain.
 
 const normalizeStatusKey = (value: string) => canonicalRelationshipStatusKey(value);
-const LEGACY_STATUS_DATE_FIELD_BY_KEY: Partial<
-  Record<string, 'relationshipStartDate' | 'marriedStartDate' | 'separationDate' | 'divorceDate'>
-> = {
-  started: 'relationshipStartDate',
-  start: 'relationshipStartDate',
-  ongoing: 'relationshipStartDate',
-  married: 'marriedStartDate',
-  separated: 'separationDate',
-  divorced: 'divorceDate',
-  divorce: 'divorceDate',
-};
 const PERSON_DEFERRED_DATE_FIELDS: (keyof Pick<Person, 'birthDate' | 'deathDate' | 'genderDate'>)[] = [
   'birthDate',
   'deathDate',
@@ -248,38 +231,6 @@ const EMOTIONAL_STRING_FIELDS: (keyof Pick<EmotionalLine, 'startDate' | 'endDate
   'status',
   'adequatePersonId',
 ];
-const readPartnershipStatusDate = (partnership: Partnership, status: string) => {
-  const key = normalizeStatusKey(status);
-  const explicit = partnership.statusDates?.[key];
-  if (explicit) return explicit;
-  const aliasMatches = Object.entries(partnership.statusDates || {}).find(
-    ([entryKey]) => canonicalRelationshipStatusKey(entryKey) === key
-  );
-  if (aliasMatches?.[1]) return aliasMatches[1];
-  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
-  return legacyField ? partnership[legacyField] || '' : '';
-};
-
-const withPartnershipStatusDate = (partnership: Partnership, status: string, value: string) => {
-  const key = normalizeStatusKey(status);
-  const trimmed = value.trim();
-  const nextStatusDates = { ...(partnership.statusDates || {}) };
-  if (trimmed) {
-    nextStatusDates[key] = trimmed;
-  } else {
-    delete nextStatusDates[key];
-  }
-  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
-  const next: Partnership = {
-    ...partnership,
-    statusDates: Object.keys(nextStatusDates).length ? nextStatusDates : undefined,
-  };
-  if (legacyField) {
-    next[legacyField] = trimmed || undefined;
-  }
-  return next;
-};
-
 interface PropertiesPanelProps {
   selectedItem: Person | Partnership | EmotionalLine;
   people: Person[];
@@ -413,7 +364,6 @@ const PropertiesPanel = ({
   const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
   const [editingPatternDraft, setEditingPatternDraft] = useState<EmotionalPatternDraft | null>(null);
   const [editingPatternLineId, setEditingPatternLineId] = useState<string | null>(null);
-  const [personPristine, setPersonPristine] = useState(true);
   const [partnershipPristine, setPartnershipPristine] = useState(true);
   const [emotionalPristine, setEmotionalPristine] = useState(true);
   const selectedPerson = isPerson ? (selectedItem as Person) : null;
@@ -543,7 +493,9 @@ const PropertiesPanel = ({
   };
   const initialEmotionalMetrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
   const [emotionalIntensityDraft, setEmotionalIntensityDraft] = useState<number>(
-    initialEmotionalMetrics.intensity
+    selectedEmotionalLine
+      ? lineStyleLevel(selectedEmotionalLine.relationshipType, selectedEmotionalLine.lineStyle)
+      : 0
   );
   const [emotionalFrequencyDraft, setEmotionalFrequencyDraft] = useState<number>(
     initialEmotionalMetrics.frequency
@@ -557,6 +509,14 @@ const PropertiesPanel = ({
   );
   const [triangleNotesDraft, setTriangleNotesDraft] = useState(triangleNotes || '');
   const selectedPersonIdRef = useRef<string | null>(selectedPerson?.id ?? null);
+  // The person's unsaved date / identity edits. Every other person field
+  // saves as it is typed, and the draft is rebuilt from the live person plus
+  // these edits whenever the person changes — so an auto-saved edit (a name,
+  // a colour, a FOO or Papero score) or an event added elsewhere no longer
+  // throws the pending edits away, and nothing is written from a stale copy.
+  const pendingPersonEditsRef = useRef<Partial<Person>>({});
+  const selectedPartnershipIdRef = useRef<string | null>(selectedPartnership?.id ?? null);
+  const selectedEmotionalLineIdRef = useRef<string | null>(selectedEmotionalLine?.id ?? null);
   const lastNewEventRequestIdRef = useRef<string | null>(null);
   const deriveFallbackParts = (person: Person | null) => {
     if (!person) {
@@ -625,21 +585,22 @@ const PropertiesPanel = ({
 
   useEffect(() => {
     const nextId = selectedPerson?.id ?? null;
-    if (selectedPersonIdRef.current === nextId) return;
-    selectedPersonIdRef.current = nextId;
-    setPersonPristine(true);
-    setPersonDraft(selectedPerson ? { ...selectedPerson } : null);
+    if (selectedPersonIdRef.current !== nextId) {
+      selectedPersonIdRef.current = nextId;
+      pendingPersonEditsRef.current = {};
+    }
+    setPersonDraft(selectedPerson ? { ...selectedPerson, ...pendingPersonEditsRef.current } : null);
   }, [selectedPerson]);
 
+  // A different partnership starts clean. The same partnership changing
+  // (an event saved on it) keeps unsaved edits — see the pristine effect.
   useEffect(() => {
-    if (!personPristine) return;
-    setPersonDraft(selectedPerson ? { ...selectedPerson } : null);
-  }, [selectedPerson, personPristine]);
-
-  useEffect(() => {
+    const nextId = selectedPartnership?.id ?? null;
+    if (selectedPartnershipIdRef.current === nextId) return;
+    selectedPartnershipIdRef.current = nextId;
     setPartnershipPristine(true);
     setPartnershipDraft(selectedPartnership ? { ...selectedPartnership } : null);
-  }, [selectedPartnership?.id, selectedPartnership]);
+  }, [selectedPartnership]);
 
   useEffect(() => {
     if (!partnershipPristine) return;
@@ -671,36 +632,30 @@ const PropertiesPanel = ({
     setPartnershipPristine(false);
   }, [selectedPartnership, initialPartnershipType]);
 
-  useEffect(() => {
-    setEmotionalPristine(true);
-    setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
-    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
-    setEmotionalIntensityDraft(
-      selectedEmotionalLine
-        ? emotionalLineStyleLevelFor(
-            selectedEmotionalLine.relationshipType,
-            selectedEmotionalLine.lineStyle
-          )
-        : metrics.intensity
-    );
+  // The EPL tab's intensity control is the line's GRAPHIC level (its style).
+  // It is not a measurement's `event.intensity` — CLAUDE.md "two unrelated
+  // intensity concepts". Frequency and impact are the measured metrics.
+  const resetEmotionalDrafts = (line: EmotionalLine | null) => {
+    setEmotionalDraft(line ? { ...line } : null);
+    const metrics = deriveEmotionalMetricDraft(line);
+    setEmotionalIntensityDraft(line ? lineStyleLevel(line.relationshipType, line.lineStyle) : 0);
     setEmotionalFrequencyDraft(metrics.frequency);
     setEmotionalImpactDraft(metrics.impact);
-  }, [selectedEmotionalLine?.id, selectedEmotionalLine]);
+  };
+
+  useEffect(() => {
+    const nextId = selectedEmotionalLine?.id ?? null;
+    if (selectedEmotionalLineIdRef.current === nextId) return;
+    selectedEmotionalLineIdRef.current = nextId;
+    setEmotionalPristine(true);
+    resetEmotionalDrafts(selectedEmotionalLine);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmotionalLine]);
 
   useEffect(() => {
     if (!emotionalPristine) return;
-    setEmotionalDraft(selectedEmotionalLine ? { ...selectedEmotionalLine } : null);
-    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
-    setEmotionalIntensityDraft(
-      selectedEmotionalLine
-        ? emotionalLineStyleLevelFor(
-            selectedEmotionalLine.relationshipType,
-            selectedEmotionalLine.lineStyle
-          )
-        : metrics.intensity
-    );
-    setEmotionalFrequencyDraft(metrics.frequency);
-    setEmotionalImpactDraft(metrics.impact);
+    resetEmotionalDrafts(selectedEmotionalLine);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmotionalLine, emotionalPristine]);
 
   useEffect(() => {
@@ -774,19 +729,20 @@ const PropertiesPanel = ({
     }
     let updates: Partial<Person> = { [name]: nextValue };
     if (name === 'birthSex') {
-      const birthSex = nextValue as Person['birthSex'];
+      // '' is "Unknown / not recorded".
+      const birthSex = (nextValue || undefined) as Person['birthSex'];
       updates = {
         ...updates,
         birthSex,
         gender: birthSex,
       };
-      if (!personDraft.genderIdentity) {
+      if (birthSex && !personDraft.genderIdentity) {
         updates.genderIdentity = defaultGenderIdentityForBirthSex(birthSex);
       }
     } else if (name === 'genderIdentity') {
       updates = {
         ...updates,
-        genderIdentity: nextValue as Person['genderIdentity'],
+        genderIdentity: (nextValue || undefined) as Person['genderIdentity'],
       };
     } else if (name === 'foregroundEnabled' && nextValue) {
       updates = {
@@ -814,19 +770,18 @@ const PropertiesPanel = ({
     const isDeferredIdentityField = name === 'birthSex' || name === 'genderIdentity';
     if (!selectedPerson) return;
     if (isDeferredDateField || isDeferredIdentityField) {
-      setPersonPristine(false);
+      pendingPersonEditsRef.current = { ...pendingPersonEditsRef.current, ...updates };
       return;
     }
-    // All non-date person properties auto-save and update live.
+    // All non-date person properties auto-save and update live. Pending
+    // date / identity edits are untouched.
     onUpdatePerson(selectedPerson.id, updates);
-    setPersonPristine(true);
   };
 
   const setPersonSize = (value: number) => {
     if (!personDraft || !selectedPerson) return;
     onUpdatePerson(selectedPerson.id, { size: value });
     updatePersonDraftState({ size: value });
-    setPersonPristine(true);
   };
 
   const adjustPersonSize = (delta: number) => {
@@ -884,45 +839,8 @@ const PropertiesPanel = ({
     setPartnershipPristine(false);
   };
 
-  const lineStyleValues: Record<EmotionalLine['relationshipType'], EmotionalLine['lineStyle'][]> = {
-    fusion: [
-      'fusion-dotted-wide',
-      'fusion-dotted-tight',
-      'fusion-solid-wide',
-      'fusion-solid-tight',
-      'fusion-triple',
-    ],
-    distance: [
-      'distance-dashed-tight',
-      'distance-dashed-wide',
-      'distance-long',
-      'distance-dotted-tight',
-      'distance-dotted-wide',
-    ],
-    cutoff: ['cutoff'],
-    conflict: [
-      'conflict-dotted-wide',
-      'conflict-dotted-tight',
-      'conflict-solid-wide',
-      'conflict-solid-tight',
-      'conflict-double',
-    ],
-    projection: ['projection-1', 'projection-2', 'projection-3', 'projection-4', 'projection-5'],
-    'open-connection': ['open-connection-1', 'open-connection-2', 'open-connection-3', 'open-connection-4', 'open-connection-5'],
-  };
-
   const updateEmotionalDraftState = (updates: Partial<EmotionalLine>) => {
     setEmotionalDraft((prev) => (prev ? { ...prev, ...updates } : prev));
-  };
-
-  const lineStyleForLevel = (
-    relationshipType: EmotionalLine['relationshipType'],
-    level: number
-  ): EmotionalLine['lineStyle'] | null => {
-    const styles = lineStyleValues[relationshipType] || [];
-    if (!styles.length) return null;
-    const boundedIndex = Math.max(0, Math.min(styles.length - 1, level - 1));
-    return styles[boundedIndex] || null;
   };
 
   const applyEmotionalIntensityLevel = (nextLevel: number) => {
@@ -942,7 +860,7 @@ const PropertiesPanel = ({
 
     if (name === 'relationshipType') {
       const newRelationshipType = value as EmotionalLine['relationshipType'];
-      const availableStyles = lineStyleValues[newRelationshipType] || ['low'];
+      const availableStyles = LINE_STYLE_VALUES[newRelationshipType] || ['low'];
       const currentStyle = emotionalDraft.lineStyle;
       const nextStyle = availableStyles.includes(currentStyle)
         ? currentStyle
@@ -951,13 +869,11 @@ const PropertiesPanel = ({
         relationshipType: newRelationshipType,
         lineStyle: nextStyle,
       });
-      setEmotionalIntensityDraft(emotionalLineStyleLevelFor(newRelationshipType, nextStyle));
+      setEmotionalIntensityDraft(lineStyleLevel(newRelationshipType, nextStyle));
     } else if (name === 'lineStyle') {
       const nextLineStyle = value as EmotionalLine['lineStyle'];
       updateEmotionalDraftState({ [name]: nextLineStyle });
-      setEmotionalIntensityDraft(
-        emotionalLineStyleLevelFor(emotionalDraft.relationshipType, nextLineStyle)
-      );
+      setEmotionalIntensityDraft(lineStyleLevel(emotionalDraft.relationshipType, nextLineStyle));
     } else if (name === 'lineEnding') {
       updateEmotionalDraftState({ [name]: value as EmotionalLine['lineEnding'] });
     } else if (name === 'status') {
@@ -997,11 +913,11 @@ const PropertiesPanel = ({
       intensity: 0,
       frequency: 0,
       impact: 0,
-      howWell: DEFAULT_HOW_WELL,
+      howWell: 0,
       otherPersonName: '',
       primaryPersonName: displayName,
-      wwwwh: DEFAULT_OBSERVATION,
-      observations: person.notes || DEFAULT_OBSERVATION,
+      wwwwh: '',
+      observations: '',
       eventClass: 'individual' as const,
       createdAt: Date.now(),
     };
@@ -1013,7 +929,8 @@ const PropertiesPanel = ({
     newValue: number,
     oldValue: number
   ): EmotionalProcessEvent => {
-    const today = new Date().toISOString().slice(0, 10);
+    // No date: the score records an assessment, and when that assessment
+    // applies is the user's to say. createdAt keeps when it was entered.
     const displayName = composeDisplayName({}, person) || person.name || '';
     const paperoSubtypes = EVENT_SUBTYPES.PAPERO ?? {};
     const category =
@@ -1022,8 +939,8 @@ const PropertiesPanel = ({
     const scoreFieldKey = PAPERO_SUBTYPE_TO_KEY[subtypeKey] ?? subtypeKey;
     return {
       id: createEventId(),
-      date: today,
-      startDate: today,
+      date: '',
+      startDate: '',
       category,
       eventType: 'PAPERO' as const,
       anchorType: 'PERSON' as const,
@@ -1033,10 +950,10 @@ const PropertiesPanel = ({
       intensity: newValue,
       frequency: oldValue,
       impact: 0,
-      howWell: DEFAULT_HOW_WELL,
+      howWell: 0,
       otherPersonName: '',
       primaryPersonName: displayName,
-      wwwwh: DEFAULT_OBSERVATION,
+      wwwwh: '',
       observations: `${scoreFieldKey}: ${oldValue > 0 ? oldValue : 'unset'} → ${newValue}`,
       eventClass: 'individual' as const,
       createdAt: Date.now(),
@@ -1054,12 +971,12 @@ const PropertiesPanel = ({
     const person1 = people.find((person) => person.id === line.person1_id);
     const person2 = people.find((person) => person.id === line.person2_id);
     if (!person1 || !person2) return null;
-    const today = new Date().toISOString().slice(0, 10);
     const typeLabel = toTitleCase(line.relationshipType);
     return {
       id: createEventId(),
-      date: today,
-      startDate: today,
+      // Undated: when the measurement applies is the user's to say.
+      date: '',
+      startDate: '',
       endDate: line.endDate || undefined,
       category: 'Emotional Pattern',
       eventType: 'EPE' as const,
@@ -1070,11 +987,11 @@ const PropertiesPanel = ({
       intensity,
       frequency,
       impact,
-      howWell: DEFAULT_HOW_WELL,
+      howWell: 0,
       otherPersonName: person2.name || '',
       primaryPersonName: person1.name || '',
-      wwwwh: DEFAULT_OBSERVATION,
-      observations: line.notes || DEFAULT_OBSERVATION,
+      wwwwh: '',
+      observations: '',
       eventClass: 'emotional-pattern' as const,
       createdAt: Date.now(),
     };
@@ -1106,7 +1023,8 @@ const PropertiesPanel = ({
   const savePersonProperties = () => {
     if (!selectedPerson || !personDraft || !personDirty) return;
     const updates: Partial<Person> = {};
-    const newEvents: EmotionalProcessEvent[] = [];
+    let nextEvents: EmotionalProcessEvent[] = selectedPerson.events || [];
+    let eventsChanged = false;
     const prevDeathKnown = selectedPerson.deathDateKnown ?? false;
     const nextDeathKnown = personDraft.deathDateKnown ?? false;
     if (prevDeathKnown !== nextDeathKnown) {
@@ -1136,36 +1054,52 @@ const PropertiesPanel = ({
       const prev = selectedPerson[field];
       const next = personDraft[field];
       if ((prev ?? '') !== (next ?? '')) {
-        (updates as any)[field] = next || undefined;
         if (field === 'birthSex') {
-          updates.gender = next || undefined;
+          updates.birthSex = personDraft.birthSex || undefined;
+          updates.gender = personDraft.birthSex || undefined;
+        } else {
+          updates.genderIdentity = personDraft.genderIdentity || undefined;
         }
+        // One identity event per field: a change replaces the previous one
+        // (keeping its id), and "Unknown" removes it. Appending left two
+        // contradictory "Birth Sex:" events after a correction.
+        const prefix = IDENTITY_EVENT_PREFIX[field];
+        const isIdentityEvent = (event: EmotionalProcessEvent) =>
+          (event.category || '') === 'Individual' && (event.subtype || '').startsWith(prefix);
+        const existing = nextEvents.find(isIdentityEvent);
+        const others = nextEvents.filter((event) => !isIdentityEvent(event));
         if (next) {
           const eventDate =
             field === 'birthSex'
               ? personDraft.birthDate || selectedPerson.birthDate || ''
               : personDraft.genderDate || selectedPerson.genderDate || '';
-          newEvents.push(buildPersonIdentityEvent(personDraft, field, next, eventDate));
+          const built = buildPersonIdentityEvent(personDraft, field, next, eventDate);
+          nextEvents = [
+            ...others,
+            existing ? { ...existing, ...built, id: existing.id, createdAt: existing.createdAt ?? built.createdAt } : built,
+          ];
+        } else {
+          nextEvents = others;
         }
+        eventsChanged = eventsChanged || !!next || !!existing;
       }
     });
-    if (newEvents.length) {
-      updates.events = [...(selectedPerson.events || []), ...newEvents];
+    if (eventsChanged) {
+      updates.events = nextEvents;
     }
+    pendingPersonEditsRef.current = {};
     if (!Object.keys(updates).length) {
-      setPersonPristine(true);
       setPersonDraft({ ...selectedPerson });
       return;
     }
     onUpdatePerson(selectedPerson.id, updates);
     setPersonDraft((prev) => (prev ? { ...prev, ...updates } : prev));
-    setPersonPristine(true);
   };
 
   const cancelPersonChanges = () => {
     if (!selectedPerson) return;
+    pendingPersonEditsRef.current = {};
     setPersonDraft({ ...selectedPerson });
-    setPersonPristine(true);
   };
 
   const partnershipDirty = useMemo(() => {
@@ -1239,20 +1173,18 @@ const PropertiesPanel = ({
       stringDiffers(emotionalDraft[field], selectedEmotionalLine[field])
     ) || emotionalDraft.person1_id !== selectedEmotionalLine.person1_id;
   }, [selectedEmotionalLine, emotionalDraft]);
+  // A measurement is recorded only when a MEASURED metric changed. The
+  // intensity control sets the line's style (compared in emotionalDirty via
+  // lineStyle); comparing it with the last measurement's event.intensity made
+  // every line without a matching measurement "dirty" as soon as it opened.
   const emotionalMetricDirty = useMemo(() => {
     if (!selectedEmotionalLine) return false;
     const baseline = deriveEmotionalMetricDraft(selectedEmotionalLine);
     return (
-      emotionalIntensityDraft !== baseline.intensity ||
       emotionalFrequencyDraft !== baseline.frequency ||
       emotionalImpactDraft !== baseline.impact
     );
-  }, [
-    selectedEmotionalLine,
-    emotionalIntensityDraft,
-    emotionalFrequencyDraft,
-    emotionalImpactDraft,
-  ]);
+  }, [selectedEmotionalLine, emotionalFrequencyDraft, emotionalImpactDraft]);
   const triangleColorDirty = useMemo(() => {
     if (!triangleId) return false;
     return triangleColorDraft !== (triangleColor || '#8a5a00');
@@ -1302,9 +1234,11 @@ const PropertiesPanel = ({
     // between two people, and it was the source of repeated identical
     // blocks on the timeline. The pattern's own fields carry its state.
     if (emotionalMetricDirty) {
+      // The measurement's own intensity carries forward from the last
+      // measurement — the line-style level is not a measured value.
       const metricEvent = buildEmotionalPatternMeasurementEvent(
         { ...selectedEmotionalLine, ...emotionalDraft },
-        emotionalIntensityDraft,
+        deriveEmotionalMetricDraft(selectedEmotionalLine).intensity,
         emotionalFrequencyDraft,
         emotionalImpactDraft
       );
@@ -1324,25 +1258,17 @@ const PropertiesPanel = ({
     }
     if (!Object.keys(updates).length) {
       setEmotionalPristine(true);
-      setEmotionalDraft({ ...selectedEmotionalLine });
+      resetEmotionalDrafts(selectedEmotionalLine);
       return;
     }
     onUpdateEmotionalLine(selectedEmotionalLine.id, updates);
-    setEmotionalDraft((prev) => (prev ? { ...prev, ...updates } : prev));
-    const metrics = deriveEmotionalMetricDraft({ ...selectedEmotionalLine, ...updates });
-    setEmotionalIntensityDraft(metrics.intensity);
-    setEmotionalFrequencyDraft(metrics.frequency);
-    setEmotionalImpactDraft(metrics.impact);
+    resetEmotionalDrafts({ ...selectedEmotionalLine, ...updates });
     setEmotionalPristine(true);
   };
 
   const cancelEmotionalChanges = () => {
     if (!selectedEmotionalLine) return;
-    setEmotionalDraft({ ...selectedEmotionalLine });
-    const metrics = deriveEmotionalMetricDraft(selectedEmotionalLine);
-    setEmotionalIntensityDraft(metrics.intensity);
-    setEmotionalFrequencyDraft(metrics.frequency);
-    setEmotionalImpactDraft(metrics.impact);
+    resetEmotionalDrafts(selectedEmotionalLine);
     setTriangleColorDraft(triangleColor || '#8a5a00');
     setTriangleIntensityDraft(triangleIntensity || 'medium');
     setTriangleNotesDraft(triangleNotes || '');
@@ -1356,96 +1282,101 @@ const PropertiesPanel = ({
     return '';
   };
 
-  const getEvents = useCallback(() => {
-    if (isPerson) return (selectedItem as Person).events || [];
-    if (isPartnership) return (selectedItem as Partnership).events || [];
-    return (selectedItem as EmotionalLine).events || [];
-  }, [isPerson, isPartnership, selectedItem]);
+  // The entity whose tab this is, as an event owner.
+  const selfOwner = useMemo<EventOwner>(
+    () => ({
+      kind: isPerson ? 'person' : isPartnership ? 'partnership' : 'emotional',
+      id: selectedItem.id,
+    }),
+    [isPerson, isPartnership, selectedItem.id]
+  );
 
-  // For Person view only: aggregate ALL events the person is involved in —
-  // their own person.events plus partnership.events and EPL.events from any
-  // relationship/EPL where they are a partner. Excludes triangle and family
-  // events. Older partnership events get cloned to person.events with id
-  // suffix `-p1` / `-p2`, so we dedupe by checking for that prefix.
-  // Also synthesizes phantom events for raw date fields (birthDate,
-  // deathDate, partnership marriage/divorce dates, EPL start/end) when no
-  // matching real event exists, so what's on the timeline matches what's
-  // listed in the Events tab.
-  const getDisplayEvents = useCallback((): EmotionalProcessEvent[] => {
-    if (!isPerson) {
-      const ownEvents = getEvents();
-      if (isPartnership) {
-        const partnership = selectedItem as Partnership;
-        const partner1 = people.find((p) => p.id === partnership.partner1_id);
-        const partner2 = people.find((p) => p.id === partnership.partner2_id);
-        return [
-          ...ownEvents,
-          ...synthesizePartnershipDateEvents(partnership, partner1?.name, partner2?.name),
-        ];
-      }
-      if (isEmotionalLine) {
-        const line = selectedItem as EmotionalLine;
-        const person1 = people.find((p) => p.id === line.person1_id);
-        const person2 = people.find((p) => p.id === line.person2_id);
-        return [
-          // The pattern's own tab: one event for it, one each for its start
-          // and end — edit records hidden (utils/patternEventRecords.ts).
-          ...withoutPatternEditRecords(ownEvents),
-          ...synthesizeEmotionalLineDateEvents(line, person1?.name, person2?.name),
-        ];
-      }
-      return ownEvents;
+  // Every row on this Events tab, each with the entity that owns it. A
+  // person's tab lists events it does not own — its partnerships' events and
+  // family events, its patterns' events, and the date fields of all of them —
+  // and Edit / Delete must act on that owner. They used to act on the
+  // person's own list, so Delete did nothing and Edit wrote a copy.
+  // Date fields appear through the synthesizer (one event per field); the
+  // companion events that hold their notes are therefore not listed directly.
+  const displayRows = useMemo((): Array<{ event: EmotionalProcessEvent; owner: EventOwner }> => {
+    const nameOf = (id: string) => people.find((p) => p.id === id)?.name;
+    if (isPartnership) {
+      const partnership = selectedItem as Partnership;
+      return [
+        ...withoutDateSlotCompanions(partnership.events),
+        ...synthesizePartnershipDateEvents(partnership, nameOf(partnership.partner1_id), nameOf(partnership.partner2_id)),
+      ].map((event) => ({ event, owner: selfOwner }));
+    }
+    if (isEmotionalLine) {
+      const line = selectedItem as EmotionalLine;
+      return [
+        // The pattern's own tab: one event for it, one each for its start
+        // and end — edit records hidden (utils/patternEventRecords.ts).
+        ...withoutPatternEditRecords(withoutDateSlotCompanions(line.events)),
+        ...synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)),
+      ].map((event) => ({ event, owner: selfOwner }));
     }
     const person = selectedItem as Person;
     // Date records are hidden rather than deleted — see utils/personDateEvents.ts.
-    const ownEvents = withoutPersonDateRecords(person.events || []);
+    const ownEvents = withoutPersonDateRecords(withoutDateSlotCompanions(person.events));
     const ownIds = new Set(ownEvents.map((e) => e.id));
     // The clone rule lives in utils/eventDedup.ts so this panel and the
-    // Timeline cannot drift: the inline version here only recognised an
-    // original whose clone was held, not a clone whose original was.
+    // Timeline cannot drift.
     const isAlreadyCloned = (sourceId: string) => hasSameEvent(sourceId, ownIds);
-    const extra: EmotionalProcessEvent[] = [];
-    // Synthesized birth/death/adoption from date fields
-    extra.push(...synthesizePersonDateEvents(person));
-    // Real events from partnerships the person is part of
+    const rows: Array<{ event: EmotionalProcessEvent; owner: EventOwner }> = [
+      ...ownEvents,
+      // Birth / death / adoption / gender dates and indicator-backed
+      // symptoms — the same synthesizers the Timeline lane uses (M7.A.1,
+      // M7.B.1), so the two views list the same events.
+      ...synthesizePersonDateEvents(person),
+      ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
+    ].map((event) => ({ event, owner: selfOwner }));
     partnerships.forEach((p) => {
       if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;
-      const partner1 = people.find((q) => q.id === p.partner1_id);
-      const partner2 = people.find((q) => q.id === p.partner2_id);
-      withoutPartnershipStatusRecords(p.events || [], p).forEach((event) => {
-        if (isAlreadyCloned(event.id)) return;
-        extra.push(event);
+      const owner: EventOwner = { kind: 'partnership', id: p.id };
+      withoutPartnershipStatusRecords(withoutDateSlotCompanions(p.events), p).forEach((event) => {
+        if (!isAlreadyCloned(event.id)) rows.push({ event, owner });
       });
-      // Family-level events (FAMILY / TRIANGLE) of the person's own
-      // partnerships. The Timeline lane lists these; without them here the
-      // two views disagree again.
-      // Spec: docs/implementation_plan_2026-09-19.md#M7.A.2
+      // Family-level events of the person's own partnerships (M7.A.2).
       (p.familyEvents || []).forEach((event) => {
-        if (isAlreadyCloned(event.id)) return;
-        extra.push(event);
+        if (!isAlreadyCloned(event.id)) rows.push({ event, owner: { ...owner, list: 'familyEvents' } });
       });
-      // Synthesized partnership-date events
-      synthesizePartnershipDateEvents(p, partner1?.name, partner2?.name).forEach((e) => {
-        if (ownIds.has(e.id)) return;
-        extra.push(e);
+      synthesizePartnershipDateEvents(p, nameOf(p.partner1_id), nameOf(p.partner2_id)).forEach((event) => {
+        rows.push({ event, owner });
       });
     });
-    // Real + synthesized EPL events from EPLs the person is part of
     allEmotionalLines.forEach((line) => {
       if (line.person1_id !== person.id && line.person2_id !== person.id) return;
-      const p1 = people.find((q) => q.id === line.person1_id);
-      const p2 = people.find((q) => q.id === line.person2_id);
-      withoutPatternEditRecords(line.events || []).forEach((event) => {
-        if (isAlreadyCloned(event.id)) return;
-        extra.push(event);
+      const owner: EventOwner = { kind: 'emotional', id: line.id };
+      withoutPatternEditRecords(withoutDateSlotCompanions(line.events)).forEach((event) => {
+        if (!isAlreadyCloned(event.id)) rows.push({ event, owner });
       });
-      synthesizeEmotionalLineDateEvents(line, p1?.name, p2?.name).forEach((e) => {
-        if (ownIds.has(e.id)) return;
-        extra.push(e);
+      synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)).forEach((event) => {
+        rows.push({ event, owner });
       });
     });
-    return [...ownEvents, ...extra];
-  }, [isPerson, isPartnership, isEmotionalLine, selectedItem, people, partnerships, allEmotionalLines, getEvents]);
+    return rows;
+  }, [isPartnership, isEmotionalLine, selectedItem, people, partnerships, allEmotionalLines, functionalIndicatorDefinitions, selfOwner]);
+  const displayEvents = useMemo(() => displayRows.map((row) => row.event), [displayRows]);
+  const ownerOfEvent = useCallback(
+    (eventId: string): EventOwner =>
+      displayRows.find((row) => row.event.id === eventId)?.owner || selfOwner,
+    [displayRows, selfOwner]
+  );
+  const entityForOwner = (owner: EventOwner): EventOwnerEntity | undefined => {
+    if (owner.id === selectedItem.id) return selectedItem;
+    if (owner.kind === 'person') return people.find((p) => p.id === owner.id);
+    if (owner.kind === 'partnership') return partnerships.find((p) => p.id === owner.id);
+    return allEmotionalLines.find((line) => line.id === owner.id);
+  };
+  const applyOwnerUpdates = (owner: EventOwner, updates: Partial<Person> | Partial<Partnership> | Partial<EmotionalLine>) => {
+    if (owner.kind === 'person') onUpdatePerson(owner.id, updates as Partial<Person>);
+    else if (owner.kind === 'partnership') onUpdatePartnership(owner.id, updates as Partial<Partnership>);
+    else onUpdateEmotionalLine(owner.id, updates as Partial<EmotionalLine>);
+  };
+  // Which owner the open event dialog saves to.
+  const [eventDraftOwner, setEventDraftOwner] = useState<EventOwner | null>(null);
+
   // System events — a relative's nodal events, shown read-only on a person's
   // Events tab so it lists the same set the Timeline lane shows (D14).
   // Spec: docs/implementation_plan_2026-09-19.md#M7.F.1
@@ -1485,8 +1416,6 @@ const PropertiesPanel = ({
     [isEmotionalLine]
   );
   const inferEventType = inferEventTypeFromConstants;
-  const normalizeEventDate = (event: EmotionalProcessEvent): string =>
-    event.startDate || event.date || '';
   const symptomTypeOptions = useMemo(() => {
     const currentCategory = (eventDraft?.category || 'physical').toLowerCase().trim();
     const labels = functionalIndicatorDefinitions
@@ -1631,78 +1560,30 @@ const PropertiesPanel = ({
   }, [selectedPerson, functionalIndicatorDefinitions]);
 
 
+  // A new event holds only what its seed gives (author decisions
+  // 2026-09-30): no date, no rating, nothing copied from the last event.
   const buildEventDraft = useCallback((
     eventType: EventType,
     seed?: Partial<EmotionalProcessEvent> | null
-  ): EmotionalProcessEvent => {
-    const anchorType = resolveAnchorType();
-    const anchorId = selectedItem.id;
-    const anchorEvents = getEvents();
-    const similarEvents = anchorEvents
-      .filter((event) => {
-        const eType = inferEventType(event);
-        if (eType !== eventType) return false;
-        if ((event.anchorType || anchorType) !== anchorType) return false;
-        if ((event.anchorId || anchorId) !== anchorId) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const aTs = normalizeEventDate(a) ? new Date(normalizeEventDate(a)).getTime() : 0;
-        const bTs = normalizeEventDate(b) ? new Date(normalizeEventDate(b)).getTime() : 0;
-        return bTs - aTs;
-      });
-    const latest = similarEvents[0];
-    const baseDate = seed?.startDate || seed?.date || latest?.startDate || latest?.date || new Date().toISOString().slice(0, 10);
-    const baseEndDate = seed?.endDate || latest?.endDate || '';
-    const normalizeSymptomCat = (cat: string) => {
-      const lower = cat.toLowerCase();
-      return lower.charAt(0).toUpperCase() + lower.slice(1);
-    };
-    const baseCategory =
-      eventType === 'SYMPTOM'
-        ? normalizeSymptomCat(seed?.category || latest?.category || 'Physical')
-        : seed?.category ||
-          latest?.category ||
-          (eventType === 'EPE' ? 'Emotional Pattern' : eventCategories[0] || 'Nodal');
-    return {
-      id: createEventId(),
-      date: baseDate,
-      startDate: baseDate,
-      endDate: baseEndDate,
-      category: baseCategory,
+  ): EmotionalProcessEvent =>
+    buildNewEventDraft({
       eventType,
-      subtype: seed?.subtype || latest?.subtype || '',
-      anchorType,
-      anchorId,
-      status: seed?.status || latest?.status || 'discrete',
-      intensity: typeof (seed?.intensity ?? latest?.intensity) === 'number' ? Number(seed?.intensity ?? latest?.intensity) : 1,
-      frequency: typeof (seed?.frequency ?? latest?.frequency) === 'number' ? Number(seed?.frequency ?? latest?.frequency) : 0,
-      impact: typeof (seed?.impact ?? latest?.impact) === 'number' ? Number(seed?.impact ?? latest?.impact) : 0,
-      howWell: typeof (seed?.howWell ?? latest?.howWell) === 'number' ? Number(seed?.howWell ?? latest?.howWell) : 5,
-      otherPersonName: seed?.otherPersonName || latest?.otherPersonName || 'None',
-      primaryPersonName: seed?.primaryPersonName || latest?.primaryPersonName || primaryPersonOptions[0] || '',
-      wwwwh: seed?.wwwwh || latest?.wwwwh || '',
-      observations: seed?.observations || latest?.observations || '',
-      priorEventsNote: seed?.priorEventsNote || latest?.priorEventsNote || '',
-      reflectionsNote: seed?.reflectionsNote || latest?.reflectionsNote || '',
-      createdAt: Date.now(),
-      symptomType: eventType === 'SYMPTOM' ? (seed?.symptomType || latest?.symptomType || '') : undefined,
-      eventClass: (seed?.eventClass as EventClass) || latest?.eventClass || resolveEventClass(),
-    };
-  }, [
-    eventCategories,
-    getEvents,
-    isEmotionalLine,
-    otherPersonOptions,
-    primaryPersonOptions,
-    resolveAnchorType,
-    resolveEventClass,
-    selectedItem,
-  ]);
+      anchorType: resolveAnchorType(),
+      anchorId: selectedItem.id,
+      eventClass: resolveEventClass(),
+      primaryPersonName: primaryPersonOptions[0] || '',
+      // An event on a pattern starts in the pattern's own category.
+      defaultCategory:
+        isEmotionalLine && eventType === 'EPE'
+          ? EPE_CATEGORY_BY_PATTERN_TYPE[(selectedItem as EmotionalLine).relationshipType]
+          : undefined,
+      seed,
+    }), [isEmotionalLine, primaryPersonOptions, resolveAnchorType, resolveEventClass, selectedItem]);
 
   const openNewEvent = (seed?: Partial<EmotionalProcessEvent> | null, modalTitle?: string) => {
     const eventType = (seed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, seed));
+    setEventDraftOwner(selfOwner);
     setEventModalPosition(openNewEventPosition || null);
     setEventModalTitle(modalTitle || undefined);
     setEventModalOpen(true);
@@ -1714,15 +1595,18 @@ const PropertiesPanel = ({
     const cat = event.category || '';
     const sub = event.symptomType || event.subtype || '';
     const editTitle = ['Edit', typeLabel, cat, sub].filter(Boolean).join(' ');
+    const owner = ownerOfEvent(event.id);
+    setEventDraftOwner(owner);
     setEventDraft({
       ...event,
-      category: event.category || eventCategories[0] || '',
+      category: event.category || '',
       eventType: eType,
-      startDate: event.startDate || event.date || '',
+      startDate: event.startDate ?? event.date ?? '',
+      date: event.startDate ?? event.date ?? '',
       endDate: event.endDate || '',
-      subtype: event.subtype || '',
-      anchorType: event.anchorType || resolveAnchorType(),
-      anchorId: event.anchorId || selectedItem.id,
+      subtype: event.subtype || (eType === 'SYMPTOM' ? event.symptomType || '' : ''),
+      anchorType: event.anchorType || anchorTypeForOwner(owner.kind),
+      anchorId: event.anchorId || owner.id,
       otherPersonName: event.otherPersonName || 'None',
       primaryPersonName: event.primaryPersonName || primaryPersonOptions[0] || '',
       frequency: typeof event.frequency === 'number' ? event.frequency : 0,
@@ -1732,8 +1616,8 @@ const PropertiesPanel = ({
       reflectionsNote: event.reflectionsNote || '',
       status: event.status || 'discrete',
       createdAt: event.createdAt ?? Date.now(),
-      symptomType: eType === 'SYMPTOM' ? (event.symptomType || '') : undefined,
-      eventClass: event.eventClass || resolveEventClass(),
+      symptomType: eType === 'SYMPTOM' ? (event.symptomType || event.subtype || '') : undefined,
+      eventClass: event.eventClass || eventClassForOwner(owner.kind),
     });
     setEventModalPosition(null);
     setEventModalTitle(editTitle);
@@ -1746,160 +1630,45 @@ const PropertiesPanel = ({
     setActiveTab('events');
     const eventType = (newEventSeed?.eventType as EventType) || resolveDefaultEventType();
     setEventDraft(buildEventDraft(eventType, newEventSeed || null));
+    setEventDraftOwner(selfOwner);
     setEventModalPosition(openNewEventPosition || null);
     setEventModalTitle(newEventModalTitle || undefined);
     setEventModalOpen(true);
-  }, [openNewEventRequestId, newEventSeed, openNewEventPosition, newEventModalTitle, resolveDefaultEventType, buildEventDraft]);
+  }, [openNewEventRequestId, newEventSeed, openNewEventPosition, newEventModalTitle, resolveDefaultEventType, buildEventDraft, selfOwner]);
 
   const handleEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
     if (!eventDraft) return;
-    if (field === 'eventType') {
-      const nextType = value as EventType;
-      if (nextType === 'SYMPTOM') {
-        const nextCategory = (eventDraft.category || 'physical').toLowerCase();
-        setEventDraft({
-          ...eventDraft,
-          eventType: nextType,
-          category: nextCategory,
-          symptomType: eventDraft.symptomType || '',
-        });
-        return;
-      }
-      if (nextType === 'EPE') {
-        setEventDraft({
-          ...eventDraft,
-          eventType: nextType,
-          category: eventDraft.category || 'Emotional Pattern',
-          symptomType: undefined,
-        });
-        return;
-      }
-      setEventDraft({
-        ...eventDraft,
-        eventType: nextType,
-        symptomType: undefined,
-      });
-      return;
-    }
-    if (field === 'intensity' || field === 'howWell' || field === 'frequency' || field === 'impact') {
-      const numeric = Number(value);
-      setEventDraft({ ...eventDraft, [field]: Number.isNaN(numeric) ? 0 : numeric });
-      return;
-    }
-    if (field === 'category' && inferEventType(eventDraft) === 'SYMPTOM') {
-      const normalizedCat = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-      setEventDraft({
-        ...eventDraft,
-        category: normalizedCat,
-      });
-      return;
-    }
-    if (field === 'symptomType' && inferEventType(eventDraft) === 'SYMPTOM') {
-      setEventDraft({
-        ...eventDraft,
-        symptomType: value.slice(0, 30),
-      });
-      return;
-    }
-    setEventDraft({ ...eventDraft, [field]: value });
+    setEventDraft(applyEventDraftFieldChange(eventDraft, field, value));
   };
 
   const saveEvent = () => {
     if (!eventDraft) return;
-    const normalizedType = eventDraft.eventType || inferEventType(eventDraft);
-    const normalizedStart = eventDraft.startDate || eventDraft.date || '';
-    const cleanedDraft = {
-      ...eventDraft,
-      eventType: normalizedType,
-      category:
-        normalizedType === 'SYMPTOM'
-          ? (() => { const c = eventDraft.category || 'Physical'; return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase(); })()
-          : eventDraft.category,
-      anchorType: eventDraft.anchorType || resolveAnchorType(),
-      anchorId: eventDraft.anchorId || selectedItem.id,
-      startDate: normalizedStart,
-      date: normalizedStart,
-      otherPersonName: (eventDraft.otherPersonName || '').trim() || 'None',
-      primaryPersonName: eventDraft.primaryPersonName || primaryPersonOptions[0] || '',
-      intensity: typeof eventDraft.intensity === 'number' ? eventDraft.intensity : 0,
-      frequency: typeof eventDraft.frequency === 'number' ? eventDraft.frequency : 0,
-      impact: typeof eventDraft.impact === 'number' ? eventDraft.impact : 0,
-      priorEventsNote: eventDraft.priorEventsNote || '',
-      reflectionsNote: eventDraft.reflectionsNote || '',
-      status: eventDraft.status || 'discrete',
-      createdAt: eventDraft.createdAt ?? Date.now(),
-      // sourceIndicatorId links an event back to the functional indicator it
-      // describes, and is what tells a reader "this event names a symptom".
-      // It used to be copied through on every save while symptomType was
-      // cleared, so changing an event's type left a stale link behind and the
-      // event would be displayed by its subtype instead of its category.
-      // SYMPTOM and FF are both legitimate carriers (the Symptoms tab saves
-      // as FF); anything else drops the link.
-      sourceIndicatorId:
-        normalizedType === 'SYMPTOM' || normalizedType === 'FF'
-          ? eventDraft.sourceIndicatorId
-          : undefined,
-      symptomType: normalizedType === 'SYMPTOM' ? (eventDraft.symptomType || '') : undefined,
-      eventClass: eventDraft.eventClass || resolveEventClass(),
-    };
-    const events = getEvents();
-    const existingIndex = events.findIndex((evt) => evt.id === eventDraft.id);
-    const nextEvents = existingIndex === -1
-      ? [...events, cleanedDraft]
-      : events.map((evt) => (evt.id === eventDraft.id ? cleanedDraft : evt));
-    if (isPerson) {
-      const person = selectedItem as Person;
-      const updates: Partial<Person> = { events: nextEvents };
-      if (normalizedType === 'SYMPTOM') {
-        const normalizedGroup = (cleanedDraft.category || 'physical').toLowerCase();
-        const normalizedTypeLabel = (cleanedDraft.symptomType || '').slice(0, 30);
-        const definition =
-          (normalizedTypeLabel
-            ? functionalIndicatorDefinitions.find(
-                (entry) => entry.label.trim().toLowerCase() === normalizedTypeLabel.toLowerCase()
-              )
-            : undefined) ||
-          functionalIndicatorDefinitions.find((entry) => entry.group === normalizedGroup);
-        const ensuredDefinitionId =
-          definition?.id ||
-          onEnsureSymptomCategoryDefinition?.(normalizedTypeLabel, normalizedGroup as any) ||
-          null;
-        if (ensuredDefinitionId) {
-          cleanedDraft.sourceIndicatorId = ensuredDefinitionId;
-          updates.events = existingIndex === -1
-            ? [...events, cleanedDraft]
-            : events.map((evt) => (evt.id === eventDraft.id ? cleanedDraft : evt));
-          const entry = {
-            definitionId: ensuredDefinitionId,
-            status: 'current' as const,
-            impact: typeof cleanedDraft.impact === 'number' ? cleanedDraft.impact : 0,
-            frequency: typeof cleanedDraft.frequency === 'number' ? cleanedDraft.frequency : 0,
-            intensity: typeof cleanedDraft.intensity === 'number' ? cleanedDraft.intensity : 0,
-            date: cleanedDraft.startDate || cleanedDraft.date || '',
-            lastUpdatedAt: cleanedDraft.createdAt,
-          };
-          const current = person.functionalIndicators || [];
-          updates.functionalIndicators = [
-            ...current.filter((indicator) => indicator.definitionId !== ensuredDefinitionId),
-            entry,
-          ];
-        }
-      }
-      onUpdatePerson(selectedItem.id, updates);
-    } else if (isPartnership) {
-      onUpdatePartnership(selectedItem.id, { events: nextEvents });
-    } else {
-      onUpdateEmotionalLine(selectedItem.id, { events: nextEvents });
-    }
+    const owner = eventDraftOwner || selfOwner;
+    const entity = entityForOwner(owner);
+    if (!entity) return;
+    const normalized = normalizeEventForSave(eventDraft, {
+      anchorType: anchorTypeForOwner(owner.kind),
+      anchorId: owner.id,
+      eventClass: eventClassForOwner(owner.kind),
+      primaryPersonName: primaryPersonOptions[0] || '',
+    });
+    applyOwnerUpdates(
+      owner,
+      saveEventOnOwner(owner, entity, normalized, {
+        definitions: functionalIndicatorDefinitions,
+        ensureSymptomDefinition: onEnsureSymptomCategoryDefinition,
+      })
+    );
     setEventModalOpen(false);
     setEventDraft(null);
+    setEventDraftOwner(null);
   };
 
   const deleteEvent = (id: string) => {
-    const events = getEvents().filter((ev) => ev.id !== id);
-    if (isPerson) onUpdatePerson(selectedItem.id, { events });
-    else if (isPartnership) onUpdatePartnership(selectedItem.id, { events });
-    else onUpdateEmotionalLine(selectedItem.id, { events });
+    const owner = ownerOfEvent(id);
+    const entity = entityForOwner(owner);
+    if (!entity) return;
+    applyOwnerUpdates(owner, deleteEventFromOwner(owner, entity, id));
   };
 
   const deleteIndicatorOnly = (definitionId: string) => {
@@ -2026,7 +1795,6 @@ const PropertiesPanel = ({
           onChange={handlePersonChange}
           onUpdatePerson={onUpdatePerson}
           updatePersonDraftState={updatePersonDraftState}
-          onSetPersonPristine={setPersonPristine}
           fooHelpOpen={fooHelpOpen}
           onFooHelpOpenChange={setFooHelpOpen}
         />
@@ -2680,6 +2448,7 @@ const PropertiesPanel = ({
                   intensity={null}
                   leftBorderColor={el.color || '#444444'}
                   onEdit={() => {
+                    const metrics = deriveEmotionalMetricDraft(el);
                     setEditingPatternLineId(el.id);
                     setEditingPatternDraft({
                       person1Id: el.person1_id,
@@ -2689,9 +2458,10 @@ const PropertiesPanel = ({
                       lineStyle: el.lineStyle,
                       startDate: el.startDate || '',
                       endDate: el.endDate || '',
-                      intensityLevel: intensityValueForLineStyle(el.lineStyle),
-                      frequency: 0,
-                      impact: 0,
+                      intensityLevel: lineStyleLevel(el.relationshipType, el.lineStyle),
+                      // The last measurement, so an untouched Save records nothing new.
+                      frequency: metrics.frequency,
+                      impact: metrics.impact,
                       notes: el.notes || '',
                       color: el.color || '#444444',
                       adequatePersonId: el.adequatePersonId || '',
@@ -2710,7 +2480,6 @@ const PropertiesPanel = ({
           selectedPerson={selectedPerson}
           onUpdatePerson={onUpdatePerson}
           updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
-          onSetPersonPristine={setPersonPristine}
           onScoreChange={(subtypeKey, newValue, oldValue) => {
             const event = buildPaperoScoreEvent(selectedPerson, subtypeKey, newValue, oldValue);
             appendEventsToPerson(selectedPerson.id, [event]);
@@ -2719,19 +2488,15 @@ const PropertiesPanel = ({
       )}
       {activeTab === 'sir' && isPerson && selectedPerson && personDraft && (
         <PersonSIRSection
-          personDraft={personDraft}
           selectedPerson={selectedPerson}
           people={people}
           sirCategories={sirCategories}
           onUpdatePerson={onUpdatePerson}
-          updatePersonDraftState={(updates) => setPersonDraft((prev) => ({ ...prev!, ...updates }))}
         />
       )}
       {activeTab === 'events' && (
         <EventsSection
-          allEvents={getDisplayEvents()}
-          currentAnchorType={resolveAnchorType()}
-          currentAnchorId={selectedItem.id}
+          allEvents={displayEvents}
           addEventButtonLabel="+ Add Event"
           onAddEvent={() => {
             const entityLabel = isPerson ? 'Person' : isPartnership ? 'Partnership' : isEmotionalLine ? 'Emotional Pattern' : '';
@@ -2739,8 +2504,6 @@ const PropertiesPanel = ({
           }}
           onEditEvent={openEditEvent}
           onDeleteEvent={deleteEvent}
-          onLinkEvent={() => {}}
-          onCreateAndAttach={() => {}}
           systemEvents={systemEventsResult.events}
           systemEventsNote={
             systemEventsResult.lifetimeFilterApplied
@@ -2777,10 +2540,11 @@ const PropertiesPanel = ({
           symptomTypeOptions={symptomTypeOptions}
           resolvedEventClass={resolveEventClass()}
           modalTitle={eventModalTitle}
+          lockCategory={isDateSlotEventId(eventDraft.id)}
           onChange={handleEventDraftChange}
           onSetDraft={setEventDraft}
           onSave={saveEvent}
-          onCancel={() => { setEventModalOpen(false); setEventDraft(null); }}
+          onCancel={() => { setEventModalOpen(false); setEventDraft(null); setEventDraftOwner(null); }}
         />
       )}
       <EmotionalPatternModal
@@ -2790,22 +2554,43 @@ const PropertiesPanel = ({
         onUpdate={(updates) => setEditingPatternDraft((prev) => prev ? { ...prev, ...updates } : prev)}
         onCancel={() => { setEditingPatternDraft(null); setEditingPatternLineId(null); }}
         onSave={() => {
-          if (editingPatternDraft && editingPatternLineId) {
-            const validStyles = LINE_STYLE_VALUES[editingPatternDraft.relationshipType] || [];
-            const lineStyle = validStyles.includes(editingPatternDraft.lineStyle)
-              ? editingPatternDraft.lineStyle
+          const line = allEmotionalLines.find((entry) => entry.id === editingPatternLineId);
+          if (editingPatternDraft && editingPatternLineId && line) {
+            // Every field the dialog edits is saved. Adequate person,
+            // frequency, impact and the intensity slider used to be dropped.
+            const draft = editingPatternDraft;
+            const validStyles = LINE_STYLE_VALUES[draft.relationshipType] || [];
+            const styleFromLevel =
+              draft.intensityLevel !== lineStyleLevel(line.relationshipType, line.lineStyle)
+                ? lineStyleForLevel(draft.relationshipType, draft.intensityLevel)
+                : null;
+            const candidate = styleFromLevel || draft.lineStyle;
+            const lineStyle = validStyles.includes(candidate)
+              ? candidate
               : (validStyles[0] as EmotionalLine['lineStyle']);
-            onUpdateEmotionalLine(editingPatternLineId, {
-              person1_id: editingPatternDraft.person1Id,
-              person2_id: editingPatternDraft.person2Id,
-              relationshipType: editingPatternDraft.relationshipType,
-              status: editingPatternDraft.status,
+            const updates: Partial<EmotionalLine> = {
+              person1_id: draft.person1Id,
+              person2_id: draft.person2Id,
+              relationshipType: draft.relationshipType,
+              status: draft.status,
               lineStyle,
-              startDate: editingPatternDraft.startDate || undefined,
-              endDate: editingPatternDraft.endDate || undefined,
-              notes: editingPatternDraft.notes || undefined,
-              color: editingPatternDraft.color,
-            });
+              startDate: draft.startDate || undefined,
+              endDate: draft.endDate || undefined,
+              notes: draft.notes || undefined,
+              color: draft.color,
+              adequatePersonId: draft.adequatePersonId || undefined,
+            };
+            const baseline = deriveEmotionalMetricDraft(line);
+            if (draft.frequency !== baseline.frequency || draft.impact !== baseline.impact) {
+              const measurement = buildEmotionalPatternMeasurementEvent(
+                { ...line, ...updates },
+                baseline.intensity,
+                draft.frequency,
+                draft.impact
+              );
+              if (measurement) updates.events = [...(line.events || []), measurement];
+            }
+            onUpdateEmotionalLine(editingPatternLineId, updates);
           }
           setEditingPatternDraft(null);
           setEditingPatternLineId(null);

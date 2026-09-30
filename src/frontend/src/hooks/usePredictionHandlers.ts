@@ -2,6 +2,7 @@
  * usePredictionHandlers — CRUD operations for diagram-level Prediction Sets.
  * Each set contains one or more predictions. All mutations are immutable.
  */
+import { localDateString } from '../utils/dateFormatting';
 import type { Dispatch, SetStateAction } from 'react';
 import { nanoid } from 'nanoid';
 import type {
@@ -37,7 +38,8 @@ export function usePredictionHandlers({
   predictionSets,
   setPredictionSets,
 }: UsePredictionHandlersDeps) {
-  const today = () => new Date().toISOString().slice(0, 10);
+  // When the prediction was created / resolved in the app: a local date.
+  const today = () => localDateString();
 
   // ── Set CRUD ─────────────────────────────────────────────────────────────
 

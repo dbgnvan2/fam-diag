@@ -15,11 +15,15 @@ export const EVENT_STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
 // ─── Category options per EventType ─────────────────────────────────────────
 export const EVENT_CATEGORIES: Record<EventType, string[]> = {
   SYMPTOM: ['Physical', 'Emotional', 'Social'],
-  EPE: ['+/- Adequate', 'Distance', 'Conflict', 'Projection', 'Cutoff'],
-  NODAL: ['Birth', 'Death', 'Marriage', 'Separation', 'Divorce', 'Affair', 'Engagement', 'Friendship'],
+  // 'Emotional Pattern' is the category of a pattern's creation and
+  // measurement events; 'Coaching' is the Coach Event menu item's category.
+  EPE: ['+/- Adequate', 'Distance', 'Conflict', 'Projection', 'Cutoff', 'Emotional Pattern', 'Coaching'],
+  // 'Individual' is written by the Birth Sex / Gender identity events;
+  // 'Relationship' is the default for an event added to a partnership.
+  NODAL: ['Birth', 'Death', 'Marriage', 'Separation', 'Divorce', 'Affair', 'Engagement', 'Friendship', 'Individual', 'Relationship'],
   EA: ['Emotional Autonomy'],
   FAMILY: ['Triangles', 'Stress'],
-  FOO: ['Family Stability', 'Family Intactness', 'Triangle Flexibility', 'Triangle Stress Response'],
+  FOO: ['Family Stability', 'Family Intactness', 'Triangle Functioning', 'Triangle Flexibility', 'Triangle Stress Response'],
   TRIANGLE: ['Primary', 'Secondary'],
   PAPERO: ['Resourceful', 'Connectedness & Integration', 'Tension Management', 'Systems Thinking', 'Goal Structure'],
   SIR: ['Resource to Other', 'Managing Reactivity', 'Defining Self', 'Detriangulating', 'Emotional Contact', 'Systems Perspective'],
@@ -27,7 +31,13 @@ export const EVENT_CATEGORIES: Record<EventType, string[]> = {
 };
 
 // ─── Subtype options per EventType+Category (only where subtypes exist) ──────
+export const TRIANGLE_PROPERTY_SUBTYPES = ['Functioning', 'Flexibility', 'Stress Response'];
+
 export const EVENT_SUBTYPES: Partial<Record<EventType, Record<string, string[]>>> = {
+  TRIANGLE: {
+    Primary: TRIANGLE_PROPERTY_SUBTYPES,
+    Secondary: TRIANGLE_PROPERTY_SUBTYPES,
+  },
   FAMILY: {
     Triangles: ['Functioning', 'Flexibility', 'Stress Response'],
     Stress: ['Emotional Reactivity', 'Adaptability', 'Family Stressor', 'Chronic Stress'],
@@ -429,8 +439,14 @@ export function getIntensityScale(eventType: EventType, category?: string, subty
       if (subtype === 'Chronic Stress') return CHRONIC_STRESS_SCALE;
     }
   }
+  if (eventType === 'TRIANGLE') {
+    if (subtype === 'Functioning') return TRIANGLE_FUNCTIONING_SCALE;
+    if (subtype === 'Flexibility') return TRIANGLE_FLEXIBILITY_SCALE;
+    if (subtype === 'Stress Response') return TRIANGLE_STRESS_RESPONSE_SCALE;
+  }
   if (eventType === 'FOO') {
     if (category === 'Family Stability') return FAMILY_STABILITY_SCALE;
+    if (category === 'Triangle Functioning') return TRIANGLE_FUNCTIONING_SCALE;
     if (category === 'Family Intactness') return FAMILY_INTACTNESS_SCALE;
     if (category === 'Triangle Flexibility') return TRIANGLE_FLEXIBILITY_SCALE;
     if (category === 'Triangle Stress Response') return TRIANGLE_STRESS_RESPONSE_SCALE;

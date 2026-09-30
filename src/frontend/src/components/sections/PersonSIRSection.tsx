@@ -5,8 +5,8 @@
  * Rendered inside PropertiesPanel as the "Self in Rel." tab.
  */
 import React, { useState } from 'react';
+import { createEventId } from '../../utils/eventDraft';
 import type { Person, EmotionalProcessEvent, SIRCategoryDefinition } from '../../types';
-const createEventId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const DEFAULT_OBSERVATION = '';
 
@@ -67,29 +67,31 @@ const badgeStyle = (value: number, max: number): React.CSSProperties => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface PersonSIRSectionProps {
-  personDraft: Person;
+  /**
+   * The live person. Entries are written against its current events — the
+   * panel's draft could be stale while a date edit was pending, and saving
+   * from it erased events added elsewhere in the meantime.
+   */
   selectedPerson: Person;
   people: Person[];
   sirCategories: SIRCategoryDefinition[];
   onUpdatePerson: (personId: string, updatedProps: Partial<Person>) => void;
-  updatePersonDraftState: (updates: Partial<Person>) => void;
 }
 
 const PersonSIRSection = ({
-  personDraft,
   selectedPerson,
   people,
   sirCategories,
   onUpdatePerson,
-  updatePersonDraftState,
 }: PersonSIRSectionProps) => {
   const [showForm, setShowForm] = useState(false);
   const [helpOpenCategory, setHelpOpenCategory] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form state
-  const today = new Date().toISOString().slice(0, 10);
-  const [formDate, setFormDate] = useState(today);
+  // Form state. The date starts blank: when the interaction happened is the
+  // user's to say (author decision 2026-09-30: a default of today is
+  // fabrication).
+  const [formDate, setFormDate] = useState('');
   const [formOtherPerson, setFormOtherPerson] = useState('');
   const [formCategory, setFormCategory] = useState(sirCategories[0]?.name || '');
   const [formBehavior, setFormBehavior] = useState('');
@@ -98,7 +100,7 @@ const PersonSIRSection = ({
   const [formHwdid, setFormHwdid] = useState(0);
   const [formNotes, setFormNotes] = useState('');
 
-  const sirEvents = (personDraft.events || [])
+  const sirEvents = (selectedPerson.events || [])
     .filter((e) => e.eventType === 'SIR')
     .sort((a, b) => {
       const da = a.startDate || a.date || '';
@@ -111,7 +113,7 @@ const PersonSIRSection = ({
     .map((p) => p.name || p.id);
 
   const resetForm = () => {
-    setFormDate(today);
+    setFormDate('');
     setFormOtherPerson('');
     setFormCategory(sirCategories[0]?.name || '');
     setFormBehavior('');
@@ -125,8 +127,9 @@ const PersonSIRSection = ({
   const categoryDef = sirCategories.find((c) => c.name === formCategory);
 
   const saveEntry = () => {
-    const displayName = personDraft.name || '';
-    const events = personDraft.events || [];
+    const displayName = selectedPerson.name || '';
+    const events = selectedPerson.events || [];
+    const original = editingId ? events.find((e) => e.id === editingId) : undefined;
     const newEvent: EmotionalProcessEvent = {
       id: editingId || createEventId(),
       date: formDate,
@@ -146,7 +149,8 @@ const PersonSIRSection = ({
       wwwwh: DEFAULT_OBSERVATION,
       observations: formNotes,
       eventClass: 'individual' as const,
-      createdAt: Date.now(),
+      // An edit keeps the entry's original creation time.
+      createdAt: original?.createdAt ?? Date.now(),
     };
 
     const updatedEvents = editingId
@@ -154,14 +158,13 @@ const PersonSIRSection = ({
       : [...events, newEvent];
 
     onUpdatePerson(selectedPerson.id, { events: updatedEvents });
-    updatePersonDraftState({ events: updatedEvents });
     resetForm();
     setShowForm(false);
   };
 
   const editEntry = (event: EmotionalProcessEvent) => {
     setEditingId(event.id);
-    setFormDate(event.startDate || event.date || today);
+    setFormDate(event.startDate || event.date || '');
     setFormOtherPerson(event.otherPersonName || '');
     setFormCategory(event.category || sirCategories[0]?.name || '');
     setFormBehavior(event.subtype || '');
@@ -173,9 +176,8 @@ const PersonSIRSection = ({
   };
 
   const deleteEntry = (eventId: string) => {
-    const events = (personDraft.events || []).filter((e) => e.id !== eventId);
+    const events = (selectedPerson.events || []).filter((e) => e.id !== eventId);
     onUpdatePerson(selectedPerson.id, { events });
-    updatePersonDraftState({ events });
   };
 
   const formatDate = (d: string) => {

@@ -12,12 +12,13 @@ const makeEventId = () => `evt-${Date.now()}-${Math.random().toString(16).slice(
 const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => ({
   ...event,
   id: event.id || makeEventId(),
-  date: event.date || new Date().toISOString().slice(0, 10),
+  // An undated event stays undated (author decision 2026-09-30).
+  date: event.date || '',
   category: event.category || 'Event',
   intensity: typeof event.intensity === 'number' ? event.intensity : 0,
   frequency: typeof event.frequency === 'number' ? event.frequency : 0,
   impact: typeof event.impact === 'number' ? event.impact : 0,
-  howWell: typeof event.howWell === 'number' ? event.howWell : 5,
+  howWell: typeof event.howWell === 'number' ? event.howWell : 0,
   otherPersonName: event.otherPersonName || '',
   primaryPersonName: event.primaryPersonName || '',
   wwwwh: event.wwwwh || '',

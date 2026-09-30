@@ -71,12 +71,10 @@ describe('PersonSIRSection', () => {
     const person = makePerson();
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     expect(screen.getByText(/No entries yet/)).toBeTruthy();
@@ -87,12 +85,10 @@ describe('PersonSIRSection', () => {
     const person = makePerson({ events: [event] });
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     expect(screen.getByText('Resource to Other')).toBeTruthy();
@@ -106,12 +102,10 @@ describe('PersonSIRSection', () => {
     const person = makePerson();
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByText('+ Add'));
@@ -126,15 +120,12 @@ describe('PersonSIRSection', () => {
   it('saves a new SIR event when form is filled and Save clicked', () => {
     const person = makePerson();
     const onUpdatePerson = vi.fn();
-    const updateDraft = vi.fn();
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={onUpdatePerson}
-        updatePersonDraftState={updateDraft}
       />,
     );
     fireEvent.click(screen.getByText('+ Add'));
@@ -144,6 +135,9 @@ describe('PersonSIRSection', () => {
     // selects: With, Category, Intensity, Stress, HWDID
     fireEvent.change(selects[0], { target: { value: 'Bob' } }); // With
     fireEvent.change(selects[1], { target: { value: 'Managing Reactivity' } }); // Category
+    fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
+      target: { value: '2024-05-06' },
+    });
 
     fireEvent.click(screen.getByText('Save'));
 
@@ -157,7 +151,8 @@ describe('PersonSIRSection', () => {
     expect(saved.otherPersonName).toBe('Bob');
     expect(saved.anchorType).toBe('PERSON');
     expect(saved.anchorId).toBe('p1');
-    expect(saved.startDate).toBeTruthy();
+    expect(saved.startDate).toBe('2024-05-06');
+    expect(saved.date).toBe('2024-05-06');
     expect(saved.eventClass).toBe('individual');
     expect(saved.createdAt).toBeGreaterThan(0);
   });
@@ -166,12 +161,10 @@ describe('PersonSIRSection', () => {
     const person = makePerson();
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByText('+ Add'));
@@ -197,12 +190,10 @@ describe('PersonSIRSection', () => {
     const person = makePerson({ events: [event] });
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText('Edit'));
@@ -217,15 +208,12 @@ describe('PersonSIRSection', () => {
     const event = makeSirEvent();
     const person = makePerson({ events: [event] });
     const onUpdatePerson = vi.fn();
-    const updateDraft = vi.fn();
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={onUpdatePerson}
-        updatePersonDraftState={updateDraft}
       />,
     );
     fireEvent.click(screen.getByLabelText('Delete'));
@@ -241,16 +229,64 @@ describe('PersonSIRSection', () => {
     const person = makePerson({ events: [sirEvent, nodalEvent] });
     render(
       <PersonSIRSection
-        personDraft={person}
         selectedPerson={person}
         people={[person, makeOtherPerson()]}
         sirCategories={defaultCategories}
         onUpdatePerson={vi.fn()}
-        updatePersonDraftState={vi.fn()}
       />,
     );
     // Should show one card (SIR), not two
     const editButtons = screen.getAllByLabelText('Edit');
     expect(editButtons).toHaveLength(1);
+  });
+
+  it('the form date starts blank, not today (author decision 2026-09-30)', () => {
+    const person = makePerson();
+    render(
+      <PersonSIRSection
+        selectedPerson={person}
+        people={[person, makeOtherPerson()]}
+        sirCategories={defaultCategories}
+        onUpdatePerson={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('+ Add'));
+    expect((document.querySelector('input[type="date"]') as HTMLInputElement).value).toBe('');
+  });
+
+  it('saves against the live person, keeping events added elsewhere (regression: written from a stale draft)', () => {
+    const existing = makeSirEvent();
+    const addedElsewhere = makeSirEvent({ id: 'added-elsewhere', eventType: 'NODAL' as const, category: 'Marriage' });
+    const person = makePerson({ events: [existing, addedElsewhere] });
+    const onUpdatePerson = vi.fn();
+    render(
+      <PersonSIRSection
+        selectedPerson={person}
+        people={[person, makeOtherPerson()]}
+        sirCategories={defaultCategories}
+        onUpdatePerson={onUpdatePerson}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Delete'));
+    const [, updates] = onUpdatePerson.mock.calls[0];
+    expect(updates.events.map((e: { id: string }) => e.id)).toEqual(['added-elsewhere']);
+  });
+
+  it('an edit keeps the entry\'s original createdAt', () => {
+    const event = makeSirEvent({ createdAt: 1234 });
+    const person = makePerson({ events: [event] });
+    const onUpdatePerson = vi.fn();
+    render(
+      <PersonSIRSection
+        selectedPerson={person}
+        people={[person, makeOtherPerson()]}
+        sirCategories={defaultCategories}
+        onUpdatePerson={onUpdatePerson}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Edit'));
+    fireEvent.click(screen.getByText('Update'));
+    const [, updates] = onUpdatePerson.mock.calls[0];
+    expect(updates.events[0].createdAt).toBe(1234);
   });
 });

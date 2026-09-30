@@ -106,7 +106,10 @@ describe('EventModal', () => {
     expect(screen.getByRole('option', { name: 'Chronic Stress' })).toBeInTheDocument();
   });
 
-  it('auto-corrects stale category Triangle → Triangles on mount and shows subtype dropdown', async () => {
+  it('keeps a category the list does not know and offers it as an option (regression: rewritten on open)', () => {
+    // Older family events can say 'Triangle'. Loading normalises those
+    // (dataNormalization.normalizeFamilyEventList); the dialog itself never
+    // rewrites a category, or opening an event and pressing Save changed it.
     const onSetDraft = vi.fn();
     render(
       <EventModal
@@ -116,25 +119,60 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Triangle', subtype: '' })}
       />
     );
-    // onSetDraft should be called with corrected category 'Triangles'
-    expect(onSetDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'Triangles' })
-    );
+    expect(onSetDraft).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Category:') as HTMLSelectElement).value).toBe('Triangle');
   });
 
-  it('auto-corrects empty category on mount for FAMILY events', () => {
+  it('leaves an empty category empty for the user to choose (regression: a new person event became "Birth")', () => {
     const onSetDraft = vi.fn();
     render(
       <EventModal
         {...baseProps}
         onSetDraft={onSetDraft}
-        lockEventType
-        eventDraft={makeDraft({ eventType: 'FAMILY', category: '', subtype: '' })}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: '', subtype: '' })}
       />
     );
-    expect(onSetDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'Triangles' })
+    expect(onSetDraft).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Category:') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByRole('option', { name: '— select —' })).toBeInTheDocument();
+  });
+
+  it('keeps the categories and subtypes the app writes itself (regression: Individual → Birth, subtype cleared)', () => {
+    const onSetDraft = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        onSetDraft={onSetDraft}
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Individual', subtype: 'Birth Sex: Male' })}
+      />
     );
+    expect(onSetDraft).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Category:') as HTMLSelectElement).value).toBe('Individual');
+    expect((screen.getByLabelText('Type:') as HTMLInputElement).value).toBe('Birth Sex: Male');
+  });
+
+  it('keeps an EPE pattern event\'s "Emotional Pattern" category', () => {
+    const onSetDraft = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        onSetDraft={onSetDraft}
+        eventDraft={makeDraft({ eventType: 'EPE', category: 'Emotional Pattern', subtype: 'Fusion – Measurement' })}
+      />
+    );
+    expect(onSetDraft).not.toHaveBeenCalled();
+  });
+
+  it('lockCategory shows the category as text instead of a dropdown', () => {
+    render(
+      <EventModal
+        {...baseProps}
+        lockCategory
+        eventDraft={makeDraft({ eventType: 'NODAL', category: 'Birth', subtype: '' })}
+      />
+    );
+    expect(screen.queryByLabelText('Category:')).toBeNull();
+    expect(screen.getByText('Birth')).toBeInTheDocument();
   });
 
   it('shows Type as read-only text when lockEventType is true', () => {
@@ -288,17 +326,17 @@ describe('EventModal', () => {
     expect(screen.getByRole('option', { name: 'Social' })).toBeInTheDocument();
   });
 
-  it('SYMPTOM: auto-corrects invalid category on mount', () => {
+  it('SYMPTOM: a category differing only in case takes the listed spelling', () => {
     const onSetDraft = vi.fn();
     render(
       <EventModal
         {...baseProps}
         onSetDraft={onSetDraft}
-        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'InvalidCat', subtype: '' })}
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'emotional', subtype: 'Anxiety' })}
       />
     );
     expect(onSetDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'Physical' })
+      expect.objectContaining({ category: 'Emotional', subtype: 'Anxiety' })
     );
   });
 
@@ -359,16 +397,19 @@ describe('EventModal', () => {
 
   // ── TRIANGLE ─────────────────────────────────────────────────────────────────
 
-  it('TRIANGLE: category shows Primary / Secondary and subtype is text input', () => {
+  it('TRIANGLE: category shows Primary / Secondary and the subtype offers the triangle properties', () => {
     render(
       <EventModal
         {...baseProps}
-        eventDraft={makeDraft({ eventType: 'TRIANGLE', category: 'Primary', subtype: '' })}
+        eventDraft={makeDraft({ eventType: 'TRIANGLE', category: 'Primary', subtype: 'Flexibility' })}
       />
     );
     expect(screen.getByRole('option', { name: 'Primary' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Secondary' })).toBeInTheDocument();
-    expect((screen.getByLabelText('Type:') as HTMLInputElement).tagName).toBe('INPUT');
+    const subtype = screen.getByLabelText('Type:') as HTMLSelectElement;
+    expect(subtype.tagName).toBe('SELECT');
+    expect(subtype.value).toBe('Flexibility');
+    expect(screen.getByRole('option', { name: 'Stress Response' })).toBeInTheDocument();
   });
 
   // ── PAPERO ─────────────────────────────────────────────────────────────────────
