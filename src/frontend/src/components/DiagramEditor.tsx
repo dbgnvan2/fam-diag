@@ -1120,14 +1120,16 @@ const DiagramEditor = () => {
     return [p1, p2].filter(Boolean).join(' ↔ ');
   }, [sessionNotesTarget, people, partnerships, emotionalLines]);
 
-  const getSessionNotesLibrary = useCallback((): SessionNoteFileRecord[] => {
+  // Null when a library is stored but cannot be read: returning [] let the
+  // next save write [record] over every stored session note.
+  const getSessionNotesLibrary = useCallback((): SessionNoteFileRecord[] | null => {
     const raw = getStoredValue('sessionNotesLibrary');
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as SessionNoteFileRecord[]) : [];
+      return Array.isArray(parsed) ? (parsed as SessionNoteFileRecord[]) : null;
     } catch {
-      return [];
+      return null;
     }
   }, []);
 
@@ -1135,7 +1137,7 @@ const DiagramEditor = () => {
     setStoredValue('sessionNotesLibrary', JSON.stringify(records));
   }, []);
   const sessionOpenCandidates = (() => {
-    const library = getSessionNotesLibrary();
+    const library = getSessionNotesLibrary() || [];
     const focus = sessionFocusPersonName.trim().toLowerCase();
     const filtered = library.filter((entry) => {
       if ((entry.diagramFileName || '').trim() !== (fileName || '').trim()) return false;
@@ -1886,7 +1888,6 @@ useEffect(() => {
     people,
     partnerships,
     emotionalLines,
-    eventCategories,
     setSessionNoteCoachName,
     setSessionNoteClientName,
     setSessionNoteFileName,
@@ -1905,7 +1906,6 @@ useEffect(() => {
     setSessionNotesLibrary,
     buildSessionNoteFileName,
     parseSessionTargetValue,
-    getEventClassForTargetType,
     handleUpdatePerson,
     handleUpdatePartnership,
     handleUpdateEmotionalLine,

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { EmotionalProcessEvent, EventClass } from '../../types';
-import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS } from '../../constants/eventConstants';
+import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS, getIntensityScale } from '../../constants/eventConstants';
 import DatePickerField from '../DatePickerField';
 
 interface SessionEventModalProps {
@@ -85,7 +85,7 @@ const SessionEventModal = ({
             <DatePickerField
               id="sessionEventDate"
               name="sessionEventDate"
-              value={draft.date}
+              value={draft.startDate ?? draft.date}
               placeholder="YYYY-MM-DD"
               onChange={(e) => onFieldChange('date', e.target.value)}
               buttonLabel="Select session event date"
@@ -100,6 +100,10 @@ const SessionEventModal = ({
             onChange={(e) => onFieldChange('category', e.target.value)}
             style={controlStyle}
           >
+            {!draft.category && <option value="">— select —</option>}
+            {draft.category && !eventCategories.includes(draft.category) && (
+              <option value={draft.category}>{draft.category}</option>
+            )}
             {eventCategories.map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -121,16 +125,20 @@ const SessionEventModal = ({
           </select>
         </div>
         <div style={rowStyle}>
-          <label htmlFor="sessionEventIntensity" style={labelStyle}>Intensity (1-10):</label>
-          <input
-            type="number"
+          {/* The same 1-5 scale as every other event; 0 is "not rated". It was
+              a free 1-10 number, which no other screen can show. */}
+          <label htmlFor="sessionEventIntensity" style={labelStyle}>Intensity:</label>
+          <select
             id="sessionEventIntensity"
-            min={1}
-            max={10}
-            value={draft.intensity}
+            value={draft.intensity ?? 0}
             onChange={(e) => onFieldChange('intensity', e.target.value)}
             style={controlStyle}
-          />
+          >
+            <option value={0}>— Select —</option>
+            {getIntensityScale(draft.eventType, draft.category, draft.subtype).labels.map((label, index) => (
+              <option key={label} value={index + 1}>{index + 1}: {label}</option>
+            ))}
+          </select>
         </div>
         <div style={rowStyle}>
           <label htmlFor="sessionEventHowWell" style={labelStyle}>How well (1-9):</label>

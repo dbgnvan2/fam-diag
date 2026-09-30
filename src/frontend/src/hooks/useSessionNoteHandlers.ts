@@ -1,8 +1,17 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject } from 'react';
 import { nanoid } from 'nanoid';
-import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent, EventClass } from '../types';
+import type { Person, Partnership, EmotionalLine, EmotionalProcessEvent } from '../types';
 import type { SessionNoteFileRecord } from '../types/diagramEditor';
+import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
+import { buildSessionEventDraft, isSessionNoteDirty } from '../utils/sessionNoteEvents';
+import {
+  anchorTypeForOwner,
+  applyEventDraftFieldChange,
+  eventClassForOwner,
+  normalizeEventForSave,
+  saveEventOnOwner,
+} from '../utils/eventDraft';
 
 interface SessionNoteHandlerDeps {
   sessionNoteRecordId: string | null;
@@ -15,7 +24,6 @@ interface SessionNoteHandlerDeps {
   people: Person[];
   partnerships: Partnership[];
   emotionalLines: EmotionalLine[];
-  eventCategories: string[];
   setSessionNoteCoachName: Dispatch<SetStateAction<string>>;
   setSessionNoteClientName: Dispatch<SetStateAction<string>>;
   setSessionNoteFileName: Dispatch<SetStateAction<string>>;
@@ -32,16 +40,18 @@ interface SessionNoteHandlerDeps {
   setSessionEventDraft: Dispatch<SetStateAction<EmotionalProcessEvent | null>>;
   sessionSaveDirectoryHandleRef: MutableRefObject<any>;
   composeSessionNotePayload: () => SessionNoteFileRecord;
-  getSessionNotesLibrary: () => SessionNoteFileRecord[];
+  /** The stored library, or null when it is there but cannot be read. */
+  getSessionNotesLibrary: () => SessionNoteFileRecord[] | null;
   setSessionNotesLibrary: (records: SessionNoteFileRecord[]) => void;
   buildSessionNoteFileName: (coach: string, client: string, startedAt: number | null) => string;
   parseSessionTargetValue: (
     value: string | null
   ) => { type: 'person' | 'partnership' | 'emotional'; id: string } | null;
-  getEventClassForTargetType: (type: 'person' | 'partnership' | 'emotional') => EventClass;
   handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
   handleUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
+  confirmFn?: (message: string) => boolean;
+  alertFn?: (message: string) => void;
 }
 
 export function useSessionNoteHandlers({
@@ -55,7 +65,6 @@ export function useSessionNoteHandlers({
   people,
   partnerships,
   emotionalLines,
-  eventCategories,
   setSessionNoteCoachName,
   setSessionNoteClientName,
   setSessionNoteFileName,
@@ -74,11 +83,21 @@ export function useSessionNoteHandlers({
   setSessionNotesLibrary,
   buildSessionNoteFileName,
   parseSessionTargetValue,
-  getEventClassForTargetType,
   handleUpdatePerson,
   handleUpdatePartnership,
   handleUpdateEmotionalLine,
+  confirmFn = (message) => window.confirm(message),
+  alertFn = (message) => window.alert(message),
 }: SessionNoteHandlerDeps) {
+  // Unsaved work in the note being edited, compared with its saved record.
+  const sessionNoteHasUnsavedChanges = () => {
+    const payload = composeSessionNotePayload();
+    const saved = sessionNoteRecordId
+      ? (getSessionNotesLibrary() || []).find((entry) => entry.id === sessionNoteRecordId)
+      : null;
+    return isSessionNoteDirty(payload, saved);
+  };
+
   const handleSessionFieldChange = (
     field: 'coach' | 'client' | 'fileName' | 'issue' | 'content',
     value: string
@@ -148,6 +167,14 @@ export function useSessionNoteHandlers({
       updatedAt: Date.now(),
     };
     const library = getSessionNotesLibrary();
+    if (!library) {
+      // The stored library is there but cannot be read. Writing now would
+      // replace every stored session note with this one.
+      alertFn(
+        'Stored session notes could not be read, so this note was not saved to the library (saving would overwrite the others). Use "Save JSON" to keep a copy.'
+      );
+      return null;
+    }
     const withoutCurrent = library.filter((entry) => entry.id !== record.id);
     setSessionNotesLibrary([...withoutCurrent, record]);
     setSessionNoteRecordId(record.id);
@@ -171,6 +198,7 @@ export function useSessionNoteHandlers({
   };
 
   const handleSessionNotesNew = () => {
+    if (!confirmDiscardUnsavedChanges(sessionNoteHasUnsavedChanges(), 'Start a new session note', confirmFn)) return;
     const startedAt = Date.now();
     setSessionNoteRecordId(null);
     setSessionNoteCoachName('');
@@ -188,9 +216,10 @@ export function useSessionNoteHandlers({
 
   const handleSessionOpenNote = () => {
     if (!sessionOpenCandidateId) return;
-    const library = getSessionNotesLibrary();
+    const library = getSessionNotesLibrary() || [];
     const record = library.find((entry) => entry.id === sessionOpenCandidateId);
     if (!record) return;
+    if (!confirmDiscardUnsavedChanges(sessionNoteHasUnsavedChanges(), 'Open this session note', confirmFn)) return;
     setSessionNoteRecordId(record.id);
     setSessionNoteCoachName(record.coachName || '');
     setSessionNoteClientName(record.clientName || '');
@@ -262,32 +291,6 @@ export function useSessionNoteHandlers({
     URL.revokeObjectURL(url);
   };
 
-  const inferSessionEventDefaults = useCallback(
-    (snippet: string): EmotionalProcessEvent => {
-      const trimmed = snippet.trim();
-      const yearMatch = trimmed.match(/\b(19|20)\d{2}\b/);
-      const matchedPerson = people.find((person) =>
-        person.name ? trimmed.toLowerCase().includes(person.name.toLowerCase()) : false
-      );
-      return {
-        id: nanoid(),
-        date: yearMatch ? `${yearMatch[0]}-01-01` : '',
-        category: eventCategories[0] || 'Session Note',
-        eventType: 'NODAL' as const,
-        status: 'discrete' as const,
-        intensity: 5,
-        howWell: 5,
-        otherPersonName: matchedPerson?.name || '',
-        primaryPersonName: '',
-        wwwwh: trimmed,
-        observations: trimmed,
-        createdAt: Date.now(),
-        eventClass: 'individual' as const,
-      };
-    },
-    [people, eventCategories]
-  );
-
   const handleSessionNotesMakeEvent = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -299,22 +302,10 @@ export function useSessionNoteHandlers({
       alert('Select a target item for the event.');
       return;
     }
-    const defaults = inferSessionEventDefaults(trimmed);
-    defaults.eventClass = getEventClassForTargetType(target.type);
-    if (target.type === 'person') {
-      const targetPerson = people.find((p) => p.id === target.id);
-      defaults.primaryPersonName = targetPerson?.name || defaults.primaryPersonName || '';
-    } else if (target.type === 'partnership') {
-      const partnership = partnerships.find((p) => p.id === target.id);
-      const partner1 = people.find((p) => p.id === partnership?.partner1_id)?.name;
-      defaults.primaryPersonName = partner1 || defaults.primaryPersonName || '';
-    } else if (target.type === 'emotional') {
-      const line = emotionalLines.find((el) => el.id === target.id);
-      const person1 = people.find((p) => p.id === line?.person1_id)?.name;
-      defaults.primaryPersonName = person1 || defaults.primaryPersonName || '';
-    }
     setSessionEventTarget(target);
-    setSessionEventDraft(defaults);
+    setSessionEventDraft(
+      buildSessionEventDraft({ snippet: trimmed, target, people, partnerships, emotionalLines })
+    );
   };
 
   const sessionEventOtherOptions = useMemo(() => {
@@ -358,50 +349,31 @@ export function useSessionNoteHandlers({
   }, [sessionEventTarget, people, partnerships, emotionalLines]);
 
   const handleSessionEventDraftChange = (field: keyof EmotionalProcessEvent, value: string) => {
-    setSessionEventDraft((prev) => {
-      if (!prev) return prev;
-      if (
-        field === 'intensity' ||
-        field === 'howWell' ||
-        field === 'frequency' ||
-        field === 'impact'
-      ) {
-        const numeric = Number(value);
-        return { ...prev, [field]: Number.isNaN(numeric) ? 0 : numeric };
-      }
-      if (field === 'eventType') {
-        return { ...prev, eventType: value as EmotionalProcessEvent['eventType'] };
-      }
-      return { ...prev, [field]: value };
-    });
+    setSessionEventDraft((prev) => (prev ? applyEventDraftFieldChange(prev, field, value) : prev));
   };
 
+  // Saved like every other event (utils/eventDraft.ts): date and startDate,
+  // anchorType and anchorId, eventClass and createdAt all set.
   const appendEventToTarget = (
     target: { type: 'person' | 'partnership' | 'emotional'; id: string },
     event: EmotionalProcessEvent
   ) => {
-    const fallbackClass = getEventClassForTargetType(target.type);
-    const eventWithTimestamp: EmotionalProcessEvent = {
-      ...event,
-      createdAt: event.createdAt ?? Date.now(),
-      status: event.status || 'discrete',
-      eventClass: event.eventClass || fallbackClass,
-    };
-    if (target.type === 'person') {
-      const person = people.find((p) => p.id === target.id);
-      const nextEvents = [...(person?.events ?? []), eventWithTimestamp];
-      handleUpdatePerson(target.id, { events: nextEvents });
-      return;
-    }
-    if (target.type === 'partnership') {
-      const partnership = partnerships.find((p) => p.id === target.id);
-      const nextEvents = [...(partnership?.events ?? []), eventWithTimestamp];
-      handleUpdatePartnership(target.id, { events: nextEvents });
-      return;
-    }
-    const line = emotionalLines.find((el) => el.id === target.id);
-    const nextEvents = [...(line?.events ?? []), eventWithTimestamp];
-    handleUpdateEmotionalLine(target.id, { events: nextEvents });
+    const entity =
+      target.type === 'person'
+        ? people.find((p) => p.id === target.id)
+        : target.type === 'partnership'
+          ? partnerships.find((p) => p.id === target.id)
+          : emotionalLines.find((el) => el.id === target.id);
+    if (!entity) return;
+    const saved = normalizeEventForSave(event, {
+      anchorType: anchorTypeForOwner(target.type),
+      anchorId: target.id,
+      eventClass: eventClassForOwner(target.type),
+    });
+    const updates = saveEventOnOwner({ kind: target.type, id: target.id }, entity, saved);
+    if (target.type === 'person') handleUpdatePerson(target.id, updates as Partial<Person>);
+    else if (target.type === 'partnership') handleUpdatePartnership(target.id, updates as Partial<Partnership>);
+    else handleUpdateEmotionalLine(target.id, updates as Partial<EmotionalLine>);
   };
 
   const commitSessionEventFromNotes = () => {
