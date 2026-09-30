@@ -107,3 +107,81 @@ export function partnershipSeparationMarks(
   // Two slashes replace the one, rather than joining it.
   return { separated: separated && !divorced, divorced };
 }
+
+/**
+ * True when `ancestorId` is a parent, grandparent, ... of `personId`, through
+ * either the raising family or the birth family. Stops on a cycle already
+ * present in the data.
+ */
+export function isAncestorOf(
+  ancestorId: string,
+  personId: string,
+  people: Person[],
+  partnerships: Partnership[]
+): boolean {
+  const personById = new Map(people.map((entry) => [entry.id, entry]));
+  const partnershipById = new Map(partnerships.map((entry) => [entry.id, entry]));
+  const seen = new Set<string>();
+  const queue = [personId];
+  while (queue.length) {
+    const current = personById.get(queue.shift()!);
+    if (!current) continue;
+    [current.parentPartnership, current.birthParentPartnership].forEach((id) => {
+      const parents = id ? partnershipById.get(id) : undefined;
+      if (!parents) return;
+      [parents.partner1_id, parents.partner2_id].forEach((parentId) => {
+        if (!parentId || seen.has(parentId)) return;
+        seen.add(parentId);
+        queue.push(parentId);
+      });
+    });
+  }
+  return seen.has(ancestorId);
+}
+
+export type AddChildCheck =
+  | { kind: 'ok' }
+  | { kind: 'already-child' }
+  | { kind: 'refuse'; message: string }
+  | { kind: 'confirm'; message: string };
+
+/**
+ * Whether a person may be made a child of a partnership. Refuses a partner
+ * and anyone who is already an ancestor of either partner (which would make
+ * the family its own ancestor); asks before moving someone who already has
+ * parents, since the move takes them away from those parents.
+ */
+export function checkAddChildToPartnership(
+  childId: string,
+  partnership: Partnership,
+  people: Person[],
+  partnerships: Partnership[]
+): AddChildCheck {
+  if (partnership.partner1_id === childId || partnership.partner2_id === childId) {
+    return { kind: 'refuse', message: 'A PRL partner cannot also be added as that PRL child.' };
+  }
+  if (partnership.children.includes(childId)) return { kind: 'already-child' };
+  const nameOf = (id: string) => people.find((entry) => entry.id === id)?.name || 'this person';
+  if (
+    isAncestorOf(childId, partnership.partner1_id, people, partnerships) ||
+    isAncestorOf(childId, partnership.partner2_id, people, partnerships)
+  ) {
+    return {
+      kind: 'refuse',
+      message: `${nameOf(childId)} is an ancestor of this couple and cannot also be their child.`,
+    };
+  }
+  const child = people.find((entry) => entry.id === childId);
+  const currentParents = child?.parentPartnership
+    ? partnerships.find((entry) => entry.id === child.parentPartnership)
+    : undefined;
+  if (currentParents && currentParents.id !== partnership.id) {
+    return {
+      kind: 'confirm',
+      message: `${nameOf(childId)} is already the child of ${nameOf(currentParents.partner1_id)} and ${nameOf(
+        currentParents.partner2_id
+      )}. Move them to this couple instead?`,
+    };
+  }
+  return { kind: 'ok' };
+}

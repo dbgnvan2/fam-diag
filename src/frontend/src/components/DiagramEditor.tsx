@@ -52,7 +52,8 @@ import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
-import { earliestPartnershipDate } from '../utils/partnershipUtils';
+import { checkAddChildToPartnership, earliestPartnershipDate } from '../utils/partnershipUtils';
+import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
 import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
@@ -447,7 +448,14 @@ const DiagramEditor = () => {
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceStatusMessage, setVoiceStatusMessage] = useState('');
   const [selectedPageNoteId, setSelectedPageNoteId] = useState<string | null>(null);
-  const [selectedPageNoteIds, setSelectedPageNoteIds] = useState<string[]>([]);
+  // Page notes caught by the last marquee, together with the people it
+  // caught. The notes count as selected only while the people selection is
+  // still exactly that marquee's — any later click or shift-click changes it,
+  // and a group drag used to keep moving the old, unhighlighted notes.
+  const [marqueePageNoteSelection, setMarqueePageNoteSelection] = useState<{
+    peopleIds: string[];
+    pageNoteIds: string[];
+  }>({ peopleIds: [], pageNoteIds: [] });
   const [pageNoteDraft, setPageNoteDraft] = useState<{
     title: string;
     text: string;
@@ -1927,6 +1935,7 @@ useEffect(() => {
     triangles,
     emotionalPatternDraft,
     setEmotionalLines,
+    setPeople,
     setTriangles,
     setEmotionalPatternDraft,
     setEmotionalPatternModalOpen,
@@ -2014,15 +2023,17 @@ useEffect(() => {
 
     const targetPartnership = partnerships.find((p) => p.id === partnershipId);
     if (!targetPartnership) return;
-    if (targetPartnership.partner1_id === childId || targetPartnership.partner2_id === childId) {
-      alert('A PRL partner cannot also be added as that PRL child.');
+    const check = checkAddChildToPartnership(childId, targetPartnership, people, partnerships);
+    if (check.kind === 'refuse') {
+      alert(check.message);
       return;
     }
-    if (targetPartnership.children.includes(childId)) {
+    if (check.kind === 'already-child') {
       setSelectedPeopleIds([childId]);
-      setSelectedPartnershipId(partnershipId);
+      setSelectedPartnershipId(null);
       return;
     }
+    if (check.kind === 'confirm' && !window.confirm(check.message)) return;
 
     setPartnerships((prev) =>
       prev.map((p) => {
@@ -2044,8 +2055,10 @@ useEffect(() => {
       )
     );
 
-    setSelectedPeopleIds((ids) => ids.filter((id) => id !== childId));
-    setSelectedPartnershipId(partnershipId);
+    // The add is done: the partnership is deselected so the next plain click
+    // selects a person instead of re-parenting another one.
+    setSelectedPeopleIds([childId]);
+    setSelectedPartnershipId(null);
     setPropertiesPanelItem(targetPartnership);
   };
 
@@ -3372,7 +3385,7 @@ useEffect(() => {
     handleTriangleNoteResizeEnd,
   } = useCanvasDragHandlers({
     selectedPeopleIds,
-    selectedPageNoteIds,
+    selectedPageNoteIds: activeMarqueePageNoteIds(selectedPeopleIds, marqueePageNoteSelection),
     people,
     partnerships,
     allEmotionalLines,
@@ -3858,7 +3871,7 @@ useEffect(() => {
         .map((note) => note.id);
 
       setSelectedPeopleIds(selected);
-      setSelectedPageNoteIds(selectedNotes);
+      setMarqueePageNoteSelection({ peopleIds: selected, pageNoteIds: selectedNotes });
       setSelectedPartnershipId(null);
       setSelectedEmotionalLineId(null);
       setSelectedChildId(null);

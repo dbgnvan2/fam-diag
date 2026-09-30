@@ -51,3 +51,16 @@ export const shouldShowTriangleNote = (
     triangle.notes &&
       (triangle.notesEnabled === false ? false : notesLayerEnabled || triangle.notesEnabled === true)
   );
+
+/**
+ * A triangle — its fill and its note — is drawn only while all three of its
+ * people are visible under family focus and the timeline. The note used to
+ * skip this check and float over the canvas pointing at a hidden person.
+ */
+export const isTriangleVisible = (
+  triangle: { person1_id: string; person2_id: string; person3_id: string },
+  personVisibility: Map<string, boolean>
+): boolean =>
+  !!personVisibility.get(triangle.person1_id) &&
+  !!personVisibility.get(triangle.person2_id) &&
+  !!personVisibility.get(triangle.person3_id);

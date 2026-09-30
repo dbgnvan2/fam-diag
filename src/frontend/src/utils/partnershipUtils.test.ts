@@ -11,12 +11,15 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  checkAddChildToPartnership,
+  computeDefaultFamilyName,
   earliestPartnershipDate,
+  isAncestorOf,
   partnershipDates,
   partnershipSeparationMarks,
 } from './partnershipUtils';
 import { buildPartnershipVisibility } from './familyScope';
-import type { Partnership } from '../types';
+import type { Partnership, Person } from '../types';
 
 const partnership = (overrides: Partial<Partnership> = {}): Partnership => ({
   id: 'pr1',
@@ -236,5 +239,63 @@ describe('partnershipSeparationMarks', () => {
       partnership({ relationshipStatus: 'ongoing', statusDates: { separated: '   ' } })
     );
     expect(marks).toEqual({ separated: false, divorced: false });
+  });
+});
+
+describe('checkAddChildToPartnership (M19)', () => {
+  const p = (id: string, overrides: Partial<Person> = {}): Person =>
+    ({ id, name: id, x: 0, y: 0, partnerships: [], ...overrides }) as Person;
+  const pr = (id: string, a: string, b: string, children: string[] = []): Partnership =>
+    ({ id, partner1_id: a, partner2_id: b, horizontalConnectorY: 0, relationshipType: 'married', relationshipStatus: 'married', children }) as Partnership;
+  const people = [
+    p('gpa', { partnerships: ['prG'] }),
+    p('gma', { partnerships: ['prG'] }),
+    p('dad', { partnerships: ['prP'], parentPartnership: 'prG' }),
+    p('mum', { partnerships: ['prP'] }),
+    p('kid', { parentPartnership: 'prP' }),
+    p('stranger'),
+  ];
+  const partnerships = [pr('prG', 'gpa', 'gma', ['dad']), pr('prP', 'dad', 'mum', ['kid'])];
+  const parents = partnerships[1];
+
+  it('refuses an ancestor of either partner (regression: made a grandparent their own grandchild)', () => {
+    expect(checkAddChildToPartnership('gpa', parents, people, partnerships).kind).toBe('refuse');
+  });
+
+  it('refuses a partner', () => {
+    expect(checkAddChildToPartnership('dad', parents, people, partnerships).kind).toBe('refuse');
+  });
+
+  it('asks before moving someone away from their current parents (regression: moved silently)', () => {
+    const other = pr('prOther', 'stranger', 'mum');
+    const result = checkAddChildToPartnership('kid', other, people, [...partnerships, other]);
+    expect(result.kind).toBe('confirm');
+    expect(result.kind === 'confirm' && result.message).toContain('dad');
+  });
+
+  it('allows a person with no parents, and reports an existing child as such', () => {
+    expect(checkAddChildToPartnership('stranger', parents, people, partnerships).kind).toBe('ok');
+    expect(checkAddChildToPartnership('kid', parents, people, partnerships).kind).toBe('already-child');
+  });
+
+  it('isAncestorOf follows both raising and birth parents and stops on a cycle', () => {
+    expect(isAncestorOf('gma', 'kid', people, partnerships)).toBe(true);
+    expect(isAncestorOf('kid', 'gma', people, partnerships)).toBe(false);
+    const loop = [p('x', { partnerships: ['pr1'], parentPartnership: 'pr2' }), p('y', { partnerships: ['pr2'], parentPartnership: 'pr1' })];
+    expect(isAncestorOf('z', 'x', loop, [pr('pr1', 'x', 'x'), pr('pr2', 'y', 'y')])).toBe(false);
+  });
+});
+
+describe('partnership gender and separation marks', () => {
+  it('a partner stored as gender "male" is the male partner', () => {
+    const male = { id: 'm', name: 'M Smith', x: 0, y: 0, partnerships: [], gender: 'male', lastName: 'Smith' } as Person;
+    const female = { id: 'f', name: 'F Jones', x: 0, y: 0, partnerships: [], gender: 'female', lastName: 'Jones' } as Person;
+    // Listed second, he is still found (regression: only 'b' / birthSex were read).
+    expect(computeDefaultFamilyName(female, male)).toBe('Smith');
+  });
+
+  it('a whitespace-only divorce date is not a divorce', () => {
+    const marks = partnershipSeparationMarks({ divorceDate: '  ', relationshipStatus: 'married' } as Partnership);
+    expect(marks.divorced).toBe(false);
   });
 });

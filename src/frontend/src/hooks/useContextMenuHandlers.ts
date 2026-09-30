@@ -568,15 +568,9 @@ export function useContextMenuHandlers({
             : [])
       ];
 
-      if (selectedPeopleIds.length === 3) {
-        menuItems.push({
-          label: 'Add Triangle',
-          onClick: () => {
-            addTriangle(selectedPeopleIds);
-            setContextMenu(null);
-          },
-        });
-      }
+      // "Add Triangle" lives on the group menu (three selected people). Here
+      // it only appeared when the clicked person was NOT one of the three,
+      // and then built the triangle from the stale selection.
       setContextMenu({
           x: e.evt.clientX,
           y: e.evt.clientY,
@@ -887,6 +881,18 @@ export function useContextMenuHandlers({
         label: 'Add Emotional Pattern',
         onClick: () => {
           openAddEmotionalPatternModal(p1_id, p2_id);
+          setContextMenu(null);
+        },
+      });
+    }
+    // helpContent: "select three people, then right-click one of them and
+    // choose Add Triangle".
+    if (selectedPeopleIds.length === 3) {
+      const triangleIds = [...selectedPeopleIds];
+      items.push({
+        label: 'Add Triangle',
+        onClick: () => {
+          addTriangle(triangleIds);
           setContextMenu(null);
         },
       });

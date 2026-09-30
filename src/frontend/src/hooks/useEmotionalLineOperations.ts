@@ -10,6 +10,8 @@ interface UseEmotionalLineOperationsDeps {
   triangles: Triangle[];
   emotionalPatternDraft: EmotionalPatternDraft | null;
   setEmotionalLines: Dispatch<SetStateAction<EmotionalLine[]>>;
+  /** Clears a child's reference when its family-cutoff line is deleted. */
+  setPeople: Dispatch<SetStateAction<Person[]>>;
   setTriangles: Dispatch<SetStateAction<Triangle[]>>;
   setEmotionalPatternDraft: Dispatch<SetStateAction<EmotionalPatternDraft | null>>;
   setEmotionalPatternModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -26,6 +28,7 @@ export function useEmotionalLineOperations({
   triangles,
   emotionalPatternDraft,
   setEmotionalLines,
+  setPeople,
   setTriangles,
   setEmotionalPatternDraft,
   setEmotionalPatternModalOpen,
@@ -163,6 +166,16 @@ export function useEmotionalLineOperations({
 
   const removeEmotionalLine = (emotionalLineId: string) => {
     setEmotionalLines((prev) => prev.filter((el) => el.id !== emotionalLineId));
+    // A family-cutoff arc is an emotional line referenced from the child.
+    // Deleting the line through its own menu left that reference behind, so
+    // the child's menu still offered "Remove Cutoff" for a line that was gone.
+    setPeople((prev) =>
+      prev.some((person) => person.familyCutoffLineId === emotionalLineId)
+        ? prev.map((person) =>
+            person.familyCutoffLineId === emotionalLineId ? { ...person, familyCutoffLineId: undefined } : person
+          )
+        : prev
+    );
     setContextMenu(null);
   };
 

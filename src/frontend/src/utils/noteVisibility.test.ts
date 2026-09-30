@@ -5,8 +5,7 @@ import {
   shouldShowFamilyNote,
   shouldShowPartnershipNote,
   shouldShowPersonNote,
-  shouldShowTriangleNote,
-} from './noteVisibility';
+  shouldShowTriangleNote, isTriangleVisible } from './noteVisibility';
 
 describe('noteVisibility', () => {
   it('shows person note when notes layer is on', () => {
@@ -177,5 +176,14 @@ describe('noteVisibility', () => {
     expect(shouldShowPersonNote(person, true, 'p4')).toBe(false);
     expect(shouldShowPartnershipNote(partnership, true)).toBe(false);
     expect(shouldShowEmotionalNote(line, true)).toBe(false);
+  });
+});
+
+describe('isTriangleVisible', () => {
+  const triangle = { person1_id: 'a', person2_id: 'b', person3_id: 'c' };
+  it('is visible only while all three people are', () => {
+    expect(isTriangleVisible(triangle, new Map([['a', true], ['b', true], ['c', true]]))).toBe(true);
+    expect(isTriangleVisible(triangle, new Map([['a', true], ['b', false], ['c', true]]))).toBe(false);
+    expect(isTriangleVisible(triangle, new Map([['a', true], ['b', true]]))).toBe(false);
   });
 });

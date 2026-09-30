@@ -189,8 +189,8 @@ export function useCanvasDragHandlers({
   };
 
   const handleHorizontalConnectorDragEnd = (partnershipId: string, y: number) => {
-    setPartnerships(
-      partnerships.map((p) =>
+    setPartnerships((prev) =>
+      prev.map((p) =>
         p.id === partnershipId ? { ...p, horizontalConnectorY: y } : p
       )
     );
@@ -213,32 +213,32 @@ export function useCanvasDragHandlers({
   };
 
   const handlePartnershipNoteDragEnd = (partnershipId: string, x: number, y: number) => {
-    setPartnerships(
-      partnerships.map((p) =>
+    setPartnerships((prev) =>
+      prev.map((p) =>
         p.id === partnershipId ? { ...p, notesPosition: { x, y } } : p
       )
     );
   };
 
   const handlePartnershipNoteResizeEnd = (partnershipId: string, width: number, height: number) => {
-    setPartnerships(
-      partnerships.map((p) =>
+    setPartnerships((prev) =>
+      prev.map((p) =>
         p.id === partnershipId ? { ...p, notesSize: { width, height } } : p
       )
     );
   };
 
   const handleFamilyNoteDragEnd = (partnershipId: string, x: number, y: number) => {
-    setPartnerships(
-      partnerships.map((p) =>
+    setPartnerships((prev) =>
+      prev.map((p) =>
         p.id === partnershipId ? { ...p, familyNotesPosition: { x, y } } : p
       )
     );
   };
 
   const handleFamilyNoteResizeEnd = (partnershipId: string, width: number, height: number) => {
-    setPartnerships(
-      partnerships.map((p) =>
+    setPartnerships((prev) =>
+      prev.map((p) =>
         p.id === partnershipId ? { ...p, familyNotesSize: { width, height } } : p
       )
     );

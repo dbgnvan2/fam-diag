@@ -57,26 +57,15 @@ describe('family scope reaches every Timeline entry point', () => {
     expect(contextMenuSource).toContain('includeCollaterals: false');
   });
 
-  it('test_m4a2_all_three_timeline_entry_points_use_scope', () => {
-    // Two entry points live in the context-menu hook (person + group).
-    const hookCalls = openingCalls(contextMenuSource);
-    expect(hookCalls.length).toBeGreaterThanOrEqual(3);
-    hookCalls.forEach((arg) => expect(arg).toContain('derived.personIds'));
-
-    // The third lives in DiagramEditor (family right-click).
+  it('test_m4a2_family_right_click_timeline_uses_scope', () => {
+    // The person and group entry points are behaviour-tested in
+    // useContextMenuHandlers.test.ts; the family right-click lives in
+    // DiagramEditor, which has no hook seam, so its call is checked here.
     const editorCalls = openingCalls(diagramEditorSource).filter(
       (arg) => !arg.startsWith('focus.personIds')
     );
     expect(editorCalls.length).toBeGreaterThanOrEqual(1);
     editorCalls.forEach((arg) => expect(arg).toContain('derived.personIds'));
-  });
-
-  it('test_m4a2_family_lane_ids_also_come_from_the_derivation', () => {
-    const hookFamilyCalls = [...contextMenuSource.matchAll(/setTimelineFamilySelectionIds\(([^)]*)\)/g)]
-      .map((match) => match[1].trim())
-      .filter((arg) => arg !== '[]');
-    expect(hookFamilyCalls.length).toBeGreaterThanOrEqual(3);
-    hookFamilyCalls.forEach((arg) => expect(arg).toContain('derived.familyIds'));
   });
 
   it('test_m4a2_editor_passes_the_derivation_into_the_context_menu_hook', () => {

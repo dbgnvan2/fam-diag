@@ -40,6 +40,7 @@ import {
   shouldShowFamilyNote,
   shouldShowEmotionalNote,
   shouldShowTriangleNote,
+  isTriangleVisible,
 } from '../utils/noteVisibility';
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 import { APP_VERSION } from '../data/version';
@@ -677,6 +678,11 @@ export default function DiagramCanvas({
           scaleX={zoom}
           scaleY={zoom}
           onMouseDown={(e) => {
+            // A new press starts a new click. The flag set when a marquee
+            // ends is cleared here too: a marquee released over a node fires
+            // no stage click, so the flag used to survive and swallow the
+            // user's next real click on empty canvas.
+            suppressStageClickRef.current = false;
             if (e.target === e.target.getStage()) {
               const pointer = e.target.getStage()?.getPointerPosition();
               if (pointer) {
@@ -794,13 +800,7 @@ export default function DiagramCanvas({
               const person2 = people.find((person) => person.id === triangle.person2_id);
               const person3 = people.find((person) => person.id === triangle.person3_id);
               if (!person1 || !person2 || !person3) return null;
-              if (
-                !personVisibility.get(person1.id) ||
-                !personVisibility.get(person2.id) ||
-                !personVisibility.get(person3.id)
-              ) {
-                return null;
-              }
+              if (!isTriangleVisible(triangle, personVisibility)) return null;
               return (
                 <TriangleFillNode
                   key={`triangle-fill-${triangle.id}`}
@@ -1031,8 +1031,8 @@ export default function DiagramCanvas({
               if (!shouldShowPersonNote(person, notesLayerEnabled, hoveredPersonId)) return null;
               if (!personVisibility.get(person.id)) return null;
               if (isDemoFocusedPerson(person.id) && !demoBlinkVisible) return null;
-              const x = person.notesPosition?.x || person.x + 50;
-              const y = person.notesPosition?.y || person.y;
+              const x = person.notesPosition?.x ?? person.x + 50;
+              const y = person.notesPosition?.y ?? person.y;
               const genderFill =
                 person.gender === 'male'
                   ? '#d6ecff'
@@ -1071,8 +1071,8 @@ export default function DiagramCanvas({
               const partner2 = people.find(person => person.id === p.partner2_id);
               if (!partner1 || !partner2) return null;
               if (!personVisibility.get(partner1.id) || !personVisibility.get(partner2.id)) return null;
-              const x = p.notesPosition?.x || (partner1.x + partner2.x) / 2;
-              const y = p.notesPosition?.y || p.horizontalConnectorY + 50;
+              const x = p.notesPosition?.x ?? (partner1.x + partner2.x) / 2;
+              const y = p.notesPosition?.y ?? p.horizontalConnectorY + 50;
               return (
                 <NoteNode
                   key={`note-partnership-${p.id}`}
@@ -1138,8 +1138,8 @@ export default function DiagramCanvas({
               const person2 = people.find(person => person.id === el.person2_id);
               if (!person1 || !person2) return null;
               if (!personVisibility.get(person1.id) || !personVisibility.get(person2.id)) return null;
-              const x = el.notesPosition?.x || (person1.x + person2.x) / 2;
-              const y = el.notesPosition?.y || (person1.y + person2.y) / 2 + 20;
+              const x = el.notesPosition?.x ?? (person1.x + person2.x) / 2;
+              const y = el.notesPosition?.y ?? (person1.y + person2.y) / 2 + 20;
               return (
                 <NoteNode
                   key={`note-el-${el.id}`}
@@ -1169,6 +1169,8 @@ export default function DiagramCanvas({
               const p2 = people.find((p) => p.id === triangle.person2_id);
               const p3 = people.find((p) => p.id === triangle.person3_id);
               if (!p1 || !p2 || !p3) return null;
+              // Hidden with its triangle, by the same rule as the fill.
+              if (!isTriangleVisible(triangle, personVisibility)) return null;
               const anchorX = (p1.x + p2.x + p3.x) / 3;
               const anchorY = (p1.y + p2.y + p3.y) / 3;
               const x = triangle.notesPosition?.x ?? anchorX + 20;
