@@ -29,6 +29,13 @@ Only items that were decided, deliberately, to be left as they are:
   that wiring has no seam short of rendering the canvas and right-clicking a
   Konva node. Every other menu and Timeline check is now behavioural.
 
+- **`DiagramCanvas.visibility.test.tsx` calls the component as a function
+  inside a wrapper** (gate `gate_2026-09-30c` LOW, non-blocking). This lets
+  its props be a Proxy that supplies a spy for any handler; the suggested
+  `React.createElement` copies only enumerable own keys, so it would need the
+  full prop list again. The hooks run in the wrapper's render and the test is
+  deterministic. Revisit if DiagramCanvas becomes `memo`/`forwardRef`.
+
 ## Done on 2026-09-30
 
 Every other item previously listed here was fixed, with tests, in
