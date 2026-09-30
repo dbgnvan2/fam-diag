@@ -36,6 +36,11 @@ export type KinRoute =
   | 'ownSpouseSide'
   /** Any other blood relative's partner: in-law or step, by generation. */
   | 'relativeSpouse'
+  /**
+   * That partner's children by someone else: a parent's spouse's child is a
+   * step-sibling, a child's spouse's child a step-grandchild.
+   */
+  | 'relativeSpouseDown'
   /** Anything further — related by marriage, no everyday term. */
   | 'distant';
 
@@ -52,6 +57,8 @@ const next = (route: KinRoute, edge: Edge): KinRoute => {
       return edge === 'up' ? 'ownSpouseUp' : edge === 'down' ? 'ownSpouseSide' : 'distant';
     case 'ownSpouseDown':
       return edge === 'down' ? 'ownSpouseDown' : 'distant';
+    case 'relativeSpouse':
+      return edge === 'down' ? 'relativeSpouseDown' : 'distant';
     default:
       return 'distant';
   }
@@ -138,6 +145,9 @@ export function computeKinRoutes(
         viaId = id === laneId ? undefined : id;
       } else {
         targetRoute = next(route, edge);
+        // Keep the blood relative the marriage was crossed at, so a
+        // relative's spouse's child is named by that relative.
+        if (targetRoute === 'relativeSpouseDown') viaId = routes.get(id)?.viaId;
       }
       routes.set(target, { route: targetRoute, viaId });
       enqueueFrom(target, targetRoute);

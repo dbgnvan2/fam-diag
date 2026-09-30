@@ -1606,7 +1606,7 @@ const PropertiesPanel = ({
       date: event.startDate ?? event.date ?? '',
       endDate: event.endDate || '',
       subtype: event.subtype || (eType === 'SYMPTOM' ? event.symptomType || '' : ''),
-      anchorType: event.anchorType || anchorTypeForOwner(owner.kind),
+      anchorType: event.anchorType || anchorTypeForOwner(owner.kind, owner.list),
       anchorId: event.anchorId || owner.id,
       otherPersonName: event.otherPersonName || 'None',
       primaryPersonName: event.primaryPersonName || primaryPersonOptions[0] || '',
@@ -1618,7 +1618,7 @@ const PropertiesPanel = ({
       status: event.status || 'discrete',
       createdAt: event.createdAt ?? Date.now(),
       symptomType: eType === 'SYMPTOM' ? (event.symptomType || event.subtype || '') : undefined,
-      eventClass: event.eventClass || eventClassForOwner(owner.kind),
+      eventClass: event.eventClass || eventClassForOwner(owner.kind, owner.list),
     });
     setEventModalPosition(null);
     setEventModalTitle(editTitle);
@@ -1648,9 +1648,9 @@ const PropertiesPanel = ({
     const entity = entityForOwner(owner);
     if (!entity) return;
     const normalized = normalizeEventForSave(eventDraft, {
-      anchorType: anchorTypeForOwner(owner.kind),
+      anchorType: anchorTypeForOwner(owner.kind, owner.list),
       anchorId: owner.id,
-      eventClass: eventClassForOwner(owner.kind),
+      eventClass: eventClassForOwner(owner.kind, owner.list),
       primaryPersonName: primaryPersonOptions[0] || '',
     });
     applyOwnerUpdates(

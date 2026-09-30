@@ -11,7 +11,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const contextMenuSource = readFileSync(join(__dirname, './useContextMenuHandlers.ts'), 'utf8');
 const diagramEditorSource = readFileSync(
   join(__dirname, '../components/DiagramEditor.tsx'),
   'utf8'
@@ -24,39 +23,6 @@ const openingCalls = (source: string): string[] =>
     .filter((arg) => arg !== '[]');
 
 describe('family scope reaches every Timeline entry point', () => {
-  it('test_m3a1_person_menu_has_focus_family_submenu', () => {
-    expect(contextMenuSource).toContain("label: 'Focus Family'");
-    ['FAMILY_SCOPE_PRESETS', '1 up / 1 down', '3 up / 3 down', 'Whole family', 'Clear focus'].forEach(
-      (label) => expect(contextMenuSource).toContain(label)
-    );
-    expect(contextMenuSource).toContain('focusFamilyOnPerson(');
-    expect(contextMenuSource).toContain('clearFamilyFocus()');
-  });
-
-  it('test_m3a1_default_preset_comes_from_the_shared_constant', () => {
-    // The default lives in familyScope.ts so the menu, the chip and the
-    // system-events ring cannot drift apart (P4).
-    expect(contextMenuSource).toContain('DEFAULT_SCOPE_UP');
-    expect(contextMenuSource).toContain('DEFAULT_SCOPE_DOWN');
-    expect(contextMenuSource).not.toMatch(/focusFamilyOnPerson\(person\.id, \{ up: 2, down: 2 \}\)/);
-  });
-
-  it('test_m4a2_timeline_for_this_family_derives_from_the_focus_it_sets', () => {
-    // focusFamilyOnPerson is a setState: deriving from deriveTimelineIds in
-    // the same handler reads the PREVIOUS render's scope (null on first use).
-    expect(contextMenuSource).toContain('deriveTimelineIdsForRoot(person.id');
-    expect(diagramEditorSource).toContain('deriveTimelineIdsForRoot');
-  });
-
-  it('test_m3a1_whole_family_is_clamped_to_the_real_depth', () => {
-    expect(contextMenuSource).toContain('computeScopeDepth(people, partnerships, person.id)');
-    expect(contextMenuSource).not.toMatch(/up: people\.length, down: people\.length/);
-  });
-
-  it('test_m3a1_focus_family_offers_a_lineal_only_variant', () => {
-    expect(contextMenuSource).toContain('includeCollaterals: false');
-  });
-
   it('test_m4a2_family_right_click_timeline_uses_scope', () => {
     // The person and group entry points are behaviour-tested in
     // useContextMenuHandlers.test.ts; the family right-click lives in

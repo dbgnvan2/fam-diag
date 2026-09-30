@@ -170,11 +170,26 @@ export type EventOwner = {
 export type EventOwnerEntity = Person | Partnership | EmotionalLine;
 export type EventOwnerUpdates = Partial<Person> | Partial<Partnership> | Partial<EmotionalLine>;
 
-export const anchorTypeForOwner = (kind: EventOwnerKind): EventAnchorType =>
-  kind === 'person' ? 'PERSON' : kind === 'partnership' ? 'RELATIONSHIP_PRL' : 'EMOTIONAL_PROCESS_EP';
+// A partnership owns two lists: its relationship events and its
+// family-level events. The anchor and class follow the list, so a family
+// event missing its own values is not re-labelled as a relationship event.
+export const anchorTypeForOwner = (kind: EventOwnerKind, list?: EventOwner['list']): EventAnchorType =>
+  kind === 'person'
+    ? 'PERSON'
+    : kind === 'partnership'
+      ? list === 'familyEvents'
+        ? 'FAMILY'
+        : 'RELATIONSHIP_PRL'
+      : 'EMOTIONAL_PROCESS_EP';
 
-export const eventClassForOwner = (kind: EventOwnerKind): EventClass =>
-  kind === 'person' ? 'individual' : kind === 'partnership' ? 'relationship' : 'emotional-pattern';
+export const eventClassForOwner = (kind: EventOwnerKind, list?: EventOwner['list']): EventClass =>
+  kind === 'person'
+    ? 'individual'
+    : kind === 'partnership'
+      ? list === 'familyEvents'
+        ? 'family'
+        : 'relationship'
+      : 'emotional-pattern';
 
 export const dateSlotsForOwner = (kind: EventOwnerKind, entity: EventOwnerEntity): DateSlot[] =>
   kind === 'person'
@@ -190,7 +205,13 @@ const dateFieldUpdates = (
   slot: DateSlot,
   date: string,
 ): EventOwnerUpdates => {
-  if (kind !== 'partnership') return { [slot.field]: date || undefined } as EventOwnerUpdates;
+  if (kind !== 'partnership') {
+    // Clearing a death that was recorded without a date clears that record too.
+    if (kind === 'person' && slot.field === 'deathDate' && !date && slot.recordedUndated) {
+      return { deathDate: undefined, deathDateKnown: undefined } as Partial<Person>;
+    }
+    return { [slot.field]: date || undefined } as EventOwnerUpdates;
+  }
   const next = withPartnershipStatusDate(entity as Partnership, slot.statusKey || '', date);
   const legacyField = legacyFieldForStatus(slot.statusKey || '');
   return {
@@ -305,9 +326,14 @@ export const saveEventOnOwner = (
         nextEvents = events.map((entry) => (entry.id === event.id ? { ...event, date, startDate: date } : entry));
       } else {
         const rest = events.filter((entry) => entry.id !== slot.synthId && entry.id !== event.id);
-        nextEvents = date
-          ? [...rest, { ...event, id: slot.synthId, category: slot.category, date, startDate: date }]
-          : rest;
+        // An undated edit of a death recorded without a date keeps its
+        // notes: the record stands, only its date is unknown.
+        const keepsUndated = !date && slot.recordedUndated;
+        nextEvents =
+          date || keepsUndated
+            ? [...rest, { ...event, id: slot.synthId, category: slot.category, date, startDate: date }]
+            : rest;
+        if (keepsUndated) return { events: nextEvents } as EventOwnerUpdates;
       }
       return { ...dateFieldUpdates(owner.kind, entity, slot, date), events: nextEvents } as EventOwnerUpdates;
     }
@@ -361,10 +387,11 @@ export const deleteEventFromOwner = (
       const storedDate = stored ? stored.startDate || stored.date || '' : '';
       const clearsField = !stored || stored.id === slot.synthId || storedDate === (slot.date || '');
       const nextEvents = events.filter((entry) => entry.id !== eventId);
-      return {
-        ...(clearsField ? dateFieldUpdates(owner.kind, entity, slot, '') : {}),
-        events: nextEvents,
-      } as EventOwnerUpdates;
+      // Deleting the death event removes the death, dated or not.
+      const fieldUpdates = clearsField
+        ? dateFieldUpdates(owner.kind, entity, { ...slot, recordedUndated: slot.recordedUndated || slot.field === 'deathDate' }, '')
+        : {};
+      return { ...fieldUpdates, events: nextEvents } as EventOwnerUpdates;
     }
   }
 
@@ -453,4 +480,33 @@ export const EPE_CATEGORY_BY_PATTERN_TYPE: Record<EmotionalLine['relationshipTyp
   projection: 'Projection',
   cutoff: 'Cutoff',
   'open-connection': 'Emotional Pattern',
+};
+
+/**
+ * Keep each date field's companion event (utils/syntheticDateEvents.ts
+ * DateSlot) dated from its field, and drop it when the field is cleared.
+ * The views always show the field's date, but readers of the stored events
+ * (EventCreator, personEventBundle, PredictionsPanel) saw the companion's
+ * own date, which went stale when the field was edited elsewhere. Applied on
+ * every entity update, so no writer of a date field can leave one behind.
+ * Returns the same object when nothing changed.
+ */
+export const withSyncedDateSlotCompanions = <T extends EventOwnerEntity>(kind: EventOwnerKind, entity: T): T => {
+  const events = entity.events;
+  if (!events?.some((event) => isSyntheticEventId(event.id))) return entity;
+  const slotById = new Map(dateSlotsForOwner(kind, entity).map((slot) => [slot.synthId, slot]));
+  let changed = false;
+  const next = events.flatMap((event) => {
+    const slot = slotById.get(event.id);
+    if (!slot) return [event];
+    const date = slot.date || '';
+    if (!date && !slot.recordedUndated) {
+      changed = true;
+      return [];
+    }
+    if (event.date === date && event.startDate === date) return [event];
+    changed = true;
+    return [{ ...event, date, startDate: date }];
+  });
+  return changed ? { ...entity, events: next } : entity;
 };

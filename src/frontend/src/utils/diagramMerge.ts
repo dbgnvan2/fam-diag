@@ -39,6 +39,8 @@ import {
 const NEW_CHILD_SPACING = 90;
 /** How far below a couple's connector line a first child is placed. */
 const CHILD_ROW_BELOW_CONNECTOR = 120;
+/** Two people whose centres are closer than this vertically share a row. */
+const ROW_COLLISION_HEIGHT = 60;
 
 export type DiagramMergeCurrent = {
   people: Person[];
@@ -529,8 +531,20 @@ export const mergeDiagramData = (
       rowY = fam.horizontalConnectorY + CHILD_ROW_BELOW_CONNECTOR;
       startX = (partnerA.x + partnerB.x) / 2 - ((newKids.length - 1) * NEW_CHILD_SPACING) / 2;
     }
-    newKids.forEach((kid, index) => {
-      placedNewChildren.set(kid.id, { ...kid, x: startX + index * NEW_CHILD_SPACING, y: rowY });
+    // Step right past anyone already standing in that row (another family's
+    // child, a person placed earlier in this loop), so a new child is never
+    // drawn on top of someone.
+    const isOccupied = (x: number) =>
+      [...peopleWithLinks.filter((person) => !newPersonIds.has(person.id)), ...placedNewChildren.values()].some(
+        (other) =>
+          Math.abs(other.x - x) < NEW_CHILD_SPACING / 2 &&
+          Math.abs(other.y - rowY) < ROW_COLLISION_HEIGHT
+      );
+    let nextX = startX;
+    newKids.forEach((kid) => {
+      while (isOccupied(nextX)) nextX += NEW_CHILD_SPACING;
+      placedNewChildren.set(kid.id, { ...kid, x: nextX, y: rowY });
+      nextX += NEW_CHILD_SPACING;
     });
   }
 

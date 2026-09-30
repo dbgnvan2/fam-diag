@@ -1,3 +1,4 @@
+import type { SymptomGroup } from '../types';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Person,
@@ -141,6 +142,7 @@ interface DiagramModalsProps {
   updateFunctionalIndicatorUseLetter: (id: string, useLetter: boolean) => void;
   clearFunctionalIndicatorIcon: (id: string) => void;
   removeFunctionalIndicatorDefinition: (id: string) => boolean;
+  ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
   reorderFunctionalIndicators: (defs: FunctionalIndicatorDefinition[]) => void;
 
   // SIRSettingsModal
@@ -369,6 +371,7 @@ export default function DiagramModals({
   updateFunctionalIndicatorUseLetter,
   clearFunctionalIndicatorIcon,
   removeFunctionalIndicatorDefinition,
+  ensureSymptomDefinition,
   reorderFunctionalIndicators,
   sirSettingsOpen,
   setSirSettingsOpen,
@@ -655,6 +658,7 @@ export default function DiagramModals({
         allEmotionalLines={allEmotionalLines}
         eventCategories={eventCategories}
         functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+        onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
         nodalCategories={nodalCategories}
         functionalFactCategories={functionalFactCategories}
         timelineSelectionIds={timelineSelectionIds}

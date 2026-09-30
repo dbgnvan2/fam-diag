@@ -84,6 +84,16 @@ export const SPOUSE_SIBLING_NOUNS: NounTable = {
   0: { male: 'Brother-in-law', female: 'Sister-in-law', unknown: 'Sibling-in-law' },
 };
 
+/**
+ * A blood relative's spouse's child by someone else, keyed by the shape of
+ * the path to that blood relative (`ups,downs`): a parent's (1,0) spouse's
+ * child is a step-sibling; a child's (0,1) spouse's child a step-grandchild.
+ */
+export const RELATIVE_SPOUSE_CHILD_NOUNS: Record<string, Record<RelationGender, string>> = {
+  '1,0': { male: 'Step-brother', female: 'Step-sister', unknown: 'Step-sibling' },
+  '0,1': { male: 'Step-grandson', female: 'Step-granddaughter', unknown: 'Step-grandchild' },
+};
+
 /** Anyone married in beyond the named generations above. */
 export const DISTANT_IN_LAW_NOUN = 'Relative by marriage';
 

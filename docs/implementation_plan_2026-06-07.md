@@ -1,5 +1,13 @@
 # Implementation Plan: AI Settings (API key + model + connection test)
 
+> ⚠️ **PARTLY RETIRED.** The review-modal image pipeline this plan names —
+> `imageAnalysis`, `personInventory`, `extractedDataToDiagram`, `diagramLayout`,
+> `inventoryExport`, `ImageDiagramReviewModal` — was unreachable and was deleted
+> on 2026-09-27 (`a5ce83a`). The active image import is the Claude Vision path
+> (`utils/genogram/vlmImport.ts`, see
+> [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md)). This plan is
+> kept for history; do not follow its file list.
+
 **Date:** 2026-06-07
 **Goal:** Replace the developer-only `localStorage.setItem('anthropic_api_key', …)` workaround with a real Settings UI for the Anthropic API key and the model the app should use for image extraction, plus an in-modal "Test Connection" button.
 

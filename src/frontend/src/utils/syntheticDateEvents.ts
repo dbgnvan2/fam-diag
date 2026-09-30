@@ -59,11 +59,24 @@ export type DateSlot = {
   category: string;
   synthId: string;
   date?: string;
+  /**
+   * The fact is recorded but its date is not — a death marked "deceased,
+   * date unknown". Its event is listed undated (the Events tab shows "—";
+   * the Timeline cannot place it) instead of not at all.
+   */
+  recordedUndated?: boolean;
 };
 
 export const personDateSlots = (person: Person): DateSlot[] => [
   { owner: 'person', field: 'birthDate', category: 'Birth', synthId: `synth-birth-${person.id}`, date: person.birthDate },
-  { owner: 'person', field: 'deathDate', category: 'Death', synthId: `synth-death-${person.id}`, date: person.deathDate },
+  {
+    owner: 'person',
+    field: 'deathDate',
+    category: 'Death',
+    synthId: `synth-death-${person.id}`,
+    date: person.deathDate,
+    recordedUndated: !!person.deathDateKnown,
+  },
   { owner: 'person', field: 'adoptionDate', category: 'Adoption', synthId: `synth-adoption-${person.id}`, date: person.adoptionDate },
   // Added when person-date records stopped being written on save: without
   // this the gender date would appear nowhere at all.
@@ -162,7 +175,8 @@ const baseSynthEvent = (
 /**
  * The one event for a slot, or null when there is none to show:
  *   - no valid date on the field → nothing (a companion without a date is
- *     not shown);
+ *     not shown), unless the slot is recorded undated — then it is listed
+ *     with no date;
  *   - a companion stored under the synthetic id → it, dated from the field;
  *   - an older stored event with the slot's category → nothing here, that
  *     event is listed as it is;
@@ -174,8 +188,8 @@ const eventForSlot = (
   base: Pick<EmotionalProcessEvent, 'anchorType' | 'anchorId' | 'eventClass' | 'primaryPersonName'> &
     Partial<EmotionalProcessEvent>,
 ): EmotionalProcessEvent | null => {
-  if (!isValidIsoDate(slot.date)) return null;
-  const date = slot.date;
+  const date = isValidIsoDate(slot.date) ? slot.date : slot.recordedUndated ? '' : null;
+  if (date === null) return null;
   const companion = events?.find((event) => event.id === slot.synthId);
   const synth: EmotionalProcessEvent = { ...baseSynthEvent(slot.synthId, date, slot.category), ...base };
   if (companion) {

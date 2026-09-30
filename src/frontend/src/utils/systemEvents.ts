@@ -31,6 +31,7 @@ import {
   COLLATERAL_SPOUSE_NOUNS,
   DISTANT_BLOOD_NOUN,
   DISTANT_IN_LAW_NOUN,
+  RELATIVE_SPOUSE_CHILD_NOUNS,
   RELATIVE_SPOUSE_NOUNS,
   SPOUSE_ANCESTOR_NOUNS,
   SPOUSE_DESCENDANT_NOUNS,
@@ -382,6 +383,10 @@ export function collectSystemEvents({
           generation,
           gender
         );
+      } else if (kin.route === 'relativeSpouseDown') {
+        const via = kin.viaId ? bloodPaths.get(kin.viaId) : undefined;
+        const row = via ? RELATIVE_SPOUSE_CHILD_NOUNS[`${via.ups},${via.downs}`] : undefined;
+        noun = row ? row[gender] : DISTANT_IN_LAW_NOUN;
       } else {
         noun = marriageNoun(kin.route, generation, gender);
       }

@@ -685,6 +685,23 @@ export const siblingPositionInputKey = (people: Person[], partnerships: Partners
     partnerships.map((pr) => [pr.id, pr.partner1_id, pr.partner2_id]),
   ]);
 
+/**
+ * A key for caching full sibling results (with parent / partner conflicts).
+ * Adds to siblingPositionInputKey the one coordinate the analysis reads:
+ * where a parent of unknown sex stands, since two such parents are told
+ * apart by position (leftmost is the father).
+ */
+export const siblingConflictInputKey = (people: Person[], partnerships: Partnership[]): string =>
+  siblingPositionInputKey(people, partnerships) +
+  JSON.stringify(people.filter((person) => !personSexCode(person)).map((person) => [person.id, person.x]));
+
+/** Every person's full sibling result, for the conflict overlay. */
+export const siblingPositionResults = (
+  people: Person[],
+  partnerships: Partnership[]
+): Map<string, SiblingPositionResult> =>
+  new Map(people.map((person) => [person.id, deriveSiblingPositionResult({ person, people, partnerships })]));
+
 export const deriveSiblingPositionResult = ({
   person,
   people,

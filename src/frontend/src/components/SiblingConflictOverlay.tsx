@@ -15,7 +15,7 @@
 import { Group, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Person, Partnership } from '../types';
-import { deriveSiblingPositionResult, partnerForPerson } from '../utils/siblingPosition';
+import { deriveSiblingPositionResult, partnerForPerson, type SiblingPositionResult } from '../utils/siblingPosition';
 import type { ConflictResult } from '../utils/siblingPosition';
 
 export interface SiblingConflictHoverInfo {
@@ -40,6 +40,8 @@ interface Props {
   onHover?: (info: SiblingConflictHoverInfo) => void;
   onHoverLeave?: () => void;
   onLineClick?: (info: SiblingConflictClickInfo) => void;
+  /** The person's result, when the caller has it cached; derived otherwise. */
+  result?: SiblingPositionResult;
 }
 
 const SQ2 = Math.SQRT1_2;
@@ -194,8 +196,8 @@ function PartnerIndicators({ edgeX, centreY, dir, conflict, keyBase, onHover, on
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const SiblingConflictOverlay = ({ person, people, partnerships, onHover, onHoverLeave, onLineClick }: Props) => {
-  const result  = deriveSiblingPositionResult({ person, people, partnerships });
+const SiblingConflictOverlay = ({ person, people, partnerships, onHover, onHoverLeave, onLineClick, result: cachedResult }: Props) => {
+  const result  = cachedResult ?? deriveSiblingPositionResult({ person, people, partnerships });
   const partner = partnerForPerson(person, people, partnerships);
 
   const halfExtent  = (person.size ?? 60) / 2;

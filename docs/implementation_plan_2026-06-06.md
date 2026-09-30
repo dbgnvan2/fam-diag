@@ -1,5 +1,13 @@
 # Implementation Plan: Jennie's Boy Image → Diagram
 
+> ⚠️ **PARTLY RETIRED.** The review-modal image pipeline this plan names —
+> `imageAnalysis`, `personInventory`, `extractedDataToDiagram`, `diagramLayout`,
+> `inventoryExport`, `ImageDiagramReviewModal` — was unreachable and was deleted
+> on 2026-09-27 (`a5ce83a`). The active image import is the Claude Vision path
+> (`utils/genogram/vlmImport.ts`, see
+> [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md)). This plan is
+> kept for history; do not follow its file list.
+
 **Date:** 2026-06-06
 **Goal:** Make the existing image-extraction pipeline produce, for `Test Data/Family Diagram Jennies Boy for Import.jpg`, a diagram whose structure matches the reference `jennie_boy_diagram.json` (24 persons, 4 partnerships, child→parent wiring, deceased flags, descriptive notes, dating-vs-married distinction).
 

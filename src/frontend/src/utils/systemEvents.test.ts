@@ -808,9 +808,13 @@ describe('in-law and step relations', () => {
 });
 
 describe('clipToLifetime — "today" is a local calendar date', () => {
-  // Only fails on the old code where local midnight is before UTC midnight
-  // (east of UTC); run with TZ=Pacific/Auckland to see it bite.
+  // Pinned east of UTC, where local midnight comes before UTC midnight: the
+  // old clock comparison clipped a today-dated event there for hours each
+  // morning. Node applies a TZ change at once; the original is restored.
   it('keeps an event dated today whatever the time of day', () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'Pacific/Auckland';
+    try {
     const lane = { id: 'p', name: 'P', x: 0, y: 0, partnerships: [], birthDate: '1970-01-01' } as Person;
     const today = new Date(2026, 8, 30, 0, 30); // 00:30 local time on 30 Sep 2026
     const entry = {
@@ -823,5 +827,9 @@ describe('clipToLifetime — "today" is a local calendar date', () => {
       ownerEntityId: 'x',
     } as SystemEvent;
     expect(clipToLifetime([entry], lane, today).kept).toHaveLength(1);
+    } finally {
+      if (originalTz === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTz;
+    }
   });
 });

@@ -34,7 +34,12 @@ import TriangleFillNode from './TriangleFillNode';
 import NoteNode from './NoteNode';
 import SiblingConflictOverlay from './SiblingConflictOverlay';
 import type { SiblingConflictHoverInfo, SiblingConflictClickInfo } from './SiblingConflictOverlay';
-import { effectiveSiblingPositions, siblingPositionInputKey } from '../utils/siblingPosition';
+import {
+  effectiveSiblingPositions,
+  siblingConflictInputKey,
+  siblingPositionInputKey,
+  siblingPositionResults,
+} from '../utils/siblingPosition';
 import {
   shouldShowPersonNote,
   shouldShowPartnershipNote,
@@ -408,6 +413,14 @@ export default function DiagramCanvas({
     () => effectiveSiblingPositions(people, partnerships),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [siblingInputKey]
+  );
+  // The conflict overlay needs the full analysis. It is cached the same way,
+  // and only computed while the overlay is on.
+  const siblingConflictKey = showSiblingConflicts ? siblingConflictInputKey(people, partnerships) : '';
+  const siblingResults = useMemo(
+    () => (showSiblingConflicts ? siblingPositionResults(people, partnerships) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [siblingConflictKey, showSiblingConflicts]
   );
   const prevScrollTopRef = useRef<number>(0);
   const [siblingTooltip, setSiblingTooltip] = useState<SiblingConflictHoverInfo | null>(null);
@@ -961,6 +974,7 @@ export default function DiagramCanvas({
                   person={person}
                   people={people}
                   partnerships={partnerships}
+                  result={siblingResults?.get(person.id)}
                   onHover={setSiblingTooltip}
                   onHoverLeave={() => setSiblingTooltip(null)}
                   onLineClick={(info) => setSiblingDetail((prev) =>

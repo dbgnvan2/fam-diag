@@ -90,3 +90,21 @@ export const withPartnershipStatusDate = (
   if (legacyField) next[legacyField] = trimmed || undefined;
   return next;
 };
+
+/** How a status ends a relationship on the canvas: two slashes or one. */
+export type RelationshipEnding = 'divorce' | 'separation';
+
+const ENDING_BY_STATUS_KEY: Record<string, RelationshipEnding> = {
+  divorce: 'divorce',
+  separated: 'separation',
+  separation: 'separation',
+  ended: 'separation',
+};
+
+/**
+ * Whether a status (in any spelling) marks a divorce, a separation, or
+ * neither. The one classifier for "is this a divorce / separation status",
+ * shared by the status field and the status dates.
+ */
+export const relationshipEndingForStatus = (status: string): RelationshipEnding | null =>
+  ENDING_BY_STATUS_KEY[canonicalRelationshipStatusKey(status)] ?? null;

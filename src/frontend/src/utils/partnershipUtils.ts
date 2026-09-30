@@ -1,3 +1,4 @@
+import { relationshipEndingForStatus, type RelationshipEnding } from './relationshipStatusKeys';
 import type { Partnership, Person } from '../types';
 
 export function computeDefaultFamilyName(partner1: Person, partner2: Person): string {
@@ -80,29 +81,23 @@ export function earliestPartnershipDate(partnership: Partnership): string | unde
  */
 export type PartnershipSeparationMarks = { separated: boolean; divorced: boolean };
 
-const hasStatusDate = (partnership: Partnership, ...keys: string[]): boolean =>
-  keys.some((key) => {
-    const value = (partnership.statusDates || {})[key];
-    return !!value && value.trim().length > 0;
-  });
-
 export function partnershipSeparationMarks(
   partnership: Partnership
 ): PartnershipSeparationMarks {
-  const status = (partnership.relationshipStatus || '').trim().toLowerCase();
-
-  // A whitespace-only date is not a recorded date (same rule as statusDates).
-  const divorced =
-    !!partnership.divorceDate?.trim() ||
-    hasStatusDate(partnership, 'divorce', 'divorced') ||
-    status === 'divorce' ||
-    status === 'divorced';
-
-  const separated =
-    !!partnership.separationDate?.trim() ||
-    hasStatusDate(partnership, 'separated', 'separation') ||
-    status === 'separated' ||
-    status === 'ended';
+  // The status field and every recorded status date are classified by the
+  // same rule (utils/relationshipStatusKeys), instead of a key list kept here.
+  // A whitespace-only date is not a recorded date.
+  const endings = new Set<RelationshipEnding>();
+  const status = relationshipEndingForStatus(partnership.relationshipStatus || '');
+  if (status) endings.add(status);
+  Object.entries(partnership.statusDates || {}).forEach(([key, value]) => {
+    const ending = relationshipEndingForStatus(key);
+    if (ending && value?.trim()) endings.add(ending);
+  });
+  if (partnership.divorceDate?.trim()) endings.add('divorce');
+  if (partnership.separationDate?.trim()) endings.add('separation');
+  const divorced = endings.has('divorce');
+  const separated = endings.has('separation');
 
   // Two slashes replace the one, rather than joining it.
   return { separated: separated && !divorced, divorced };

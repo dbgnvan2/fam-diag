@@ -233,3 +233,24 @@ describe('mergeDiagramData — collapsed triangles are counted', () => {
     expect(result.droppedTriangles).toBe(1);
   });
 });
+
+describe('mergeDiagramData — a new child is not placed on top of someone', () => {
+  it('steps past a person already standing in the row (regression: no collision check)', () => {
+    const current = existingDiagram();
+    // Someone from another family stands exactly where the new child would go.
+    current.people = [...current.people, person('neighbour', 'Nora Next', 480, 330)];
+    const result = mergeDiagramData(current, {
+      people: [
+        person('x-dad', 'Adam Stone', 5000, 5000, { partnerships: ['x-fam'] }),
+        person('x-mom', 'Beth Stone', 5200, 5000, { partnerships: ['x-fam'] }),
+        person('x-kid', 'Fay Stone', 5100, 5300, { parentPartnership: 'x-fam' }),
+      ],
+      partnerships: [partnership('x-fam', 'x-dad', 'x-mom', ['x-kid'])],
+      emotionalLines: [],
+    });
+    const fay = result.people.find((p) => p.name === 'Fay Stone')!;
+    const nora = result.people.find((p) => p.id === 'neighbour')!;
+    expect(Math.abs(fay.x - nora.x)).toBeGreaterThanOrEqual(45);
+    expect(nora.x).toBe(480);
+  });
+});

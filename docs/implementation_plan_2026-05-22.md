@@ -1,5 +1,13 @@
 # Implementation Plan: Extract Family Diagrams from Images
 
+> ⚠️ **PARTLY RETIRED.** The review-modal image pipeline this plan names —
+> `imageAnalysis`, `personInventory`, `extractedDataToDiagram`, `diagramLayout`,
+> `inventoryExport`, `ImageDiagramReviewModal` — was unreachable and was deleted
+> on 2026-09-27 (`a5ce83a`). The active image import is the Claude Vision path
+> (`utils/genogram/vlmImport.ts`, see
+> [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md)). This plan is
+> kept for history; do not follow its file list.
+
 **Date:** 2026-05-22  
 **Task:** Add image-to-diagram functionality using Claude Vision API to parse handwritten/drawn family diagrams  
 **Input:** Handwritten or drawn family diagram images (PNG, JPG)  

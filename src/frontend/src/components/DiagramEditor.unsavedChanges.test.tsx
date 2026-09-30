@@ -86,6 +86,10 @@ describe('DiagramEditor — Build Demo with unsaved changes', () => {
     confirmSpy.mockReturnValue(false);
     openBuildDemoFromHelpMenu();
     expect(confirmSpy).toHaveBeenCalledTimes(1);
+    // One wording for every whole-diagram replace (utils/unsavedChanges.ts).
+    expect(String(confirmSpy.mock.calls[0][0])).toBe(
+      'Start the build demo? Unsaved changes to the current diagram will be lost.'
+    );
     expect(screen.queryByRole('dialog', { name: /build demo walkthrough/i })).not.toBeInTheDocument();
   });
 

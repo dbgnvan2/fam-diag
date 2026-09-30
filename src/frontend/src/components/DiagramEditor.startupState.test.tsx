@@ -15,6 +15,7 @@ import { render, act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import DiagramEditor from './DiagramEditor';
 import { STORAGE_KEYS } from '../utils/storage';
+import { DEFAULT_DIAGRAM_STATE } from '../data/defaultDiagramState';
 import type { Partnership, Person } from '../types';
 
 const readStored = <T,>(key: keyof typeof STORAGE_KEYS): T =>
@@ -89,7 +90,14 @@ describe('DiagramEditor — state restored on load', () => {
 
   it('with nothing stored, the product default diagram is used', async () => {
     await mountAndLetAutosaveRun();
-    expect(readStored<Person[]>('people').length).toBeGreaterThan(0);
+    // The same people and partnerships as the product default, not merely
+    // "some people" (a bound would pass on any non-empty diagram).
+    expect(readStored<Person[]>('people').map((p) => p.id).sort()).toEqual(
+      DEFAULT_DIAGRAM_STATE.people.map((p) => p.id).sort()
+    );
+    expect(readStored<Partnership[]>('partnerships').map((p) => p.id).sort()).toEqual(
+      DEFAULT_DIAGRAM_STATE.partnerships.map((p) => p.id).sort()
+    );
   });
 });
 

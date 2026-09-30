@@ -323,14 +323,7 @@ export function useFileOperations({
   // cancelled the unsaved-changes confirm. Callers use this to decide whether
   // to run new-diagram follow-ups (e.g. re-showing the right-click hint).
   const handleNewFile = (): boolean => {
-    if (isDirty) {
-      const confirmReset = window.confirm(
-        'Start a new family diagram? Unsaved changes will be lost.'
-      );
-      if (!confirmReset) {
-        return false;
-      }
-    }
+    if (!confirmDiscardUnsavedChanges(isDirty, 'Start a new family diagram')) return false;
     // Just clear the canvas. The filename stays as the FALLBACK_FILE_NAME
     // sentinel so the first Save will route through Save As naturally.
     resetDiagramToBlankState();
@@ -382,23 +375,13 @@ export function useFileOperations({
   };
 
   const handleLoadDemoDiagram = () => {
-    if (isDirty && !isCurrentDemoDiagram) {
-      const confirmReset = window.confirm(
-        'Load Demo Diagram? Current unsaved diagram changes will be replaced.'
-      );
-      if (!confirmReset) return;
-    }
+    if (!confirmDiscardUnsavedChanges(isDirty && !isCurrentDemoDiagram, 'Load the demo diagram')) return;
     setDiagramFileHandle(null);
     replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
   };
 
   const handleStartDemoTour = () => {
-    if (isDirty && !isCurrentDemoDiagram) {
-      const confirmReset = window.confirm(
-        'Start the interactive demo? Current unsaved diagram changes will be replaced.'
-      );
-      if (!confirmReset) return;
-    }
+    if (!confirmDiscardUnsavedChanges(isDirty && !isCurrentDemoDiagram, 'Start the interactive demo')) return;
     if (!isCurrentDemoDiagram) {
       replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME);
     }
@@ -480,12 +463,7 @@ export function useFileOperations({
   };
 
   const handleStartBuildDemo = () => {
-    if (isDirty) {
-      const confirmReset = window.confirm(
-        'Start the build demo? Current unsaved diagram changes will be replaced.'
-      );
-      if (!confirmReset) return;
-    }
+    if (!confirmDiscardUnsavedChanges(isDirty, 'Start the build demo')) return;
     setHelpOpen(false);
     setTrainingVideosOpen(false);
     setDemoTourOpen(false);

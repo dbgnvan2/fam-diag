@@ -7,7 +7,10 @@ import type {
   Person,
 } from '../types';
 import {
+  anchorTypeForOwner,
   applyEventDraftFieldChange,
+  eventClassForOwner,
+  withSyncedDateSlotCompanions,
   buildNewEventDraft,
   deleteEventFromOwner,
   normalizeEventForSave,
@@ -306,5 +309,75 @@ describe('buildNewEventDraft — nothing the user did not give (author decisions
       seed: { category: 'Triangle Functioning', startDate: '2010-10-10', intensity: 2 },
     });
     expect(draft).toMatchObject({ category: 'Triangle Functioning', date: '2010-10-10', intensity: 2 });
+  });
+});
+
+describe('withSyncedDateSlotCompanions', () => {
+  const companion = event({ id: 'synth-birth-p1', category: 'Birth', date: '1980-01-01', startDate: '1980-01-01', observations: 'home' });
+
+  it('re-dates a companion when its field changes elsewhere (regression: stored date went stale)', () => {
+    const synced = withSyncedDateSlotCompanions('person', person({ birthDate: '1985-05-05', events: [companion] }));
+    expect(synced.events?.[0]).toMatchObject({ date: '1985-05-05', startDate: '1985-05-05', observations: 'home' });
+  });
+
+  it('drops the companion when the field is cleared', () => {
+    expect(withSyncedDateSlotCompanions('person', person({ events: [companion] })).events).toEqual([]);
+  });
+
+  it('returns the same object when nothing changed', () => {
+    const owner = person({ birthDate: '1980-01-01', events: [companion] });
+    expect(withSyncedDateSlotCompanions('person', owner)).toBe(owner);
+  });
+});
+
+describe('anchor helpers follow the partnership list (gate 2026-09-30 LOW #1)', () => {
+  it('a family event without its own anchor is saved as a family event', () => {
+    const saved = normalizeEventForSave(event({ anchorType: undefined, eventClass: undefined as never }), {
+      anchorType: anchorTypeForOwner('partnership', 'familyEvents'),
+      anchorId: 'pr1',
+      eventClass: eventClassForOwner('partnership', 'familyEvents'),
+    });
+    expect(saved).toMatchObject({ anchorType: 'FAMILY', eventClass: 'family' });
+    expect(anchorTypeForOwner('partnership')).toBe('RELATIONSHIP_PRL');
+  });
+});
+
+describe('a death recorded without a date (TODO 2026-09-27)', () => {
+  const deceased = () => person({ deathDateKnown: true, events: [] });
+
+  it('is listed as one undated Death event instead of nowhere', () => {
+    const deaths = synthesizePersonDateEvents(deceased()).filter((e) => e.category === 'Death');
+    expect(deaths).toHaveLength(1);
+    expect(deaths[0]).toMatchObject({ id: 'synth-death-p1', date: '', startDate: '' });
+  });
+
+  it('giving it a date records the death date', () => {
+    const owner = deceased();
+    const [death] = synthesizePersonDateEvents(owner);
+    const updates = saveEventOnOwner(
+      { kind: 'person', id: 'p1' },
+      owner,
+      normalizeEventForSave({ ...death, startDate: '2001-02-03', date: '2001-02-03' }, context)
+    ) as Partial<Person>;
+    expect(updates.deathDate).toBe('2001-02-03');
+  });
+
+  it('a note on it is kept while it stays undated', () => {
+    const owner = deceased();
+    const [death] = synthesizePersonDateEvents(owner);
+    const updates = saveEventOnOwner(
+      { kind: 'person', id: 'p1' },
+      owner,
+      normalizeEventForSave({ ...death, observations: 'in the war' }, context)
+    ) as Partial<Person>;
+    const after = { ...owner, ...updates } as Person;
+    expect(synthesizePersonDateEvents(after)[0].observations).toBe('in the war');
+    expect(withSyncedDateSlotCompanions('person', after).events).toHaveLength(1);
+  });
+
+  it('deleting it removes the death record', () => {
+    const updates = deleteEventFromOwner({ kind: 'person', id: 'p1' }, deceased(), 'synth-death-p1') as Partial<Person>;
+    expect(updates).toMatchObject({ deathDateKnown: undefined, deathDate: undefined });
+    expect(updates).toHaveProperty('deathDateKnown', undefined);
   });
 });

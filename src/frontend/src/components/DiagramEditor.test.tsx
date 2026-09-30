@@ -65,7 +65,9 @@ describe('DiagramEditor', () => {
             fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
         }
         expect(screen.getByText(/Ribbon · File Menu/i)).toBeInTheDocument();
-    });
+    // Up to ~20 full-editor re-renders: it passes in ~1.4s alone but timed out
+    // at the 5s default when the whole suite ran under load.
+    }, 20_000);
 
     it('starts build demo from help and supports next/previous navigation', () => {
         render(<DiagramEditor />);

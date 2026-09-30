@@ -1,5 +1,13 @@
 # Implementation Plan: Browser CV+OCR Genogram Pipeline
 
+> ⚠️ **PARTLY RETIRED.** The review-modal image pipeline this plan names —
+> `imageAnalysis`, `personInventory`, `extractedDataToDiagram`, `diagramLayout`,
+> `inventoryExport`, `ImageDiagramReviewModal` — was unreachable and was deleted
+> on 2026-09-27 (`a5ce83a`). The active image import is the Claude Vision path
+> (`utils/genogram/vlmImport.ts`, see
+> [VLM_Implementation_Summary.md](VLM_Implementation_Summary.md)). This plan is
+> kept for history; do not follow its file list.
+
 **Date:** 2026-06-07 (third plan of the day; supersedes the whole-image-VLM strategy from `implementation_plan_2026-06-06.md` and `implementation_plan_2026-06-07b.md`)
 
 **Goal:** Replace the failing whole-image-Claude-Vision approach with a deterministic per-symbol pipeline running entirely in the browser. The pipeline produces a JSON object that matches the shape of a manually-created diagram (same structure as `jennie_boy_diagram.json`) and is openable via existing File → Open with no further conversion.

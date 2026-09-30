@@ -1,4 +1,4 @@
-import { EPE_CATEGORY_BY_PATTERN_TYPE } from '../utils/eventDraft';
+import { EPE_CATEGORY_BY_PATTERN_TYPE, withSyncedDateSlotCompanions } from '../utils/eventDraft';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Person,
@@ -77,8 +77,10 @@ export function useUpdateHandlers({
   setSelectedChildId,
 }: UseUpdateHandlersDeps) {
   const handleUpdatePerson = (personId: string, updatedProps: Partial<Person>) => {
+    // withSyncedDateSlotCompanions keeps a date field's companion event
+    // dated from the field, whichever writer changed the field.
     const updater = (prev: Person[]) =>
-      prev.map((p) => (p.id === personId ? { ...p, ...updatedProps } : p));
+      prev.map((p) => (p.id === personId ? withSyncedDateSlotCompanions('person', { ...p, ...updatedProps }) : p));
     if (isStyleOnlyUpdate(updatedProps)) {
       setPeople((prev) => updater(prev));
     } else {
@@ -86,7 +88,7 @@ export function useUpdateHandlers({
     }
     setPropertiesPanelItem((prev) => {
       if (prev && prev.id === personId && 'name' in prev) {
-        return { ...prev, ...updatedProps };
+        return withSyncedDateSlotCompanions('person', { ...prev, ...updatedProps });
       }
       return prev;
     });
@@ -179,11 +181,13 @@ export function useUpdateHandlers({
 
   const handleUpdatePartnership = (partnershipId: string, updatedProps: Partial<Partnership>) => {
     setPartnerships((prev) =>
-      prev.map((p) => (p.id === partnershipId ? { ...p, ...updatedProps } : p))
+      prev.map((p) =>
+        p.id === partnershipId ? withSyncedDateSlotCompanions('partnership', { ...p, ...updatedProps }) : p
+      )
     );
     setPropertiesPanelItem((prev) => {
       if (prev && prev.id === partnershipId && 'partner1_id' in prev) {
-        return { ...prev, ...updatedProps };
+        return withSyncedDateSlotCompanions('partnership', { ...prev, ...updatedProps });
       }
       return prev;
     });
@@ -191,7 +195,11 @@ export function useUpdateHandlers({
 
   const handleUpdateEmotionalLine = (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => {
     setEmotionalLines((prev) =>
-      prev.map((el) => (el.id !== emotionalLineId ? el : normalizeEmotionalLine({ ...el, ...updatedProps })))
+      prev.map((el) =>
+        el.id !== emotionalLineId
+          ? el
+          : withSyncedDateSlotCompanions('emotional', normalizeEmotionalLine({ ...el, ...updatedProps }))
+      )
     );
     setTriangles((prev) =>
       prev.map((triangle) => {
@@ -200,14 +208,14 @@ export function useUpdateHandlers({
         const nextTpls = triangle.tpls.map((tpl) => {
           if (tpl.id !== emotionalLineId) return tpl;
           changed = true;
-          return normalizeEmotionalLine({ ...tpl, ...updatedProps });
+          return withSyncedDateSlotCompanions('emotional', normalizeEmotionalLine({ ...tpl, ...updatedProps }));
         });
         return changed ? { ...triangle, tpls: nextTpls } : triangle;
       })
     );
     setPropertiesPanelItem((prev) => {
       if (prev && prev.id === emotionalLineId && 'lineStyle' in prev) {
-        return normalizeEmotionalLine({ ...prev, ...updatedProps });
+        return withSyncedDateSlotCompanions('emotional', normalizeEmotionalLine({ ...prev, ...updatedProps }));
       }
       return prev;
     });

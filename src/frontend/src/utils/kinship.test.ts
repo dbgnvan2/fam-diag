@@ -51,7 +51,7 @@ const buildFamily = () => {
   const people: Person[] = [
     person('bob', { birthSex: 'male', partnerships: ['prBob', 'prBobCarol'], ...born(1940) }),
     person('mary', { birthSex: 'female', partnerships: ['prBob'], ...born(1942) }),
-    person('carol', { birthSex: 'female', partnerships: ['prBobCarol'], ...born(1950) }),
+    person('carol', { birthSex: 'female', partnerships: ['prBobCarol', 'prCarolFirst'], ...born(1950) }),
     person('peter', {
       birthSex: 'male',
       parentPartnership: 'prBob',
@@ -77,10 +77,13 @@ const buildFamily = () => {
     person('bettyFirst', { birthSex: 'male', partnerships: ['prBettyFirst'], ...born(1960) }),
     person('tom', { birthSex: 'male', parentPartnership: 'prBettyFirst', ...born(1988) }),
     person('jim', { birthSex: 'male', parentPartnership: 'prPeter', ...born(1992) }),
+    person('carolFirst', { birthSex: 'male', partnerships: ['prCarolFirst'], ...born(1948) }),
+    person('carolKid', { birthSex: 'female', parentPartnership: 'prCarolFirst', ...born(1972) }),
   ];
   const partnerships: Partnership[] = [
     partnership('prBob', 'bob', 'mary', ['peter', 'sue']),
     partnership('prBobCarol', 'bob', 'carol', []),
+    partnership('prCarolFirst', 'carolFirst', 'carol', ['carolKid']),
     partnership('prSue', 'sue', 'sueHusband', []),
     partnership('prPeter', 'peter', 'betty', ['jim']),
     partnership('prBettyParents', 'bettyDad', 'bettyMum', ['betty', 'bettySis']),
@@ -199,6 +202,42 @@ describe('kinship — blood always wins', () => {
     const blood = new Set([...scope.personIds].filter((id) => !scope.marriedIn.has(id)));
     const routes = computeKinRoutes(people, partnerships, 'cousinX', blood);
     expect(routes.get('cousinY')?.route).toBe('blood');
+    // On his lane she is named as what she is to him first: his wife (the
+    // spousal noun wins over the blood one). The test used to stop at the
+    // route and so did not check the label a user sees.
+    const withEvent = people.map((entry) =>
+      entry.id === 'cousinY'
+        ? {
+            ...entry,
+            events: [
+              {
+                id: 'y-late', date: '2020-01-01', startDate: '2020-01-01', category: 'Checkup',
+                eventType: 'NODAL' as const, status: 'discrete' as const, intensity: 0, howWell: 0,
+                otherPersonName: '', wwwwh: '', observations: '', eventClass: 'individual' as const,
+              },
+            ],
+          }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'cousinX',
+      scope,
+      people: withEvent,
+      partnerships,
+      now: new Date('2026-09-22T00:00:00Z'),
+    });
+    expect(result.events.find((entry) => entry.ownerEntityId === 'cousinY')?.relationNoun).toBe('Wife');
+  });
+
+  it('test_kin_a_parents_spouses_child_is_a_step_sibling', () => {
+    // Carol is Peter's step-mother; her daughter by an earlier marriage is
+    // his step-sister (was "Relative by marriage").
+    expect(nounFor('peter', 'carolKid')).toBe('Step-sister');
+  });
+
+  it('test_kin_a_childs_spouses_child_is_a_step_grandchild', () => {
+    // Tom is Betty's son by her first marriage; Betty is Bob's daughter-in-law.
+    expect(nounFor('bob', 'tom')).toBe('Step-grandson');
   });
 });
 

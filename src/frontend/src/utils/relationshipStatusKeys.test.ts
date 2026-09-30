@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Partnership } from '../types';
 import {
   canonicalRelationshipStatusKey,
+  relationshipEndingForStatus,
   legacyFieldForStatus,
   readPartnershipStatusDate,
   withPartnershipStatusDate,
@@ -46,5 +47,17 @@ describe('relationshipStatusKeys', () => {
     const next = withPartnershipStatusDate(partnership({ statusDates: { married: '1990-01-01' }, marriedStartDate: '1990-01-01' }), 'married', '');
     expect(next.statusDates).toBeUndefined();
     expect(next.marriedStartDate).toBeUndefined();
+  });
+});
+
+describe('relationshipEndingForStatus', () => {
+  it('classifies every spelling of divorce and separation, and nothing else', () => {
+    expect(relationshipEndingForStatus('Divorced')).toBe('divorce');
+    expect(relationshipEndingForStatus('divorce')).toBe('divorce');
+    expect(relationshipEndingForStatus('separated')).toBe('separation');
+    expect(relationshipEndingForStatus('Separation')).toBe('separation');
+    expect(relationshipEndingForStatus('ended')).toBe('separation');
+    expect(relationshipEndingForStatus('married')).toBeNull();
+    expect(relationshipEndingForStatus('widowed')).toBeNull();
   });
 });

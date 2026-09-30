@@ -7,6 +7,7 @@ import type {
   FunctionalIndicatorDefinition,
   NodalCategoryDefinition,
   FunctionalFactCategoryDefinition,
+  SymptomGroup,
 } from '../../types';
 import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import EventModal from '../EventModal';
@@ -67,6 +68,8 @@ interface TimelineBoardModalProps {
   onUpdatePerson: (id: string, updates: Partial<Person>) => void;
   onUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   onUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
+  /** Creates (or reuses by name) a symptom type, as the Properties panel does. */
+  onEnsureSymptomCategoryDefinition?: (label: string, group: SymptomGroup) => string | null;
   onClose: () => void;
 }
 
@@ -125,6 +128,7 @@ export default function TimelineBoardModal({
   onUpdatePerson,
   onUpdatePartnership,
   onUpdateEmotionalLine,
+  onEnsureSymptomCategoryDefinition,
   onClose,
 }: TimelineBoardModalProps) {
   const [timelineFilterStartYear, setTimelineFilterStartYear] = useState<number | null>(null);
@@ -228,12 +232,13 @@ export default function TimelineBoardModal({
           : allEmotionalLines.find((l) => l.id === entityId);
     if (!entity) { setEventModalState(null); return; }
     const normalized = normalizeEventForSave(draft, {
-      anchorType: anchorTypeForOwner(entityType),
+      anchorType: anchorTypeForOwner(entityType, partnershipTarget),
       anchorId: entityId,
-      eventClass: eventClassForOwner(entityType),
+      eventClass: eventClassForOwner(entityType, partnershipTarget),
     });
     const updates = saveEventOnOwner(owner, entity, normalized, {
       definitions: functionalIndicatorDefinitions,
+      ensureSymptomDefinition: onEnsureSymptomCategoryDefinition,
     });
     if (entityType === 'person') onUpdatePerson(entityId, updates as Partial<Person>);
     else if (entityType === 'partnership') onUpdatePartnership(entityId, updates as Partial<Partnership>);

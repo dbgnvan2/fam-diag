@@ -169,3 +169,18 @@ describe('personEventBundle', () => {
     expect(bundle.people[0].personName).toBe('Jane Doe');
   });
 });
+
+describe('buildPersonEventBundle — hidden date records', () => {
+  it('leaves out the old person-date records, and merging back keeps them', () => {
+    const record = {
+      id: 'rec', date: '1990-01-01', startDate: '1990-01-01', category: 'Individual', subtype: 'Birth Date',
+      eventType: 'NODAL' as const, status: 'discrete' as const, intensity: 0, howWell: 0,
+      otherPersonName: '', wwwwh: '', observations: '', eventClass: 'individual' as const,
+    };
+    const own = { ...record, id: 'own', category: 'Relocation', subtype: 'Moved' };
+    const people = [{ id: 'p', name: 'P', x: 0, y: 0, partnerships: [], events: [record, own] }];
+    const bundle = buildPersonEventBundle(people);
+    expect(bundle.people[0].events.map((e) => e.id)).toEqual(['own']);
+    expect(bundle.people[0].baselineEventIds).toEqual(['own']);
+  });
+});

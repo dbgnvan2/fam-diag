@@ -497,6 +497,19 @@ export function useContextMenuHandlers({
                 },
               },
               {
+                // Spouses' families of origin are left out by default (rule
+                // D1); this is the one place to bring them in.
+                label: "Include spouses' families",
+                onClick: () => {
+                  focusFamilyOnPerson(person.id, {
+                    up: DEFAULT_SCOPE_UP,
+                    down: DEFAULT_SCOPE_DOWN,
+                    includePartnerFOO: true,
+                  });
+                  setContextMenu(null);
+                },
+              },
+              {
                 label: `Timeline for this family (${DEFAULT_SCOPE_UP} up / ${DEFAULT_SCOPE_DOWN} down)`,
                 onClick: () => {
                   focusFamilyOnPerson(person.id, {

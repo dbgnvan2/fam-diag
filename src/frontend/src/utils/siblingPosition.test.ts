@@ -6,7 +6,9 @@ import {
   getSiblingPositionLabel,
   getSiblingPositionOptions,
   parentMatchForRole,
+  siblingConflictInputKey,
   siblingPositionInputKey,
+  siblingPositionResults,
 } from './siblingPosition';
 
 const makePerson = (overrides: Partial<Person>): Person => ({
@@ -318,5 +320,24 @@ describe('siblingPosition — review fixes 2026-09-30', () => {
     expect(siblingPositionInputKey(moved, partnerships)).toBe(siblingPositionInputKey(people, partnerships));
     const redated = people.map((p) => (p.id === 'a' ? { ...p, birthDate: '1999-01-01' } : p));
     expect(siblingPositionInputKey(redated, partnerships)).not.toBe(siblingPositionInputKey(people, partnerships));
+  });
+});
+
+describe('siblingConflictInputKey', () => {
+  const mk = (id: string, overrides: Partial<Person> = {}): Person =>
+    ({ id, name: id, x: 0, y: 0, partnerships: [], ...overrides }) as Person;
+
+  it('changes when a parent of unknown sex moves (the position fallback reads it), not when anyone else does', () => {
+    const people = [mk('known', { birthSex: 'male', x: 0 }), mk('unknown', { x: 0 })];
+    const base = siblingConflictInputKey(people, []);
+    expect(siblingConflictInputKey([{ ...people[0], x: 99 }, people[1]], [])).toBe(base);
+    expect(siblingConflictInputKey([people[0], { ...people[1], x: 99 }], [])).not.toBe(base);
+  });
+
+  it('siblingPositionResults gives the same result as deriving each person', () => {
+    const people = [mk('a', { birthSex: 'male' })];
+    expect(siblingPositionResults(people, []).get('a')).toEqual(
+      deriveSiblingPositionResult({ person: people[0], people, partnerships: [] })
+    );
   });
 });

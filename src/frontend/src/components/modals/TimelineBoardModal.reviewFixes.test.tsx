@@ -121,3 +121,33 @@ describe('TimelineYearInput', () => {
     expect(onCommit).toHaveBeenCalledWith(2020);
   });
 });
+
+describe('block width floor (needs a ResizeObserver, which jsdom lacks)', () => {
+  it('a one-day event over a long range is drawn at least MIN_BLOCK_PX wide, as a share of the measured lane', () => {
+    const observers: Array<() => void> = [];
+    const originalObserver = globalThis.ResizeObserver;
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    } as unknown as typeof ResizeObserver;
+    // A 340px lane: the 34px floor is 10% of it.
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return { width: 340, height: 100, top: 0, left: 0, right: 340, bottom: 100, x: 0, y: 0, toJSON: () => ({}) };
+    };
+    try {
+      renderBoard();
+      const block = Array.from(document.querySelectorAll('[data-hover-text]')).find((el) =>
+        /Relocation/.test(el.getAttribute('data-hover-text') || '')
+      ) as HTMLElement;
+      expect(parseFloat(block.style.width)).toBeGreaterThanOrEqual(10);
+    } finally {
+      globalThis.ResizeObserver = originalObserver;
+      HTMLElement.prototype.getBoundingClientRect = originalRect;
+    }
+  });
+});

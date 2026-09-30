@@ -4463,6 +4463,7 @@ useEffect(() => {
             updateFunctionalIndicatorUseLetter={updateFunctionalIndicatorUseLetter}
             clearFunctionalIndicatorIcon={clearFunctionalIndicatorIcon}
             removeFunctionalIndicatorDefinition={removeFunctionalIndicatorDefinition}
+            ensureSymptomDefinition={ensureSymptomDefinition}
             reorderFunctionalIndicators={setFunctionalIndicatorDefinitions}
             sirSettingsOpen={sirSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}

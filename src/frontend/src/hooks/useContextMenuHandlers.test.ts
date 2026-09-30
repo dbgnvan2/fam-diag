@@ -8,6 +8,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { EmotionalProcessEvent, EventType, Person } from '../types';
 import { useContextMenuHandlers } from './useContextMenuHandlers';
 import { EVENT_CATEGORIES } from '../constants/eventConstants';
+import { DEFAULT_SCOPE_DOWN, DEFAULT_SCOPE_UP } from '../utils/familyScope';
 
 type MenuItem = { label: string; onClick?: () => void; children?: MenuItem[] };
 
@@ -116,5 +117,60 @@ describe('Timeline entry points use the scope derivation', () => {
     result.current.handlePersonContextMenu(event, person('a'));
     flatten(menu()!.items).find((entry) => entry.item.label === 'Timeline')!.item.onClick!();
     expect(deps.setTimelineSelectionIds).toHaveBeenCalledWith(['a', 'b', 'derived-person']);
+  });
+});
+
+describe('Focus Family submenu', () => {
+  const focusItem = (label: string, overrides: Record<string, unknown> = {}) => {
+    const harness = setup(['a'], overrides);
+    harness.result.current.handlePersonContextMenu(harness.event, person('a'));
+    const item = flatten(harness.menu()!.items).find(
+      (entry) => entry.path[0] === 'Focus Family' && entry.item.label === label
+    );
+    return { ...harness, item: item?.item };
+  };
+
+  it('the default preset uses the shared default depth', () => {
+    const { item, deps } = focusItem(`${DEFAULT_SCOPE_UP} up / ${DEFAULT_SCOPE_DOWN} down`);
+    item!.onClick!();
+    expect(deps.focusFamilyOnPerson).toHaveBeenCalledWith('a', { up: DEFAULT_SCOPE_UP, down: DEFAULT_SCOPE_DOWN });
+  });
+
+  it('"Whole family" is clamped to the family\'s real depth', () => {
+    const { item, deps } = focusItem('Whole family', {
+      people: [person('a', { parentPartnership: 'pr' }), person('mum', { partnerships: ['pr'] }), person('dad', { partnerships: ['pr'] })],
+      partnerships: [{ id: 'pr', partner1_id: 'dad', partner2_id: 'mum', children: ['a'], horizontalConnectorY: 0, relationshipType: 'married', relationshipStatus: 'married' }],
+    });
+    item!.onClick!();
+    expect(deps.focusFamilyOnPerson).toHaveBeenCalledWith('a', { up: 1, down: 0 });
+  });
+
+  it('"Lineal only" turns collaterals off', () => {
+    const { item, deps } = focusItem('Lineal only (no siblings/cousins)');
+    item!.onClick!();
+    expect(deps.focusFamilyOnPerson).toHaveBeenCalledWith('a', expect.objectContaining({ includeCollaterals: false }));
+  });
+
+  it('"Include spouses\' families" turns includePartnerFOO on (it had no UI)', () => {
+    const { item, deps } = focusItem("Include spouses' families");
+    item!.onClick!();
+    expect(deps.focusFamilyOnPerson).toHaveBeenCalledWith('a', expect.objectContaining({ includePartnerFOO: true }));
+  });
+
+  it('"Timeline for this family" derives lanes from the focus it sets, not the previous one', () => {
+    const { item, deps } = focusItem(`Timeline for this family (${DEFAULT_SCOPE_UP} up / ${DEFAULT_SCOPE_DOWN} down)`, {
+      deriveTimelineIdsForRoot: vi.fn(() => ({ personIds: ['a', 'x'], familyIds: ['f'] })),
+    });
+    item!.onClick!();
+    expect(deps.deriveTimelineIdsForRoot).toHaveBeenCalledWith('a', { up: DEFAULT_SCOPE_UP, down: DEFAULT_SCOPE_DOWN });
+    expect(deps.setTimelineSelectionIds).toHaveBeenCalledWith(['a', 'x']);
+    expect(deps.setTimelineFamilySelectionIds).toHaveBeenCalledWith(['f']);
+  });
+
+  it('"Clear focus" appears only while a focus is set', () => {
+    expect(focusItem('Clear focus').item).toBeUndefined();
+    const { item, deps } = focusItem('Clear focus', { familyScopeFocus: { rootId: 'a', up: 2, down: 2 } });
+    item!.onClick!();
+    expect(deps.clearFamilyFocus).toHaveBeenCalled();
   });
 });

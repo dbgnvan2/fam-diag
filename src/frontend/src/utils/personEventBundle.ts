@@ -1,4 +1,5 @@
 import type { EmotionalProcessEvent, Person } from '../types';
+import { withoutPersonDateRecords } from './personDateEvents';
 
 const normalizeName = (value?: string) =>
   (value || '')
@@ -65,7 +66,12 @@ export const buildPersonEventBundle = (people: Person[], sourceFileName?: string
   exportedAt: new Date().toISOString(),
   sourceFileName,
   people: people.map((person) => {
-    const normalizedEvents = (person.events || []).map((event) => normalizeEvent(event));
+    // The old person-date records are hidden on the Events tab and the
+    // Timeline (the date field is the record); the Event Creator lists them
+    // no more than those do. They are left out of the baseline too, so
+    // merging an edited bundle back keeps them rather than reading them as
+    // deleted.
+    const normalizedEvents = withoutPersonDateRecords(person.events || []).map((event) => normalizeEvent(event));
     return {
       personId: person.id,
       personName: person.name || [person.firstName, person.lastName].filter(Boolean).join(' ').trim() || 'Unnamed',
