@@ -1,7 +1,8 @@
 import type { Partnership, Person } from '../types';
 
 export function computeDefaultFamilyName(partner1: Person, partner2: Person): string {
-  const isMale = (p: Person) => p.birthSex === 'male' || p.gender === 'b';
+  // Same test as siblingPosition: either spelling of the stored gender.
+  const isMale = (p: Person) => p.birthSex === 'male' || p.gender === 'b' || p.gender === 'male';
   const male = isMale(partner1) ? partner1 : isMale(partner2) ? partner2 : partner1;
   const female = isMale(partner1) ? partner2 : isMale(partner2) ? partner1 : partner2;
 
@@ -90,14 +91,15 @@ export function partnershipSeparationMarks(
 ): PartnershipSeparationMarks {
   const status = (partnership.relationshipStatus || '').trim().toLowerCase();
 
+  // A whitespace-only date is not a recorded date (same rule as statusDates).
   const divorced =
-    !!partnership.divorceDate ||
+    !!partnership.divorceDate?.trim() ||
     hasStatusDate(partnership, 'divorce', 'divorced') ||
     status === 'divorce' ||
     status === 'divorced';
 
   const separated =
-    !!partnership.separationDate ||
+    !!partnership.separationDate?.trim() ||
     hasStatusDate(partnership, 'separated', 'separation') ||
     status === 'separated' ||
     status === 'ended';

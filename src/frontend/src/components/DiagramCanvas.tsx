@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -33,7 +33,7 @@ import TriangleFillNode from './TriangleFillNode';
 import NoteNode from './NoteNode';
 import SiblingConflictOverlay from './SiblingConflictOverlay';
 import type { SiblingConflictHoverInfo, SiblingConflictClickInfo } from './SiblingConflictOverlay';
-import { deriveSiblingPositionResult } from '../utils/siblingPosition';
+import { effectiveSiblingPositions, siblingPositionInputKey } from '../utils/siblingPosition';
 import {
   shouldShowPersonNote,
   shouldShowPartnershipNote,
@@ -398,6 +398,15 @@ export default function DiagramCanvas({
   onAutonomySquareClick,
   onSymptomBadgeClick,
 }: DiagramCanvasProps) {
+  // Sibling positions depend on sibling data only, not on where nodes sit,
+  // so they are recomputed when that data changes — not on every render and
+  // every drag frame, which cost O(N²·P) per frame.
+  const siblingInputKey = siblingPositionInputKey(people, partnerships);
+  const siblingPositions = useMemo(
+    () => effectiveSiblingPositions(people, partnerships),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [siblingInputKey]
+  );
   const prevScrollTopRef = useRef<number>(0);
   const [siblingTooltip, setSiblingTooltip] = useState<SiblingConflictHoverInfo | null>(null);
   const [siblingDetail, setSiblingDetail] = useState<SiblingConflictClickInfo | null>(null);
@@ -936,9 +945,7 @@ export default function DiagramCanvas({
                   onContextMenu={handlePersonContextMenu}
                   onHoverChange={setHoveredPersonId}
                   functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-                  siblingEffectivePosition={
-                    deriveSiblingPositionResult({ person, people, partnerships }).effective_position
-                  }
+                  siblingEffectivePosition={siblingPositions.get(person.id) ?? null}
                   onSymptomBadgeClick={onSymptomBadgeClick}
                   onSiblingSquareClick={onSiblingSquareClick}
                   onAutonomySquareClick={onAutonomySquareClick}

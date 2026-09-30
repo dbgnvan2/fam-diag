@@ -220,6 +220,13 @@ export function clipToLifetime(
   return { kept, lifetimeFilterApplied: true };
 }
 
+/**
+ * Reach used to work out how each person is related to the lane person. It
+ * spans every generation and crosses into spouses' families, so that any
+ * ring the canvas focus produces is covered.
+ */
+const LANE_KINSHIP_REACH = { up: 64, down: 64, includeCollaterals: true, includePartnerFOO: true };
+
 type CollectArgs = {
   personId: string;
   scope: FamilyScope | null;
@@ -267,12 +274,13 @@ export function collectSystemEvents({
   const ring =
     scope ?? computeFamilyScope(people, partnerships, personId, defaultFocusForRoot(personId));
 
-  // How each person is related to the lane: by birth, as a relative's spouse,
-  // or as a spouse's relative. The term depends on where the marriage is
-  // crossed, which a single married-in flag cannot express.
-  const bloodIds = new Set(
-    [...ring.personIds].filter((id) => !ring.marriedIn.has(id))
-  );
+  // How each person is related to the LANE person: by birth, as a relative's
+  // spouse, or as a spouse's relative. The ring decides who is shown, but it
+  // is rooted at the canvas focus, which need not be the lane person — its
+  // married-in set labelled a son's own mother "Step-mother" on his lane when
+  // the focus was his father. Blood is therefore worked out from the lane.
+  const laneScope = computeFamilyScope(people, partnerships, personId, LANE_KINSHIP_REACH);
+  const bloodIds = new Set([...laneScope.personIds].filter((id) => !laneScope.marriedIn.has(id)));
   const kinRoutes = computeKinRoutes(people, partnerships, personId, bloodIds);
   const bloodPaths = computeBloodPaths(people, partnerships, personId, bloodIds);
 
@@ -282,6 +290,8 @@ export function collectSystemEvents({
     return ring.personIds.has(id);
   };
   const generationOf = (id: string): number => {
+    const fromLane = laneScope.generation.get(id);
+    if (fromLane != null) return fromLane;
     const laneGen = ring.generation.get(personId) ?? 0;
     return (ring.generation.get(id) ?? 0) - laneGen;
   };
@@ -294,7 +304,7 @@ export function collectSystemEvents({
   const relatives = new Set<string>();
   // Events with no usable date cannot be placed on a timeline. They are
   // dropped, but never silently — the count is reported (P2).
-  let undatedDropped = 0;
+  const undatedBaseKeys = new Set<string>();
 
   // A partnership event is cloned onto both partners. If the lane person
   // already holds this event — as their own clone or as the original — it is
@@ -304,17 +314,21 @@ export function collectSystemEvents({
 
   const push = (entry: SystemEvent) => {
     if (hasSameEvent(entry.event.id, lanePersonEventIds)) return;
-    // Test the date BEFORE reserving the dedup key: an undated reach must not
-    // burn the key and lock the event out of every other relation.
-    if (!eventDate(entry.event)) {
-      undatedDropped += 1;
-      return;
-    }
     const key = `${entry.ownerEntityType}:${entry.ownerEntityId}:${entry.event.id}`;
     if (seen.has(key)) return;
     // The same underlying event reached through two relations appears once.
-    const altKey = `${entry.ownerEntityType}:${entry.ownerEntityId}:${baseEventId(entry.event.id)}`;
+    // Older diagrams hold a partnership event as the original plus a -p1 /
+    // -p2 clone on each partner; all three share a base id, whatever the
+    // owner, so the key is the base id alone.
+    const altKey = `base:${baseEventId(entry.event.id)}`;
     if (seen.has(altKey)) return;
+    // An event with no date cannot be placed. It reserves no key — its
+    // dated twin must still get through — and is counted once per base id,
+    // at the end, only if no dated copy was listed.
+    if (!eventDate(entry.event)) {
+      undatedBaseKeys.add(altKey);
+      return;
+    }
     seen.add(key);
     seen.add(altKey);
     collected.push(entry);
@@ -335,7 +349,7 @@ export function collectSystemEvents({
     if (!inRing(relative.id)) return;
     const isSelf = relative.id === personId;
     const generation = generationOf(relative.id);
-    const marriedIn = ring.marriedIn.has(relative.id);
+    const marriedIn = !bloodIds.has(relative.id);
     const isPartnerOfLanePerson =
       !isSelf &&
       (relative.partnerships || []).some((id) => ownPartnershipIds.has(id));
@@ -471,6 +485,7 @@ export function collectSystemEvents({
     });
   });
 
+  const undatedDropped = [...undatedBaseKeys].filter((altKey) => !seen.has(altKey)).length;
   const nonSelf = collected.filter((entry) => entry.relationClass !== 'self');
   if (!clipLifetime) {
     return {

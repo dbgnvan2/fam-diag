@@ -564,7 +564,29 @@ describe('collectSystemEvents — own partnerships and undated events', () => {
 
     expect(result.events.some((entry) => entry.event.id === 'twin-p2')).toBe(true);
     expect(result.events.some((entry) => entry.event.id === 'twin-p1')).toBe(false);
-    expect(result.undatedDropped).toBeGreaterThan(0);
+    // The undated clone is a copy of an event that IS listed, so nothing
+    // unplaceable was dropped.
+    expect(result.undatedDropped).toBe(0);
+  });
+
+  it('test_m7c6_an_undated_event_held_as_three_clones_is_counted_once', () => {
+    // Regression: counted once per copy (original + -p1 + -p2), so the
+    // "N undated" note over-reported.
+    const { people, partnerships } = buildSystem();
+    const undated = { ...event('gone', 'Conflict', ''), date: '', startDate: undefined };
+    const withClones = people.map((entry) =>
+      entry.id === 'mum'
+        ? { ...entry, events: [{ ...undated, id: 'gone-p1' }, { ...undated, id: 'gone-p2' }, { ...undated }] }
+        : entry
+    );
+    const result = collectSystemEvents({
+      personId: 'root',
+      scope: scopeFor(withClones, partnerships),
+      people: withClones,
+      partnerships,
+      now: new Date('2026-09-19T00:00:00Z'),
+    });
+    expect(result.undatedDropped).toBe(1);
   });
 
   it('test_m7c6_a_dated_event_on_another_owner_is_unaffected_by_an_undated_namesake', () => {
@@ -653,11 +675,15 @@ describe('in-law and step relations', () => {
     return { people, partnerships };
   };
 
-  const nounFor = (rootId: string, ownerId: string): string | undefined => {
+  const nounFor = (
+    rootId: string,
+    ownerId: string,
+    focus: Partial<ReturnType<typeof defaultFocusForRoot>> = {}
+  ): string | undefined => {
     const { people, partnerships } = inLawFamily();
     const result = collectSystemEvents({
       personId: rootId,
-      scope: computeFamilyScope(people, partnerships, rootId, defaultFocusForRoot(rootId)),
+      scope: computeFamilyScope(people, partnerships, rootId, { ...defaultFocusForRoot(rootId), ...focus }),
       people,
       partnerships,
       now: new Date('2026-09-21T00:00:00Z'),
@@ -677,8 +703,33 @@ describe('in-law and step relations', () => {
   });
 
   it('test_inlaw_she_is_a_sister_in_law_to_her_husbands_siblings', () => {
-    expect(nounFor('betty', 'sue')).toBe('Sister-in-law');
+    // Her husband's family of origin is only in view with the partner-FOO
+    // toggle on (rule D1, confirmed by the author 2026-09-30). This test
+    // used to pass only because the scope leaked into it.
+    expect(nounFor('betty', 'sue', { includePartnerFOO: true })).toBe('Sister-in-law');
     expect(nounFor('betty', 'peter')).toBe('Husband');
+  });
+
+  it('test_inlaw_her_husbands_family_is_out_of_the_default_focus_even_with_a_child (D1)', () => {
+    // Regression: the child's up edge promoted her husband to "lineal", which
+    // walked up into his parents and sister with includePartnerFOO off.
+    expect(nounFor('betty', 'sue')).toBeUndefined();
+    expect(nounFor('betty', 'bob')).toBeUndefined();
+    expect(nounFor('betty', 'jim')).toBe('Son');
+  });
+
+  it('test_lane_kinship_is_worked_out_from_the_lane_person_not_the_focus_root (M3)', () => {
+    // Focus on Peter; Jim's lane. Betty is married in relative to Peter, but
+    // she is Jim's mother by birth (regression: labelled "Step-mother").
+    const { people, partnerships } = inLawFamily();
+    const result = collectSystemEvents({
+      personId: 'jim',
+      scope: computeFamilyScope(people, partnerships, 'peter', defaultFocusForRoot('peter')),
+      people,
+      partnerships,
+      now: new Date('2026-09-21T00:00:00Z'),
+    });
+    expect(result.events.find((entry) => entry.ownerEntityId === 'betty')?.relationNoun).toBe('Mother');
   });
 
   it('test_inlaw_blood_relatives_keep_their_own_nouns', () => {

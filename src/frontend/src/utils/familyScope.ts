@@ -174,11 +174,15 @@ export function computeFamilyScope(
         partnership.partner1_id === id ? partnership.partner2_id : partnership.partner1_id;
       if (!partnerId || partnerId === id) return;
       // Married in: related to the root by this partnership, not by birth.
+      // The partner keeps the child this person was reached through, so with
+      // collaterals off a parent's other partner cannot descend to their
+      // children together (the root's half-siblings).
       visit(partnerId, {
         gen: reach.gen,
         lineal: false,
         blood: false,
         descended: reach.descended,
+        fromChildId: reach.fromChildId,
       });
     });
 
@@ -191,7 +195,12 @@ export function computeFamilyScope(
           if (!parentId) return;
           visit(parentId, {
             gen: reach.gen - 1,
-            lineal: true,
+            // A parent reached back UP from a descendant is not the root's
+            // ancestor: the root's child's other parent is the root's spouse.
+            // Marking it lineal let a married-in spouse (or a step-parent,
+            // reached through a half-sibling) walk up into their own family
+            // of origin with includePartnerFOO off — rule D1.
+            lineal: reach.lineal && !reach.descended,
             // Going up only proves a blood tie while we have not yet gone
             // down: a grandchild's parents are not the root's blood kin
             // merely because the root reached that grandchild.

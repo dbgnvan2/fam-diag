@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Partnership, Person } from '../types';
 import {
   deriveSiblingPositionResult,
+  effectiveSiblingPositions,
   getSiblingPositionLabel,
   getSiblingPositionOptions,
+  parentMatchForRole,
+  siblingPositionInputKey,
 } from './siblingPosition';
 
 const makePerson = (overrides: Partial<Person>): Person => ({
@@ -217,5 +220,103 @@ describe('siblingPosition', () => {
 
     expect(options.some((option) => option.value === 'ob/s')).toBe(true);
     expect(options.some((option) => option.value === 'ob/b')).toBe(false);
+  });
+});
+
+describe('siblingPosition — review fixes 2026-09-30', () => {
+  const mk = (id: string, overrides: Partial<Person> = {}): Person =>
+    ({ id, name: id, x: 0, y: 0, partnerships: [], ...overrides }) as Person;
+  const pr = (id: string, a: string, b: string, children: string[]): Partnership =>
+    ({ id, partner1_id: a, partner2_id: b, horizontalConnectorY: 0, relationshipType: 'married', relationshipStatus: 'married', children }) as Partnership;
+
+  it('uses the adoptive family when a person has both (author decision 6)', () => {
+    const people = [
+      mk('kid', { birthSex: 'male', birthDate: '2000-01-01', parentPartnership: 'adopt', birthParentPartnership: 'birth' }),
+      mk('adoptSis', { birthSex: 'female', birthDate: '1998-01-01', parentPartnership: 'adopt' }),
+      mk('birthBro', { birthSex: 'male', birthDate: '1995-01-01', parentPartnership: 'birth' }),
+      mk('aD', { birthSex: 'male', partnerships: ['adopt'] }),
+      mk('aM', { birthSex: 'female', partnerships: ['adopt'] }),
+      mk('bD', { birthSex: 'male', partnerships: ['birth'] }),
+      mk('bM', { birthSex: 'female', partnerships: ['birth'] }),
+    ];
+    const partnerships = [pr('adopt', 'aD', 'aM', ['kid', 'adoptSis']), pr('birth', 'bD', 'bM', ['kid', 'birthBro'])];
+    const result = deriveSiblingPositionResult({ person: people[0], people, partnerships });
+    expect(result.effective_position).toBe('yb/s');
+  });
+
+  it('never names a male parent "Mother" or one parent as both (regression: position fallback)', () => {
+    const people = [
+      mk('kid', { birthSex: 'male', parentPartnership: 'pr' }),
+      mk('dad', { birthSex: 'male', x: 200, partnerships: ['pr'] }),
+      mk('other', { x: 100, partnerships: ['pr'] }),
+    ];
+    const partnerships = [pr('pr', 'dad', 'other', ['kid'])];
+    expect(parentMatchForRole(people[0], people, partnerships, 'father')?.id).toBe('dad');
+    expect(parentMatchForRole(people[0], people, partnerships, 'mother')?.id).toBe('other');
+    const twoFathers = [people[0], people[1], mk('dad2', { birthSex: 'male', partnerships: ['pr'] })];
+    const prs = [pr('pr', 'dad', 'dad2', ['kid'])];
+    expect(parentMatchForRole(twoFathers[0], twoFathers, prs, 'mother')).toBeNull();
+  });
+
+  it('still falls back to position when neither parent has a known sex', () => {
+    const people = [
+      mk('kid', { birthSex: 'male', parentPartnership: 'pr' }),
+      mk('left', { x: -100, partnerships: ['pr'] }),
+      mk('right', { x: 100, partnerships: ['pr'] }),
+    ];
+    const partnerships = [pr('pr', 'right', 'left', ['kid'])];
+    expect(parentMatchForRole(people[0], people, partnerships, 'father')?.id).toBe('left');
+    expect(parentMatchForRole(people[0], people, partnerships, 'mother')?.id).toBe('right');
+  });
+
+  it('a partner entered by override takes the sex its code gives (regression: always male)', () => {
+    const people = [
+      mk('me', { birthSex: 'male', siblingPositionOverride: 'ob/b', partnerPositionOverride: 'os/b' }),
+    ];
+    const result = deriveSiblingPositionResult({ person: people[0], people, partnerships: [] });
+    expect(result.conflict_with_partner?.category).not.toContain('same-sex');
+  });
+
+  it('twins born the same day are indeterminate, not ranked by array order', () => {
+    const people = [
+      mk('a', { birthSex: 'male', birthDate: '2000-01-01', parentPartnership: 'pr' }),
+      mk('b', { birthSex: 'male', birthDate: '2000-01-01', parentPartnership: 'pr' }),
+      mk('d', { birthSex: 'male', partnerships: ['pr'] }),
+      mk('m', { birthSex: 'female', partnerships: ['pr'] }),
+    ];
+    const partnerships = [pr('pr', 'd', 'm', ['a', 'b'])];
+    expect(deriveSiblingPositionResult({ person: people[0], people, partnerships }).confidence).toBe('INDETERMINATE');
+  });
+
+  it('a birth-order override takes its slot; dated siblings fill the rest in date order', () => {
+    const people = [
+      mk('first', { birthSex: 'female', birthOrderOverride: 1, parentPartnership: 'pr' }),
+      mk('older', { birthSex: 'male', birthDate: '1990-01-01', parentPartnership: 'pr' }),
+      mk('younger', { birthSex: 'male', birthDate: '1995-01-01', parentPartnership: 'pr' }),
+      mk('d', { birthSex: 'male', partnerships: ['pr'] }),
+      mk('m', { birthSex: 'female', partnerships: ['pr'] }),
+    ];
+    const partnerships = [pr('pr', 'd', 'm', ['first', 'older', 'younger'])];
+    const at = (id: string) =>
+      deriveSiblingPositionResult({ person: people.find((p) => p.id === id)!, people, partnerships }).rank;
+    expect(at('first')).toBe('oldest');
+    expect(at('older')).toBe('middle');
+    expect(at('younger')).toBe('youngest');
+  });
+
+  it('effectiveSiblingPositions matches the full derivation, and its input key ignores coordinates', () => {
+    const people = [
+      mk('a', { birthSex: 'male', birthDate: '1990-01-01', parentPartnership: 'pr' }),
+      mk('b', { birthSex: 'female', birthDate: '1992-01-01', parentPartnership: 'pr' }),
+      mk('d', { birthSex: 'male', partnerships: ['pr'] }),
+      mk('m', { birthSex: 'female', partnerships: ['pr'] }),
+    ];
+    const partnerships = [pr('pr', 'd', 'm', ['a', 'b'])];
+    const map = effectiveSiblingPositions(people, partnerships);
+    expect(map.get('a')).toBe(deriveSiblingPositionResult({ person: people[0], people, partnerships }).effective_position);
+    const moved = people.map((p) => ({ ...p, x: p.x + 50 }));
+    expect(siblingPositionInputKey(moved, partnerships)).toBe(siblingPositionInputKey(people, partnerships));
+    const redated = people.map((p) => (p.id === 'a' ? { ...p, birthDate: '1999-01-01' } : p));
+    expect(siblingPositionInputKey(redated, partnerships)).not.toBe(siblingPositionInputKey(people, partnerships));
   });
 });

@@ -245,8 +245,59 @@ describe('computeFamilyScope', () => {
       partnership('pr2', 'c', 'd', ['a']),
     ];
     const scope = computeFamilyScope(people, partnerships, 'a', { up: 5, down: 5 });
-    expect(scope.personIds.size).toBeLessThanOrEqual(people.length);
-    expect(scope.personIds.has('a')).toBe(true);
+    // It terminates, and reaches every person in the loop exactly once.
+    expect([...scope.personIds].sort()).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('test_d1_a_spouse_with_a_child_does_not_bring_in_her_family_of_origin', () => {
+    // Regression: the child's up edge re-reached the spouse as "lineal",
+    // which walked up into her parents and sibling with includePartnerFOO off.
+    const people: Person[] = [
+      person('root', { partnerships: ['prRoot'] }),
+      person('wife', { partnerships: ['prRoot'], parentPartnership: 'prIn' }),
+      person('kid', { parentPartnership: 'prRoot' }),
+      person('inDad', { partnerships: ['prIn'] }),
+      person('inMum', { partnerships: ['prIn'] }),
+      person('inSis', { parentPartnership: 'prIn' }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prRoot', 'root', 'wife', ['kid']),
+      partnership('prIn', 'inDad', 'inMum', ['wife', 'inSis']),
+    ];
+    const scope = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2 });
+    expect([...scope.personIds].sort()).toEqual(['kid', 'root', 'wife']);
+    expect(scope.marriedIn.has('wife')).toBe(true);
+    const withFoo = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2, includePartnerFOO: true });
+    expect(withFoo.personIds.has('inDad')).toBe(true);
+  });
+
+  it('test_m1a6_collaterals_off_excludes_half_siblings_through_a_parents_other_partner', () => {
+    // Regression: the partner edge carried no fromChildId, so dad's second
+    // partner descended to their child — the root's half-sibling.
+    const people: Person[] = [
+      person('root', { parentPartnership: 'prFirst' }),
+      person('sister', { parentPartnership: 'prFirst' }),
+      person('dad', { partnerships: ['prFirst', 'prSecond'] }),
+      person('mum', { partnerships: ['prFirst'] }),
+      person('carol', { partnerships: ['prSecond'], parentPartnership: 'prCarolFoo' }),
+      person('halfSib', { parentPartnership: 'prSecond' }),
+      person('carolDad', { partnerships: ['prCarolFoo'] }),
+      person('carolMum', { partnerships: ['prCarolFoo'] }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prFirst', 'dad', 'mum', ['root', 'sister']),
+      partnership('prSecond', 'dad', 'carol', ['halfSib']),
+      partnership('prCarolFoo', 'carolDad', 'carolMum', ['carol']),
+    ];
+    const lineal = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2, includeCollaterals: false });
+    expect(lineal.personIds.has('halfSib')).toBe(false);
+    expect(lineal.personIds.has('sister')).toBe(false);
+    // With collaterals on, the half-sibling is family by blood — but the
+    // step-mother's own parents are still not (she is not a lineal ancestor).
+    const full = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2 });
+    expect(full.personIds.has('halfSib')).toBe(true);
+    expect(full.marriedIn.has('halfSib')).toBe(false);
+    expect(full.personIds.has('carolDad')).toBe(false);
   });
 
   it('test_m1a10_partnership_requires_both_partners_in_scope', () => {
@@ -330,6 +381,19 @@ describe('computeScopeExclusions', () => {
     expect(exclusions.hiddenTriangles).toBe(1);
     // e1 points at greatGrandkid (out of scope); e2 points at sister (in scope).
     expect(exclusions.boundaryEvents).toBe(1);
+  });
+
+  it('test_m1a12_counts_boundary_events_held_on_a_partnership', () => {
+    // The partnership-events and familyEvents branch had no test.
+    const { people, partnerships } = buildFamily();
+    const withPartnershipEvents = partnerships.map((entry) =>
+      entry.id === 'prP'
+        ? { ...entry, events: [event('pe1', 'greatGrandkid')], familyEvents: [event('fe1', 'greatGrandkid')] }
+        : entry
+    );
+    const scope = computeFamilyScope(people, withPartnershipEvents, 'root', { up: 2, down: 2 });
+    const exclusions = computeScopeExclusions(scope, people, withPartnershipEvents, [], []);
+    expect(exclusions.boundaryEvents).toBe(2);
   });
 
   it('test_m1a12_ambiguous_counterpart_names_are_reported_not_guessed', () => {

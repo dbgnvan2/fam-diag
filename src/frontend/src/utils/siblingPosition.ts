@@ -118,7 +118,10 @@ const parentPartnershipFor = (
   person: Person,
   partnerships: Partnership[]
 ): Partnership | null => {
-  const parentPartnershipId = person.birthParentPartnership || person.parentPartnership;
+  // The family the person was raised in: the adoptive parents when there
+  // are both (author decision 2026-09-30). `parentPartnership` is that
+  // family; `birthParentPartnership` is kept only when it differs.
+  const parentPartnershipId = person.parentPartnership || person.birthParentPartnership;
   if (!parentPartnershipId) return null;
   return partnerships.find((entry) => entry.id === parentPartnershipId) || null;
 };
@@ -306,11 +309,22 @@ export const parentMatchForRole = (
   const parentA = people.find((entry) => entry.id === parentPartnership.partner1_id) || null;
   const parentB = people.find((entry) => entry.id === parentPartnership.partner2_id) || null;
   const wantedSex = role === 'father' ? 'b' : 's';
-  if (personSexCode(parentA) === wantedSex) return parentA;
-  if (personSexCode(parentB) === wantedSex) return parentB;
+  const sexA = personSexCode(parentA);
+  const sexB = personSexCode(parentB);
+  if (sexA === wantedSex) return parentA;
+  if (sexB === wantedSex) return parentB;
+  if (!parentA && !parentB) return null;
+  // One parent's sex is known and it is the OTHER role's: the parent whose
+  // sex is unknown takes this role. A parent whose known sex contradicts the
+  // role is never returned — the position fallback used to name a male
+  // parent "Mother", or return the same parent for both roles.
+  if (sexA || sexB) {
+    if (sexA && sexB) return null;
+    const unknown = sexA ? parentB : parentA;
+    return unknown || null;
+  }
   // Neither parent has a determinable sex — fall back to position:
   // leftmost = father, rightmost = mother
-  if (!parentA && !parentB) return null;
   if (!parentA) return role === 'mother' ? parentB : null;
   if (!parentB) return role === 'father' ? parentA : null;
   const leftParent  = parentA.x <= parentB.x ? parentA : parentB;
@@ -626,16 +640,50 @@ const buildConflictResult = (
   };
 };
 
-const syntheticPerson = (id: string, positionOverride: string, sexCode: 'b' | 's'): Person =>
+// The stand-in's sex comes from its position code ("os/b" is a sister);
+// the role's usual sex is only the fallback. A partner override was always
+// made male, so a male person's sister-partner read as a same-sex pair.
+const syntheticPerson = (id: string, positionOverride: string, fallbackSex: 'b' | 's'): Person =>
   ({
     id,
     name: '',
     siblingPositionOverride: positionOverride,
-    birthSex: sexCode === 'b' ? 'male' : 'female',
+    birthSex: (parsePositionCode(positionOverride)?.sex ?? fallbackSex) === 'b' ? 'male' : 'female',
     partnerships: [],
     x: 0,
     y: 0,
   }) as unknown as Person;
+
+/**
+ * Every person's effective sibling position, for the canvas. Own position
+ * depends only on sibling data (parents, birth dates and order, sex,
+ * overrides), never on where a node sits, so callers can cache this on
+ * siblingPositionInputKey and skip it while nodes are dragged.
+ */
+export const effectiveSiblingPositions = (
+  people: Person[],
+  partnerships: Partnership[]
+): Map<string, string | null> =>
+  new Map(people.map((person) => [person.id, deriveOwnPosition(person, people, partnerships).effective_position]));
+
+/** A key that changes whenever anything own sibling position reads changes. */
+export const siblingPositionInputKey = (people: Person[], partnerships: Partnership[]): string =>
+  JSON.stringify([
+    people.map((p) => [
+      p.id,
+      p.parentPartnership,
+      p.birthParentPartnership,
+      p.birthDate,
+      p.birthOrderOverride,
+      p.siblingPositionOverride,
+      p.siblingsComplete,
+      p.birthSex,
+      p.gender,
+      p.genderIdentity,
+      p.genderSymbol,
+    ]),
+    partnerships.map((pr) => [pr.id, pr.partner1_id, pr.partner2_id]),
+  ]);
 
 export const deriveSiblingPositionResult = ({
   person,
