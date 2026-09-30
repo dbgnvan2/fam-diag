@@ -1,5 +1,6 @@
 import { RIGHT_CLICK_HINT } from '../../data/helpContent';
 import { HINT_Z_INDEX } from '../../constants/zIndex';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 // Non-blocking hint: it sits below every menu and dialog (see constants/zIndex)
 // and paints no dimming backdrop, so it can never cover what it tells the user
@@ -29,9 +30,12 @@ const RightClickHintModal = ({
   onDontShowAgainChange,
   onClose,
 }: RightClickHintModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-label="Right click hint"
       style={{

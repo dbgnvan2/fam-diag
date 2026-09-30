@@ -252,3 +252,17 @@ export const RIGHT_CLICK_HINT = {
   ],
   dontShowAgainLabel: "Don't show this again",
 };
+
+// Shown when browser storage refuses a write (quota full, private mode).
+export const STORAGE_WRITE_FAILED_MESSAGE =
+  'The browser is not saving this diagram between sessions (its storage is full or blocked). Use Save to keep your work in a file.';
+
+// Shown when the "Don't show this again" choice cannot be stored.
+export const HINT_PREFERENCE_NOT_SAVED_MESSAGE =
+  'Your "Don\'t show this again" choice could not be saved — the browser is not allowing it to store settings. The hint will appear again next time.';
+
+// The canvas pan / scroll hint, shown once per session until turned off.
+export const CANVAS_SCROLL_HINT = {
+  text: 'To PAN or SCROLL the canvas, hold down SPACE bar and Click to pan the Canvas in any direction',
+  dontShowAgainLabel: "Don't show this again",
+};

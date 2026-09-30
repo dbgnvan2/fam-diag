@@ -1,5 +1,7 @@
+import { Z_INDEX } from '../constants/zIndex';
 import React from 'react';
 import { getSaveButtonState } from '../utils/saveButtonState';
+import { STORAGE_WRITE_FAILED_MESSAGE } from '../data/helpContent';
 import { isDemoDiagramFileName } from '../utils/demoTour';
 import { type RibbonHelpKey } from '../data/helpContent';
 import { RIBBON_Z_INDEX } from '../constants/zIndex';
@@ -27,6 +29,8 @@ export interface AppRibbonProps {
   helpMenuOpen: boolean;
   isDirty: boolean;
   lastDirtyTimestamp: number | null;
+  /** Browser storage refused a write: autosave is not keeping the diagram. */
+  storageWriteFailed?: boolean;
   demoBlinkVisible: boolean;
   ribbonHelpKey: RibbonHelpKey | null;
   notesLayerEnabled: boolean;
@@ -133,6 +137,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   optionsMenuOpen,
   helpMenuOpen,
   isDirty,
+  storageWriteFailed = false,
   lastDirtyTimestamp,
   demoBlinkVisible,
   notesLayerEnabled,
@@ -213,7 +218,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   handleImageDiagramLoad,
 }) => {
   const now = Date.now();
-  const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now);
+  const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now, storageWriteFailed);
   const shouldBlinkSave = saveVisualState === 'critical';
   const blinkOn = shouldBlinkSave ? Math.floor(now / 600) % 2 === 0 : false;
   const isSaveDirty = saveVisualState !== 'clean';
@@ -438,7 +443,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                     borderRadius: 6,
                     boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
                     minWidth: 180,
-                    zIndex: 1000,
+                    zIndex: Z_INDEX.RIBBON_DROPDOWN,
                   }}
                 >
                   {fileMenuItems.map((item) => (
@@ -465,9 +470,15 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
               <button
                 onClick={() => handleFileMenuAction(() => handleSave(false))}
                 style={saveButtonStyle}
+                title={storageWriteFailed ? STORAGE_WRITE_FAILED_MESSAGE : undefined}
               >
                 Save
               </button>
+              {storageWriteFailed && (
+                <span role="alert" style={{ color: '#c62828', fontSize: 12, fontWeight: 600, maxWidth: 220 }}>
+                  {STORAGE_WRITE_FAILED_MESSAGE}
+                </span>
+              )}
               <button
                 onClick={() => setRibbonHelpKey('save')}
                 aria-label="Save help"
@@ -623,7 +634,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                         borderRadius: 6,
                         boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
                         minWidth: 200,
-                        zIndex: 1000,
+                        zIndex: Z_INDEX.RIBBON_DROPDOWN,
                       }}
                     >
                       {settingsMenuItems.map((item) => (
@@ -681,7 +692,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                         borderRadius: 6,
                         boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
                         minWidth: 170,
-                        zIndex: 1000,
+                        zIndex: Z_INDEX.RIBBON_DROPDOWN,
                       }}
                     >
                       {optionsMenuItems.map((item) => (
@@ -792,7 +803,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                     borderRadius: 6,
                     boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
                     minWidth: 180,
-                    zIndex: 1000,
+                    zIndex: Z_INDEX.RIBBON_DROPDOWN,
                   }}
                 >
                   {helpMenuItems.map((item) => (

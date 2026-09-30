@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { SessionCaptureImportData } from '../../types/diagramEditor';
 
 interface SessionCaptureDialogProps {
@@ -33,7 +34,7 @@ const SessionCaptureDialog = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2105,
+        zIndex: Z_INDEX.SESSION_CAPTURE_DIALOG,
         pointerEvents: 'none',
       }}
     >

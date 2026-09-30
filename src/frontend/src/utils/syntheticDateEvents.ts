@@ -228,10 +228,10 @@ export const synthesizePersonDateEvents = (person: Person): EmotionalProcessEven
  * Spec:    docs/implementation_plan_2026-09-19.md#M7.B.1
  * Tests:   syntheticDateEvents.test.ts::test_m7b1_indicator_without_event_becomes_symptom_event
  *
- * Saving a symptom through the Properties panel writes both an event and an
- * indicator entry. Indicators arriving through transcript / voice import
- * (DiagramEditor mergeIndicators) only write the indicator, so those need
- * synthesizing at read time.
+ * Saving a symptom writes both an event and an indicator entry, and imported
+ * diagnoses now do too (utils/dataImport recordImportedDiagnosis). Older
+ * diagrams and other sources can still hold an indicator alone; those are
+ * synthesized here at read time.
  */
 export const synthesizePersonIndicatorEvents = (
   person: Person,

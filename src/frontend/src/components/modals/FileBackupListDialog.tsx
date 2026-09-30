@@ -1,3 +1,5 @@
+import { Z_INDEX } from '../../constants/zIndex';
+
 export type FileBackupEntry = {
   slot: number;
   fileName: string;
@@ -23,7 +25,7 @@ const FileBackupListDialog = ({ open, entries, onSelect, onClose }: FileBackupLi
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2420,
+        zIndex: Z_INDEX.FILE_DIALOG,
       }}
       onClick={onClose}
     >

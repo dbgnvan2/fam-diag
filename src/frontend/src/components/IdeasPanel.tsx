@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../constants/zIndex';
 import { useEffect, useRef } from 'react';
 
 interface IdeasPanelProps {
@@ -27,7 +28,7 @@ const IdeasPanel = ({ isOpen, ideasText, onChange, onClose }: IdeasPanelProps) =
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2250,
+        zIndex: Z_INDEX.SIDE_PANEL,
       }}
     >
       <div

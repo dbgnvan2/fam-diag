@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../constants/zIndex';
 import { useEffect, useMemo, useRef } from 'react';
 
 interface SessionNotesPanelProps {
@@ -100,7 +101,7 @@ const SessionNotesPanel = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2200,
+        zIndex: Z_INDEX.SECTION_POPUP,
       }}
     >
       <div

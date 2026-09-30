@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { VoiceCommandOperation } from '../../utils/voiceCommands';
 
 interface VoiceInputModalProps {
@@ -63,7 +64,7 @@ const VoiceInputModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1200,
+        zIndex: Z_INDEX.VOICE_DIALOG,
         pointerEvents: 'none',
       }}
     >

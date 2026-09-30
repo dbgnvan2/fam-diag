@@ -1,3 +1,6 @@
+import { Z_INDEX } from '../../constants/zIndex';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+
 interface RibbonHelpModalProps {
   open: boolean;
   title: string;
@@ -6,9 +9,12 @@ interface RibbonHelpModalProps {
 }
 
 const RibbonHelpModal = ({ open, title, body, onClose }: RibbonHelpModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Ribbon help"
@@ -19,7 +25,7 @@ const RibbonHelpModal = ({ open, title, body, onClose }: RibbonHelpModalProps) =
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2420,
+        zIndex: Z_INDEX.FILE_DIALOG,
         pointerEvents: 'none',
       }}
     >

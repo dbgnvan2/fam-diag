@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { EmotionalLine, Person } from '../../types';
 import type { EmotionalPatternDraft } from '../../types/diagramEditor';
 import { LINE_STYLE_VALUES, intensityValueForLineStyle } from '../../utils/emotionalPatternOptions';
@@ -64,7 +65,7 @@ const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2075,
+        zIndex: Z_INDEX.ENTITY_DIALOG,
         pointerEvents: 'none',
       }}
     >

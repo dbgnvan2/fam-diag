@@ -1,3 +1,5 @@
+import { Z_INDEX } from '../../constants/zIndex';
+
 
 export interface TrainingVideo {
   id: string;
@@ -37,7 +39,7 @@ const TrainingVideosModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2460,
+        zIndex: Z_INDEX.TRAINING_VIDEOS,
         pointerEvents: 'none',
       }}
     >

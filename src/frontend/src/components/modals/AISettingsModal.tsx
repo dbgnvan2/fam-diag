@@ -5,6 +5,7 @@
  * Spec: docs/implementation_plan_2026-06-07b.md — M1, M3, M4, M5; M2 modal-side.
  */
 
+import { Z_INDEX } from '../../constants/zIndex';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AI_MODELS,
@@ -206,7 +207,7 @@ export default function AISettingsModal({
         position: 'fixed',
         inset: 0,
         background: 'rgba(0,0,0,0.4)',
-        zIndex: 12500,
+        zIndex: Z_INDEX.SETTINGS_OVERLAY,
         pointerEvents: 'none',
       }}
     >

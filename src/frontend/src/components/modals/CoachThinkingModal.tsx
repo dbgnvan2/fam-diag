@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { CoachThinkingDraft } from '../../types/diagramEditor';
 
@@ -34,7 +35,7 @@ const CoachThinkingModal = ({ draft, onFieldChange, onCancel, onSave }: CoachThi
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2072,
+        zIndex: Z_INDEX.PERSON_DIALOG,
         pointerEvents: 'none',
       }}
     >

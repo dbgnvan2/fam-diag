@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { ClientProfileDraft } from '../../types/diagramEditor';
 
@@ -33,7 +34,7 @@ const ClientProfileModal = ({ draft, onFieldChange, onCancel, onSave }: ClientPr
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2070,
+        zIndex: Z_INDEX.CLIENT_DIALOG,
         pointerEvents: 'none',
       }}
     >

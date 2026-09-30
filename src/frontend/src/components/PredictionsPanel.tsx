@@ -3,6 +3,7 @@
  * Manages named Prediction Sets, each containing If→Then predictions.
  * Rendered as a fixed overlay panel, toggled from AppRibbon Options menu.
  */
+import { Z_INDEX } from '../constants/zIndex';
 import { useState } from 'react';
 import type {
   EmotionalProcessEvent,
@@ -598,7 +599,7 @@ const PredictionsPanel = ({
   // ── Set List View ─────────────────────────────────────────────────────────
   if (!activeSet) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2250 }}>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
         <div style={{ width: 480, maxHeight: '85vh', background: '#fff', borderRadius: 12, boxShadow: '0 18px 45px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -681,7 +682,7 @@ const PredictionsPanel = ({
   const resolvedPredictions = activeSet.predictions.filter((p) => p.status !== 'active');
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2250 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
       <div style={{ width: 560, maxHeight: '90vh', background: '#fff', borderRadius: 12, boxShadow: '0 18px 45px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ padding: '14px 18px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

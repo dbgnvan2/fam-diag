@@ -2,6 +2,7 @@
  * EventsSection — events list with filter/sort controls.
  * Each event is rendered as a shared EventCard (uniform layout across the app).
  */
+import { Z_INDEX } from '../constants/zIndex';
 import { useMemo, useState } from 'react';
 import type { EmotionalProcessEvent, EventAnchorType, EventType } from '../types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORIES, inferEventType } from '../constants/eventConstants';
@@ -224,7 +225,7 @@ const EventsSection = ({
             position: 'fixed',
             left: eventRowMenu.x,
             top: eventRowMenu.y,
-            zIndex: 2050,
+            zIndex: Z_INDEX.EVENT_ROW_MENU,
             background: '#fff',
             border: '1px solid #c8d3e4',
             borderRadius: 8,

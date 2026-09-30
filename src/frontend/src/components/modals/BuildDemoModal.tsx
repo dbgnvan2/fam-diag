@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { BuildDemoStep } from '../../types/diagramEditor';
 
 interface BuildDemoModalProps {
@@ -21,7 +22,7 @@ const BuildDemoModal = ({ open, steps, stepIndex, onClose, onStepChange }: Build
         position: 'fixed',
         right: 20,
         bottom: 20,
-        zIndex: 2485,
+        zIndex: Z_INDEX.BUILD_DEMO,
         width: 'min(460px, calc(100vw - 40px))',
       }}
     >

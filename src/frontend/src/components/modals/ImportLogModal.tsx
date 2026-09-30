@@ -4,6 +4,7 @@
  * lost-user-gesture problem that prevented auto-download after async work.
  */
 
+import { Z_INDEX } from '../../constants/zIndex';
 import { useEffect, useRef, useState } from 'react';
 
 interface ImportLogModalProps {
@@ -83,7 +84,7 @@ export default function ImportLogModal({ open, filename, logText, onClose }: Imp
         position: 'fixed',
         inset: 0,
         background: 'rgba(0,0,0,0.4)',
-        zIndex: 12600,
+        zIndex: Z_INDEX.IMPORT_LOG,
         pointerEvents: 'none',
       }}
     >

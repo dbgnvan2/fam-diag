@@ -1,3 +1,5 @@
+import { Z_INDEX } from '../../constants/zIndex';
+
 interface ImportModeDialogProps {
   open: boolean;
   source: string;
@@ -18,7 +20,7 @@ const ImportModeDialog = ({ open, source, fileName, onReplace, onMerge, onCancel
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2100,
+        zIndex: Z_INDEX.TIMELINE_BOARD,
         pointerEvents: 'none',
       }}
     >

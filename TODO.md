@@ -2,241 +2,56 @@
 
 Deferred items, each with the reason it was not done at the time. Newest first.
 
-## From the review of the unread areas (2026-09-30)
+## Open
 
-`REVIEW-unread-areas-2026-09-30.md` — all findings fixed in `0eeb243`..HEAD
-(see its "Fix status" section). Left, with the reason:
+Only items that were decided, deliberately, to be left as they are:
 
-- **`SiblingConflictOverlay` still derives every person's full sibling
-  analysis on each render** while the overlay is on. The canvas badge path is
-  cached (`effectiveSiblingPositions`); the overlay is opt-in, so it was left.
-- **No full `DiagramCanvas` render test.** The component takes ~100 props;
-  the visibility rules it applies are unit-tested instead
-  (`isTriangleVisible`, `buildPersonVisibility`). GTEST-12 is covered at the
-  rule level only.
-- **The lifetime-clip "today" test only fails on the old code east of UTC**
-  (run with `TZ=Pacific/Auckland`). CI runs in UTC.
-- **Date-field companion events can go stale for readers outside the two
-  views.** The synthesizer always shows the field's date, but a companion's
-  stored `date` is only refreshed when it is saved through the event dialog;
-  `EventCreator`, `personEventBundle` and `PredictionsPanel` read stored
-  events directly.
-- **Gate LOW #1 (`docs/cycles/gate_2026-09-30_review-fixes.md`):**
-  `anchorTypeForOwner` / `eventClassForOwner` (`utils/eventDraft.ts`) key on
-  `owner.kind` only, so a family event that lacks its own `anchorType` /
-  `eventClass` would be saved as `RELATIONSHIP_PRL` / `relationship`.
-  Unreachable today (family events are created with `FAMILY` / `family` and
-  edits keep them); carried rather than fixed after the APPROVED verdict so
-  the pushed code is the code the gate read. Fix: branch on
-  `owner.list === 'familyEvents'`, with a test that a family event edited from
-  a person's Events tab keeps both values.
-- **Symptom saves from the Timeline do not create a new symptom type** for an
-  unknown name (no `ensureSymptomDefinition` passed in); the event is stored
-  unlinked rather than linked to a wrong type.
-
-## From the autosave and import-fabrication batch (2026-09-27)
-
-Gate `docs/cycles/gate_2026-09-27_autosave_import-fabrication.md` APPROVED.
-An earlier run on the same day diffed against a stale base (before
-`a82f52c`) and reviewed the wrong code; it was discarded after rebasing.
-Carried items, updated after the follow-up batch (`ea340c8`..`98e3900`, gates
-`gate_2026-09-27b` REJECTED, `gate_2026-09-27c` REJECTED, then the final pass):
-
-- **`deathDateKnown` has no Timeline block.** A deceased person with an
-  unknown date shows the X on the canvas but no Death entry in
-  `syntheticDateEvents`.
 - **Manual "Add Person" and voice commands default to female**
   (`usePersonOperations.addPerson`, `useVoiceHandlers`). Decided 2026-09-27:
   leave as is (user-created, changeable at once).
-- **Three unsaved-changes prompts are still inline** (`handleNewFile`,
-  `handleLoadDemoDiagram`, `handleStartBuildDemo` in `useFileOperations.ts`)
-  with their own wording, instead of `confirmDiscardUnsavedChanges`. Same
-  behaviour; low (gate 2026-09-27c #3).
-- **`DiagramEditor.startupState.test.tsx` "nothing stored" case** asserts only
-  `people.length > 0`; it could compare against the product default. Low
-  (gate 2026-09-27c #4).
-- **Merge places a new child of an existing couple without a collision
-  check** against other people in that row (`diagramMerge.ts`). Low (gate
-  2026-09-27c #5).
-- **Four implementation-plan docs still enumerate the deleted review-modal
-  pipeline** (`imageAnalysis`, `personInventory`, `extractedDataToDiagram`,
-  `diagramLayout`, `inventoryExport`, `ImageDiagramReviewModal`) as the
-  current path: `docs/implementation_plan_2026-05-22.md`, `-06-06.md`,
-  `-06-07.md`, `-06-07c.md`. `features.md` and the CLAUDE.md index were
-  updated, but these plans need a RETIRED banner (L1). Low (gate
-  2026-09-27d #1).
-
-Decided and done on 2026-09-27: the unreachable review-modal image path was
-deleted (`a5ce83a`); unknown sex draws as a triangle (`5e5df44`); undated
-session-capture events are left undated (`98e3900`).
-
-## From the kinship and emotional-pattern batch (2026-09-22)
-
-Gate passes 13-15 (13 and 14 REJECTED, 15 APPROVED). Carried items:
-
 - **Legacy duplicate emotional-pattern events — decided 2026-09-22: the user
   deletes them by hand.** Diagrams written by earlier code hold per-edit
   pattern records in an older shape (NODAL, category = the line's
   relationship type such as "Fusion", intensity 0, no subtype) with no marker
   that separates them from user-written events, so no automatic cleanup will
   be written. New saves no longer create them.
-- **Two kin shapes fall back to "Relative by marriage".** A step-sibling (the
-  own partner's child's sibling) and a step-grandchild reached through a
-  relative's spouse have no dedicated term. Vague but not wrong.
-- **`test_kin_a_spouse_who_is_also_a_blood_relative_is_named_by_blood`**
-  asserts only the route, while the user-facing noun for a cousin who is
-  also the lane person's spouse is "Wife" (spousal wins). Behaviour is right;
-  the test name overstates what it checks.
-- **A true parent-in-law is only reachable with `includePartnerFOO`**, which
-  still has no UI (see the 2026-09-19 entry).
+- **A user event literally titled "Divorce" on the divorce date is hidden**
+  (`utils/partnershipStatusEvents.ts`). Left on 2026-09-20 as arguably
+  correct: an event called "Divorce" on the divorce date IS the divorce, and
+  with one event per date field (2026-09-30) it is that field's event.
+  Revisit if anyone reports a missing event by that name.
 
-## From the separation/divorce marks fix (2026-09-21)
+## Done on 2026-09-30
 
-Gate pass 11 APPROVED. One low, non-blocking note.
+Every other item previously listed here was fixed, with tests, in
+`be4dc2f`, `f6ba114` and the commit after them. By the list it came from:
 
-- **`partnershipSeparationMarks` hand-maintains its status-key set**
-  (`utils/partnershipUtils.ts`): `divorce`/`divorced`, `separated`/
-  `separation`, `ended`. There is no shared "is a divorce status" predicate
-  to import — `canonicalRelationshipStatusKey` normalises spelling but does
-  not classify — so this is a fresh domain map rather than a copy that can
-  drift from one. Worth folding into a shared classifier if a third consumer
-  ever needs the same question answered.
-
-## From the one-event-per-date batch (2026-09-20)
-
-Gate passes 9 and 10 (pass 9 REJECTED, pass 10 APPROVED). Three residuals,
-none blocking.
-
-- **A user event literally titled "Divorce" on the divorce date is hidden.**
-  `divorce` is the one status key whose spelling differs from its label
-  (`Divorced`), and the recogniser also accepts a partnership's own status
-  keys, so the noun matches. Arguably correct — an event called "Divorce" on
-  the divorce date IS the divorce — which is why it was left. Revisit if
-  anyone reports a missing event by that name.
-- **No test covers the "Type changed to…" / "Status changed to…" prefix
-  branch on its own.** It is exercised through the higher-level filters, but
-  a direct case would pin it.
-- **`EventCreator` lists the raw stored events unfiltered**, so the old
-  person-date and partnership-status records still appear there. Harmless —
-  it is a creation surface, not a timeline — but inconsistent with the
-  Timeline and the Events tab now that both hide them.
-
-## Flaky test spotted during gate pass 8 (2026-09-20)
-
-- **`DiagramEditor.test.tsx` "starts interactive demo…" times out under load.**
-  The gate's full-suite runs flaked twice and passed once; the test passes in
-  isolation (~1.4s) and sits in a file untouched by the batch, so it is
-  load-dependent rather than a regression. A suite that fails intermittently
-  is the kind of red people learn to ignore — raise its timeout or make the
-  demo step deterministic before it trains anyone to shrug at a failure.
-
-## From the timeline readability / duplicate-events batch (2026-09-20)
-
-Gate pass 6 APPROVED after pass 5 rejected the first attempt. Three findings
-carried, none blocking.
-
-- **The clone rule still lives in two places.** `utils/eventDedup.ts` holds
-  `hasSameEvent`, and the Timeline and the system-events collector use it — but
-  `PropertiesPanel.getDisplayEvents` kept its own inline `isAlreadyCloned`
-  (~`PropertiesPanel.tsx:1651`), which behaves differently when handed a clone
-  id rather than an original. The commit message claiming the rule is "held
-  once" was wrong; migrate the panel to `hasSameEvent`.
-- **The female-oval half of the shape test is not exercised at component
-  level.** `test_timeline_male_events_are_rectangles_and_female_events_are_ovals`
-  asserts two male blocks because the fixture has no event owned by a woman.
-  The pure function is covered both ways in `timelineItemText.test.ts`; the
-  component assertion needs a female-owned event in the fixture.
-- **Stale comment** at `TimelineBoardModal.tsx:397` still describes the
-  intensity ramp that moved to `constants/timelineBlockStyle.ts`.
-- **The single width floor has no jsdom coverage** — jsdom has no
-  `ResizeObserver`, so the measured-floor path only runs in a real browser
-  (where it was verified by hand). A layout test would need a stubbed observer.
-
-## From the PRL timeline-date fix (2026-09-19)
-
-Gate pass 4 (post-push audit of `8be8446`) APPROVED; two low-severity notes left.
-
-- **The timeline year-bounds scan hand-enumerates partnership date fields.**
-  `DiagramEditor.tsx` (~:809) lists `relationshipStartDate` / `marriedStartDate` /
-  `separationDate` / `divorceDate` and then loops `statusDates` separately,
-  rather than sharing `partnershipDates()`. Not a drop-in: the scan needs a
-  per-field label for each entry, which `partnershipDates()` deliberately does
-  not carry. Consistent today; worth folding together if a sixth date field
-  ever appears.
-- **`syntheticDateEvents` still does not surface `statusDates`-only dates.**
-  A "Widowed" date has no legacy mirror field, so it never becomes an event in
-  the Events tab or on a Timeline lane. Pre-existing and separate from the
-  visibility fix — `earliestPartnershipDate()` is the wrong tool for it, since
-  synthesis wants each date as its own event with its own category.
-
-## From the family-focus / system-events batch (2026-09-19)
-
-Raised by the external Hermes `learning-qa-sweep` gate over `aa081d3..HEAD`
-(gate file: `docs/cycles/gate_2026-09-19_family-scope_system-events.md`).
-Pass 1 REJECTED, pass 2 APPROVED. Everything functional was fixed in the batch;
-these are what remains.
-
-- **Menu/Timeline wiring is asserted by source-text greps.**
-  `hooks/useContextMenuHandlers.familyScope.test.ts` proves the three Timeline
-  entry points and the Focus Family submenu are wired by `toContain(...)` over
-  the hook's own source, plus a regex over `setTimelineSelectionIds(...)` that
-  breaks on multi-line or nested-paren arguments. It is brittle (a refactor
-  turns it red without a behaviour change) and it can match a comment rather
-  than a call site. Flagged in both gate passes and deliberately not fixed:
-  replacing it properly means rendering the context menu through the hook with
-  its ~50 dependencies, which is a bigger job than the batch it guards. The
-  behaviour it stands in for — an explicit selection beating the scope, and the
-  scope supplying the lanes otherwise — is covered behaviourally in
-  `utils/familyScope.test.ts`.
-- **`includePartnerFOO` has no UI.** The traversal supports it and it is tested
-  (`test_m1a5_partner_foo_toggle_includes_partner_parents`), but nothing in the
-  Focus Family menu turns it on, so a user cannot pull in a spouse's family of
-  origin. Needs a decision on where it belongs — a submenu entry, or a toggle on
-  the chip.
-- **Timeline lane count can get large.** At 2 up / 2 down on a real family the
-  scope-driven Timeline opens 15-25 lanes. Nothing truncates (deliberately — the
-  count is reported instead), but the board has no lane search or collapse, so
-  reading one person against the others means scrolling.
-- **`timelineSelectionIds` doubles as the Timeline modal's open flag.**
-  `TimelineBoardModal` returns `null` when both selection arrays are empty, and
-  eight sites clear the array to close the board. A dedicated `timelineOpen`
-  boolean would separate the two concerns and would let the focus steppers
-  re-derive lanes while the board is open. Not done here: it touches all eight
-  clear-sites for no behaviour change in this batch.
-- **Imported indicators still create no backing event.** `mergeIndicators`
-  (`DiagramEditor.tsx`, transcript / voice import) writes a
-  `functionalIndicator` with a date and no SYMPTOM event. The batch covers this
-  at read time with `synthesizePersonIndicatorEvents`, so nothing is invisible
-  any more, but the import path itself still differs from the Properties-panel
-  path, which writes both.
-
-## From the right-click hint batch (2026-08-24)
-
-Raised by `learning-qa` sweeps over commits `1a5db8d`..`8e98d09` and deliberately
-deferred — none is a regression, and each is wider in scope than that batch.
-
-- **Surface failed localStorage writes to the user.** `setStoredValue` throws on a
-  refused write (quota exceeded, Safari private mode), but no caller handles it:
-  in the autosave path the throw escapes a `setTimeout` in `hooks/useAutosave.ts`,
-  so a lost diagram save is invisible; in the effect path an unhandled throw with
-  no error boundary would unmount the app. Route write failures to the existing
-  dirty/red Save affordance. (Referenced from the `trySetStoredValue` docblock in
-  `src/frontend/src/utils/storage.ts`.)
-- **Accessibility of the startup hint.** `RightClickHintModal` is a non-modal
-  `role="dialog"` with no focus move on open, no focus restore on close, and no
-  Escape handler, so screen-reader users get no announcement and keyboard users
-  must tab the whole ribbon to reach it. The same gap exists in `HelpModal` and
-  `RibbonHelpModal`, so fix it as a class.
-- **A refused "Don't show this again" write is console-only.** `DiagramEditor`
-  warns to the developer console; the user simply sees the hint return next
-  launch with no explanation.
-- **Finish the z-index scale.** `src/frontend/src/constants/zIndex.ts` holds only
-  the two constants whose relative order is load-bearing (hint vs ribbon). ~29
-  other inline `zIndex` literals remain across five bands, including stacking
-  contexts that make a declared value misleading — the ribbon's sticky
-  `z-index` scopes its dropdowns' declared 1000 to the ribbon's own level.
-- **Two divergent hint mechanisms.** The older canvas scroll hint
-  (`DiagramCanvas.tsx`) is a corner toast with its copy hardcoded in the
-  component, session-scoped via a ref, with no "don't show again". The new hint
-  follows the standards (copy in `data/helpContent.ts`, persisted preference).
-  Align the old one, or decide deliberately that they differ.
+- **Review of the unread areas (2026-09-30):** sibling-conflict overlay
+  cached; DiagramCanvas render test for hidden triangles and notes; the
+  lifetime-clip test pinned east of UTC; date-field companions re-dated on
+  every update; family events keep FAMILY / family (gate LOW #1); Timeline
+  symptom saves create a missing symptom type.
+- **2026-09-27:** a death with no date is an undated Death event; New / demo
+  prompts use `confirmDiscardUnsavedChanges`; the startup test compares with
+  the product default; merged new children step past people in their row;
+  retired banners on four old plans.
+- **2026-09-22:** step-sibling and step-grandchild terms; the cousin-spouse
+  test checks the "Wife" label; "Include spouses' families" exposes
+  `includePartnerFOO`.
+- **2026-09-21:** one divorce / separation status classifier
+  (`relationshipEndingForStatus`).
+- **2026-09-20:** the prefix branch was already tested directly
+  (`test_prl_status_change_record_is_recognised`); the Event Creator bundle
+  leaves out hidden date records; the demo test has a load-safe timeout; the
+  panel already used `hasSameEvent`; the female-oval fixture and the stale
+  comment were already fixed; the width floor has a stubbed-observer test.
+- **2026-09-19:** the year-bounds scan uses the shared date slots; the
+  statusDates-only dates were already synthesized; the menu wiring is
+  behaviour-tested; the Timeline has its own open flag and follows the focus
+  when opened from it; a lane search box; imported diagnoses get a backing
+  symptom event (and no invented 5 / 5 / 5 ratings).
+- **2026-08-24:** refused storage writes turn Save red with a message; the
+  hint and both help dialogs take focus, close on Escape and give focus
+  back; a "don't show this again" that cannot be stored is reported; every
+  z-index is in `constants/zIndex.ts`; the canvas pan hint uses shared copy
+  and a persisted "don't show this again", like the right-click hint.

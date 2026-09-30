@@ -38,7 +38,7 @@ const line: EmotionalLine = {
   notesEnabled: true,
 };
 
-const renderCanvas = (visible: Record<string, boolean>) => {
+const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string, unknown> = {}) => {
   const stageRef = React.createRef<Konva.Stage>();
   const values: Record<string, unknown> = {
     contextMenu: null,
@@ -100,6 +100,7 @@ const renderCanvas = (visible: Record<string, boolean>) => {
     relationshipStatuses: [],
     panelTriangleContext: null,
     propertiesPanelIntent: null,
+    ...overrides,
   };
   // Every other prop is a handler; a spy is enough for a render. The prop
   // names are read from the component's own interface so a new prop cannot
@@ -132,5 +133,18 @@ describe('DiagramCanvas — hidden people take their triangle, notes and lines w
     expect(hasTriangleFill).toBe(false);
     expect(texts.some((text) => text.includes('TRIANGLE NOTE'))).toBe(false);
     expect(texts.some((text) => text.includes('PATTERN NOTE'))).toBe(false);
+  });
+});
+
+describe('DiagramCanvas — pan hint', () => {
+  it('uses the shared copy and passes a ticked "don\'t show this again" to its close handler', async () => {
+    const { fireEvent, screen } = await import('@testing-library/react');
+    const { CANVAS_SCROLL_HINT } = await import('../data/helpContent');
+    const closeCanvasScrollHint = vi.fn();
+    renderCanvas({ a: true, b: true, c: true }, { canvasScrollHintOpen: true, closeCanvasScrollHint });
+    expect(screen.getByText(CANVAS_SCROLL_HINT.text)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(CANVAS_SCROLL_HINT.dontShowAgainLabel));
+    fireEvent.click(screen.getByLabelText('Close canvas scroll hint'));
+    expect(closeCanvasScrollHint).toHaveBeenCalledWith(true);
   });
 });

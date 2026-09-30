@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { AddFamilyDraft } from '../../types/diagramEditor';
 import DatePickerField from '../DatePickerField';
 
@@ -142,7 +143,7 @@ const AddFamilyModal = ({ open, draft, onUpdate, onCancel, onSave }: AddFamilyMo
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2075,
+        zIndex: Z_INDEX.ENTITY_DIALOG,
         pointerEvents: 'none',
       }}
     >

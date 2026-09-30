@@ -5,8 +5,11 @@ export const TEN_MINUTES_MS = 10 * 60 * 1000;
 export const getSaveButtonState = (
   isDirty: boolean,
   lastDirtyTimestamp: number | null,
-  now: number
+  now: number,
+  /** The browser refused an autosave write: only a file save keeps the work. */
+  storageWriteFailed = false
 ): SaveButtonVisualState => {
+  if (storageWriteFailed) return 'critical';
   if (!isDirty) {
     return 'clean';
   }

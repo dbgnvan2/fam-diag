@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState, useEffect, useRef } from 'react';
 
 interface SaveAsDialogProps {
@@ -39,7 +40,7 @@ const SaveAsDialog = ({ open, currentFileName, onSave, onClose }: SaveAsDialogPr
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2420,
+        zIndex: Z_INDEX.FILE_DIALOG,
       }}
       onClick={onClose}
     >

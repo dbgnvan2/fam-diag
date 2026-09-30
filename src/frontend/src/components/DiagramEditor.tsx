@@ -69,6 +69,7 @@ import {
 import {
   RIBBON_HELP,
   type RibbonHelpKey,
+  HINT_PREFERENCE_NOT_SAVED_MESSAGE,
 } from '../data/helpContent';
 import {
   buildTimelineJson,
@@ -87,7 +88,8 @@ import {
 import {
   getStoredValue,
   parseStoredDiagramArray,
-  setStoredValue,
+  STORAGE_KEYS,
+  trySetStoredValue,
   parseStoredUserSettings,
   parseStoredArraySetting,
   parseStoredIndicatorDefinitions,
@@ -100,6 +102,8 @@ import {
   listFileBackups,
   isRightClickHintHidden,
   setRightClickHintHidden,
+  isCanvasScrollHintHidden,
+  setCanvasScrollHintHidden,
 } from '../utils/storage';
 import type { BackupVersions } from '../utils/storage';
 import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
@@ -324,6 +328,21 @@ const DiagramEditor = () => {
   const [relationshipStatusSettingsOpen, setRelationshipStatusSettingsOpen] = useState(false);
   const [relationshipStatusDraft, setRelationshipStatusDraft] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  // Browser-storage keys whose last autosave write was refused (quota full,
+  // private mode). While any are, the red Save button and a message say the
+  // diagram is not being kept between sessions — the throw used to escape a
+  // timer and the loss was invisible.
+  const [failedStorageKeys, setFailedStorageKeys] = useState<Set<string>>(() => new Set());
+  const writeStored = useCallback((key: keyof typeof STORAGE_KEYS, value: string) => {
+    const ok = trySetStoredValue(key, value);
+    setFailedStorageKeys((prev) => {
+      if (ok === !prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (ok) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [predictionsOpen, setPredictionsOpen] = useState(false);
   const [imageDiagramModalOpen, setImageDiagramModalOpen] = useState(false);
@@ -1158,7 +1177,7 @@ const DiagramEditor = () => {
   }, []);
 
   const setSessionNotesLibrary = useCallback((records: SessionNoteFileRecord[]) => {
-    setStoredValue('sessionNotesLibrary', JSON.stringify(records));
+    writeStored('sessionNotesLibrary', JSON.stringify(records));
   }, []);
   const sessionOpenCandidates = (() => {
     const library = getSessionNotesLibrary() || [];
@@ -1348,7 +1367,7 @@ const DiagramEditor = () => {
   }, [addFamilyModalOpen]);
 
   useEffect(() => {
-    setStoredValue('autoSave', String(autoSaveMinutes));
+    writeStored('autoSave', String(autoSaveMinutes));
   }, [autoSaveMinutes]);
 
   useEffect(() => {
@@ -1603,12 +1622,12 @@ useEffect(() => {
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
-  setStoredValue('ideas', ideasText);
+  writeStored('ideas', ideasText);
 }, [ideasText]);
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
-  setStoredValue('predictions', JSON.stringify(predictionSets));
+  writeStored('predictions', JSON.stringify(predictionSets));
 }, [predictionSets]);
 
 useEffect(() => {
@@ -1624,7 +1643,7 @@ useEffect(() => {
     autoSaveMinutes,
     backupCount,
   };
-  setStoredValue('userSettings', JSON.stringify(payload));
+  writeStored('userSettings', JSON.stringify(payload));
 }, [
   autoSaveMinutes,
   backupCount,
@@ -1770,7 +1789,7 @@ useEffect(() => {
   useAutosave(
     people,
     (data) => {
-      setStoredValue('people', JSON.stringify(data));
+      writeStored('people', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1778,7 +1797,7 @@ useEffect(() => {
   useAutosave(
     partnerships,
     (data) => {
-      setStoredValue('partnerships', JSON.stringify(data));
+      writeStored('partnerships', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1786,7 +1805,7 @@ useEffect(() => {
   useAutosave(
     emotionalLines,
     (data) => {
-      setStoredValue('emotionalLines', JSON.stringify(data));
+      writeStored('emotionalLines', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1794,7 +1813,7 @@ useEffect(() => {
   useAutosave(
     triangles,
     (data) => {
-      setStoredValue('triangles', JSON.stringify(data));
+      writeStored('triangles', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1802,7 +1821,7 @@ useEffect(() => {
   useAutosave(
     pageNotes,
     (data) => {
-      setStoredValue('pageNotes', JSON.stringify(data));
+      writeStored('pageNotes', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1810,7 +1829,7 @@ useEffect(() => {
   useAutosave(
     fileName,
     (data) => {
-      setStoredValue('fileName', data);
+      writeStored('fileName', data);
     },
     autosaveDelayMs
   );
@@ -1818,7 +1837,7 @@ useEffect(() => {
   useAutosave(
     eventCategories,
     (data) => {
-      setStoredValue('eventCategories', JSON.stringify(data));
+      writeStored('eventCategories', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1826,7 +1845,7 @@ useEffect(() => {
   useAutosave(
     relationshipTypes,
     (data) => {
-      setStoredValue('relationshipTypes', JSON.stringify(data));
+      writeStored('relationshipTypes', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1834,7 +1853,7 @@ useEffect(() => {
   useAutosave(
     relationshipStatuses,
     (data) => {
-      setStoredValue('relationshipStatuses', JSON.stringify(data));
+      writeStored('relationshipStatuses', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -1842,7 +1861,7 @@ useEffect(() => {
   useAutosave(
     functionalIndicatorDefinitions,
     (data) => {
-      setStoredValue('indicatorDefinitions', JSON.stringify(data));
+      writeStored('indicatorDefinitions', JSON.stringify(data));
     },
     autosaveDelayMs
   );
@@ -3053,11 +3072,9 @@ useEffect(() => {
   const handleCloseRightClickHint = () => {
     setRightClickHintOpen(false);
     if (rightClickHintDontShowAgain && !setRightClickHintHidden(true)) {
-      // The store refused the write (quota, private-mode). Developer-console
-      // only — the user is not told, and the hint will reappear next launch.
-      console.warn(
-        'Could not save the "Don\'t show this again" preference — the hint will reappear.'
-      );
+      // The store refused the write (quota, private mode). Say so, rather
+      // than let the hint simply come back next launch with no explanation.
+      window.alert(HINT_PREFERENCE_NOT_SAVED_MESSAGE);
     }
   };
 
@@ -3096,10 +3113,19 @@ useEffect(() => {
     }
   }, [pendingReopenHandle, ensureDiagramHandlePermission, isDirty, replaceDiagramState, setDiagramFileHandle]);
 
+  // Shown once per session, and never again once the user turns it off —
+  // the same mechanism as the right-click hint.
   const handleCanvasScrollHint = () => {
-    if (scrollHintShownRef.current) return;
+    if (scrollHintShownRef.current || isCanvasScrollHintHidden()) return;
     scrollHintShownRef.current = true;
     setCanvasScrollHintOpen(true);
+  };
+
+  const closeCanvasScrollHint = (dontShowAgain: boolean) => {
+    setCanvasScrollHintOpen(false);
+    if (dontShowAgain && !setCanvasScrollHintHidden(true)) {
+      window.alert(HINT_PREFERENCE_NOT_SAVED_MESSAGE);
+    }
   };
 
   useEffect(() => {
@@ -4120,6 +4146,7 @@ useEffect(() => {
             optionsMenuOpen={optionsMenuOpen}
             helpMenuOpen={helpMenuOpen}
             isDirty={isDirty}
+            storageWriteFailed={failedStorageKeys.size > 0}
             lastDirtyTimestamp={lastDirtyTimestamp}
             demoBlinkVisible={demoBlinkVisible}
             ribbonHelpKey={ribbonHelpKey}
@@ -4358,6 +4385,7 @@ useEffect(() => {
             canvasScrollHintOpen={canvasScrollHintOpen}
             setCanvasScrollHintOpen={setCanvasScrollHintOpen}
             handleCanvasScrollHint={handleCanvasScrollHint}
+            closeCanvasScrollHint={closeCanvasScrollHint}
             panelRef={panelRef}
             panelWidth={panelWidth}
             resizeStateRef={resizeStateRef}

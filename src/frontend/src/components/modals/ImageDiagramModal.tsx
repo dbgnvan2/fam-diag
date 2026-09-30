@@ -2,6 +2,7 @@
  * Modal for uploading a diagram image and analyzing it with Claude Vision.
  */
 
+import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState, useRef } from 'react';
 
 export type ImageImportHints = {
@@ -95,7 +96,7 @@ export default function ImageDiagramModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2460,
+        zIndex: Z_INDEX.TRAINING_VIDEOS,
         pointerEvents: 'none',
       }}
     >

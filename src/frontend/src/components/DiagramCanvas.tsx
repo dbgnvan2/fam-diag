@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../constants/zIndex';
 import type { ContextMenuState } from '../types/diagramEditor';
 import React, { useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
@@ -50,6 +51,7 @@ import {
 } from '../utils/noteVisibility';
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 import { APP_VERSION } from '../data/version';
+import { CANVAS_SCROLL_HINT } from '../data/helpContent';
 
 type MarqueeSelection = {
   active: boolean;
@@ -228,6 +230,8 @@ interface DiagramCanvasProps {
 
   // Canvas scroll hint
   canvasScrollHintOpen: boolean;
+  /** Closes the pan hint, persisting "don't show this again" when ticked. */
+  closeCanvasScrollHint?: (dontShowAgain: boolean) => void;
   setCanvasScrollHintOpen: Dispatch<SetStateAction<boolean>>;
   handleCanvasScrollHint: () => void;
 
@@ -375,6 +379,7 @@ export default function DiagramCanvas({
   handlePageNoteDelete,
   handlePageNoteSave,
   canvasScrollHintOpen,
+  closeCanvasScrollHint,
   setCanvasScrollHintOpen,
   handleCanvasScrollHint,
   panelRef,
@@ -423,6 +428,7 @@ export default function DiagramCanvas({
     [siblingConflictKey, showSiblingConflicts]
   );
   const prevScrollTopRef = useRef<number>(0);
+  const [scrollHintDontShowAgain, setScrollHintDontShowAgain] = useState(false);
   const [siblingTooltip, setSiblingTooltip] = useState<SiblingConflictHoverInfo | null>(null);
   const [siblingDetail, setSiblingDetail] = useState<SiblingConflictClickInfo | null>(null);
 
@@ -446,7 +452,7 @@ export default function DiagramCanvas({
             position: 'fixed',
             left: siblingTooltip.x + 14,
             top: siblingTooltip.y - 10,
-            zIndex: 3000,
+            zIndex: Z_INDEX.SIBLING_POPOVER,
             background: '#23324a',
             color: '#fff',
             borderRadius: 6,
@@ -495,7 +501,7 @@ export default function DiagramCanvas({
               left,
               top,
               width: PANEL_W,
-              zIndex: 3000,
+              zIndex: Z_INDEX.SIBLING_POPOVER,
               background: '#fff',
               border: '1px solid #c6cfde',
               borderRadius: 10,
@@ -547,7 +553,7 @@ export default function DiagramCanvas({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 2200,
+            zIndex: Z_INDEX.SECTION_POPUP,
             background: 'transparent',
           }}
         >
@@ -600,7 +606,7 @@ export default function DiagramCanvas({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 2200,
+            zIndex: Z_INDEX.SECTION_POPUP,
             background: 'transparent',
           }}
         >
@@ -658,7 +664,7 @@ export default function DiagramCanvas({
               borderRadius: 8,
               boxShadow: demoBlinkVisible ? '0 0 0 2px rgba(255,152,0,0.25)' : 'none',
               pointerEvents: 'none',
-              zIndex: 20,
+              zIndex: Z_INDEX.CANVAS_DEMO_FRAME,
             }}
           />
         )}
@@ -671,7 +677,7 @@ export default function DiagramCanvas({
             transformOrigin: 'top center',
             textAlign: 'center',
             pointerEvents: 'none',
-            zIndex: 5,
+            zIndex: Z_INDEX.CANVAS_OVERLAY,
             lineHeight: 1.3,
           }}
         >
@@ -1252,7 +1258,7 @@ export default function DiagramCanvas({
               borderRadius: 8,
               boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
               padding: 8,
-              zIndex: 25,
+              zIndex: Z_INDEX.CANVAS_PAGE_NOTE_EDITOR,
             }}
           >
             <input
@@ -1324,15 +1330,27 @@ export default function DiagramCanvas({
               borderRadius: 10,
               boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
               padding: '10px 12px',
-              zIndex: 30,
+              zIndex: Z_INDEX.CANVAS_SCROLL_HINT,
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ fontSize: 13, lineHeight: 1.4, color: '#4d4320' }}>
-                To PAN or SCROLL the canvas, hold down SPACE bar and Click to pan the Canvas in any direction
+                {CANVAS_SCROLL_HINT.text}
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={scrollHintDontShowAgain}
+                    onChange={(e) => setScrollHintDontShowAgain(e.target.checked)}
+                  />
+                  {CANVAS_SCROLL_HINT.dontShowAgainLabel}
+                </label>
               </div>
               <button
-                onClick={() => setCanvasScrollHintOpen(false)}
+                onClick={() =>
+                  closeCanvasScrollHint
+                    ? closeCanvasScrollHint(scrollHintDontShowAgain)
+                    : setCanvasScrollHintOpen(false)
+                }
                 aria-label="Close canvas scroll hint"
                 style={{
                   border: 'none',
@@ -1396,7 +1414,7 @@ export default function DiagramCanvas({
           style={{
             position: 'sticky',
             top: 0,
-            zIndex: 2,
+            zIndex: Z_INDEX.CANVAS_SCROLLBAR,
             marginLeft: 6,
             padding: '10px 12px',
             borderBottom: '1px solid #d5d5d5',

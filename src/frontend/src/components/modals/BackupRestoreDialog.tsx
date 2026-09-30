@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { BackupVersions } from '../../utils/storage';
 
@@ -47,7 +48,7 @@ const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: Back
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2420,
+        zIndex: Z_INDEX.FILE_DIALOG,
         pointerEvents: 'none',
       }}
     >

@@ -1,4 +1,6 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import { HELP_SECTIONS } from '../../data/helpContent';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface HelpModalProps {
   open: boolean;
@@ -17,9 +19,12 @@ const HelpModal = ({
   onOpenReadmeViewer,
   onOpenTrainingVideos,
 }: HelpModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Quick start help"
@@ -30,7 +35,7 @@ const HelpModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2400,
+        zIndex: Z_INDEX.HELP_DIALOG,
         pointerEvents: 'none',
       }}
     >

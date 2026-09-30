@@ -20,3 +20,9 @@ describe('getSaveButtonState', () => {
     expect(getSaveButtonState(true, now - TEN_MINUTES_MS - 1000, now)).toBe('critical');
   });
 });
+
+describe('getSaveButtonState — refused storage', () => {
+  it('is critical whenever autosave could not write, even with nothing dirty', () => {
+    expect(getSaveButtonState(false, null, 0, true)).toBe('critical');
+  });
+});

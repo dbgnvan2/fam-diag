@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { EmotionalProcessEvent, EventClass } from '../../types';
 import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS, getIntensityScale } from '../../constants/eventConstants';
@@ -47,7 +48,7 @@ const SessionEventModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2300,
+        zIndex: Z_INDEX.NESTED_EVENT_DIALOG,
         pointerEvents: 'none',
       }}
     >

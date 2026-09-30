@@ -3,6 +3,7 @@
  * type, status, line style, intensity, impact, frequency, dates, notes, color, triangle controls.
  * Rendered inside PropertiesPanel (full panel).
  */
+import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState } from 'react';
 import type { EmotionalLine } from '../../types';
 import {
@@ -289,7 +290,7 @@ const EPLPropertiesSection = ({
             padding: '12px 14px',
             boxShadow: '0 10px 28px rgba(28, 41, 61, 0.16)',
             position: 'relative',
-            zIndex: 20,
+            zIndex: Z_INDEX.PANEL_POPOVER,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>

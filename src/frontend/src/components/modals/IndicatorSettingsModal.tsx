@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import { useState } from 'react';
 import type { FunctionalIndicatorDefinition, SymptomGroup } from '../../types';
 
@@ -108,7 +109,7 @@ const IndicatorSettingsModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2050,
+        zIndex: Z_INDEX.EVENT_ROW_MENU,
         pointerEvents: 'none',
       }}
     >

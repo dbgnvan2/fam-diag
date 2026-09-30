@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Person,
@@ -975,7 +976,7 @@ export default function TimelineBoardModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2100,
+        zIndex: Z_INDEX.TIMELINE_BOARD,
       }}
     >
       <div style={{ background: 'white', padding: 16, borderRadius: 8, width: '92vw', maxWidth: 1500, maxHeight: '86vh', overflow: 'auto' }}>
@@ -1198,7 +1199,7 @@ export default function TimelineBoardModal({
                       borderRadius: 10,
                       border: '1px solid #d5ddec',
                       pointerEvents: 'none',
-                      zIndex: 2,
+                      zIndex: Z_INDEX.TIMELINE_YEAR_LABEL,
                     }}
                   >
                     Drag strip to pan years
@@ -1247,7 +1248,7 @@ export default function TimelineBoardModal({
                           fontWeight: 700,
                           color: '#37527a',
                           pointerEvents: 'none',
-                          zIndex: 1,
+                          zIndex: Z_INDEX.TIMELINE_BLOCK_LABEL,
                         }}
                       >
                         {slice.year}
@@ -1503,7 +1504,7 @@ export default function TimelineBoardModal({
               fontSize: 12,
               color: '#253044',
               boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-              zIndex: 2300,
+              zIndex: Z_INDEX.NESTED_EVENT_DIALOG,
               pointerEvents: 'none',
               whiteSpace: 'pre-wrap',
             }}

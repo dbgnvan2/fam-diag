@@ -3,6 +3,7 @@
  * Renders as a positioned overlay (near-cursor) or centered modal depending on `position`.
  * Manages its own intensity help open/close state.
  */
+import { Z_INDEX } from '../constants/zIndex';
 import React, { useState } from 'react';
 import type { EmotionalProcessEvent, EventClass, EventType } from '../types';
 import {
@@ -157,7 +158,7 @@ const EventModal = ({
           position: 'fixed',
           inset: 0,
           background: 'rgba(0,0,0,0.35)',
-          zIndex: 2000,
+          zIndex: Z_INDEX.EVENT_MODAL_BACKDROP,
           pointerEvents: 'none',
         }}
       />
@@ -175,7 +176,7 @@ const EventModal = ({
           padding: 20,
           borderRadius: 10,
           boxSizing: 'border-box',
-          zIndex: 2001,
+          zIndex: Z_INDEX.EVENT_MODAL,
           pointerEvents: 'auto',
         }}
       >

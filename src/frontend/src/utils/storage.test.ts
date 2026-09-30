@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
+  isCanvasScrollHintHidden,
+  setCanvasScrollHintHidden,
   STORAGE_KEYS,
   trySetStoredValue,
   isRightClickHintHidden,
@@ -76,5 +78,14 @@ describe('storage — diagram entity arrays', () => {
     }
     expect(localStorage.getItem(STORAGE_KEYS.fileName)).toBeNull();
     expect(localStorage.getItem(STORAGE_KEYS.ideas)).toBe('kept');
+  });
+});
+
+describe('canvas scroll hint preference', () => {
+  it('round-trips like the right-click hint preference', () => {
+    localStorage.clear();
+    expect(isCanvasScrollHintHidden()).toBe(false);
+    expect(setCanvasScrollHintHidden(true)).toBe(true);
+    expect(isCanvasScrollHintHidden()).toBe(true);
   });
 });

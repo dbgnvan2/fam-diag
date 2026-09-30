@@ -27,6 +27,7 @@ export const STORAGE_KEYS = {
   predictions: 'family-diagram-predictions',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
   hideRightClickHint: 'family-diagram-hide-right-click-hint',
+  hideCanvasScrollHint: 'family-diagram-hide-canvas-scroll-hint',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -38,21 +39,12 @@ export const getStoredValue = (key: keyof typeof STORAGE_KEYS) => {
   return localStorage.getItem(STORAGE_KEYS[key]);
 };
 
-export const setStoredValue = (key: keyof typeof STORAGE_KEYS, value: string) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEYS[key], value);
-};
-
 /**
- * setStoredValue for callers that need to know whether the write happened —
- * it returns false instead of throwing when the browser refuses (quota
- * exceeded, Safari private mode).
- *
- * Deliberately a separate function so setStoredValue keeps the exact contract
- * its 16 existing callers were written against. Note that those callers do NOT
- * handle the throw today — in the autosave path it escapes a setTimeout, so a
- * refused write is currently lost either way. Surfacing that to the user is
- * tracked in TODO.md; it is not something this helper can decide.
+ * Write one stored value. Returns false instead of throwing when the browser
+ * refuses (quota exceeded, Safari private mode), so the caller can tell the
+ * user — DiagramEditor's writeStored turns a refusal into the red Save
+ * button and a message. The old throwing setStoredValue was removed: its
+ * throw escaped the autosave timer and the loss was invisible.
  */
 export const trySetStoredValue = (key: keyof typeof STORAGE_KEYS, value: string): boolean => {
   if (typeof window === 'undefined') return false;
@@ -80,6 +72,14 @@ export const isRightClickHintHidden = () => getStoredValue('hideRightClickHint')
 export const setRightClickHintHidden = (hidden: boolean): boolean => {
   if (!trySetStoredValue('hideRightClickHint', hidden ? 'true' : 'false')) return false;
   return isRightClickHintHidden() === hidden;
+};
+
+/** The canvas pan / scroll hint's "don't show this again", like the right-click hint's. */
+export const isCanvasScrollHintHidden = () => getStoredValue('hideCanvasScrollHint') === 'true';
+
+export const setCanvasScrollHintHidden = (hidden: boolean): boolean => {
+  if (!trySetStoredValue('hideCanvasScrollHint', hidden ? 'true' : 'false')) return false;
+  return isCanvasScrollHintHidden() === hidden;
 };
 
 export const parseStoredUserSettings = (): StoredUserSettings | null => {

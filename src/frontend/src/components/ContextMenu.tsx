@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../constants/zIndex';
 import React from 'react';
 
 import type { ContextMenuItem as MenuItem } from '../types/diagramEditor';
@@ -48,7 +49,7 @@ const SubMenuContainer = ({
         borderRadius: '4px',
         boxShadow: '2px 2px 5px rgba(0,0,0,0.1)',
         minWidth: 160,
-        zIndex: 1001,
+        zIndex: Z_INDEX.CONTEXT_SUBMENU,
       }}
     >
       {children}
@@ -147,7 +148,7 @@ const ContextMenu = ({ x, y, items, onClose }: ContextMenuProps) => {
         backgroundColor: 'white',
         border: '1px solid #ccc',
         borderRadius: '4px',
-        zIndex: 1000,
+        zIndex: Z_INDEX.CONTEXT_MENU,
         boxShadow: '2px 2px 5px rgba(0,0,0,0.1)',
         // Hide until positioned to avoid flash at wrong location
         visibility: pos ? 'visible' : 'hidden',

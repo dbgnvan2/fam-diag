@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Components as MarkdownComponents } from 'react-markdown';
@@ -57,7 +58,7 @@ const ReadmeViewerModal = ({ open, onClose, content }: ReadmeViewerModalProps) =
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 2450,
+        zIndex: Z_INDEX.README_VIEWER,
         pointerEvents: 'none',
       }}
     >

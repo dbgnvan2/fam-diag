@@ -1,3 +1,4 @@
+import { Z_INDEX } from '../../constants/zIndex';
 import type { DemoTourStep } from '../../types/diagramEditor';
 
 interface DemoTourModalProps {
@@ -21,7 +22,7 @@ const DemoTourModal = ({ open, steps, stepIndex, onClose, onStepChange }: DemoTo
         position: 'fixed',
         right: 20,
         bottom: 20,
-        zIndex: 2480,
+        zIndex: Z_INDEX.DEMO_TOUR,
         width: 'min(420px, calc(100vw - 40px))',
       }}
     >
