@@ -4,6 +4,7 @@
 
 import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState, useRef } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 export type ImageImportHints = {
   /** Number of generations the user expects (0 = unknown). */
@@ -44,6 +45,7 @@ export default function ImageDiagramModal({
   const [handDrawn, setHandDrawn] = useState<boolean>(true);
   const [hasNotes, setHasNotes] = useState<boolean>(true);
 
+  const dialogRef = useDialogFocus(open, isLoading ? onCancel || onClose : onClose);
   if (!open) return null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +88,8 @@ export default function ImageDiagramModal({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Upload diagram image"

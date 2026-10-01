@@ -3,6 +3,12 @@
  * Each set contains one or more predictions. All mutations are immutable.
  */
 import { localDateString } from '../utils/dateFormatting';
+import {
+  predictionDeleteMessage,
+  predictionSetDeleteMessage,
+  renamedSetName,
+  withConditionUpdate,
+} from '../utils/predictionSets';
 import type { Dispatch, SetStateAction } from 'react';
 import { nanoid } from 'nanoid';
 import type {
@@ -18,6 +24,8 @@ import type {
 interface UsePredictionHandlersDeps {
   predictionSets: PredictionSet[];
   setPredictionSets: Dispatch<SetStateAction<PredictionSet[]>>;
+  /** Asked before a delete; there is no undo. Injectable for tests. */
+  confirmFn?: (message: string) => boolean;
 }
 
 // ── internal helper: update a single prediction inside a set ────────────────
@@ -37,6 +45,7 @@ const updatePredInSet = (
 export function usePredictionHandlers({
   predictionSets,
   setPredictionSets,
+  confirmFn = (message) => window.confirm(message),
 }: UsePredictionHandlersDeps) {
   // When the prediction was created / resolved in the app: a local date.
   const today = () => localDateString();
@@ -56,12 +65,16 @@ export function usePredictionHandlers({
 
   const renameSet = (setId: string, name: string) => {
     setPredictionSets((prev) =>
-      prev.map((s) => (s.id === setId ? { ...s, name } : s)),
+      prev.map((s) => (s.id === setId ? { ...s, name: renamedSetName(s.name, name) } : s)),
     );
   };
 
-  const deleteSet = (setId: string) => {
+  /** Deletes the set after the user confirms. Returns whether it was deleted. */
+  const deleteSet = (setId: string): boolean => {
+    const target = predictionSets.find((s) => s.id === setId);
+    if (!target || !confirmFn(predictionSetDeleteMessage(target))) return false;
     setPredictionSets((prev) => prev.filter((s) => s.id !== setId));
+    return true;
   };
 
   // ── Prediction CRUD (within a set) ───────────────────────────────────────
@@ -92,7 +105,10 @@ export function usePredictionHandlers({
     );
   };
 
-  const deletePrediction = (setId: string, predId: string) => {
+  /** Deletes the prediction after the user confirms. Returns whether it was deleted. */
+  const deletePrediction = (setId: string, predId: string): boolean => {
+    const target = predictionSets.find((s) => s.id === setId)?.predictions.find((p) => p.id === predId);
+    if (!target || !confirmFn(predictionDeleteMessage(target))) return false;
     setPredictionSets((prev) =>
       prev.map((s) =>
         s.id === setId
@@ -100,6 +116,7 @@ export function usePredictionHandlers({
           : s,
       ),
     );
+    return true;
   };
 
   const resolvePrediction = (setId: string, predId: string, status: PredictionStatus) => {
@@ -138,7 +155,7 @@ export function usePredictionHandlers({
     setPredictionSets((prev) =>
       updatePredInSet(prev, setId, predId, (p) => ({
         ...p,
-        conditions: p.conditions.map((c) => (c.id === condId ? { ...c, ...updates } : c)),
+        conditions: p.conditions.map((c) => (c.id === condId ? withConditionUpdate(c, updates) : c)),
       })),
     );
   };

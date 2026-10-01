@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState, useEffect, useRef } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SaveAsDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ const SaveAsDialog = ({ open, currentFileName, onSave, onClose }: SaveAsDialogPr
     }
   }, [open, currentFileName]);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,6 +47,8 @@ const SaveAsDialog = ({ open, currentFileName, onSave, onClose }: SaveAsDialogPr
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-labelledby="save-as-dialog-title"
         style={{

@@ -1664,6 +1664,42 @@ describe('PropertiesPanel', () => {
         expect(screen.getByLabelText('Ended:')).toBeInTheDocument();
     });
 
+    it('keeps recorded status dates when the type is switched away and back (regression F-7: deleted)', () => {
+        const partnership: Partnership = {
+            id: 'pair-dated',
+            partner1_id: 'person-a',
+            partner2_id: 'person-b',
+            horizontalConnectorY: 120,
+            relationshipType: 'married',
+            relationshipStatus: 'separated',
+            statusDates: { married: '1990-05-05', separated: '2000-01-01' },
+            children: [],
+        };
+
+        render(
+            <PropertiesPanel
+                selectedItem={partnership}
+                people={[]}
+                eventCategories={['Relationship']}
+                relationshipTypes={['married', 'engaged']}
+                relationshipStatuses={['married', 'separated', 'divorce', 'widowed', 'start', 'ongoing', 'ended']}
+                functionalIndicatorDefinitions={indicatorDefinitions}
+                sirCategories={[]}
+                functionalFactCategories={[]}
+                onUpdatePerson={() => {}}
+                onUpdatePartnership={() => {}}
+                onUpdateEmotionalLine={() => {}}
+                onClose={() => {}}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText('Type:'), { target: { value: 'engaged' } });
+        fireEvent.change(screen.getByLabelText('Type:'), { target: { value: 'married' } });
+
+        expect((screen.getByLabelText('Married:') as HTMLInputElement).value).toBe('1990-05-05');
+        expect((screen.getByLabelText('Separated:') as HTMLInputElement).value).toBe('2000-01-01');
+    });
+
     it('opens directly on events tab when requested', () => {
         const person: Person = {
             id: 'person-events',

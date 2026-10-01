@@ -1,6 +1,7 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { BackupVersions } from '../../utils/storage';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface BackupRestoreDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ const versionLabel = (key: string, index: number, total: number): string => {
 };
 
 const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: BackupRestoreDialogProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open || !versions) return null;
 
   // Collect all vN keys, sorted numerically
@@ -38,6 +40,8 @@ const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: Back
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Restore backup"

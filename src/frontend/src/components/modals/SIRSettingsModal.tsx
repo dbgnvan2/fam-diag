@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { SIRCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SIRSettingsModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleMoveUp = (index: number) => onSave(moveItemUp(categories, index));
@@ -104,6 +106,11 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="SIR settings"
       style={{
         position: 'fixed',
         inset: 0,

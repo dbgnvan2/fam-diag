@@ -1,6 +1,7 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import { useState } from 'react';
 import type { FunctionalIndicatorDefinition, SymptomGroup } from '../../types';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface IndicatorSettingsModalProps {
   open: boolean;
@@ -44,6 +45,7 @@ const IndicatorSettingsModal = ({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const swapByIds = (idA: string, idB: string) => {
@@ -102,6 +104,11 @@ const IndicatorSettingsModal = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Indicator settings"
       style={{
         position: 'fixed',
         inset: 0,

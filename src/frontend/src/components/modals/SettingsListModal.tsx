@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SettingsListModalProps {
   open: boolean;
@@ -35,6 +36,7 @@ const SettingsListModal = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const canReorder = !!onReorder;
@@ -83,6 +85,11 @@ const SettingsListModal = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       style={{
         position: 'fixed',
         inset: 0,

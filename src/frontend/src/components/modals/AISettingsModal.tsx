@@ -15,6 +15,7 @@ import {
 } from '../../data/aiModels';
 import { loadCustomModels, saveCustomModels } from '../../utils/customModels';
 import type { ConnectionTestResult } from '../../utils/testApiConnection';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 export type AISettingsValues = {
   anthropicApiKey: string;
@@ -88,6 +89,7 @@ export default function AISettingsModal({
     [allModels, modelId]
   );
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleTest = async () => {
@@ -200,6 +202,8 @@ export default function AISettingsModal({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="AI Settings"

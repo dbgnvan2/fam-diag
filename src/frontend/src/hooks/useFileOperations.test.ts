@@ -22,10 +22,6 @@ const makeDeps = (overrides: Partial<Deps> = {}): Deps => {
     emotionalLines: [],
     pageNotes: [],
     triangles: [],
-    functionalIndicatorDefinitions: [],
-    eventCategories: [],
-    relationshipTypes: [],
-    relationshipStatuses: [],
     backupRestoreVersions: { v1: VALID_JSON, updatedAt: '2026-09-27T00:00:00Z' },
     buildDemoSnapshots: [],
     buildDemoSteps: [],
@@ -50,8 +46,9 @@ const makeDeps = (overrides: Partial<Deps> = {}): Deps => {
     setPropertiesPanelIntent: setter(),
     setPersonSectionPopup: setter(),
     setContextMenu: setter(),
-    setTimelineSelectionIds: setter(),
+    closeTimeline: vi.fn(),
     setIdeasText: setter(),
+    setPredictionSets: setter(),
     setLastSavedAt: setter(),
     setBackupRestoreOpen: setter(),
     setBackupRestoreVersions: setter(),
@@ -150,5 +147,30 @@ describe('useFileOperations — replacing the diagram with unsaved changes', () 
     act(() => result.current.handleRestoreBackupVersion('v1'));
     expect(deps.replaceDiagramState).toHaveBeenCalledTimes(1);
     expect(deps.setBackupRestoreOpen).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('useFileOperations — File > New starts an empty diagram', () => {
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('clears prediction sets and ideas (regression F-2: carried into the next file)', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    localStorage.setItem('family-diagram-predictions', JSON.stringify([{ id: 's1', name: 'Old client' }]));
+    localStorage.setItem('family-diagram-ideas', 'old client ideas');
+    const deps = makeDeps({ isDirty: false });
+    const { result } = renderHook(() => useFileOperations(deps));
+    act(() => {
+      result.current.handleNewFile();
+    });
+    expect(deps.setPredictionSets).toHaveBeenCalledWith([]);
+    expect(deps.setIdeasText).toHaveBeenCalledWith('');
+    expect(deps.markSnapshotClean).toHaveBeenCalledWith(
+      expect.objectContaining({ predictionSets: [], ideasText: '', people: [] })
+    );
+    expect(localStorage.getItem('family-diagram-predictions')).toBe('[]');
+    expect(localStorage.getItem('family-diagram-ideas')).toBe('');
   });
 });

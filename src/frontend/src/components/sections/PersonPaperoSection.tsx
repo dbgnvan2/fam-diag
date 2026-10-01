@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import type { Person, PaperoScores } from '../../types';
 import { EVENT_CATEGORIES, EVENT_SUBTYPES, PAPERO_SCALES, PAPERO_SUBTYPE_TO_KEY } from '../../constants/eventConstants';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 // The categories are EVENT_CATEGORIES.PAPERO — one list, not a copy.
 const PAPERO_CATEGORIES = EVENT_CATEGORIES.PAPERO;
@@ -74,6 +75,7 @@ const PersonPaperoSection = ({
   onScoreChange,
 }: PersonPaperoSectionProps) => {
   const [helpOpenKey, setHelpOpenKey] = useState<string | null>(null);
+  const helpRef = useDialogFocus(helpOpenKey !== null, () => setHelpOpenKey(null));
 
   const scores: PaperoScores = personDraft.paperoScores || {};
 
@@ -167,6 +169,8 @@ const PersonPaperoSection = ({
                   )}
                   {isHelpOpen && (
                     <div
+                      ref={helpRef}
+                      tabIndex={-1}
                       role="dialog"
                       aria-label={`${subtype} Level Scale`}
                       style={{

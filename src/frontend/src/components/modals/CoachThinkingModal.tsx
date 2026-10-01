@@ -1,6 +1,7 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { CoachThinkingDraft } from '../../types/diagramEditor';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface CoachThinkingModalProps {
   draft: CoachThinkingDraft | null;
@@ -25,9 +26,15 @@ const modalLabelStyle: CSSProperties = {
 const modalControlStyle: CSSProperties = { width: '66%' };
 
 const CoachThinkingModal = ({ draft, onFieldChange, onCancel, onSave }: CoachThinkingModalProps) => {
+  const dialogRef = useDialogFocus(!!draft, onCancel);
   if (!draft) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Coach thinking"
       style={{
         position: 'fixed',
         inset: 0,

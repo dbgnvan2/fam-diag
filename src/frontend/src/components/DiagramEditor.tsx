@@ -39,6 +39,7 @@ import { useEmotionalLineOperations } from '../hooks/useEmotionalLineOperations'
 import { useUpdateHandlers } from '../hooks/useUpdateHandlers';
 import { usePredictionHandlers } from '../hooks/usePredictionHandlers';
 import { useFamilyScope } from '../hooks/useFamilyScope';
+import FamilyScopeChip from './FamilyScopeChip';
 import {
   buildPartnershipVisibility,
   buildPersonVisibility,
@@ -58,7 +59,11 @@ import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import { checkAddChildToPartnership, earliestPartnershipDate } from '../utils/partnershipUtils';
 import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
 import { normalizePredictionSets } from '../utils/predictionSets';
-import { buildDiagramPayload as buildDiagramPayloadPure } from '../utils/diagramPayload';
+import {
+  buildDiagramPayload as buildDiagramPayloadPure,
+  serializeDiagramContent,
+  type DiagramContentState,
+} from '../utils/diagramPayload';
 import { testApiConnection } from '../utils/testApiConnection';
 import { lookupModel } from '../utils/lookupModel';
 import { checkVisionImportReadiness } from '../utils/visionImportReadiness';
@@ -146,6 +151,9 @@ import type {
   SessionCaptureImportData,
   SessionCaptureOperation,
 } from '../types/diagramEditor';
+
+/** How often a refused browser-storage write is retried. */
+const STORAGE_RETRY_MS = 5000;
 
 const initialPeople: Person[] = DEFAULT_DIAGRAM_STATE.people;
 const initialPartnerships: Partnership[] = attachFamilyEventsToPartnerships(DEFAULT_DIAGRAM_STATE.partnerships);
@@ -333,8 +341,12 @@ const DiagramEditor = () => {
   // private mode). While any are, the red Save button and a message say the
   // diagram is not being kept between sessions — the throw used to escape a
   // timer and the loss was invisible.
-  const [failedStorageKeys, setFailedStorageKeys] = useState<Set<string>>(() => new Set());
+  const [failedStorageKeys, setFailedStorageKeys] = useState<Set<keyof typeof STORAGE_KEYS>>(() => new Set());
+  // The last value each key was asked to hold, so a refused write can be
+  // retried without waiting for the next edit.
+  const latestStoredValuesRef = useRef<Partial<Record<keyof typeof STORAGE_KEYS, string>>>({});
   const writeStored = useCallback((key: keyof typeof STORAGE_KEYS, value: string) => {
+    latestStoredValuesRef.current[key] = value;
     const ok = trySetStoredValue(key, value);
     setFailedStorageKeys((prev) => {
       if (ok === !prev.has(key)) return prev;
@@ -344,6 +356,19 @@ const DiagramEditor = () => {
       return next;
     });
   }, []);
+  // While a write is refused, retry it every few seconds. Writes happened only
+  // on a change, so after storage recovered the warning stayed up — and the
+  // stored copy stayed stale — until the next edit (gap review F-11).
+  useEffect(() => {
+    if (failedStorageKeys.size === 0) return;
+    const timer = window.setInterval(() => {
+      failedStorageKeys.forEach((key) => {
+        const value = latestStoredValuesRef.current[key];
+        if (value !== undefined) writeStored(key, value);
+      });
+    }, STORAGE_RETRY_MS);
+    return () => window.clearInterval(timer);
+  }, [failedStorageKeys, writeStored]);
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [predictionsOpen, setPredictionsOpen] = useState(false);
   const [imageDiagramModalOpen, setImageDiagramModalOpen] = useState(false);
@@ -1224,72 +1249,39 @@ const DiagramEditor = () => {
   const sessionAutosavePhaseRef = useRef<'backup' | 'file'>('backup');
   const sessionSaveDirectoryHandleRef = useRef<SessionNoteDirectoryHandle | null>(null);
   const showMultiPersonPanel = multiSelectedPeople.length > 1;
-  const serializeDiagram = useCallback(
-    (
-      peopleData: Person[],
-      partnershipData: Partnership[],
-      emotionalData: EmotionalLine[],
-      pageNoteData: PageNote[],
-      triangleData: Triangle[],
-      indicatorDefinitionData: FunctionalIndicatorDefinition[],
-      eventCategoryData: string[],
-      relationshipTypeData: string[],
-      relationshipStatusData: string[]
-    ) =>
-      JSON.stringify({
-        people: peopleData,
-        partnerships: partnershipData,
-        emotionalLines: emotionalData,
-        pageNotes: pageNoteData,
-        triangles: triangleData,
-        functionalIndicatorDefinitions: indicatorDefinitionData,
-        eventCategories: eventCategoryData,
-        relationshipTypes: relationshipTypeData,
-        relationshipStatuses: relationshipStatusData,
-      }),
-    []
-  );
-  const markSnapshotClean = useCallback(
-    (
-      peopleData: Person[],
-      partnershipData: Partnership[],
-      emotionalData: EmotionalLine[],
-      pageNoteData: PageNote[],
-      triangleData: Triangle[],
-      indicatorDefinitionData: FunctionalIndicatorDefinition[],
-      eventCategoryData: string[],
-      relationshipTypeData: string[],
-      relationshipStatusData: string[]
-    ) => {
-      savedSnapshotRef.current = serializeDiagram(
-        peopleData,
-        partnershipData,
-        emotionalData,
-        pageNoteData,
-        triangleData,
-        indicatorDefinitionData,
-        eventCategoryData,
-        relationshipTypeData,
-        relationshipStatusData
-      );
-      setIsDirty(false);
-      setLastDirtyTimestamp(null);
-    },
-    [serializeDiagram]
-  );
+  // Everything that makes the diagram "unsaved" — the same keys the file
+  // payload holds (utils/diagramPayload.ts). Read through a ref so
+  // markSnapshotClean keeps one identity.
+  const diagramContent: DiagramContentState = {
+    people,
+    partnerships,
+    emotionalLines,
+    pageNotes,
+    triangles,
+    functionalIndicatorDefinitions,
+    eventCategories,
+    relationshipTypes,
+    relationshipStatuses,
+    ideasText,
+    predictionSets,
+    functionalFactCategories,
+    nodalCategories,
+  };
+  const diagramContentRef = useRef(diagramContent);
+  diagramContentRef.current = diagramContent;
+  /**
+   * Record the saved baseline. Callers that have just loaded or reset state
+   * pass the values they set (state has not re-rendered yet); anything not
+   * passed is taken from the current render.
+   */
+  const markSnapshotClean = useCallback((baseline: Partial<DiagramContentState> = {}) => {
+    savedSnapshotRef.current = serializeDiagramContent({ ...diagramContentRef.current, ...baseline });
+    setIsDirty(false);
+    setLastDirtyTimestamp(null);
+  }, []);
 
   useEffect(() => {
-    const snapshot = serializeDiagram(
-      people,
-      partnerships,
-      emotionalLines,
-      pageNotes,
-      triangles,
-      functionalIndicatorDefinitions,
-      eventCategories,
-      relationshipTypes,
-      relationshipStatuses
-    );
+    const snapshot = serializeDiagramContent(diagramContentRef.current);
     if (snapshot !== savedSnapshotRef.current) {
       if (!isDirty) {
         setIsDirty(true);
@@ -1309,8 +1301,11 @@ const DiagramEditor = () => {
     eventCategories,
     relationshipTypes,
     relationshipStatuses,
+    ideasText,
+    predictionSets,
+    functionalFactCategories,
+    nodalCategories,
     isDirty,
-    serializeDiagram,
   ]);
 
   useEffect(() => {
@@ -1581,17 +1576,7 @@ const DiagramEditor = () => {
       // keep fallback defaults if initialization ever fails
       setTriangles(initialTriangles);
     }
-    markSnapshotClean(
-      people,
-      partnerships,
-      emotionalLines,
-      pageNotes,
-      triangles,
-      functionalIndicatorDefinitions,
-      eventCategories,
-      relationshipTypes,
-      relationshipStatuses
-    );
+    markSnapshotClean();
   }, [markSnapshotClean]); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
@@ -2242,7 +2227,10 @@ useEffect(() => {
       }
 
       const resolvedFileName = handle?.name || normalizedRequestedName;
-      const jsonString = JSON.stringify(buildDiagramPayload(resolvedFileName), null, 2);
+      // The baseline is what this save writes, not whatever state exists when
+      // the async write finishes (an edit made meanwhile stays unsaved).
+      const payload = buildDiagramPayload(resolvedFileName);
+      const jsonString = JSON.stringify(payload, null, 2);
       const backupKey = resolvedFileName.toLowerCase();
 
       if (handle) {
@@ -2282,17 +2270,7 @@ useEffect(() => {
           }
         }
         setFileName(resolvedFileName);
-        markSnapshotClean(
-          people,
-          partnerships,
-          emotionalLines,
-          pageNotes,
-          triangles,
-          functionalIndicatorDefinitions,
-          eventCategories,
-          relationshipTypes,
-          relationshipStatuses
-        );
+        markSnapshotClean(payload);
         setLastSavedAt(Date.now());
         return true;
       }
@@ -2316,21 +2294,11 @@ useEffect(() => {
         } catch { /* silently skip */ }
       }
       setFileName(resolvedFileName);
-      markSnapshotClean(
-        people,
-        partnerships,
-        emotionalLines,
-        pageNotes,
-        triangles,
-        functionalIndicatorDefinitions,
-        eventCategories,
-        relationshipTypes,
-        relationshipStatuses
-      );
+      markSnapshotClean(payload);
       setLastSavedAt(Date.now());
       return true;
     },
-    [backupCount, buildDiagramPayload, emotionalLines, ensureDiagramHandlePermission, fileName, markSnapshotClean, pageNotes, partnerships, people, readDiagramJsonFromHandle, setDiagramFileHandle, triangles, writeDiagramJsonToHandle]
+    [backupCount, buildDiagramPayload, ensureDiagramHandlePermission, fileName, markSnapshotClean, readDiagramJsonFromHandle, setDiagramFileHandle, writeDiagramJsonToHandle]
   );
 
   // Always points to the latest saveDiagramToCurrentTarget so async flows
@@ -2358,12 +2326,23 @@ useEffect(() => {
     return () => window.clearTimeout(timeout);
   }, [
     autosaveDelayMs,
+    // Every field of DiagramContentState: the content the dirty check and the
+    // file payload cover. (Not the diagramContent object — it is rebuilt on
+    // every render, which would restart the timer before it fires.)
     emotionalLines,
+    eventCategories,
     fileName,
+    functionalFactCategories,
+    functionalIndicatorDefinitions,
+    ideasText,
     isDirty,
+    nodalCategories,
     pageNotes,
     partnerships,
     people,
+    predictionSets,
+    relationshipStatuses,
+    relationshipTypes,
     triangles,
   ]);
 
@@ -2420,12 +2399,12 @@ useEffect(() => {
     if (Array.isArray(data.sirCategories) && data.sirCategories.length > 0) {
       setSirCategories(data.sirCategories);
     }
-    if (Array.isArray(data.functionalFactCategories)) {
-      setFunctionalFactCategories(data.functionalFactCategories);
-    }
-    if (Array.isArray(data.nodalCategories)) {
-      setNodalCategories(data.nodalCategories);
-    }
+    const nextFunctionalFactCategories = Array.isArray(data.functionalFactCategories)
+      ? data.functionalFactCategories
+      : functionalFactCategories;
+    const nextNodalCategories = Array.isArray(data.nodalCategories) ? data.nodalCategories : nodalCategories;
+    setFunctionalFactCategories(nextFunctionalFactCategories);
+    setNodalCategories(nextNodalCategories);
     if (typeof data.autoSaveMinutes === 'number' && !Number.isNaN(data.autoSaveMinutes)) {
       setAutoSaveMinutes(Math.max(0.25, data.autoSaveMinutes));
     }
@@ -2442,36 +2421,43 @@ useEffect(() => {
         ? embeddedFileName
         : embeddedFileName || FALLBACK_FILE_NAME);
     setFileName(derivedName);
-    if (typeof data.ideasText === 'string') {
-      setIdeasText(data.ideasText);
-    } else {
-      setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
-    }
-    setPredictionSets(normalizePredictionSets(data.predictionSets));
+    // A file without ideas or predictions has none: the product demo's are
+    // not carried into it.
+    const nextIdeasText = typeof data.ideasText === 'string' ? data.ideasText : '';
+    const nextPredictionSets = normalizePredictionSets(data.predictionSets);
+    setIdeasText(nextIdeasText);
+    setPredictionSets(nextPredictionSets);
     setTimelinePlaying(false);
     setTimelineYear(new Date().getFullYear());
     closeTimeline();
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
-    markSnapshotClean(
-      peopleWithEvents,
-      partnershipsWithEvents,
-      linesWithEvents,
-      Array.isArray(data.pageNotes) ? data.pageNotes : [],
-      trianglesWithKnownPeople,
-      nextDefinitions,
-      Array.isArray(data.eventCategories) && data.eventCategories.length > 0
-        ? data.eventCategories
-        : eventCategories,
+    markSnapshotClean({
+      people: peopleWithEvents,
+      partnerships: partnershipsWithEvents,
+      emotionalLines: linesWithEvents,
+      pageNotes: Array.isArray(data.pageNotes) ? data.pageNotes : [],
+      triangles: trianglesWithKnownPeople,
+      functionalIndicatorDefinitions: nextDefinitions,
       // Same fallback as the setters above: a file without these lists keeps
       // the current ones, so the baseline must too (not the defaults).
-      Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0
-        ? data.relationshipTypes
-        : relationshipTypes,
-      Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0
-        ? data.relationshipStatuses
-        : relationshipStatuses
-    );
+      eventCategories:
+        Array.isArray(data.eventCategories) && data.eventCategories.length > 0
+          ? data.eventCategories
+          : eventCategories,
+      relationshipTypes:
+        Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0
+          ? data.relationshipTypes
+          : relationshipTypes,
+      relationshipStatuses:
+        Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0
+          ? data.relationshipStatuses
+          : relationshipStatuses,
+      ideasText: nextIdeasText,
+      predictionSets: nextPredictionSets,
+      functionalFactCategories: nextFunctionalFactCategories,
+      nodalCategories: nextNodalCategories,
+    });
     setLastSavedAt(null);
   };
 
@@ -3010,10 +2996,6 @@ useEffect(() => {
     emotionalLines,
     pageNotes,
     triangles,
-    functionalIndicatorDefinitions,
-    eventCategories,
-    relationshipTypes,
-    relationshipStatuses,
     backupRestoreVersions,
     buildDemoSnapshots,
     buildDemoSteps,
@@ -3040,6 +3022,7 @@ useEffect(() => {
     setContextMenu,
     closeTimeline,
     setIdeasText,
+    setPredictionSets,
     setLastSavedAt,
     setBackupRestoreOpen,
     setBackupRestoreVersions,
@@ -4530,6 +4513,19 @@ useEffect(() => {
             handleUpdatePartnership={handleUpdatePartnership}
             handleUpdateEmotionalLine={handleUpdateEmotionalLine}
             timelineOpen={timelineOpen}
+            timelineFocusControls={
+              timelineFollowsFocus ? (
+                <FamilyScopeChip
+                  focus={familyScope.focus}
+                  rootName={familyScope.rootPerson?.name || ''}
+                  exclusions={familyScope.exclusions}
+                  depth={familyScope.depth}
+                  onAdjustUp={familyScope.adjustUp}
+                  onAdjustDown={familyScope.adjustDown}
+                  onClear={familyScope.clearFocus}
+                />
+              ) : null
+            }
             closeTimeline={closeTimeline}
             sessionNotesOpen={sessionNotesOpen}
             setSessionNotesOpen={setSessionNotesOpen}

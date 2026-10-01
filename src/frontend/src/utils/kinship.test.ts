@@ -365,3 +365,56 @@ describe('kinship — the spouse of a collateral relative', () => {
   });
 
 });
+
+describe('kinship — a partnership that ended before the child was born (gap review F-21)', () => {
+  // Peter divorced Betty in 1990. Betty's son Tom (1988) was born while they
+  // were together; her son Leo (1995), by a later partner, was not.
+  const build = () => {
+    const { people, partnerships } = buildFamily();
+    const nextPeople: Person[] = [
+      ...people.map((entry) =>
+        entry.id === 'betty' ? { ...entry, partnerships: [...entry.partnerships, 'prBettyLater'] } : entry
+      ),
+      person('bettyLater', { birthSex: 'male', partnerships: ['prBettyLater'], birthDate: '1960-01-01' }),
+      person('leo', { birthSex: 'male', parentPartnership: 'prBettyLater', birthDate: '1995-01-01' }),
+    ];
+    const nextPartnerships: Partnership[] = [
+      ...partnerships.map((entry) =>
+        entry.id === 'prPeter' ? { ...entry, relationshipStatus: 'divorced', divorceDate: '1990-01-01' } : entry
+      ),
+      partnership('prBettyLater', 'bettyLater', 'betty', ['leo']),
+    ];
+    return { people: nextPeople, partnerships: nextPartnerships };
+  };
+
+  const routesFor = (laneId: string, change?: (p: Partnership) => Partnership) => {
+    const { people, partnerships } = build();
+    const adjusted = change ? partnerships.map(change) : partnerships;
+    const scope = computeFamilyScope(people, adjusted, laneId, { ...defaultFocusForRoot(laneId), includePartnerFOO: true });
+    const blood = new Set([...scope.personIds].filter((id) => !scope.marriedIn.has(id)));
+    return computeKinRoutes(people, adjusted, laneId, blood);
+  };
+
+  it("a former spouse's child by a later partner is not a step-child", () => {
+    const routes = routesFor('peter');
+    expect(routes.get('leo')?.route).toBe('distant');
+    // Born before the divorce: still a step-son.
+    expect(routes.get('tom')?.route).toBe('ownSpouseDown');
+  });
+
+  it('with no ending date recorded, the step term stays (nothing is inferred)', () => {
+    const routes = routesFor('peter', (entry) =>
+      entry.id === 'prPeter' ? { ...entry, divorceDate: undefined } : entry
+    );
+    expect(routes.get('leo')?.route).toBe('ownSpouseDown');
+  });
+
+  it("a parent's former partner's later child is not a step-sibling", () => {
+    // Bob (Peter's father) and Carol separated in 1971, before Carol's
+    // daughter was born (1972).
+    const routes = routesFor('peter', (entry) =>
+      entry.id === 'prBobCarol' ? { ...entry, statusDates: { separated: '1971-01-01' } } : entry
+    );
+    expect(routes.get('carolKid')?.route).toBe('distant');
+  });
+});

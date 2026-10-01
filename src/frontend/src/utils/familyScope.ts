@@ -146,6 +146,11 @@ export function computeFamilyScope(
     // A blood relationship is the strongest claim, then a lineal one.
     if (next.blood !== prev.blood) return next.blood;
     if (next.lineal !== prev.lineal) return next.lineal;
+    // Reached as an ancestor beats reached by walking down from one: when
+    // grandparents adopt the root, the birth mother is both the root's
+    // parent (gen -1) and the grandparents' child (gen 0), and she is the
+    // parent (gap review F-12).
+    if (next.descended !== prev.descended) return !next.descended;
     return Math.abs(next.gen) < Math.abs(prev.gen);
   };
 

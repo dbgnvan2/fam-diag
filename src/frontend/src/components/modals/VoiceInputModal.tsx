@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { VoiceCommandOperation } from '../../utils/voiceCommands';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface VoiceInputModalProps {
   open: boolean;
@@ -52,9 +53,12 @@ const VoiceInputModal = ({
   onApply,
   onClear,
 }: VoiceInputModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-label="Voice input"
       style={{

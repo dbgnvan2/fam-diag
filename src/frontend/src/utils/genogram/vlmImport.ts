@@ -32,7 +32,7 @@ export type VLMImportOptions = {
 };
 
 /** HTTP statuses worth retrying: rate limit, server errors, Anthropic "overloaded". */
-const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504, 529]);
+export const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504, 529]);
 /** Upper bound on any single wait, including a server-sent Retry-After. */
 const MAX_RETRY_DELAY_MS = 60_000;
 
@@ -122,25 +122,15 @@ export async function vlmImport(
     ];
   }
 
-  // Log a concise extraction summary to the console for debugging.
-  console.log('[vlmImport] Extracted facts:', {
-    peopleCount: facts.people?.length ?? 0,
-    people: facts.people?.map((p) => ({
-      name: p.name,
-      x: p.x,
-      y: p.y,
-      sex: p.sex,
-      birthYear: p.birthYear,
-      deathYear: p.deathYear,
-    })),
-    relationshipCount: facts.relationships?.length ?? 0,
-    relationships: facts.relationships?.map((r) => ({
-      a: r.a,
-      b: r.b,
-      type: r.type,
-      children: r.children || [],
-    })),
-  });
+  // Counts only: the names, dates and relationships are client data, and the
+  // console keeps them where other tools and other users of the machine can
+  // read them (gap review F-18). The full facts are in the import log.
+  if (import.meta.env.DEV) {
+    console.info('[vlmImport] Extracted facts:', {
+      peopleCount: facts.people?.length ?? 0,
+      relationshipCount: facts.relationships?.length ?? 0,
+    });
+  }
 
   // Step 4: (Deduplication is now handled by R3 in applyDataRules above)
 
@@ -494,6 +484,16 @@ const asYear = (value: unknown): number | undefined => {
 const asNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
+/**
+ * A position as a percentage of the image (0-100). Outside that range it is
+ * not a position on the image, so it is dropped rather than moved to the edge
+ * (gap review F-23: x = 1e300 placed a person far off the canvas).
+ */
+const asImagePercent = (value: unknown): number | undefined => {
+  const n = asNumber(value);
+  return n !== undefined && n >= 0 && n <= 100 ? n : undefined;
+};
+
 /** An array of strings, dropping non-string entries; a lone string becomes [string]. */
 const asStringList = (value: unknown, onDrop: (count: number) => void): string[] | undefined => {
   if (value === undefined || value === null) return undefined;
@@ -530,6 +530,7 @@ export function sanitizeVLMFacts(raw: Record<string, unknown>): FactsImportData 
     if (!Array.isArray(raw.people)) notes.push('[warn] VLM response: "people" was not a list; ignored.');
     people = [];
     let bad = 0;
+    let offImage = 0;
     for (const entry of list) {
       const name = isRecord(entry) ? asString(entry.name) : undefined;
       if (!isRecord(entry) || name === undefined) {
@@ -539,6 +540,11 @@ export function sanitizeVLMFacts(raw: Record<string, unknown>): FactsImportData 
       const sex = asString(entry.sex)?.toLowerCase();
       const confidence = asString(entry.confidence)?.toLowerCase();
       const twinGroup = asString(entry.twinGroup);
+      // x and y are used together; a pair with either off the image is dropped.
+      const x = asImagePercent(entry.x);
+      const y = asImagePercent(entry.y);
+      const hasPosition = x !== undefined && y !== undefined;
+      if (!hasPosition && (entry.x !== undefined || entry.y !== undefined)) offImage += 1;
       people.push({
         name,
         sex: sex && SEXES.has(sex) ? (sex as 'male' | 'female' | 'unknown') : undefined,
@@ -548,12 +554,13 @@ export function sanitizeVLMFacts(raw: Record<string, unknown>): FactsImportData 
         deathYear: asYear(entry.deathYear) ?? (entry.deathYear === null ? null : undefined),
         confidence: confidence && CONFIDENCES.has(confidence) ? (confidence as 'high' | 'med' | 'low') : undefined,
         notes: asString(entry.notes),
-        x: asNumber(entry.x),
-        y: asNumber(entry.y),
+        x: hasPosition ? x : undefined,
+        y: hasPosition ? y : undefined,
         twinGroup: twinGroup && twinGroup.trim() ? twinGroup : undefined,
       });
     }
     dropped('people entries (no usable name)')(bad);
+    dropped('positions (not 0-100 on the image)')(offImage);
   }
 
   let relationships: FactsImportData['relationships'];

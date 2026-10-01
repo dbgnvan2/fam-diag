@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { FunctionalFactCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface FunctionalFactSettingsModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleMoveUp = (index: number) => onSave(moveItemUp(categories, index));
@@ -92,6 +94,11 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Functional fact settings"
       style={{
         position: 'fixed',
         inset: 0,

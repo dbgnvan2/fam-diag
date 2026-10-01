@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../constants/zIndex';
 import { useEffect, useMemo, useRef } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface SessionNotesPanelProps {
   isOpen: boolean;
@@ -73,6 +74,7 @@ const SessionNotesPanel = ({
     }
   }, [isOpen]);
 
+  const dialogRef = useDialogFocus(isOpen, onClose);
   if (!isOpen) return null;
 
   const formatTimestamp = (value?: string | null) => {
@@ -94,6 +96,11 @@ const SessionNotesPanel = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Session notes"
       style={{
         position: 'fixed',
         inset: 0,

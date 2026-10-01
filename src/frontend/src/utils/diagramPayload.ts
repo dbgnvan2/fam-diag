@@ -4,7 +4,8 @@
  *          asserted against the real payload rather than against the source
  *          text of a component.
  * Spec:    docs/implementation_plan_2026-09-19.md#M5.A.1
- * Tests:   src/frontend/src/utils/diagramPayload.test.ts
+ * Tests:   src/frontend/src/utils/familyScope.persistence.test.ts,
+ *          src/frontend/src/utils/diagramPayload.test.ts
  *
  * Anything absent from DiagramPayloadState cannot reach the file. The family
  * scope focus is deliberately not a member.
@@ -83,4 +84,26 @@ export function buildDiagramPayload(
     functionalFactCategories: state.functionalFactCategories,
     nodalCategories: state.nodalCategories,
   };
+}
+
+/**
+ * What counts as the diagram for "unsaved changes": everything a saved file
+ * holds except its metadata and the autosave interval (a preference).
+ */
+export type DiagramContentState = Omit<DiagramPayloadState, 'autoSaveMinutes'>;
+
+/**
+ * The dirty-check snapshot. It is cut from the file payload itself, so a key
+ * added to the payload is part of the dirty check without a second list to
+ * keep in step (predictions and ideas were saved to the file but never marked
+ * the diagram dirty, so File > Open discarded them without asking).
+ */
+export function serializeDiagramContent(state: DiagramContentState): string {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { fileMeta, autoSaveMinutes, ...content } = buildDiagramPayload(
+    { ...state, autoSaveMinutes: 0 },
+    '',
+    ''
+  );
+  return JSON.stringify(content);
 }

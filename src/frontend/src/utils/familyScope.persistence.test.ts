@@ -6,8 +6,6 @@
  * written before any UI exists (P10).
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { buildDiagramPayload, DIAGRAM_PAYLOAD_KEYS } from './diagramPayload';
 import {
   computeFamilyScope,
@@ -15,11 +13,6 @@ import {
   deriveTimelineSelection,
 } from './familyScope';
 import type { Partnership, Person } from '../types';
-
-const diagramEditorSource = readFileSync(
-  join(__dirname, '../components/DiagramEditor.tsx'),
-  'utf8'
-);
 
 const people: Person[] = [
   { id: 'root', name: 'Root', x: 0, y: 0, partnerships: ['pr1'], birthDate: '1970-01-01' },
@@ -74,12 +67,10 @@ describe('family scope never reaches persisted state', () => {
     expect(serialized.toLowerCase()).not.toContain('scoperoot');
   });
 
-  it('test_m5a1_editor_saves_through_the_shared_payload_builder', () => {
-    // If DiagramEditor ever builds its own object literal again, the guard
-    // above stops describing what is written.
-    expect(diagramEditorSource).toContain('buildDiagramPayloadPure(');
-    expect(diagramEditorSource).not.toMatch(/const buildDiagramPayload = \(targetFileName = fileName\) => \(\{/);
-  });
+  // test_m5a1_editor_saves_through_the_shared_payload_builder was a check on
+  // DiagramEditor's source text. It is replaced by a test that saves through
+  // the real editor and reads the file it writes:
+  // components/DiagramEditor.dirtyContent.test.tsx ("what Save writes").
 
   it('test_m5a1_a_focus_key_added_to_the_payload_type_would_fail_the_guard', () => {
     // Adversarial (P7): the guard must reject a payload that carries the

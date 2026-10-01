@@ -92,7 +92,7 @@ describe('PredictionsPanel', () => {
   });
 
   it('calls onDeleteSet when delete is clicked on a set', () => {
-    const onDeleteSet = vi.fn();
+    const onDeleteSet = vi.fn(() => true);
     const sets = [makeSet()];
     render(<PredictionsPanel {...defaultProps()} predictionSets={sets} onDeleteSet={onDeleteSet} />);
     fireEvent.click(screen.getByLabelText('Delete set'));
@@ -323,23 +323,118 @@ describe('PredictionsPanel', () => {
     expect(screen.getByText('Prediction Sets')).toBeTruthy();
   });
 
-  it('shows Save & Close button in set list view and calls onClose', () => {
+  it('shows Close button in set list view and calls onClose', () => {
     const onClose = vi.fn();
     render(<PredictionsPanel {...defaultProps()} onClose={onClose} />);
-    const saveBtn = screen.getByText('Save & Close');
+    const saveBtn = screen.getByText('Close');
     expect(saveBtn).toBeTruthy();
     fireEvent.click(saveBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows Save & Close button in active set view and calls onClose', () => {
+  it('shows Close button in active set view and calls onClose', () => {
     const onClose = vi.fn();
     const sets = [makeSet({ predictions: [makePrediction()] })];
     render(<PredictionsPanel {...defaultProps()} predictionSets={sets} onClose={onClose} />);
     fireEvent.click(screen.getByText('My Set'));
-    const saveBtn = screen.getByText('Save & Close');
+    const saveBtn = screen.getByText('Close');
     expect(saveBtn).toBeTruthy();
     fireEvent.click(saveBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // ── REVIEW-gap-areas-2026-09-30 ────────────────────────────────────────────
+
+  const openFirstPrediction = () => {
+    fireEvent.click(screen.getByText('My Set'));
+    fireEvent.click(screen.getByText('Test Hypothesis'));
+  };
+
+  it('evidence starts with no date and no direction, and needs both notes and a direction (GTEST-07)', () => {
+    const onAddEvidence = vi.fn();
+    const pred = makePrediction({ conditions: [{ id: 'c1', type: 'custom', description: 'x', evidence: [] }] });
+    render(<PredictionsPanel {...defaultProps()} predictionSets={[makeSet({ predictions: [pred] })]} onAddEvidence={onAddEvidence} />);
+    openFirstPrediction();
+    fireEvent.click(screen.getByText('+ Evidence'));
+    expect((screen.getByLabelText('Evidence date') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Evidence direction') as HTMLSelectElement).value).toBe('');
+    const add = screen.getByText('Add') as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText('Observation...'), { target: { value: 'seen' } });
+    expect(add.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Evidence direction'), { target: { value: 'contradicts' } });
+    expect(add.disabled).toBe(false);
+    fireEvent.click(add);
+    expect(onAddEvidence).toHaveBeenCalledWith('set-1', 'pred-1', 'condition', 'c1', {
+      date: '',
+      type: 'observation',
+      direction: 'contradicts',
+      notes: 'seen',
+    });
+  });
+
+  it('linking a SIR entry writes only the link, never description text (F-14)', () => {
+    const onUpdateCondition = vi.fn();
+    const sirEvent = {
+      id: 'sir-ev-1', date: '2026-03-15', startDate: '2026-03-15', category: 'Resource to Other',
+      eventType: 'SIR' as const, subtype: 'Stayed helpful', intensity: 3, frequency: 2, howWell: 4,
+      otherPersonName: 'Bob', primaryPersonName: 'Alice', anchorType: 'PERSON' as const, anchorId: 'p1',
+      status: 'discrete' as const, wwwwh: '', observations: '', eventClass: 'individual' as const, impact: 0, createdAt: 1,
+    };
+    const pred = makePrediction({
+      conditions: [{ id: 'c1', type: 'sir', personId: 'p1', linkedSIRCategory: 'Resource to Other', description: '', evidence: [] }],
+    });
+    render(
+      <PredictionsPanel
+        {...defaultProps()}
+        predictionSets={[makeSet({ predictions: [pred] })]}
+        people={[makePerson('p1', 'Alice', [sirEvent]), makePerson('p2', 'Bob')]}
+        onUpdateCondition={onUpdateCondition}
+      />
+    );
+    openFirstPrediction();
+    fireEvent.click(screen.getByText('Stayed helpful'));
+    expect(onUpdateCondition).toHaveBeenCalledWith('set-1', 'pred-1', 'c1', { linkedEventId: 'sir-ev-1' });
+  });
+
+  it('choosing a Papero topic writes no description; the suggestion is a placeholder (F-14)', () => {
+    const onUpdateCondition = vi.fn();
+    const pred = makePrediction({ conditions: [{ id: 'c1', type: 'papero', personId: 'p1', description: '', evidence: [] }] });
+    const { rerender } = render(
+      <PredictionsPanel {...defaultProps()} predictionSets={[makeSet({ predictions: [pred] })]} onUpdateCondition={onUpdateCondition} />
+    );
+    openFirstPrediction();
+    const topicSelect = Array.from(document.querySelectorAll('select')).find((s) =>
+      Array.from(s.options).some((o) => o.text === 'Engagement with Issue')
+    ) as HTMLSelectElement;
+    fireEvent.change(topicSelect, { target: { value: 'resourceful_engagement' } });
+    expect(onUpdateCondition).toHaveBeenCalledWith('set-1', 'pred-1', 'c1', {
+      linkedPaperoKey: 'resourceful_engagement',
+      linkedEventId: undefined,
+    });
+    const linked = makePrediction({
+      conditions: [{ id: 'c1', type: 'papero', personId: 'p1', linkedPaperoKey: 'resourceful_engagement', description: '', evidence: [] }],
+    });
+    rerender(<PredictionsPanel {...defaultProps()} predictionSets={[makeSet({ predictions: [linked] })]} onUpdateCondition={onUpdateCondition} />);
+    expect(screen.getByPlaceholderText('e.g. Improve Engagement with Issue')).toBeTruthy();
+  });
+
+  it('an unsaved evidence draft survives a status change (F-16)', () => {
+    const pred = makePrediction({ conditions: [{ id: 'c1', type: 'custom', description: 'x', evidence: [] }] });
+    const { rerender } = render(<PredictionsPanel {...defaultProps()} predictionSets={[makeSet({ predictions: [pred] })]} />);
+    openFirstPrediction();
+    fireEvent.click(screen.getByText('+ Evidence'));
+    fireEvent.change(screen.getByPlaceholderText('Observation...'), { target: { value: 'half typed' } });
+    const resolved = { ...pred, status: 'supported' as const };
+    rerender(<PredictionsPanel {...defaultProps()} predictionSets={[makeSet({ predictions: [resolved] })]} />);
+    expect((screen.getByPlaceholderText('Observation...') as HTMLInputElement).value).toBe('half typed');
+  });
+
+  it('a cancelled set delete keeps the set list unchanged (F-3)', () => {
+    const onDeleteSet = vi.fn(() => false);
+    render(<PredictionsPanel {...defaultProps()} predictionSets={[makeSet()]} onDeleteSet={onDeleteSet} />);
+    fireEvent.click(screen.getByLabelText('Delete set'));
+    expect(onDeleteSet).toHaveBeenCalledWith('set-1');
+    expect(screen.getByText('My Set')).toBeTruthy();
   });
 });

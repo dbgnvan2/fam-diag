@@ -140,6 +140,27 @@ describe('PersonPaperoSection', () => {
     });
   });
 
+  it("changing one score keeps the person's other scores (gap review GTEST-04)", () => {
+    const person = makePerson({
+      paperoScores: { resourceful_leadership: 4, tension_anxietyContainment: 2 },
+    });
+    const onUpdatePerson = vi.fn();
+    render(
+      <PersonPaperoSection
+        personDraft={person}
+        selectedPerson={person}
+        onUpdatePerson={onUpdatePerson}
+        updatePersonDraftState={vi.fn()}
+        onScoreChange={vi.fn()}
+      />
+    );
+    const selects = document.querySelectorAll('select');
+    fireEvent.change(selects[0], { target: { value: '3' } });
+    expect(onUpdatePerson).toHaveBeenCalledWith('p1', {
+      paperoScores: { resourceful_leadership: 4, tension_anxietyContainment: 2, resourceful_engagement: 3 },
+    });
+  });
+
   it('shows category averages when scores are set', () => {
     const person = makePerson({
       paperoScores: {

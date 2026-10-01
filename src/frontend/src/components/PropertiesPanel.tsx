@@ -75,6 +75,7 @@ import {
   lineStyleForLevel,
   lineStyleLevel,
 } from '../utils/emotionalPatternOptions';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 
 const familyAddBtnStyle: React.CSSProperties = {
@@ -359,6 +360,10 @@ const PropertiesPanel = ({
     'override' | 'position' | 'compatibility'
   >('override');
   const [tabHelpOpen, setTabHelpOpen] = useState<'properties' | 'functional' | 'events' | 'patterns' | 'papero' | 'sir' | null>(null);
+  // The compact person / relationship popups are dialogs (Escape closes them,
+  // as their ✕ does); so is the tab help.
+  const compactDialogRef = useDialogFocus(compactPersonSectionMode || compactPartnershipSectionMode, onClose);
+  const tabHelpRef = useDialogFocus(tabHelpOpen !== null, () => setTabHelpOpen(null));
   const [siblingHelpOpen, setSiblingHelpOpen] = useState(false);
   const [fooHelpOpen, setFooHelpOpen] = useState<'familyStability' | 'familyIntactness' | null>(null);
   const [_symptomIntensityHelpOpen, setSymptomIntensityHelpOpen] = useState<string | null>(null);
@@ -815,18 +820,12 @@ const PropertiesPanel = ({
         !nextStatusKeys.has(canonicalRelationshipStatusKey(partnershipDraft.relationshipStatus))
           ? nextStatusOptions[0]
           : partnershipDraft.relationshipStatus;
-      // Filter statusDates to only keep entries valid for the new type
-      const currentDates = partnershipDraft.statusDates || {};
-      const filteredDates: Record<string, string> = {};
-      for (const [key, val] of Object.entries(currentDates)) {
-        if (nextStatusKeys.has(canonicalRelationshipStatusKey(key))) {
-          filteredDates[key] = val;
-        }
-      }
+      // Recorded status dates are kept even when the new type has no field
+      // for them: a type picked by mistake (or switched back) used to delete
+      // the Married / Separated / Divorced dates for good (gap review F-7).
       updatePartnershipDraftState({
         relationshipType: nextType,
         relationshipStatus: nextStatus,
-        statusDates: filteredDates,
       });
       setPartnershipPristine(false);
       return;
@@ -1827,6 +1826,8 @@ const PropertiesPanel = ({
 
     return (
       <div
+        ref={compactDialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-label={`${compactTitle} properties`}
         style={{
@@ -1887,6 +1888,8 @@ const PropertiesPanel = ({
       people.find((person) => person.id === selectedPartnership.partner2_id)?.name || 'Partner 2';
     return (
       <div
+        ref={compactDialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-label="Relationship properties"
         style={{
@@ -2255,6 +2258,8 @@ const PropertiesPanel = ({
       </div>
       {tabHelpOpen && (
         <div
+          ref={tabHelpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label="Tab help"
           style={{

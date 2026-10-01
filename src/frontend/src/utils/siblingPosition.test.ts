@@ -334,6 +334,24 @@ describe('siblingConflictInputKey', () => {
     expect(siblingConflictInputKey([people[0], { ...people[1], x: 99 }], [])).not.toBe(base);
   });
 
+  it.each([
+    ['fatherPositionOverride', { fatherPositionOverride: 'ob/b' }],
+    ['motherPositionOverride', { motherPositionOverride: 'ys/s' }],
+    ['partnerPositionOverride', { partnerPositionOverride: 'ob/b' }],
+    ['partnerships', { partnerships: ['pr2'] }],
+  ])('changes when %s changes (regression F-5: the overlay kept the old result)', (_field, change) => {
+    const people = [mk('a', { birthSex: 'male' })];
+    const base = siblingConflictInputKey(people, []);
+    expect(siblingConflictInputKey([{ ...people[0], ...change } as Person], [])).not.toBe(base);
+  });
+
+  it('changes when a partnership status changes (the current partner is picked by status)', () => {
+    const people = [mk('a', { birthSex: 'male', partnerships: ['pr1'] })];
+    const partnership = { id: 'pr1', partner1_id: 'a', partner2_id: 'b', relationshipStatus: 'married' } as Partnership;
+    const base = siblingConflictInputKey(people, [partnership]);
+    expect(siblingConflictInputKey(people, [{ ...partnership, relationshipStatus: 'divorced' }])).not.toBe(base);
+  });
+
   it('siblingPositionResults gives the same result as deriving each person', () => {
     const people = [mk('a', { birthSex: 'male' })];
     expect(siblingPositionResults(people, []).get('a')).toEqual(

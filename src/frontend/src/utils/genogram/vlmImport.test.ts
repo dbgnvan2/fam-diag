@@ -179,6 +179,22 @@ describe('callClaudeVision — retries', () => {
 });
 
 describe('sanitizeVLMFacts — malformed model output', () => {
+  it('drops a position that is not on the image, and says so (gap review F-23)', () => {
+    const facts = sanitizeVLMFacts({
+      people: [
+        { name: 'Far', x: 1e300, y: 50 },
+        { name: 'Neg', x: 10, y: -5 },
+        { name: 'Ok', x: 25, y: 75 },
+        { name: 'None' },
+      ],
+    });
+    const byName = new Map(facts.people!.map((p) => [p.name, p]));
+    expect(byName.get('Far')).toMatchObject({ x: undefined, y: undefined });
+    expect(byName.get('Neg')).toMatchObject({ x: undefined, y: undefined });
+    expect(byName.get('Ok')).toMatchObject({ x: 25, y: 75 });
+    expect(facts.uncertainties).toContain('[warn] VLM response: dropped 2 malformed positions (not 0-100 on the image).');
+  });
+
   it('turns a string children field into a one-item list (regression: iterated per character)', () => {
     const facts = sanitizeVLMFacts({ relationships: [{ a: 'Pa', b: 'Ma', children: 'Paul' }] });
     expect(facts.relationships?.[0].children).toEqual(['Paul']);

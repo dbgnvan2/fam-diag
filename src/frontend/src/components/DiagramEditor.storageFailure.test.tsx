@@ -39,6 +39,24 @@ describe('DiagramEditor — refused storage writes are reported', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(STORAGE_WRITE_FAILED_MESSAGE);
   });
 
+  it('the warning clears once storage accepts writes again, with no further edit (regression F-11)', async () => {
+    vi.useFakeTimers();
+    refuse = (key) => key === STORAGE_KEYS.people;
+    render(<DiagramEditor />);
+    for (let i = 0; i < 20; i += 1) {
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+      });
+    }
+    expect(screen.getByRole('alert')).toHaveTextContent(STORAGE_WRITE_FAILED_MESSAGE);
+    refuse = () => false;
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(screen.queryByText(STORAGE_WRITE_FAILED_MESSAGE)).toBeNull();
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.people) || '[]').length).toBeGreaterThan(0);
+  });
+
   it('no warning while every write succeeds', async () => {
     vi.useFakeTimers();
     render(<DiagramEditor />);

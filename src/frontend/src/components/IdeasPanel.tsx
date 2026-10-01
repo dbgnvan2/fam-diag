@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../constants/zIndex';
 import { useEffect, useRef } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface IdeasPanelProps {
   isOpen: boolean;
@@ -17,10 +18,16 @@ const IdeasPanel = ({ isOpen, ideasText, onChange, onClose }: IdeasPanelProps) =
     }
   }, [isOpen]);
 
+  const dialogRef = useDialogFocus(isOpen, onClose);
   if (!isOpen) return null;
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Ideas"
       style={{
         position: 'fixed',
         inset: 0,

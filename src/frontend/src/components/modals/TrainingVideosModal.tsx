@@ -1,4 +1,5 @@
 import { Z_INDEX } from '../../constants/zIndex';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 
 export interface TrainingVideo {
@@ -25,10 +26,13 @@ const TrainingVideosModal = ({
   selectedVideoId,
   onSelectVideo,
 }: TrainingVideosModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   const selectedVideo = videos.find((v) => v.id === selectedVideoId) || videos[0];
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Training videos"

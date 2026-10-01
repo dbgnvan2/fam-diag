@@ -216,6 +216,20 @@ describe('EventModal', () => {
     );
   });
 
+  it("keeps a symptom's typed name when its category changes (gap review F-22)", () => {
+    const onSetDraft = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        onSetDraft={onSetDraft}
+        lockEventType
+        eventDraft={makeDraft({ eventType: 'SYMPTOM', category: 'Physical', subtype: 'Headache' })}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Category:'), { target: { value: 'Emotional' } });
+    expect(onSetDraft).toHaveBeenCalledWith(expect.objectContaining({ category: 'Emotional', subtype: 'Headache' }));
+  });
+
   it('calls onSave when Save button is clicked', () => {
     const onSave = vi.fn();
     render(
@@ -483,8 +497,11 @@ describe('EventModal', () => {
         eventDraft={makeDraft({ eventType: 'FF', category: '', subtype: '' })}
       />
     );
-    // Should render without errors — no category options but modal still works
-    expect(screen.getByText('Event')).toBeInTheDocument();
+    // With no category list, Category is a free-text field that writes through.
+    const category = screen.getByLabelText('Category:') as HTMLInputElement;
+    expect(category.tagName).toBe('INPUT');
+    fireEvent.change(category, { target: { value: 'Coping' } });
+    expect(baseProps.onChange).toHaveBeenCalledWith('category', 'Coping');
   });
 
   // ── Person fields visibility ──────────────────────────────────────────────────

@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import type { Person } from '../../types';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
 const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
@@ -37,6 +38,7 @@ interface PersonNameSectionProps {
 const PersonNameSection = ({ personDraft, nameFallbackParts, onChange }: PersonNameSectionProps) => {
   const isAIAgent = personDraft.birthSex === 'ai-agent' || personDraft.gender === 'ai-agent';
   const [agentNameHelpOpen, setAgentNameHelpOpen] = useState(false);
+  const helpRef = useDialogFocus(agentNameHelpOpen, () => setAgentNameHelpOpen(false));
 
   return (
     <div
@@ -69,6 +71,8 @@ const PersonNameSection = ({ personDraft, nameFallbackParts, onChange }: PersonN
       )}
       {isAIAgent && agentNameHelpOpen && (
         <div
+          ref={helpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label="Agent Name help"
           style={{

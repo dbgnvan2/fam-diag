@@ -13,6 +13,7 @@ import {
 import { emotionalPatternIntensityOptions } from '../../utils/emotionalPatternOptions';
 import DatePickerField from '../DatePickerField';
 import { EMOTIONAL_PATTERN_INTENSITY_SCALES } from '../../constants/eventConstants';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const PRESET_COLORS = ['#444444', '#FF1744', '#2979FF', '#00C853', '#FF9100', '#E040FB'];
 
@@ -132,6 +133,7 @@ const EPLPropertiesSection = ({
   onTriangleNotesChange,
 }: EPLPropertiesSectionProps) => {
   const [intensityHelpOpen, setIntensityHelpOpen] = useState(false);
+  const helpRef = useDialogFocus(intensityHelpOpen, () => setIntensityHelpOpen(false));
 
   const styleOptions = emotionalPatternIntensityOptions(emotionalDraft.relationshipType);
   const intensityChooserConfig = getIntensityChooserConfig(emotionalDraft.relationshipType);
@@ -278,6 +280,8 @@ const EPLPropertiesSection = ({
       </div>
       {intensityChooserConfig && intensityHelpOpen && (
         <div
+          ref={helpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label={intensityChooserConfig.title}
           style={{

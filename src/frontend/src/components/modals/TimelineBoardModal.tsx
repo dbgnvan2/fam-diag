@@ -48,6 +48,7 @@ import {
   type TimelineBlockShape,
 } from '../../constants/timelineBlockStyle';
 import type { FamilyScope } from '../../utils/familyScope';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface TimelineBoardModalProps {
   people: Person[];
@@ -64,6 +65,12 @@ interface TimelineBoardModalProps {
   timelineFamilySelectionIds?: string[];
   /** Whether the board is shown (the lanes no longer double as this flag). */
   open?: boolean;
+  /**
+   * Family-focus controls shown in the board's header when it follows the
+   * focus. The ribbon's copy sits under this board's backdrop, so without
+   * these the lanes could never follow a focus change (gap review F-4).
+   */
+  focusControls?: React.ReactNode;
   // The active canvas family scope. Supplies the relation ring for the
   // system events shown on each person lane (D10).
   // Spec: docs/implementation_plan_2026-09-19.md#M7.C.2
@@ -128,6 +135,7 @@ export default function TimelineBoardModal({
   timelineSelectionIds,
   timelineFamilySelectionIds = [],
   open,
+  focusControls,
   familyScope = null,
   onUpdatePerson,
   onUpdatePartnership,
@@ -395,7 +403,12 @@ export default function TimelineBoardModal({
 
   // `open` decides whether the board shows; without it (older callers and
   // tests) the old rule — any lane selected — still applies.
-  if (open === false || (open === undefined && timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0)) {
+  const boardOpen = !(
+    open === false ||
+    (open === undefined && timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0)
+  );
+  const dialogRef = useDialogFocus(boardOpen, onClose);
+  if (!boardOpen) {
     return null;
   }
 
@@ -969,6 +982,11 @@ export default function TimelineBoardModal({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Timeline board"
       style={{
         position: 'fixed',
         inset: 0,
@@ -980,7 +998,10 @@ export default function TimelineBoardModal({
       }}
     >
       <div style={{ background: 'white', padding: 16, borderRadius: 8, width: '92vw', maxWidth: 1500, maxHeight: '86vh', overflow: 'auto' }}>
-        <h4>Timeline Board</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <h4>Timeline Board</h4>
+          {focusControls}
+        </div>
         <div style={{ marginBottom: 8, color: '#555', fontSize: 13 }}>
           {selectedTimelinePeople.length > 0 && (
             <span>People: {selectedTimelinePeople.map((person) => person.name).join(', ')}</span>

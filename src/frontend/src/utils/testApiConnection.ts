@@ -10,6 +10,47 @@
  */
 
 import type { AIProvider } from '../data/aiModels';
+import { RETRYABLE_STATUSES } from './genogram/vlmImport';
+
+/**
+ * Timeout and retry for the ping (gap review F-20). Without a timeout a
+ * stalled provider left Settings on "Testing…" until the modal was closed.
+ */
+export type ConnectionTestOptions = {
+  /** Per-attempt timeout. Default 15 s. */
+  timeoutMs?: number;
+  /** Retries after a network error, a timeout, or a retryable status. Default 1. */
+  maxRetries?: number;
+  /** Wait before the first retry; doubles each retry. Default 1 s. */
+  retryBaseDelayMs?: number;
+};
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** One fetch with a timeout; retried on network errors, timeouts and retryable statuses. */
+async function fetchWithRetry(url: string, init: RequestInit, options: ConnectionTestOptions): Promise<Response> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const maxRetries = options.maxRetries ?? 1;
+  const baseDelay = options.retryBaseDelayMs ?? 1000;
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      if (!RETRYABLE_STATUSES.has(response.status) || attempt >= maxRetries) return response;
+    } catch (err) {
+      const timedOut = controller.signal.aborted;
+      if (attempt >= maxRetries) {
+        throw timedOut ? new Error(`Connection test timed out after ${Math.round(timeoutMs / 1000)}s`) : err;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    await wait(baseDelay * 2 ** attempt);
+  }
+}
 
 export type ConnectionTestResult = {
   ok: boolean;
@@ -19,7 +60,8 @@ export type ConnectionTestResult = {
 export async function testApiConnection(
   provider: AIProvider,
   apiKey: string,
-  model: string
+  model: string,
+  options: ConnectionTestOptions = {}
 ): Promise<ConnectionTestResult> {
   if (!apiKey || apiKey.trim() === '') {
     return { ok: false, message: 'API key is empty' };
@@ -29,17 +71,17 @@ export async function testApiConnection(
   }
 
   if (provider === 'anthropic') {
-    return pingAnthropic(apiKey, model);
+    return pingAnthropic(apiKey, model, options);
   }
   if (provider === 'deepseek') {
-    return pingDeepseek(apiKey, model);
+    return pingDeepseek(apiKey, model, options);
   }
   return { ok: false, message: `Provider '${provider}' has no built-in connection test` };
 }
 
-async function pingAnthropic(apiKey: string, model: string): Promise<ConnectionTestResult> {
+async function pingAnthropic(apiKey: string, model: string, options: ConnectionTestOptions): Promise<ConnectionTestResult> {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
@@ -54,16 +96,16 @@ async function pingAnthropic(apiKey: string, model: string): Promise<ConnectionT
         max_tokens: 1,
         messages: [{ role: 'user', content: 'ping' }],
       }),
-    });
+    }, options);
     return readResponse(response);
   } catch (err) {
     return networkError(err);
   }
 }
 
-async function pingDeepseek(apiKey: string, model: string): Promise<ConnectionTestResult> {
+async function pingDeepseek(apiKey: string, model: string, options: ConnectionTestOptions): Promise<ConnectionTestResult> {
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetchWithRetry('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -74,7 +116,7 @@ async function pingDeepseek(apiKey: string, model: string): Promise<ConnectionTe
         max_tokens: 1,
         messages: [{ role: 'user', content: 'ping' }],
       }),
-    });
+    }, options);
     return readResponse(response);
   } catch (err) {
     return networkError(err);

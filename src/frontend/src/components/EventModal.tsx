@@ -20,6 +20,7 @@ import {
   getIntensityScale,
 } from '../constants/eventConstants';
 import DatePickerField from './DatePickerField';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const helpBadgeStyle: React.CSSProperties = {
   width: 20,
@@ -78,6 +79,9 @@ const EventModal = ({
   onCancel,
 }: EventModalProps) => {
   const [intensityHelpOpen, setIntensityHelpOpen] = useState(false);
+  // Mounted only while open. Escape cancels, as the Cancel button does.
+  const dialogRef = useDialogFocus(true, onCancel);
+  const intensityHelpRef = useDialogFocus(intensityHelpOpen, () => setIntensityHelpOpen(false));
 
   const MODAL_MARGIN = 12;
   const MODAL_MIN_HEIGHT = 260;
@@ -164,6 +168,11 @@ const EventModal = ({
       />
       {/* Dialog — position:fixed so top/left are always viewport-relative */}
       <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={resolvedModalTitle}
         style={{
           position: 'fixed',
           top: position ? dialogTop : '50%',
@@ -242,8 +251,13 @@ const EventModal = ({
               value={eventDraft.category}
               onChange={(e) => {
                 const newCat = e.target.value;
-                const firstSubtype = (EVENT_SUBTYPES[eventType]?.[newCat] ?? [])[0] ?? '';
-                onSetDraft({ ...eventDraft, category: newCat, subtype: firstSubtype });
+                // A category with a fixed subtype list starts on its first
+                // entry; one without (a symptom's Physical / Emotional)
+                // keeps the free-text type the user typed — switching a
+                // Headache from Physical to Emotional used to erase it.
+                const listed = EVENT_SUBTYPES[eventType]?.[newCat];
+                const subtype = listed ? listed[0] ?? '' : eventDraft.subtype;
+                onSetDraft({ ...eventDraft, category: newCat, subtype });
               }}
               style={{ ...controlStyle, width: '60%' }}
             >
@@ -425,6 +439,8 @@ const EventModal = ({
 
         {intensityHelpOpen && intensityScale.help.length > 0 && (
           <div
+            ref={intensityHelpRef}
+            tabIndex={-1}
             role="dialog"
             aria-label="Intensity scale"
             style={{

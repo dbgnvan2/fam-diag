@@ -71,7 +71,7 @@ describe('testApiConnection', () => {
   it('test_m2a1_returns_error_on_fetch_failure', async () => {
     for (const provider of ['anthropic', 'deepseek'] as const) {
       (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network down'));
-      const result = await testApiConnection(provider, 'sk-x', 'm');
+      const result = await testApiConnection(provider, 'sk-x', 'm', { retryBaseDelayMs: 0 });
       expect(result.ok).toBe(false);
       expect(result.message).toBe('network down');
     }
@@ -89,5 +89,34 @@ describe('testApiConnection', () => {
     const result = await testApiConnection('custom', 'sk-x', 'm');
     expect(result.ok).toBe(false);
     expect(result.message).toContain('custom');
+  });
+
+  // ── Gap review F-20: timeout and retry ─────────────────────────────────────
+
+  it('a provider that never answers times out with a message (regression: stuck on "Testing…")', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        })
+    );
+    const result = await testApiConnection('anthropic', 'sk-x', 'm', { timeoutMs: 20, retryBaseDelayMs: 0 });
+    expect(result).toEqual({ ok: false, message: 'Connection test timed out after 0s' });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('a retryable status is retried once, then succeeds', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response('{}', { status: 529 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    const result = await testApiConnection('deepseek', 'sk-x', 'm', { retryBaseDelayMs: 0 });
+    expect(result.ok).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('a bad key (401) is reported at once, not retried', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response('{}', { status: 401 }));
+    await testApiConnection('anthropic', 'sk-x', 'm', { retryBaseDelayMs: 0 });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });

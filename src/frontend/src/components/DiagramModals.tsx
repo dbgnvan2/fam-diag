@@ -1,5 +1,5 @@
 import type { SymptomGroup } from '../types';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type {
   Person,
   Partnership,
@@ -174,6 +174,8 @@ interface DiagramModalsProps {
   handleUpdatePartnership: (partnershipId: string, updatedProps: Partial<Partnership>) => void;
   handleUpdateEmotionalLine: (emotionalLineId: string, updatedProps: Partial<EmotionalLine>) => void;
   timelineOpen: boolean;
+  /** Family-focus controls for a Timeline that follows the focus (null otherwise). */
+  timelineFocusControls: ReactNode;
   closeTimeline: () => void;
 
   // SessionNotesPanel
@@ -395,6 +397,7 @@ export default function DiagramModals({
   handleUpdatePartnership,
   handleUpdateEmotionalLine,
   timelineOpen,
+  timelineFocusControls,
   closeTimeline,
   sessionNotesOpen,
   setSessionNotesOpen,
@@ -668,6 +671,7 @@ export default function DiagramModals({
         onUpdatePartnership={handleUpdatePartnership}
         onUpdateEmotionalLine={handleUpdateEmotionalLine}
         open={timelineOpen}
+        focusControls={timelineFocusControls}
         onClose={closeTimeline}
       />
       <SessionNotesPanel

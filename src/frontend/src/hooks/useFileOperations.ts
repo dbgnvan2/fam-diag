@@ -6,18 +6,16 @@ import type {
   Partnership,
   EmotionalLine,
   Triangle,
-  FunctionalIndicatorDefinition,
   PageNote,
+  PredictionSet,
 } from '../types';
+import type { DiagramContentState } from '../utils/diagramPayload';
 import type {
   DiagramImportData,
   PersonSectionPopupState,
   PropertiesPanelIntent,
 } from '../types/diagramEditor';
-import {
-  FALLBACK_FILE_NAME,
-  DEFAULT_DIAGRAM_STATE,
-} from '../data/defaultDiagramState';
+import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 import {
   isDiagramImportData,
   isFactsImportData,
@@ -52,10 +50,6 @@ interface UseFileOperationsDeps {
   emotionalLines: EmotionalLine[];
   pageNotes: PageNote[];
   triangles: Triangle[];
-  functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
-  eventCategories: string[];
-  relationshipTypes: string[];
-  relationshipStatuses: string[];
   backupRestoreVersions: BackupVersions | null;
   buildDemoSnapshots: any[];
   buildDemoSteps: any[];
@@ -83,6 +77,7 @@ interface UseFileOperationsDeps {
   setPersonSectionPopup: Dispatch<SetStateAction<PersonSectionPopupState>>;
   setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
   closeTimeline: () => void;
+  setPredictionSets: Dispatch<SetStateAction<PredictionSet[]>>;
   setIdeasText: Dispatch<SetStateAction<string>>;
   setLastSavedAt: Dispatch<SetStateAction<number | null>>;
   setBackupRestoreOpen: Dispatch<SetStateAction<boolean>>;
@@ -99,7 +94,7 @@ interface UseFileOperationsDeps {
   beginImportFlow: (data: DiagramImportData, sourceFileName: string, source: 'import' | 'transcript' | 'facts') => void;
   beginSessionCaptureFlow: (data: any, sourceFileName: string) => void;
   setDiagramFileHandle: (handle: any | null) => void;
-  markSnapshotClean: (...args: any[]) => void;
+  markSnapshotClean: (baseline?: Partial<DiagramContentState>) => void;
   triggerSaveAs: (suggestedName: string) => Promise<void>;
 }
 
@@ -107,10 +102,6 @@ export function useFileOperations({
   fileName,
   isDirty,
   people,
-  functionalIndicatorDefinitions,
-  eventCategories,
-  relationshipTypes,
-  relationshipStatuses,
   backupRestoreVersions,
   buildDemoSnapshots,
   buildDemoSteps,
@@ -137,6 +128,7 @@ export function useFileOperations({
   setContextMenu,
   closeTimeline,
   setIdeasText,
+  setPredictionSets,
   setLastSavedAt,
   setBackupRestoreOpen,
   setBackupRestoreVersions,
@@ -174,19 +166,20 @@ export function useFileOperations({
     setContextMenu(null);
     closeTimeline();
     setFileName(FALLBACK_FILE_NAME);
-    markSnapshotClean(
-      [],
-      [],
-      [],
-      [],
-      [],
-      functionalIndicatorDefinitions,
-      eventCategories,
-      relationshipTypes,
-      relationshipStatuses
-    );
+    // A new diagram starts with no ideas or predictions: the previous
+    // diagram's (or the product demo's) must not be saved into it.
+    setIdeasText('');
+    setPredictionSets([]);
+    markSnapshotClean({
+      people: [],
+      partnerships: [],
+      emotionalLines: [],
+      pageNotes: [],
+      triangles: [],
+      ideasText: '',
+      predictionSets: [],
+    });
     setLastSavedAt(null);
-    setIdeasText(DEFAULT_DIAGRAM_STATE.ideasText);
     clearDiagramLocalStorage();
   }, [markSnapshotClean, setDiagramFileHandle]); // eslint-disable-line react-hooks/exhaustive-deps
 

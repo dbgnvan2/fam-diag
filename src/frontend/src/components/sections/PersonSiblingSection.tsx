@@ -13,6 +13,7 @@ import {
   partnerForPerson,
 } from '../../utils/siblingPosition';
 import { MATURITY_SCALE } from '../../constants/eventConstants';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const SIBLING_OVERRIDE_HELP = [
   'Siblings Complete: turn this on only when every relevant sibling is shown on the diagram. Leave it off when you know siblings are missing, because the derived position should stay provisional.',
@@ -85,6 +86,8 @@ const PersonSiblingSection = ({
 }: PersonSiblingSectionProps) => {
   const [expandedConflict, setExpandedConflict] = useState<'father' | 'mother' | 'partner' | null>(null);
   const [maturityHelpOpen, setMaturityHelpOpen] = useState(false);
+  const maturityHelpRef = useDialogFocus(maturityHelpOpen, () => setMaturityHelpOpen(false));
+  const siblingHelpRef = useDialogFocus(siblingHelpOpen, () => onSiblingHelpOpenChange(false));
   const renderOverrideControls = () => (
     <>
       <div style={rowStyle}>
@@ -154,6 +157,8 @@ const PersonSiblingSection = ({
       </div>
       {maturityHelpOpen && (
         <div
+          ref={maturityHelpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label="Maturity Level Scale"
           style={{
@@ -223,6 +228,8 @@ const PersonSiblingSection = ({
       </div>
       {siblingHelpOpen && (
         <div
+          ref={siblingHelpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label="Sibling override help"
           style={{

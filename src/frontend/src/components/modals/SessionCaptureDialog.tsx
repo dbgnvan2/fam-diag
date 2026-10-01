@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { SessionCaptureImportData } from '../../types/diagramEditor';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SessionCaptureDialogProps {
   open: boolean;
@@ -24,9 +25,15 @@ const SessionCaptureDialog = ({
   onApply,
   onCancel,
 }: SessionCaptureDialogProps) => {
+  const dialogRef = useDialogFocus(open && !!data, onCancel);
   if (!open || !data) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Session capture"
       style={{
         position: 'fixed',
         inset: 0,

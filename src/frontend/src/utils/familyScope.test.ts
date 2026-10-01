@@ -233,6 +233,25 @@ describe('computeFamilyScope', () => {
     expect(scope.personIds.has('birthMum')).toBe(true);
   });
 
+  it('grandparent adoption: the birth mother stays a parent, one generation up (regression F-12)', () => {
+    // Grandparents adopt the root; the birth mother is also their daughter.
+    const people: Person[] = [
+      person('root', { parentPartnership: 'prGrand', birthParentPartnership: 'prBirth' }),
+      person('grandDad', { partnerships: ['prGrand'] }),
+      person('grandMum', { partnerships: ['prGrand'] }),
+      person('mum', { partnerships: ['prBirth'], parentPartnership: 'prGrand' }),
+      person('dad', { partnerships: ['prBirth'] }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prGrand', 'grandDad', 'grandMum', ['mum', 'root']),
+      partnership('prBirth', 'dad', 'mum', ['root']),
+    ];
+    const scope = computeFamilyScope(people, partnerships, 'root', { up: 2, down: 2 });
+    expect(scope.generation.get('mum')).toBe(-1);
+    expect(scope.generation.get('dad')).toBe(-1);
+    expect(scope.generation.get('grandMum')).toBe(-1);
+  });
+
   it('test_m1a9_cyclic_parent_chain_terminates', () => {
     // Bad import: a is its own grandparent.
     const people: Person[] = [

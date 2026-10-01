@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { createEventId } from '../../utils/eventDraft';
 import type { Person, EmotionalProcessEvent, SIRCategoryDefinition } from '../../types';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const DEFAULT_OBSERVATION = '';
 
@@ -86,6 +87,7 @@ const PersonSIRSection = ({
 }: PersonSIRSectionProps) => {
   const [showForm, setShowForm] = useState(false);
   const [helpOpenCategory, setHelpOpenCategory] = useState<string | null>(null);
+  const helpRef = useDialogFocus(helpOpenCategory !== null, () => setHelpOpenCategory(null));
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state. The date starts blank: when the interaction happened is the
@@ -336,6 +338,8 @@ const PersonSIRSection = ({
           {/* HWDID help dialog */}
           {helpOpenCategory && categoryDef && (
             <div
+              ref={helpRef}
+              tabIndex={-1}
               role="dialog"
               aria-label={`${formCategory} HWDID Scale`}
               style={{

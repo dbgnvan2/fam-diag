@@ -1,4 +1,5 @@
 import { Z_INDEX } from '../../constants/zIndex';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface ImportModeDialogProps {
   open: boolean;
@@ -10,9 +11,15 @@ interface ImportModeDialogProps {
 }
 
 const ImportModeDialog = ({ open, source, fileName, onReplace, onMerge, onCancel }: ImportModeDialogProps) => {
+  const dialogRef = useDialogFocus(open, onCancel);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Import mode"
       style={{
         position: 'fixed',
         inset: 0,

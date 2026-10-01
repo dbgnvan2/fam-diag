@@ -354,10 +354,17 @@ export const listFileBackups = async (
 export const clearDiagramLocalStorage = () => {
   if (typeof window === 'undefined') return;
   const entityKeys: (keyof typeof STORAGE_KEYS)[] = [
-    'people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes',
+    'people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes', 'predictions',
   ];
+  // A refused write (full or blocked storage) must not abort File > New; the
+  // autosave that follows reports it through the Save button.
   for (const k of entityKeys) {
-    localStorage.setItem(STORAGE_KEYS[k], '[]');
+    trySetStoredValue(k, '[]');
   }
-  localStorage.removeItem(STORAGE_KEYS.fileName);
+  trySetStoredValue('ideas', '');
+  try {
+    localStorage.removeItem(STORAGE_KEYS.fileName);
+  } catch {
+    /* storage blocked: nothing to remove */
+  }
 };

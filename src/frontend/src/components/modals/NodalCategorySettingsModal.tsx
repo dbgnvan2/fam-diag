@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { NodalCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface NodalCategorySettingsModalProps {
   open: boolean;
@@ -35,6 +36,7 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleMoveUp = (index: number) => onSave(moveItemUp(categories, index));
@@ -105,6 +107,11 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nodal category settings"
       style={{
         position: 'fixed',
         inset: 0,

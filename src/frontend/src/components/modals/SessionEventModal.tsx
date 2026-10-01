@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { EmotionalProcessEvent, EventClass } from '../../types';
 import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS, getIntensityScale } from '../../constants/eventConstants';
 import DatePickerField from '../DatePickerField';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SessionEventModalProps {
   open: boolean;
@@ -37,10 +38,16 @@ const SessionEventModal = ({
   onCancel,
   onSave,
 }: SessionEventModalProps) => {
+  const dialogRef = useDialogFocus(open && !!draft, onCancel);
   if (!open || !draft) return null;
   const typeLabel = EVENT_TYPE_LABELS[draft.eventType] || draft.eventType;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Session event"
       style={{
         position: 'fixed',
         inset: 0,

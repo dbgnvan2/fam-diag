@@ -3,6 +3,7 @@ import type { EmotionalLine, Person } from '../../types';
 import type { EmotionalPatternDraft } from '../../types/diagramEditor';
 import { LINE_STYLE_VALUES, intensityValueForLineStyle } from '../../utils/emotionalPatternOptions';
 import EPLPropertiesSection from '../sections/EPLPropertiesSection';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface EmotionalPatternModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface EmotionalPatternModalProps {
 }
 
 const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave }: EmotionalPatternModalProps) => {
+  const dialogRef = useDialogFocus(open && !!draft, onCancel);
   if (!open || !draft) return null;
 
   // Bridge draft → EmotionalLine shape for EPLPropertiesSection
@@ -58,6 +60,11 @@ const EmotionalPatternModal = ({ open, draft, people, onUpdate, onCancel, onSave
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Emotional pattern"
       style={{
         position: 'fixed',
         inset: 0,

@@ -4,7 +4,7 @@
  * Rendered as a fixed overlay panel, toggled from AppRibbon Options menu.
  */
 import { Z_INDEX } from '../constants/zIndex';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type {
   EmotionalProcessEvent,
   Person,
@@ -19,6 +19,8 @@ import type {
   SIRCategoryDefinition,
 } from '../types';
 import { PAPERO_SUBTYPE_TO_KEY, PAPERO_SCALES } from '../constants/eventConstants';
+import { conditionDescriptionPlaceholder, paperoTopicForKey } from '../utils/predictionSets';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
@@ -80,10 +82,11 @@ interface PredictionsPanelProps {
   onClose: () => void;
   onAddSet: (name: string) => string;
   onRenameSet: (setId: string, name: string) => void;
-  onDeleteSet: (setId: string) => void;
+  /** Returns whether the set was deleted (the user can cancel the confirm). */
+  onDeleteSet: (setId: string) => boolean;
   onAddPrediction: (setId: string) => string;
   onUpdatePrediction: (setId: string, predId: string, updates: Partial<Prediction>) => void;
-  onDeletePrediction: (setId: string, predId: string) => void;
+  onDeletePrediction: (setId: string, predId: string) => boolean;
   onResolvePrediction: (setId: string, predId: string, status: PredictionStatus) => void;
   onAddCondition: (setId: string, predId: string, type?: PredictionConditionType) => void;
   onUpdateCondition: (setId: string, predId: string, condId: string, updates: Partial<PredictionCondition>) => void;
@@ -137,26 +140,30 @@ const AddEvidenceForm = ({
   const [open, setOpen] = useState(false);
   // When the evidence was observed is the user's to give; it starts blank.
   const [date, setDate] = useState('');
-  const [direction, setDirection] = useState<PredictionEvidenceDirection>('supports');
+  // So is whether it supports the prediction: no direction is pre-selected.
+  const [direction, setDirection] = useState<PredictionEvidenceDirection | ''>('');
   const [notes, setNotes] = useState('');
 
   if (!open) {
     return <button type="button" onClick={() => setOpen(true)} style={{ ...miniBtn, marginTop: 4 }}>+ Evidence</button>;
   }
 
+  const canAdd = notes.trim() !== '' && direction !== '';
   const save = () => {
+    if (direction === '') return;
     onAdd(setId, predId, target, targetId, { date, type: 'observation', direction, notes });
     setNotes('');
     setDate('');
-    setDirection('supports');
+    setDirection('');
     setOpen(false);
   };
 
   return (
     <div style={{ marginTop: 4, padding: 6, background: '#f9fafb', borderRadius: 6, border: '1px solid #e4e8ee' }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: 130 }} />
-        <select value={direction} onChange={(e) => setDirection(e.target.value as PredictionEvidenceDirection)} style={{ ...inputStyle, width: 100 }}>
+        <input type="date" aria-label="Evidence date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, width: 130 }} />
+        <select aria-label="Evidence direction" value={direction} onChange={(e) => setDirection(e.target.value as PredictionEvidenceDirection | '')} style={{ ...inputStyle, width: 100 }}>
+          <option value="">— Direction —</option>
           <option value="supports">Supports</option>
           <option value="contradicts">Contradicts</option>
           <option value="neutral">Neutral</option>
@@ -165,7 +172,7 @@ const AddEvidenceForm = ({
       <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observation..." style={{ ...inputStyle, marginTop: 4 }} />
       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', marginTop: 4 }}>
         <button type="button" onClick={() => setOpen(false)} style={miniBtn}>Cancel</button>
-        <button type="button" onClick={save} disabled={!notes.trim()} style={{ ...miniBtn, background: '#4b68a6', color: '#fff', border: 'none', opacity: notes.trim() ? 1 : 0.5 }}>Add</button>
+        <button type="button" onClick={save} disabled={!canAdd} style={{ ...miniBtn, background: '#4b68a6', color: '#fff', border: 'none', opacity: canAdd ? 1 : 0.5 }}>Add</button>
       </div>
     </div>
   );
@@ -252,7 +259,6 @@ const SIRConditionLinker = ({
                   type="button"
                   onClick={() => onUpdateCondition(setId, predId, cond.id, {
                     linkedEventId: isLinked ? undefined : ev.id,
-                    description: isLinked ? cond.description : cond.description || `${cond.linkedSIRCategory}: ${ev.subtype || ev.otherPersonName || ''}`.trim(),
                   })}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left',
@@ -294,9 +300,7 @@ const PaperoConditionLinker = ({
   onUpdateCondition: PredictionsPanelProps['onUpdateCondition'];
 }) => {
   const currentScore = cond.linkedPaperoKey ? getPaperoScoreForPerson(person, cond.linkedPaperoKey) : 0;
-  const linkedTopicName = cond.linkedPaperoKey
-    ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === cond.linkedPaperoKey)?.[0] || ''
-    : '';
+  const linkedTopicName = paperoTopicForKey(cond.linkedPaperoKey);
   const paperoEvents = linkedTopicName ? getPaperoEventsForPerson(person, linkedTopicName) : [];
   const linkedEvent = cond.linkedEventId ? paperoEvents.find((e) => e.id === cond.linkedEventId) : undefined;
 
@@ -308,11 +312,9 @@ const PaperoConditionLinker = ({
           value={cond.linkedPaperoKey || ''}
           onChange={(e) => {
             const key = e.target.value;
-            const topicName = key ? Object.entries(PAPERO_SUBTYPE_TO_KEY).find(([, v]) => v === key)?.[0] || '' : '';
             onUpdateCondition(setId, predId, cond.id, {
               linkedPaperoKey: key || undefined,
               linkedEventId: undefined,
-              description: cond.description || (topicName ? `Improve ${topicName}` : ''),
             });
           }}
           style={{ ...inputStyle, flex: 1, fontSize: 11 }}
@@ -472,7 +474,7 @@ const PredictionCard = ({
                 {cond.type === 'papero' && cond.personId && (
                   <PaperoConditionLinker cond={cond} setId={setId} predId={p.id} person={people.find((pp) => pp.id === cond.personId)} onUpdateCondition={onUpdateCondition} />
                 )}
-                <input type="text" value={cond.description} onChange={(e) => onUpdateCondition(setId, p.id, cond.id, { description: e.target.value })} placeholder={cond.type === 'sir' ? 'Goal or expected change...' : cond.type === 'papero' ? 'Expected improvement...' : 'Describe the condition...'} style={inputStyle} />
+                <input type="text" value={cond.description} onChange={(e) => onUpdateCondition(setId, p.id, cond.id, { description: e.target.value })} placeholder={conditionDescriptionPlaceholder(cond)} style={inputStyle} />
                 {cond.evidence.length > 0 && (
                   <div style={{ marginTop: 6 }}>
                     <div style={{ fontSize: 10, color: '#7a8aaa', fontWeight: 600, marginBottom: 2 }}>Evidence:</div>
@@ -570,6 +572,7 @@ const PredictionsPanel = ({
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [editingSetName, setEditingSetName] = useState('');
 
+  const dialogRef = useDialogFocus(isOpen, onClose);
   if (!isOpen) return null;
 
   const activeSet = activeSetId ? predictionSets.find((s) => s.id === activeSetId) : null;
@@ -599,7 +602,7 @@ const PredictionsPanel = ({
   // ── Set List View ─────────────────────────────────────────────────────────
   if (!activeSet) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Prediction sets" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
         <div style={{ width: 480, maxHeight: '85vh', background: '#fff', borderRadius: 12, boxShadow: '0 18px 45px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -661,7 +664,7 @@ const PredictionsPanel = ({
                       </div>
                     </button>
                     <button type="button" aria-label="Edit set name" onClick={() => { setEditingSetId(s.id); setEditingSetName(s.name); }} style={miniBtn}>✏️</button>
-                    <button type="button" aria-label="Delete set" onClick={() => { if (activeSetId === s.id) setActiveSetId(null); onDeleteSet(s.id); }} style={{ ...miniBtn, color: '#c62828' }}>🗑</button>
+                    <button type="button" aria-label="Delete set" onClick={() => { if (onDeleteSet(s.id) && activeSetId === s.id) setActiveSetId(null); }} style={{ ...miniBtn, color: '#c62828' }}>🗑</button>
                   </>
                 )}
               </div>
@@ -670,7 +673,7 @@ const PredictionsPanel = ({
 
           {/* Footer */}
           <div style={{ padding: '10px 18px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Save & Close</button>
+            <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Close</button>
           </div>
         </div>
       </div>
@@ -682,7 +685,7 @@ const PredictionsPanel = ({
   const resolvedPredictions = activeSet.predictions.filter((p) => p.status !== 'active');
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Prediction sets" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX.PREDICTION_DIALOG }}>
       <div style={{ width: 560, maxHeight: '90vh', background: '#fff', borderRadius: 12, boxShadow: '0 18px 45px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ padding: '14px 18px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -707,66 +710,43 @@ const PredictionsPanel = ({
             </div>
           )}
 
-          {activePredictions.length > 0 && (
-            <>
-              <div style={{ ...sectionLabel, marginBottom: 8 }}>Active ({activePredictions.length})</div>
-              {activePredictions.map((pred) => (
-                <PredictionCard
-                  key={pred.id}
-                  prediction={pred}
-                  setId={activeSet.id}
-                  people={people}
-                  sirCategories={sirCategories}
-                  expanded={expandedIds.has(pred.id)}
-                  onToggle={() => toggleExpanded(pred.id)}
-                  onUpdate={onUpdatePrediction}
-                  onDelete={onDeletePrediction}
-                  onResolve={onResolvePrediction}
-                  onAddCondition={onAddCondition}
-                  onUpdateCondition={onUpdateCondition}
-                  onRemoveCondition={onRemoveCondition}
-                  onAddOutcome={onAddOutcome}
-                  onUpdateOutcome={onUpdateOutcome}
-                  onRemoveOutcome={onRemoveOutcome}
-                  onAddEvidence={onAddEvidence}
-                  onRemoveEvidence={onRemoveEvidence}
-                />
-              ))}
-            </>
-          )}
-
-          {resolvedPredictions.length > 0 && (
-            <>
-              <div style={{ ...sectionLabel, marginTop: 12, marginBottom: 8 }}>Resolved ({resolvedPredictions.length})</div>
-              {resolvedPredictions.map((pred) => (
-                <PredictionCard
-                  key={pred.id}
-                  prediction={pred}
-                  setId={activeSet.id}
-                  people={people}
-                  sirCategories={sirCategories}
-                  expanded={expandedIds.has(pred.id)}
-                  onToggle={() => toggleExpanded(pred.id)}
-                  onUpdate={onUpdatePrediction}
-                  onDelete={onDeletePrediction}
-                  onResolve={onResolvePrediction}
-                  onAddCondition={onAddCondition}
-                  onUpdateCondition={onUpdateCondition}
-                  onRemoveCondition={onRemoveCondition}
-                  onAddOutcome={onAddOutcome}
-                  onUpdateOutcome={onUpdateOutcome}
-                  onRemoveOutcome={onRemoveOutcome}
-                  onAddEvidence={onAddEvidence}
-                  onRemoveEvidence={onRemoveEvidence}
-                />
-              ))}
-            </>
-          )}
+          {/* One keyed list with the group headings inline: a prediction that
+              changes status keeps its card (and any unsaved "+ Evidence"
+              draft) instead of being remounted in another list. */}
+          {[...activePredictions, ...resolvedPredictions].map((pred, index) => (
+            <Fragment key={pred.id}>
+              {index === 0 && activePredictions.length > 0 && (
+                <div style={{ ...sectionLabel, marginBottom: 8 }}>Active ({activePredictions.length})</div>
+              )}
+              {index === activePredictions.length && (
+                <div style={{ ...sectionLabel, marginTop: 12, marginBottom: 8 }}>Resolved ({resolvedPredictions.length})</div>
+              )}
+              <PredictionCard
+                prediction={pred}
+                setId={activeSet.id}
+                people={people}
+                sirCategories={sirCategories}
+                expanded={expandedIds.has(pred.id)}
+                onToggle={() => toggleExpanded(pred.id)}
+                onUpdate={onUpdatePrediction}
+                onDelete={onDeletePrediction}
+                onResolve={onResolvePrediction}
+                onAddCondition={onAddCondition}
+                onUpdateCondition={onUpdateCondition}
+                onRemoveCondition={onRemoveCondition}
+                onAddOutcome={onAddOutcome}
+                onUpdateOutcome={onUpdateOutcome}
+                onRemoveOutcome={onRemoveOutcome}
+                onAddEvidence={onAddEvidence}
+                onRemoveEvidence={onRemoveEvidence}
+              />
+            </Fragment>
+          ))}
         </div>
 
         {/* Footer */}
         <div style={{ padding: '10px 18px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Save & Close</button>
+          <button type="button" onClick={onClose} style={{ padding: '7px 24px', borderRadius: 6, border: 'none', background: '#4b68a6', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Close</button>
         </div>
       </div>
     </div>

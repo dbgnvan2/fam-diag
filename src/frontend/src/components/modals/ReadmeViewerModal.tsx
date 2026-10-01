@@ -2,6 +2,7 @@ import { Z_INDEX } from '../../constants/zIndex';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Components as MarkdownComponents } from 'react-markdown';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 type MarkdownCodeProps = React.ComponentPropsWithoutRef<'code'> & {
   inline?: boolean;
@@ -45,9 +46,12 @@ interface ReadmeViewerModalProps {
 }
 
 const ReadmeViewerModal = ({ open, onClose, content }: ReadmeViewerModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="README documentation"

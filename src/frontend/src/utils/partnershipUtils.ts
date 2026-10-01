@@ -104,6 +104,25 @@ export function partnershipSeparationMarks(
 }
 
 /**
+ * The earliest recorded date a partnership ended (separation or divorce, in
+ * any field), or undefined when no ending date is recorded. Uses the same
+ * classifier as partnershipSeparationMarks.
+ */
+export function partnershipEndDate(partnership: Partnership): string | undefined {
+  const dates = [
+    partnership.divorceDate,
+    partnership.separationDate,
+    ...Object.entries(partnership.statusDates || {})
+      .filter(([key]) => relationshipEndingForStatus(key))
+      .map(([, value]) => value),
+  ]
+    .map((value) => (value || '').trim())
+    .filter((value) => ISO_DATE.test(value) && !Number.isNaN(Date.parse(value)))
+    .sort();
+  return dates[0];
+}
+
+/**
  * True when `ancestorId` is a parent, grandparent, ... of `personId`, through
  * either the raising family or the birth family. Stops on a cycle already
  * present in the data.

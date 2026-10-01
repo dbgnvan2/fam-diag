@@ -23,6 +23,7 @@
  * from the lane person, so each person takes the CLOSEST route to them.
  */
 import type { Partnership, Person } from '../types';
+import { partnershipEndDate } from './partnershipUtils';
 
 export type KinRoute =
   | 'blood'
@@ -45,6 +46,19 @@ export type KinRoute =
   | 'distant';
 
 type Edge = 'up' | 'down' | 'partner';
+
+/**
+ * Whether a partner's child counts as a step-relative through that
+ * partnership. Not when the partnership had ended before the child was born:
+ * a former spouse's child by a later partner is not a step-child (gap review
+ * F-21). With either date unknown nothing is inferred and the step term stays.
+ */
+const stepThroughPartnership = (crossed: Partnership | undefined, child: Person | undefined): boolean => {
+  const ended = crossed ? partnershipEndDate(crossed) : undefined;
+  const born = (child?.birthDate || '').trim();
+  if (!ended || !/^\d{4}-\d{2}-\d{2}$/.test(born)) return true;
+  return born <= ended;
+};
 
 /** Where a route goes next, given the edge it takes. */
 const next = (route: KinRoute, edge: Edge): KinRoute => {
@@ -94,10 +108,10 @@ export function computeKinRoutes(
   bloodIds.forEach((id) => routes.set(id, { route: 'blood' }));
   routes.set(laneId, { route: 'blood' });
 
-  const neighbours = (id: string): Array<{ id: string; edge: Edge }> => {
+  const neighbours = (id: string): Array<{ id: string; edge: Edge; partnershipId?: string }> => {
     const person = personById.get(id);
     if (!person) return [];
-    const out: Array<{ id: string; edge: Edge }> = [];
+    const out: Array<{ id: string; edge: Edge; partnershipId?: string }> = [];
     [person.parentPartnership, person.birthParentPartnership]
       .filter((pid): pid is string => !!pid)
       .forEach((pid) => {
@@ -111,15 +125,17 @@ export function computeKinRoutes(
       const union = partnershipById.get(pid);
       if (!union) return;
       const partnerId = union.partner1_id === id ? union.partner2_id : union.partner1_id;
-      if (partnerId && partnerId !== id) out.push({ id: partnerId, edge: 'partner' });
+      if (partnerId && partnerId !== id) out.push({ id: partnerId, edge: 'partner', partnershipId: pid });
       (union.children || []).forEach((childId) => out.push({ id: childId, edge: 'down' }));
     });
     return out;
   };
 
   // Hop-ordered: the first route to reach someone is the closest one.
-  const queue: Array<{ id: string; route: KinRoute }> = [];
-  const enqueueFrom = (id: string, route: KinRoute) => queue.push({ id, route });
+  // `crossed` is the partnership whose marriage the route crossed, so a
+  // partner's child can be checked against when that partnership ended.
+  const queue: Array<{ id: string; route: KinRoute; crossed?: string }> = [];
+  const enqueueFrom = (id: string, route: KinRoute, crossed?: string) => queue.push({ id, route, crossed });
   enqueueFrom(laneId, 'blood');
   bloodIds.forEach((id) => {
     if (id !== laneId) enqueueFrom(id, 'blood');
@@ -127,15 +143,16 @@ export function computeKinRoutes(
 
   const expanded = new Set<string>();
   while (queue.length) {
-    const { id, route } = queue.shift()!;
+    const { id, route, crossed } = queue.shift()!;
     const key = `${id}:${route}`;
     if (expanded.has(key)) continue;
     expanded.add(key);
 
-    neighbours(id).forEach(({ id: target, edge }) => {
+    neighbours(id).forEach(({ id: target, edge, partnershipId }) => {
       if (routes.has(target)) return; // already has a closer (or blood) route
       let targetRoute: KinRoute;
       let viaId: string | undefined;
+      let nextCrossed = crossed;
       if (route === 'blood') {
         if (edge !== 'partner') return; // blood-to-blood moves are the scope's job
         // Crossing a marriage from a blood relative: from the lane person it is
@@ -143,14 +160,23 @@ export function computeKinRoutes(
         // and we remember which relative, to name the spouse by them.
         targetRoute = id === laneId ? 'ownSpouse' : 'relativeSpouse';
         viaId = id === laneId ? undefined : id;
+        nextCrossed = partnershipId;
       } else {
         targetRoute = next(route, edge);
+        const stepRoute = targetRoute === 'ownSpouseDown' || targetRoute === 'relativeSpouseDown';
+        if (
+          stepRoute &&
+          (route === 'ownSpouse' || route === 'relativeSpouse') &&
+          !stepThroughPartnership(crossed ? partnershipById.get(crossed) : undefined, personById.get(target))
+        ) {
+          targetRoute = 'distant';
+        }
         // Keep the blood relative the marriage was crossed at, so a
         // relative's spouse's child is named by that relative.
         if (targetRoute === 'relativeSpouseDown') viaId = routes.get(id)?.viaId;
       }
       routes.set(target, { route: targetRoute, viaId });
-      enqueueFrom(target, targetRoute);
+      enqueueFrom(target, targetRoute, nextCrossed);
     });
   }
 

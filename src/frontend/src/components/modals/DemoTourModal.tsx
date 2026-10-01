@@ -1,5 +1,6 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { DemoTourStep } from '../../types/diagramEditor';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface DemoTourModalProps {
   open: boolean;
@@ -10,11 +11,14 @@ interface DemoTourModalProps {
 }
 
 const DemoTourModal = ({ open, steps, stepIndex, onClose, onStepChange }: DemoTourModalProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
   const currentStep = steps[stepIndex] || steps[0];
   if (!currentStep) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Interactive demo"

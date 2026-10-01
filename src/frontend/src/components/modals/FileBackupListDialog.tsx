@@ -1,4 +1,5 @@
 import { Z_INDEX } from '../../constants/zIndex';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 export type FileBackupEntry = {
   slot: number;
@@ -14,10 +15,16 @@ interface FileBackupListDialogProps {
 }
 
 const FileBackupListDialog = ({ open, entries, onSelect, onClose }: FileBackupListDialogProps) => {
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="File backups"
       style={{
         position: 'fixed',
         inset: 0,

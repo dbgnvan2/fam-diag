@@ -1,6 +1,7 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { CSSProperties } from 'react';
 import type { ClientProfileDraft } from '../../types/diagramEditor';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface ClientProfileModalProps {
   draft: ClientProfileDraft | null;
@@ -24,9 +25,15 @@ const modalLabelStyle: CSSProperties = {
 const modalControlStyle: CSSProperties = { width: '58%' };
 
 const ClientProfileModal = ({ draft, onFieldChange, onCancel, onSave }: ClientProfileModalProps) => {
+  const dialogRef = useDialogFocus(!!draft, onCancel);
   if (!draft) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Client profile"
       style={{
         position: 'fixed',
         inset: 0,

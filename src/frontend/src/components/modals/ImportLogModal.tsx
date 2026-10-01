@@ -6,6 +6,7 @@
 
 import { Z_INDEX } from '../../constants/zIndex';
 import { useEffect, useRef, useState } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface ImportLogModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ export default function ImportLogModal({ open, filename, logText, onClose }: Imp
     if (open) setCopyState('idle');
   }, [open]);
 
+  const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const handleCopy = async () => {
@@ -77,6 +79,8 @@ export default function ImportLogModal({ open, filename, logText, onClose }: Imp
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Import log"

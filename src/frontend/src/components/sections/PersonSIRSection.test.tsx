@@ -138,6 +138,7 @@ describe('PersonSIRSection', () => {
     fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
       target: { value: '2024-05-06' },
     });
+    fireEvent.change(screen.getByPlaceholderText('What happened...'), { target: { value: 'Held steady' } });
 
     fireEvent.click(screen.getByText('Save'));
 
@@ -155,6 +156,8 @@ describe('PersonSIRSection', () => {
     expect(saved.date).toBe('2024-05-06');
     expect(saved.eventClass).toBe('individual');
     expect(saved.createdAt).toBeGreaterThan(0);
+    // The Behavior field is the SIR subtype (gap review GTEST-01).
+    expect(saved.subtype).toBe('Held steady');
   });
 
   it('shows HWDID help dialog with all 5 levels and sets score on click', () => {
@@ -183,6 +186,28 @@ describe('PersonSIRSection', () => {
 
     // Dialog should close
     expect(screen.queryByRole('dialog', { name: /HWDID Scale/ })).toBeNull();
+  });
+
+  it('the HWDID level picked in the help is the one saved (gap review GTEST-03)', () => {
+    const person = makePerson();
+    const onUpdatePerson = vi.fn();
+    render(
+      <PersonSIRSection
+        selectedPerson={person}
+        people={[person, makeOtherPerson()]}
+        sirCategories={defaultCategories}
+        onUpdatePerson={onUpdatePerson}
+      />,
+    );
+    fireEvent.click(screen.getByText('+ Add'));
+    const selects = document.querySelectorAll('select');
+    fireEvent.change(selects[0], { target: { value: 'Bob' } });
+    fireEvent.change(selects[1], { target: { value: 'Resource to Other' } });
+    fireEvent.click(screen.getByLabelText('Resource to Other HWDID help'));
+    fireEvent.click(screen.getByText(/Medium Reactivity, Some Help/));
+    fireEvent.click(screen.getByText('Save'));
+    const [, updates] = onUpdatePerson.mock.calls[0];
+    expect(updates.events[0].howWell).toBe(3);
   });
 
   it('populates form with event data when Edit is clicked', () => {
@@ -285,8 +310,13 @@ describe('PersonSIRSection', () => {
       />,
     );
     fireEvent.click(screen.getByLabelText('Edit'));
+    fireEvent.change(screen.getByPlaceholderText('What happened...'), { target: { value: 'edited' } });
     fireEvent.click(screen.getByText('Update'));
     const [, updates] = onUpdatePerson.mock.calls[0];
+    // Replaced in place, not added as a second entry (gap review GTEST-02).
+    expect(updates.events).toHaveLength(1);
+    expect(updates.events[0].id).toBe('sir-ev-1');
+    expect(updates.events[0].subtype).toBe('edited');
     expect(updates.events[0].createdAt).toBe(1234);
   });
 });

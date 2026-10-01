@@ -1,6 +1,7 @@
 import { Z_INDEX } from '../../constants/zIndex';
 import type { AddFamilyDraft } from '../../types/diagramEditor';
 import DatePickerField from '../DatePickerField';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface AddFamilyModalProps {
   open: boolean;
@@ -11,6 +12,7 @@ interface AddFamilyModalProps {
 }
 
 const AddFamilyModal = ({ open, draft, onUpdate, onCancel, onSave }: AddFamilyModalProps) => {
+  const dialogRef = useDialogFocus(open && !!draft, onCancel);
   if (!open || !draft) return null;
 
   const handleParentChange = (parentKey: 'parent1' | 'parent2', field: string, value: string) => {
@@ -136,6 +138,11 @@ const AddFamilyModal = ({ open, draft, onUpdate, onCancel, onSave }: AddFamilyMo
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add family"
       style={{
         position: 'fixed',
         inset: 0,

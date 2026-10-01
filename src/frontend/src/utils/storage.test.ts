@@ -71,13 +71,16 @@ describe('storage — diagram entity arrays', () => {
     // Removing them meant "first run" on reload and brought the default family back.
     localStorage.setItem(STORAGE_KEYS.people, '[{"id":"x"}]');
     localStorage.setItem(STORAGE_KEYS.fileName, 'old.json');
-    localStorage.setItem(STORAGE_KEYS.ideas, 'kept');
+    localStorage.setItem(STORAGE_KEYS.ideas, 'old client ideas');
+    localStorage.setItem(STORAGE_KEYS.predictions, '[{"id":"s"}]');
     clearDiagramLocalStorage();
-    for (const key of ['people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes'] as const) {
+    for (const key of ['people', 'partnerships', 'emotionalLines', 'triangles', 'pageNotes', 'predictions'] as const) {
       expect(localStorage.getItem(STORAGE_KEYS[key])).toBe('[]');
     }
     expect(localStorage.getItem(STORAGE_KEYS.fileName)).toBeNull();
-    expect(localStorage.getItem(STORAGE_KEYS.ideas)).toBe('kept');
+    // Ideas and predictions are saved in the diagram file, so a new diagram
+    // starts without the previous one's (gap review F-2).
+    expect(localStorage.getItem(STORAGE_KEYS.ideas)).toBe('');
   });
 });
 

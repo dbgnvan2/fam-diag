@@ -5,6 +5,7 @@
 import React from 'react';
 import type { Person } from '../../types';
 import { FAMILY_INTACTNESS_SCALE, FAMILY_STABILITY_SCALE } from '../../constants/eventConstants';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const labelStyle: React.CSSProperties = { width: 140, textAlign: 'right', fontWeight: 600 };
 const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 };
@@ -48,6 +49,8 @@ const PersonFOOSection = ({
   fooHelpOpen,
   onFooHelpOpenChange,
 }: PersonFOOSectionProps) => {
+  // One scale help is open at a time, so one ref serves both.
+  const helpRef = useDialogFocus(fooHelpOpen !== null, () => onFooHelpOpenChange(null));
   const renderScaleChooser = (
     field: 'familyStability' | 'familyIntactness',
     label: string,
@@ -82,6 +85,8 @@ const PersonFOOSection = ({
       </div>
       {fooHelpOpen === field && (
         <div
+          ref={helpRef}
+          tabIndex={-1}
           role="dialog"
           aria-label={helpTitle}
           style={{
