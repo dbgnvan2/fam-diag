@@ -137,7 +137,7 @@ Three sources of events the user expects to see:
 2. Cloned partnership events on `Person.events[]` (id suffix `-p1`/`-p2`)
 3. Synthesized phantoms from raw date fields via `utils/syntheticDateEvents.ts` (id prefix `synth-`)
 
-The Properties panel's `displayRows` and `TimelineBoardModal` both call the same synthesizers (date fields and indicator-backed symptoms) and both hide the companions with `withoutDateSlotCompanions` — they must stay in sync. To surface a new raw date field as an event, update `utils/syntheticDateEvents.ts` only.
+The Properties panel's `displayRows`, `TimelineBoardModal` and `utils/systemEvents.ts` all get an owner's events from `utils/listedEvents.ts` (`listedPersonEvents`, `listedPartnershipEvents`, `listedEmotionalLineEvents`), which applies the same synthesizers (date fields and indicator-backed symptoms), hides the companions with `withoutDateSlotCompanions` and leaves out partnership status-change records. Use those functions rather than combining the pieces again (review 2026-09-30 struct-06: five copies had drifted). To surface a new raw date field as an event, update `utils/syntheticDateEvents.ts` only.
 
 ## Context menu click-path titles (`modalTitle`)
 

@@ -8,7 +8,11 @@ Only items that were decided, deliberately, to be left as they are:
 
 - **Manual "Add Person" and voice commands default to female**
   (`usePersonOperations.addPerson`, `useVoiceHandlers`). Decided 2026-09-27:
-  leave as is (user-created, changeable at once).
+  leave as is (user-created, changeable at once). The same rule covers the
+  other one-click person builders: "Add Adopted Child" creates a female
+  child, and Add Parents creates a male father and a female mother by role.
+  Voice now takes the sex from the words spoken or the name when it can
+  (review 2026-09-30 voice-02), and uses the default only when neither says.
 - **Legacy duplicate emotional-pattern events — decided 2026-09-22: the user
   deletes them by hand.** Diagrams written by earlier code hold per-edit
   pattern records in an older shape (NODAL, category = the line's
@@ -21,38 +25,49 @@ Only items that were decided, deliberately, to be left as they are:
   with one event per date field (2026-09-30) it is that field's event.
   Revisit if anyone reports a missing event by that name.
 
-- **Two checks still read source text, deliberately** (gate
-  `gate_2026-09-30b` #3). `constants/zIndex.test.ts` scans components for a
-  bare-number z-index: the rule is about the source itself, so there is no
-  behaviour to test instead. `useContextMenuHandlers.familyScope.test.ts`
-  checks that DiagramEditor passes the scope derivation into the menu hook:
-  that wiring has no seam short of rendering the canvas and right-clicking a
-  Konva node. Every other menu and Timeline check is now behavioural.
-
-- **`DiagramCanvas.visibility.test.tsx` calls the component as a function
-  inside a wrapper** (gate `gate_2026-09-30c` LOW, non-blocking). This lets
-  its props be a Proxy that supplies a spy for any handler; the suggested
-  `React.createElement` copies only enumerable own keys, so it would need the
-  full prop list again. The hooks run in the wrapper's render and the test is
-  deterministic. Revisit if DiagramCanvas becomes `memo`/`forwardRef`.
-
 - **Kept as they are, by decision (2026-09-30):** Other Person is stored as
   the text `"None"` (the app's value for "no other person"; changing it
   changes the file format); resolving a prediction stamps `resolvedDate`
   with today (an app timestamp, not a user-entered date); a SIR entry may be
   saved with an empty Behavior.
 
-- **Three LOW notes from gate `gate_2026-09-30f`** (APPROVED, non-blocking;
-  carried so the pushed code is exactly what the gate approved):
-  1. In `src/frontend/src/securityHeaders.test.ts` every https origin that is
-     neither framed nor linked counts as fetched, so a future origin used some
-     other way fails with a misleading "connect-src" message.
-  2. Its `stripComments` could also strip `//` or `/*` inside a string,
-     hiding an https literal from the check.
-  3. EventModal's Save waits for a type whenever the category has a type
-     list — including an older saved event with an empty type, which can't
-     be re-saved until one is picked. This follows the decision, but nothing
-     tests that case.
+- **A new event in the Event Creator starts with no category** (review
+  2026-09-30 bundle-03 / struct-05). It is built through `eventDraft` with
+  nothing chosen for the user, by the 2026-09-30 rule that the app does not
+  fill in what the user did not give.
+- **Six lint warnings** (`npm run lint`): three `react-hooks/exhaustive-deps`
+  warnings in `DiagramEditor.tsx` (`buildDiagramPayload` and
+  `replaceDiagramState` are plain functions used as hook dependencies; the
+  Timeline open/close effect), and three in `PropertiesPanel.tsx` (an unused
+  `_symptomIntensityHelpOpen` state and two hook dependency lists). Each fix
+  changes when a callback is rebuilt, so each needs its own test; they were
+  left out of the review batch to keep it reviewable.
+
+## Done on 2026-10-01 — final review (REVIEW-final-areas-2026-09-30.md)
+
+Every finding is fixed with a test that fails on the old code; see that
+file's "Fix status" table. Also in this batch:
+
+- vite 5 → 8 and `@vitejs/plugin-react` 6; `npm audit` reports 0.
+- `utils/dataImport.ts` is imported statically by `DiagramEditor` (the
+  dynamic import split nothing and caused a build warning).
+
+## Done on 2026-09-30 — remaining TODO items
+
+- Gate `gate_2026-09-30f` LOW notes: the CSP guard reads string literals
+  with the TypeScript parser and classifies each by use (fetched / framed /
+  linked), reporting any other https literal with its file and line; an
+  older saved event with a listed category and no type has a test.
+- The menu-wiring source check is replaced by a behavioural test: a real
+  right-click on a Konva person node, Focus Family › Timeline for this family,
+  then the focus changed from inside the Timeline
+  (`DiagramEditor.familyTimeline.test.tsx`, which also gives follow-focus its
+  first behavioural test).
+- The z-index rule stays a source check (it is about the source), now done
+  with the TypeScript parser; it found three bare `zIndex={2000}` props the
+  line regex had missed, now in the scale.
+- `DiagramCanvas.visibility.test.tsx` renders a real `<DiagramCanvas />`
+  element; a discovery pass learns which props it reads.
 
 ## Done on 2026-09-30 — gap-review TODO items
 

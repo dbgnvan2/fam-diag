@@ -87,9 +87,9 @@ handleSave(forcePrompt?)
 
 ## Inventory (rough — verify by reading the code)
 
-Top-level hooks: `useAutosave`, `useIndicatorHandlers`, `useSessionNoteHandlers`, `usePersonOperations`, `useContextMenuHandlers`, `useSelectionHandlers`, `useCanvasDragHandlers`, `useFileOperations`, `useVoiceHandlers`, `useEmotionalLineOperations`, `useUpdateHandlers`, `usePredictionHandlers`.
+Top-level hooks: `useBrowserStorageWriter` (writes the diagram to browser storage in one pass a second after the last change, and at once when the tab is hidden or closed), `useIndicatorHandlers`, `useSessionNoteHandlers`, `usePersonOperations`, `useContextMenuHandlers`, `useSelectionHandlers`, `useCanvasDragHandlers`, `useFileOperations`, `useVoiceHandlers`, `useEmotionalLineOperations`, `useUpdateHandlers`, `usePredictionHandlers`.
 
-Top-level components: `AppRibbon`, `DiagramCanvas`, `DiagramModals`, `EventCard`, `EventsSection`, `PropertiesPanel`, `EventModal`, `SessionNotesPanel`, `MultiPersonPropertiesPanel`, `PredictionsPanel`, `IdeasPanel`, `DatePickerField`, `EventCreator` (standalone `/creator` route), `ContextMenu`.
+Top-level components: `ErrorBoundary` (wraps the app), `AppRibbon`, `DiagramCanvas`, `PropertiesPanelHost` (the side panel and section popups; DiagramEditor renders it and passes it to DiagramCanvas as the `propertiesPanel` slot), `DiagramModals`, `EventCard`, `EventsSection`, `PropertiesPanel`, `EventModal`, `SessionNotesPanel`, `MultiPersonPropertiesPanel`, `PredictionsPanel`, `IdeasPanel`, `DatePickerField`, `EventCreator` (standalone `/creator` route), `ContextMenu`.
 
 Konva nodes: `PersonNode`, `PartnershipNode`, `EmotionalLineNode`, `TriangleNode`, `TriangleFillNode`, `ChildConnection`, `FamilyCutoffArc`, `NoteNode`, `SiblingConflictOverlay`.
 
