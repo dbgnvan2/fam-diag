@@ -36,6 +36,31 @@ Only items that were decided, deliberately, to be left as they are:
   full prop list again. The hooks run in the wrapper's render and the test is
   deterministic. Revisit if DiagramCanvas becomes `memo`/`forwardRef`.
 
+- **Questions from the gap review (2026-09-30) left for the author.** Not
+  changed, because each is a domain or format decision:
+  - Should a half-sibling be labelled "Half-brother" / "Half-sister" rather
+    than "Brother" / "Sister"? And should an adopted person's birth parents
+    and adoptive parents both be "Father" / "Mother"? (`utils/kinship.ts`
+    `computeBloodPaths` gives the same path to both.)
+  - Other Person "None" is stored as the text `"None"`. It is the codebase's
+    deliberate value for "no other person" (`utils/eventDraft.ts`
+    `normalizeEventForSave`, the pickers, saved files), so changing it is a
+    file-format change.
+  - Resolving a prediction stamps `resolvedDate` with today. It is an app
+    timestamp, not a date the user enters; confirm that is acceptable.
+  - A SIR entry may be saved with an empty Behavior (its subtype).
+    `EVENT_TYPE_HAS_SUBTYPE.SIR` is false, so it was left optional.
+- **Adjacent, not fixed (gap review 2026-09-30):** changing an event's
+  category in `EventModal` still sets the subtype to the new category's
+  *first* listed subtype (e.g. Family › Stress → "Emotional Reactivity"). That
+  is a value the user did not choose; only the free-text case (a symptom's
+  typed name) was fixed. Starting it blank needs the author's decision.
+
+## Done on 2026-09-30 — gap review
+
+Everything in `REVIEW-gap-areas-2026-09-30.md` (F-1 to F-23) was fixed with
+tests except the items above; see that file's "Fix status" table.
+
 ## Done on 2026-09-30
 
 Every other item previously listed here was fixed, with tests, in
