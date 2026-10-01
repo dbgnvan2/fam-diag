@@ -21,6 +21,7 @@ import {
 } from '../constants/eventConstants';
 import DatePickerField from './DatePickerField';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { applyEventCategoryChange, eventNeedsListedSubtype } from '../utils/eventDraft';
 
 const helpBadgeStyle: React.CSSProperties = {
   width: 20,
@@ -153,6 +154,8 @@ const EventModal = ({
   const intensityScale = getIntensityScale(eventType, eventDraft.category, eventDraft.subtype);
 
   const resolvedModalTitle = modalTitle || 'Event';
+  // A category with a fixed list of types needs one chosen before saving.
+  const needsSubtype = eventNeedsListedSubtype(eventDraft);
 
   return (
     <>
@@ -250,14 +253,7 @@ const EventModal = ({
               id="eventCategory"
               value={eventDraft.category}
               onChange={(e) => {
-                const newCat = e.target.value;
-                // A category with a fixed subtype list starts on its first
-                // entry; one without (a symptom's Physical / Emotional)
-                // keeps the free-text type the user typed — switching a
-                // Headache from Physical to Emotional used to erase it.
-                const listed = EVENT_SUBTYPES[eventType]?.[newCat];
-                const subtype = listed ? listed[0] ?? '' : eventDraft.subtype;
-                onSetDraft({ ...eventDraft, category: newCat, subtype });
+                onSetDraft(applyEventCategoryChange(eventDraft, e.target.value));
               }}
               style={{ ...controlStyle, width: '60%' }}
             >
@@ -592,7 +588,13 @@ const EventModal = ({
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 10 }}>
           <button onClick={onCancel}>Cancel</button>
-          <button onClick={onSave}>Save</button>
+          <button
+            onClick={onSave}
+            disabled={needsSubtype}
+            title={needsSubtype ? 'Choose a Type first' : undefined}
+          >
+            Save
+          </button>
         </div>
       </div>
     </>

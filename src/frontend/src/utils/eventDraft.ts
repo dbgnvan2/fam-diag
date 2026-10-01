@@ -59,6 +59,25 @@ export const isDateSlotEventId = (id: string): boolean =>
   isSyntheticEventId(id) && !id.startsWith('synth-indicator-');
 
 /**
+ * Change an event's category. When the new category has a fixed list of
+ * types, a type not in that list is cleared for the user to pick — never
+ * replaced with the list's first entry (author decision 2026-09-30). Without
+ * a list (a symptom's Physical / Emotional), the typed type is kept.
+ */
+export const applyEventCategoryChange = (
+  draft: EmotionalProcessEvent,
+  category: string,
+): EmotionalProcessEvent => {
+  const listed = EVENT_SUBTYPES[draft.eventType]?.[category];
+  const subtype = listed && !listed.includes(draft.subtype || '') ? '' : draft.subtype;
+  return { ...draft, category, subtype };
+};
+
+/** Whether the event still needs a type chosen from its category's list. */
+export const eventNeedsListedSubtype = (draft: EmotionalProcessEvent): boolean =>
+  !!EVENT_SUBTYPES[draft.eventType]?.[draft.category] && !(draft.subtype || '').trim();
+
+/**
  * Apply one field change from EventModal. The dialog sends every value as a
  * string; numbers are stored as numbers, and a date change sets `date` and
  * `startDate` together so the two can never disagree (and a cleared start

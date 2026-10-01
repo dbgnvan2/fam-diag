@@ -199,7 +199,7 @@ describe('EventModal', () => {
     expect((screen.getByLabelText('Group:') as HTMLSelectElement).tagName).toBe('SELECT');
   });
 
-  it('resets subtype to first valid option when category changes', () => {
+  it('clears the type for the user to pick when the new category has a type list (author decision 2026-09-30)', () => {
     const onSetDraft = vi.fn();
     render(
       <EventModal
@@ -211,9 +211,31 @@ describe('EventModal', () => {
     );
     const catSelect = screen.getByLabelText('Category:');
     fireEvent.change(catSelect, { target: { value: 'Stress' } });
-    expect(onSetDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'Stress', subtype: 'Emotional Reactivity' })
+    // Was the list's first entry, 'Emotional Reactivity': a type nobody chose.
+    expect(onSetDraft).toHaveBeenCalledWith(expect.objectContaining({ category: 'Stress', subtype: '' }));
+  });
+
+  it('Save waits until a type is chosen from the category list', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <EventModal
+        {...baseProps}
+        onSave={onSave}
+        lockEventType
+        eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Stress', subtype: '' })}
+      />
     );
+    const save = screen.getByText('Save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    rerender(
+      <EventModal
+        {...baseProps}
+        onSave={onSave}
+        lockEventType
+        eventDraft={makeDraft({ eventType: 'FAMILY', category: 'Stress', subtype: 'Emotional Reactivity' })}
+      />
+    );
+    expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("keeps a symptom's typed name when its category changes (gap review F-22)", () => {

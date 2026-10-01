@@ -28,6 +28,8 @@ import {
   DISTANT_ANCESTOR_NOUN,
   DISTANT_DESCENDANT_NOUN,
   COLLATERAL_NOUNS,
+  BIRTH_PARENT_NOUNS,
+  HALF_SIBLING_NOUNS,
   COLLATERAL_SPOUSE_NOUNS,
   DISTANT_BLOOD_NOUN,
   DISTANT_IN_LAW_NOUN,
@@ -49,7 +51,14 @@ import { withoutPersonDateRecords } from './personDateEvents';
 import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
 import { withoutPatternEditRecords } from './patternEventRecords';
 import { eventDisplayName } from './timelineItemText';
-import { computeBloodPaths, computeKinRoutes, type BloodPath, type KinRoute } from './kinship';
+import {
+  computeBloodPaths,
+  computeKinRoutes,
+  isBirthParentOnly,
+  isHalfSibling,
+  type BloodPath,
+  type KinRoute,
+} from './kinship';
 import {
   synthesizeEmotionalLineDateEvents,
   synthesizePartnershipDateEvents,
@@ -374,7 +383,16 @@ export function collectSystemEvents({
       };
       const gender = genderOf(relative);
       if (kin.route === 'blood') {
-        noun = bloodNoun(bloodPaths.get(relative.id), generation, gender);
+        const path = bloodPaths.get(relative.id);
+        // Same path shape, different relationship (author decision
+        // 2026-09-30): a sibling sharing one parent, and a parent only by birth.
+        if (path?.ups === 1 && path.downs === 1 && isHalfSibling(lanePerson, relative)) {
+          noun = HALF_SIBLING_NOUNS[gender];
+        } else if (path?.ups === 1 && path.downs === 0 && isBirthParentOnly(lanePerson, relative.id, partnerships)) {
+          noun = BIRTH_PARENT_NOUNS[gender];
+        } else {
+          noun = bloodNoun(path, generation, gender);
+        }
       } else if (kin.route === 'relativeSpouse') {
         // Named by WHICH blood relative they married: a parent's spouse is a
         // step-parent, but an aunt's husband is an uncle by marriage.

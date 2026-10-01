@@ -30,7 +30,14 @@ const sourceFiles = (dir: string): string[] =>
     if (statSync(path).isDirectory()) return sourceFiles(path);
     return /\.(ts|tsx)$/.test(name) && !/\.test\./.test(name) ? [path] : [];
   });
-const allSource = sourceFiles(srcRoot).map((path) => readFileSync(path, 'utf8')).join('\n');
+// Comments are removed first: a URL mentioned in a comment is not one the
+// app uses (gate 2026-09-30e LOW #2). The `[^:]` guard keeps "https://" from
+// being read as the start of a // comment.
+const stripComments = (text: string) =>
+  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+const allSource = sourceFiles(srcRoot)
+  .map((path) => stripComments(readFileSync(path, 'utf8')))
+  .join('\n');
 const originOf = (url: string) => new URL(url).origin;
 
 describe('production security headers', () => {
@@ -42,27 +49,26 @@ describe('production security headers', () => {
     expect(headerValue('X-Content-Type-Options')).toBe('nosniff');
   });
 
-  // Every https origin written anywhere in the app's source must be allowed by
-  // the policy, or be a link the user follows (navigation is not governed by
-  // connect-src / frame-src). Scanning every literal, not only fetch() calls,
-  // means moving a URL into a constant cannot hide it from this check (gate
-  // 2026-09-30d LOW #2).
-  const NAVIGATION_ONLY = new Set(['https://www.youtube.com', 'https://youtu.be']);
-  const sourceOrigins = new Set([...allSource.matchAll(/https:\/\/[a-zA-Z0-9.-]+/g)].map((m) => originOf(m[0])));
+  // How each https origin in the source is used. Video `embedUrl`s are
+  // framed; a video's `url` is an "Open in YouTube" link (navigation, which
+  // the policy does not govern); every other literal is something the app
+  // fetches. Scanning every literal — not only fetch() calls — means moving a
+  // URL into a constant cannot hide it from these checks.
+  const originsOf = (pattern: RegExp) =>
+    new Set([...allSource.matchAll(pattern)].map((match) => originOf(match[1])));
+  const framed = originsOf(/embedUrl:\s*'(https:\/\/[^']+)'/g);
+  const linked = originsOf(/\burl:\s*'(https:\/\/[^']+)'/g);
+  const everyOrigin = originsOf(/(https:\/\/[a-zA-Z0-9.-]+)/g);
+  const fetched = new Set([...everyOrigin].filter((origin) => !framed.has(origin) && !linked.has(origin)));
+  const httpsEntries = (name: string) => new Set(directive(name).filter((entry) => entry.startsWith('https://')));
 
-  it('every https origin in the source is allowed by the policy or is a plain link', () => {
-    const allowed = new Set([...directive('connect-src'), ...directive('frame-src'), ...NAVIGATION_ONLY]);
-    const unlisted = [...sourceOrigins].filter((origin) => !allowed.has(origin));
-    expect(unlisted).toEqual([]);
+  it('connect-src allows exactly the origins the app fetches from', () => {
+    expect([...httpsEntries('connect-src')].sort()).toEqual([...fetched].sort());
+    expect(fetched).toEqual(new Set(['https://api.anthropic.com', 'https://api.deepseek.com']));
   });
 
-  it('the AI providers are reachable by fetch, the video host by frame', () => {
-    expect(directive('connect-src')).toEqual(expect.arrayContaining(['https://api.anthropic.com', 'https://api.deepseek.com']));
-    expect(directive('frame-src')).toContain('https://www.youtube-nocookie.com');
-  });
-
-  it('the policy allows no origin the app does not use', () => {
-    const listed = [...directive('connect-src'), ...directive('frame-src')].filter((entry) => entry.startsWith('https://'));
-    expect(listed.filter((origin) => !sourceOrigins.has(origin))).toEqual([]);
+  it('frame-src allows exactly the origins the app frames', () => {
+    expect([...httpsEntries('frame-src')].sort()).toEqual([...framed].sort());
+    expect(framed).toEqual(new Set(['https://www.youtube-nocookie.com']));
   });
 });

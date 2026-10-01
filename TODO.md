@@ -36,35 +36,24 @@ Only items that were decided, deliberately, to be left as they are:
   full prop list again. The hooks run in the wrapper's render and the test is
   deterministic. Revisit if DiagramCanvas becomes `memo`/`forwardRef`.
 
-- **Questions from the gap review (2026-09-30) left for the author.** Not
-  changed, because each is a domain or format decision:
-  - Should a half-sibling be labelled "Half-brother" / "Half-sister" rather
-    than "Brother" / "Sister"? And should an adopted person's birth parents
-    and adoptive parents both be "Father" / "Mother"? (`utils/kinship.ts`
-    `computeBloodPaths` gives the same path to both.)
-  - Other Person "None" is stored as the text `"None"`. It is the codebase's
-    deliberate value for "no other person" (`utils/eventDraft.ts`
-    `normalizeEventForSave`, the pickers, saved files), so changing it is a
-    file-format change.
-  - Resolving a prediction stamps `resolvedDate` with today. It is an app
-    timestamp, not a date the user enters; confirm that is acceptable.
-  - A SIR entry may be saved with an empty Behavior (its subtype).
-    `EVENT_TYPE_HAS_SUBTYPE.SIR` is false, so it was left optional.
-- **Adjacent, not fixed (gap review 2026-09-30):** changing an event's
-  category in `EventModal` still sets the subtype to the new category's
-  *first* listed subtype (e.g. Family › Stress → "Emotional Reactivity"). That
-  is a value the user did not choose; only the free-text case (a symptom's
-  typed name) was fixed. Starting it blank needs the author's decision.
+- **Kept as they are, by decision (2026-09-30):** Other Person is stored as
+  the text `"None"` (the app's value for "no other person"; changing it
+  changes the file format); resolving a prediction stamps `resolvedDate`
+  with today (an app timestamp, not a user-entered date); a SIR entry may be
+  saved with an empty Behavior.
 
-- **Two LOW notes from gate `gate_2026-09-30e`** (APPROVED, non-blocking;
-  carried here so the pushed code is exactly what the gate approved):
-  1. `frame-src` in `vercel.json` also allows `https://www.youtube.com`, but
-     the app only frames `www.youtube-nocookie.com` (youtube.com appears only
-     as an "Open in YouTube" link). Dropping it tightens the policy; the guard
-     in `src/frontend/src/securityHeaders.test.ts` cannot tell a framed host
-     from a linked one, so it did not flag this.
-  2. That guard scans every `https://` literal, comments included, and its
-     `NAVIGATION_ONLY` set is a hand-kept list.
+## Done on 2026-09-30 — gap-review TODO items
+
+- Half-siblings are labelled Half-brother / Half-sister, and an adopted
+  person's birth parents Birth father / Birth mother (`utils/kinship.ts`
+  `isHalfSibling` / `isBirthParentOnly`; `kinship.test.ts`).
+- Changing an event's category to one with a type list clears the type for
+  the user to pick, and Save waits for it (`utils/eventDraft.ts`
+  `applyEventCategoryChange`; `EventModal.test.tsx`).
+- Gate `gate_2026-09-30e` LOW notes: `frame-src` allows only
+  `www.youtube-nocookie.com`; the CSP guard ignores comments, works out
+  framed, linked and fetched origins from the code, and requires the policy
+  to match each set exactly (`src/frontend/src/securityHeaders.test.ts`).
 
 ## Done on 2026-09-30 — gap review
 

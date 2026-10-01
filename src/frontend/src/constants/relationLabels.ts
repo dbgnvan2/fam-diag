@@ -122,6 +122,26 @@ export const COLLATERAL_NOUNS: Record<string, Record<RelationGender, string>> = 
   },
 };
 
+/**
+ * A sibling who shares only one parent with the lane person (no parent
+ * partnership in common). Author decision 2026-09-30.
+ */
+export const HALF_SIBLING_NOUNS: Record<RelationGender, string> = {
+  male: 'Half-brother',
+  female: 'Half-sister',
+  unknown: 'Half-sibling',
+};
+
+/**
+ * An adopted person's birth parent, when they were raised in another family;
+ * the adoptive parents stay Father / Mother. Author decision 2026-09-30.
+ */
+export const BIRTH_PARENT_NOUNS: Record<RelationGender, string> = {
+  male: 'Birth father',
+  female: 'Birth mother',
+  unknown: 'Birth parent',
+};
+
 /** A blood relative further out than the named shapes above. */
 export const DISTANT_BLOOD_NOUN = 'Blood relative';
 

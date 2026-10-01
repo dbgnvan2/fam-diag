@@ -418,3 +418,71 @@ describe('kinship — a partnership that ended before the child was born (gap re
     expect(routes.get('carolKid')?.route).toBe('distant');
   });
 });
+
+describe('kinship — half-siblings and birth parents (author decision 2026-09-30)', () => {
+  const nounIn = (people: Person[], partnerships: Partnership[], laneId: string, ownerId: string) => {
+    const withEvent = people.map((entry) =>
+      entry.id === ownerId
+        ? {
+            ...entry,
+            events: [
+              {
+                id: `${ownerId}-late`, date: '2020-01-01', startDate: '2020-01-01', category: 'Checkup',
+                eventType: 'NODAL' as const, status: 'discrete' as const, intensity: 0, howWell: 0,
+                otherPersonName: '', wwwwh: '', observations: '', eventClass: 'individual' as const,
+              },
+            ],
+          }
+        : entry
+    );
+    const scope = computeFamilyScope(withEvent, partnerships, laneId, defaultFocusForRoot(laneId));
+    const result = collectSystemEvents({
+      personId: laneId,
+      scope,
+      people: withEvent,
+      partnerships,
+      now: new Date('2026-09-22T00:00:00Z'),
+    });
+    return result.events.find((entry) => entry.ownerEntityId === ownerId)?.relationNoun;
+  };
+  const born = (year: number) => ({ birthDate: `${year}-01-01` });
+
+  it('test_kin_half_sibling: a sibling sharing only one parent is a half-sibling', () => {
+    const people: Person[] = [
+      person('dad', { birthSex: 'male', partnerships: ['prFirst', 'prSecond'], ...born(1940) }),
+      person('mum', { birthSex: 'female', partnerships: ['prFirst'], ...born(1942) }),
+      person('second', { birthSex: 'female', partnerships: ['prSecond'], ...born(1950) }),
+      person('lane', { birthSex: 'male', parentPartnership: 'prFirst', ...born(1965) }),
+      person('full', { birthSex: 'female', parentPartnership: 'prFirst', ...born(1967) }),
+      person('half', { birthSex: 'male', parentPartnership: 'prSecond', ...born(1975) }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prFirst', 'dad', 'mum', ['lane', 'full']),
+      partnership('prSecond', 'dad', 'second', ['half']),
+    ];
+    expect(nounIn(people, partnerships, 'lane', 'half')).toBe('Half-brother');
+    expect(nounIn(people, partnerships, 'lane', 'full')).toBe('Sister');
+  });
+
+  it('test_kin_birth_parent: an adopted person\'s birth parents are birth parents', () => {
+    const people: Person[] = [
+      person('adoptiveMum', { birthSex: 'female', partnerships: ['prRaise'], ...born(1940) }),
+      person('adoptiveDad', { birthSex: 'male', partnerships: ['prRaise'], ...born(1940) }),
+      person('birthMum', { birthSex: 'female', partnerships: ['prBirth'], ...born(1945) }),
+      person('birthDad', { birthSex: 'male', partnerships: ['prBirth'], ...born(1944) }),
+      person('lane', {
+        birthSex: 'male',
+        parentPartnership: 'prRaise',
+        birthParentPartnership: 'prBirth',
+        ...born(1965),
+      }),
+    ];
+    const partnerships: Partnership[] = [
+      partnership('prRaise', 'adoptiveDad', 'adoptiveMum', ['lane']),
+      partnership('prBirth', 'birthDad', 'birthMum', ['lane']),
+    ];
+    expect(nounIn(people, partnerships, 'lane', 'birthMum')).toBe('Birth mother');
+    expect(nounIn(people, partnerships, 'lane', 'birthDad')).toBe('Birth father');
+    expect(nounIn(people, partnerships, 'lane', 'adoptiveMum')).toBe('Mother');
+  });
+});

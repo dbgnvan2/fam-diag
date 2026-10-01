@@ -260,3 +260,42 @@ export function computeBloodPaths(
   }
   return paths;
 }
+
+/**
+ * Purpose: tell a half-sibling from a full one, and a birth parent from the
+ *          parents who raised the person (author decision 2026-09-30).
+ * Tests:   kinship.test.ts::test_kin_half_sibling / test_kin_birth_parent
+ *
+ * The blood path (1 up, 1 down) is the same for both kinds of sibling; what
+ * differs is whether they share a parent PARTNERSHIP. Siblings raised by the
+ * same couple (including a child adopted into it) are full siblings; sharing
+ * only one parent person makes them half-siblings.
+ */
+const parentPartnershipIds = (person: Person | undefined): string[] =>
+  [person?.parentPartnership, person?.birthParentPartnership].filter((id): id is string => !!id);
+
+export function isHalfSibling(lane: Person | undefined, sibling: Person | undefined): boolean {
+  if (!lane || !sibling) return false;
+  const laneUnions = new Set(parentPartnershipIds(lane));
+  return !parentPartnershipIds(sibling).some((id) => laneUnions.has(id));
+}
+
+/**
+ * True when `parentId` is a parent only through the person's birth family:
+ * the person has a different family that raised them and this parent is not
+ * in it.
+ */
+export function isBirthParentOnly(
+  person: Person | undefined,
+  parentId: string,
+  partnerships: Partnership[]
+): boolean {
+  if (!person?.birthParentPartnership || !person.parentPartnership) return false;
+  if (person.birthParentPartnership === person.parentPartnership) return false;
+  const byId = new Map(partnerships.map((entry) => [entry.id, entry]));
+  const raising = byId.get(person.parentPartnership);
+  const birth = byId.get(person.birthParentPartnership);
+  const inUnion = (union: Partnership | undefined) =>
+    !!union && (union.partner1_id === parentId || union.partner2_id === parentId);
+  return inUnion(birth) && !inUnion(raising);
+}
