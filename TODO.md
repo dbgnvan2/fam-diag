@@ -56,6 +56,16 @@ Only items that were decided, deliberately, to be left as they are:
   is a value the user did not choose; only the free-text case (a symptom's
   typed name) was fixed. Starting it blank needs the author's decision.
 
+- **Two LOW notes from gate `gate_2026-09-30e`** (APPROVED, non-blocking;
+  carried here so the pushed code is exactly what the gate approved):
+  1. `frame-src` in `vercel.json` also allows `https://www.youtube.com`, but
+     the app only frames `www.youtube-nocookie.com` (youtube.com appears only
+     as an "Open in YouTube" link). Dropping it tightens the policy; the guard
+     in `src/frontend/src/securityHeaders.test.ts` cannot tell a framed host
+     from a linked one, so it did not flag this.
+  2. That guard scans every `https://` literal, comments included, and its
+     `NAVIGATION_ONLY` set is a hand-kept list.
+
 ## Done on 2026-09-30 — gap review
 
 Everything in `REVIEW-gap-areas-2026-09-30.md` (F-1 to F-23) was fixed with
