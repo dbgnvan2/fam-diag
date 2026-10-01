@@ -5,6 +5,7 @@ import {
   sanitizePeopleIndicators,
   sanitizeSinglePersonIndicators,
 } from '../utils/dataNormalization';
+import { categoryNameError, renameSymptomTypeOnPeople } from '../utils/categoryRename';
 
 /**
  * Who still records a symptom type: an indicator entry, or a symptom event
@@ -89,7 +90,8 @@ export function useIndicatorHandlers({
 
   const addFunctionalIndicatorDefinition = () => {
     const trimmed = indicatorDraftLabel.trim();
-    if (!trimmed) return;
+    // settings-07: no empty or duplicate (any letter case) type names.
+    if (categoryNameError(trimmed, functionalIndicatorDefinitions.map((definition) => definition.label))) return;
     updateIndicatorDefinitions((prev) => [
       ...prev,
       {
@@ -104,11 +106,16 @@ export function useIndicatorHandlers({
   };
 
   const addFunctionalIndicatorDefinitionForGroup = (group: SymptomGroup) => {
+    // settings-07: a second "New Symptom Type" would be a duplicate name, so
+    // the placeholder takes the first free number.
+    const taken = new Set(functionalIndicatorDefinitions.map((definition) => definition.label.trim().toLowerCase()));
+    let label = 'New Symptom Type';
+    for (let n = 2; taken.has(label.toLowerCase()); n += 1) label = `New Symptom Type ${n}`;
     updateIndicatorDefinitions((prev) => [
       ...prev,
       {
         id: nanoid(),
-        label: 'New Symptom Type',
+        label,
         group,
         useLetter: true,
         color: defaultSymptomColorByGroup[group],
@@ -116,10 +123,33 @@ export function useIndicatorHandlers({
     ]);
   };
 
-  const updateFunctionalIndicatorLabel = (id: string, label: string) => {
-    updateIndicatorDefinitions((prev) =>
-      prev.map((definition) => (definition.id === id ? { ...definition, label } : definition))
+  /**
+   * Rename a symptom type. Returns the reason it was refused, or null.
+   *
+   * settings-07: an empty name, or one another type already has (any letter
+   * case), is refused. settings-01: the events linked to the type are
+   * renamed with it — renaming only the definition left them on the old
+   * name, so the symptom showed under two names.
+   */
+  const updateFunctionalIndicatorLabel = (id: string, label: string): string | null => {
+    const current = functionalIndicatorDefinitions.find((definition) => definition.id === id);
+    if (!current) return null;
+    const trimmed = label.trim();
+    const error = categoryNameError(
+      trimmed,
+      functionalIndicatorDefinitions.filter((definition) => definition.id !== id).map((definition) => definition.label),
     );
+    if (error) return error;
+    if (trimmed === current.label) return null;
+    const oldLabel = current.label;
+    updateIndicatorDefinitions((prev) =>
+      prev.map((definition) => (definition.id === id ? { ...definition, label: trimmed } : definition))
+    );
+    setPeople((prev) => renameSymptomTypeOnPeople(prev, id, oldLabel, trimmed));
+    setPropertiesPanelItem((prev) =>
+      prev && 'name' in prev ? renameSymptomTypeOnPeople([prev as Person], id, oldLabel, trimmed)[0] : prev
+    );
+    return null;
   };
 
   const updateFunctionalIndicatorGroup = (

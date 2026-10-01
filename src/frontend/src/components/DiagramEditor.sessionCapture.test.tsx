@@ -79,6 +79,18 @@ describe('DiagramEditor — session-capture import', () => {
     expect(gender('Tavi Ray')).toBeUndefined();
     expect(gender('Rowan Lee')).toBeUndefined();
     expect(gender('Sky Lee')).toBeUndefined();
+    // The ticked upsert_partnership creates the partnership (review DE2-01:
+    // only the two people were created, and it was reported as applied).
+    const partnerships = JSON.parse(localStorage.getItem(STORAGE_KEYS.partnerships) as string) as Array<{
+      partner1_id: string;
+      partner2_id: string;
+    }>;
+    const idOf = (name: string) => people.find((p) => p.name === name)!.id;
+    expect(
+      partnerships.some(
+        (pr) => [pr.partner1_id, pr.partner2_id].sort().join() === [idOf('Rowan Lee'), idOf('Sky Lee')].sort().join()
+      )
+    ).toBe(true);
   }, 30_000);
 });
 

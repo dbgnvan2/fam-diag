@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ageInYears, expandPartialDate, parseCalendarDate, timelineYearBounds } from './dateFormatting';
+import { ageInYears, clampTimelineYear, expandPartialDate, parseCalendarDate, timelineYearBounds } from './dateFormatting';
 
 describe('expandPartialDate', () => {
   it('expands a year-only value to the first day of that year', () => {
@@ -63,5 +63,17 @@ describe('calendar-date helpers west of UTC', () => {
   it('parseCalendarDate rejects out-of-range parts', () => {
     expect(parseCalendarDate('2020-13-01')).toBeNull();
     expect(parseCalendarDate('2020-02-10')).toEqual({ year: 2020, month: 2, day: 10 });
+  });
+});
+
+describe('clampTimelineYear (review 2026-09-30 DE1-09)', () => {
+  it('a year past the newest goes to the newest, not the oldest', () => {
+    expect(clampTimelineYear(2030, { min: 1900, max: 2026 })).toBe(2026);
+    expect(clampTimelineYear(1800, { min: 1900, max: 2026 })).toBe(1900);
+    expect(clampTimelineYear(1950, { min: 1900, max: 2026 })).toBe(1950);
+  });
+
+  it('a newly opened diagram starts at its latest year, so future-dated entries show (DE1-08)', () => {
+    expect(clampTimelineYear(null, { min: 1900, max: 2027 })).toBe(2027);
   });
 });

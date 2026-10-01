@@ -103,7 +103,7 @@ describe('family scope never reaches persisted state', () => {
   });
 
   it('test_m5a2_autosave_payload_unchanged_under_focus', () => {
-    // Autosave persists the raw state arrays (DiagramEditor useAutosave calls),
+    // Autosave persists the raw state arrays (DiagramEditor useBrowserStorageWriter),
     // so the guarantee that matters is that scoping never mutates them.
     const peopleBefore = structuredClone(people);
     const partnershipsBefore = structuredClone(partnerships);

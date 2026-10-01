@@ -14,6 +14,7 @@ import type {
   BirthSex,
   GenderIdentity,
 } from '../types';
+import { resolveBinarySex } from './personSex';
 
 // ---------------------------------------------------------------------------
 // Functional indicator sanitization
@@ -356,8 +357,11 @@ export const normalizeImportedChildLayout = (
         const gap = Math.min(preferredGap, maxGapFromSibling);
 
         let direction = 1;
-        if (childEditable.gender === 'female' && spouseEditable.gender === 'male') direction = -1;
-        if (childEditable.gender === 'male' && spouseEditable.gender === 'female') direction = 1;
+        // Sex through the shared rule (utils/personSex.ts), not `gender` alone.
+        const childSex = resolveBinarySex(childEditable);
+        const spouseSex = resolveBinarySex(spouseEditable);
+        if (childSex === 'female' && spouseSex === 'male') direction = -1;
+        if (childSex === 'male' && spouseSex === 'female') direction = 1;
 
         let targetX = childEditable.x + direction * gap;
         if (direction > 0 && next) {
@@ -399,12 +403,14 @@ export const normalizeImportedChildLayout = (
       partner2Editable.size = matchedPartnerSize;
 
       // Rule: male left, female right for partnerships when both genders are known.
-      if (partner1Editable.gender === 'female' && partner2Editable.gender === 'male') {
+      const partner1Sex = resolveBinarySex(partner1Editable);
+      const partner2Sex = resolveBinarySex(partner2Editable);
+      if (partner1Sex === 'female' && partner2Sex === 'male') {
         const leftX = Math.min(partner1Editable.x, partner2Editable.x);
         const rightX = Math.max(partner1Editable.x, partner2Editable.x);
         partner2Editable.x = leftX;
         partner1Editable.x = rightX;
-      } else if (partner1Editable.gender === 'male' && partner2Editable.gender === 'female') {
+      } else if (partner1Sex === 'male' && partner2Sex === 'female') {
         const leftX = Math.min(partner1Editable.x, partner2Editable.x);
         const rightX = Math.max(partner1Editable.x, partner2Editable.x);
         partner1Editable.x = leftX;

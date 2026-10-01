@@ -126,7 +126,10 @@ export function useCanvasDragHandlers({
         })
       );
 
-      setPartnerships((prev) =>
+      // A list with nothing in the drag group is returned as it is: a new
+      // array on every drag frame re-ran everything keyed on it (review
+      // 2026-09-30 struct-03).
+      if (dragGroup.partnerships.size) setPartnerships((prev) =>
         prev.map((partnership) => {
           const base = dragGroup.partnerships.get(partnership.id);
           if (!base) return partnership;
@@ -140,7 +143,7 @@ export function useCanvasDragHandlers({
         })
       );
 
-      setEmotionalLines((prev) =>
+      if (dragGroup.emotionalLines.size) setEmotionalLines((prev) =>
         prev.map((line) => {
           const base = dragGroup.emotionalLines.get(line.id);
           if (!base) return line;
@@ -152,7 +155,7 @@ export function useCanvasDragHandlers({
           };
         })
       );
-      setTriangles((prev) =>
+      if (dragGroup.emotionalLines.size) setTriangles((prev) =>
         prev.map((triangle) => {
           if (!triangle.tpls?.length) return triangle;
           let changed = false;

@@ -29,10 +29,43 @@ export type VLMImportOptions = {
   maxRetries?: number;
   /** First retry delay; doubles each retry. A Retry-After header wins. Default: 2000 */
   retryBaseDelayMs?: number;
+  /** What the user told the import dialog about the drawing. */
+  hints?: ImageImportHints;
 };
 
-/** HTTP statuses worth retrying: rate limit, server errors, Anthropic "overloaded". */
-export const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504, 529]);
+/** The import dialog's hints. 0 means "not given". */
+export type ImageImportHints = {
+  generationCount: number;
+  expectedPersonCount: number;
+  handDrawn: boolean;
+  hasNotes: boolean;
+};
+
+/**
+ * The user turn sent with the image. The dialog's hints go in here; they
+ * were collected and logged but never sent (review 2026-09-30 DE2-04). A
+ * hint is context for the reader, not a quota: the model is told not to
+ * invent people or generations to match it.
+ */
+export function buildVisionUserMessage(hints?: ImageImportHints): string {
+  const lines = ['Extract all people and relationships from this genogram image.'];
+  if (hints) {
+    const known: string[] = [];
+    if (hints.generationCount > 0) known.push(`it spans about ${hints.generationCount} generations`);
+    if (hints.expectedPersonCount > 0) known.push(`it shows about ${hints.expectedPersonCount} people`);
+    if (hints.handDrawn) known.push('it is hand-drawn');
+    if (hints.hasNotes) known.push('it has handwritten notes beside the symbols, which are not people');
+    if (known.length) {
+      lines.push(
+        `The person who drew it says ${known.join('; ')}.`,
+        'Use this to check that nothing was missed, but extract only what is drawn: never add people or generations to match these numbers, and list any mismatch in uncertainties.'
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
+import { RETRYABLE_STATUSES } from '../httpRetry';
 /** Upper bound on any single wait, including a server-sent Retry-After. */
 const MAX_RETRY_DELAY_MS = 60_000;
 
@@ -82,6 +115,7 @@ export async function vlmImport(
     signal,
     maxRetries = 2,
     retryBaseDelayMs = 2000,
+    hints,
   } = options;
 
   // Step 1: Downscale image if needed
@@ -100,6 +134,7 @@ export async function vlmImport(
   const response = await callClaudeVision(scaledImageBase64, apiKey, model, maxTokens, timeoutMs, signal, {
     maxRetries,
     baseDelayMs: retryBaseDelayMs,
+    userMessage: buildVisionUserMessage(hints),
     onRetry: (attempt, reason, delayMs) =>
       onProgress?.(
         `[vlmImport] ${reason}; retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt + 1} of ${maxRetries + 1})...`
@@ -189,6 +224,8 @@ export type VisionRetryOptions = {
   maxRetries: number;
   baseDelayMs: number;
   onRetry?: (attempt: number, reason: string, delayMs: number) => void;
+  /** The user turn sent with the image (see buildVisionUserMessage). */
+  userMessage?: string;
 };
 
 /** Wait `ms`, rejecting early with AbortError-style cancellation if `signal` aborts. */
@@ -314,7 +351,7 @@ RULES:
 - TWINS: when child descent lines join as an inverted V (meeting on the couple's line) or an inverted Y (a stem that splits), give every child in that cluster the SAME non-null "twinGroup" label. Otherwise leave "twinGroup" null.
 - Return ONLY the JSON object. No commentary, no code fences.`;
 
-  const userMessage = 'Extract all people and relationships from this genogram image.';
+  const userMessage = retry.userMessage ?? buildVisionUserMessage();
 
   const requestBody = JSON.stringify({
     model,

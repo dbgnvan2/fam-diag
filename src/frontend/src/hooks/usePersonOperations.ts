@@ -86,8 +86,17 @@ export function usePersonOperations({
     person: Person,
     options?: { forceBirthParents?: boolean; parentLabelPrefix?: string; parentSize?: number }
   ) => {
-    if (person.birthParentPartnership && person.parentPartnership && options?.forceBirthParents) {
-      alert('This person already has a birth-parent linkage.');
+    // G-TEST-08: new parents go to the birth family when the person already
+    // has a raising family (or the caller asks for birth parents). When a
+    // birth family is already set, that overwrote it and left the old birth
+    // partnership listing the child. Refuse instead.
+    const goesToBirthFamily = !!options?.forceBirthParents || !!person.parentPartnership;
+    if (goesToBirthFamily && person.birthParentPartnership) {
+      alert(
+        person.parentPartnership
+          ? `${person.name || 'This person'} already has both a raising and a birth family.`
+          : `${person.name || 'This person'} already has a birth family.`
+      );
       return;
     }
     const verticalOffset = 170;
@@ -386,12 +395,17 @@ export function usePersonOperations({
     const parent2Id = nanoid();
     const partnershipId = nanoid();
 
-    const parent1Name = draft.familySurname
-      ? `${draft.parent1.firstName} ${draft.familySurname}`
-      : draft.parent1.firstName;
-    const parent2Name = draft.familySurname
-      ? `${draft.parent2.firstName} ${draft.familySurname}`
-      : draft.parent2.firstName;
+    // settings-03: names are trimmed and joined only from the parts given, so
+    // a missing first name no longer gives " Smith".
+    const fullName = (firstName: string) =>
+      [firstName.trim(), draft.familySurname.trim()].filter(Boolean).join(' ');
+    const parent1Name = fullName(draft.parent1.firstName);
+    const parent2Name = fullName(draft.parent2.firstName);
+    // settings-03: a child row with no name and no birth date is an unused
+    // row, not a child. Saving used to create a person for every row.
+    const childDrafts = draft.children.filter(
+      (child) => child.firstName.trim() || child.birthDate.trim()
+    );
 
     const parent1: Person = {
       id: parent1Id,
@@ -427,14 +441,12 @@ export function usePersonOperations({
     const anchorX = (parent1X + parent2X) / 2;
     const childBaseY = parentY + 170;
     const childSpacing = 50;
-    const startX = anchorX - ((draft.children.length - 1) * childSpacing) / 2;
+    const startX = anchorX - ((childDrafts.length - 1) * childSpacing) / 2;
 
-    draft.children.forEach((childDraft, index) => {
+    childDrafts.forEach((childDraft, index) => {
       const childId = nanoid();
       childIds.push(childId);
-      const childName = draft.familySurname
-        ? `${childDraft.firstName} ${draft.familySurname}`
-        : childDraft.firstName;
+      const childName = fullName(childDraft.firstName);
 
       const child: Person = {
         id: childId,

@@ -63,6 +63,7 @@ const makeDeps = (overrides: Partial<Deps> = {}): Deps => {
     beginImportFlow: vi.fn(),
     beginSessionCaptureFlow: vi.fn(),
     setDiagramFileHandle: vi.fn(),
+    clearTransientEditorState: vi.fn(),
     markSnapshotClean: vi.fn(),
     triggerSaveAs: vi.fn(async () => undefined),
     ...overrides,
@@ -166,11 +167,32 @@ describe('useFileOperations — File > New starts an empty diagram', () => {
       result.current.handleNewFile();
     });
     expect(deps.setPredictionSets).toHaveBeenCalledWith([]);
+    // The panel, selections and dialogs are cleared (review DE1-07).
+    expect(deps.clearTransientEditorState).toHaveBeenCalled();
     expect(deps.setIdeasText).toHaveBeenCalledWith('');
     expect(deps.markSnapshotClean).toHaveBeenCalledWith(
       expect.objectContaining({ predictionSets: [], ideasText: '', people: [] })
     );
     expect(localStorage.getItem('family-diagram-predictions')).toBe('[]');
     expect(localStorage.getItem('family-diagram-ideas')).toBe('');
+  });
+});
+
+describe('useFileOperations — a failed save is reported (review 2026-09-30 DE1-10)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('an error from the save is shown, not lost as an unhandled rejection', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const deps = makeDeps({
+      fileName: 'family.json',
+      saveDiagramToCurrentTarget: vi.fn(async () => {
+        throw new Error('disk full');
+      }),
+    });
+    const { result } = renderHook(() => useFileOperations(deps));
+    await act(async () => {
+      await result.current.handleSave();
+    });
+    expect(alertSpy).toHaveBeenCalledWith('The diagram could not be saved: disk full.');
   });
 });

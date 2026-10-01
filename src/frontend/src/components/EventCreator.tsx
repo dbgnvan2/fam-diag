@@ -4,50 +4,30 @@ import type { PersonEventBundle, TimelineJson } from '../utils/personEventBundle
 import {
   isPersonEventBundle,
   isTimelineJson,
+  sanitizeBundlePeople,
 } from '../utils/personEventBundle';
+import {
+  anchorTypeForOwner,
+  applyEventDraftFieldChange,
+  buildNewEventDraft,
+  eventClassForOwner,
+} from '../utils/eventDraft';
 
-const createEventId = () => `evt-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-
-const defaultEvent = (personName: string): EmotionalProcessEvent => ({
-  id: createEventId(),
-  // No date until the user gives one (author decision 2026-09-30).
-  date: '',
-  category: 'Individual',
-  eventType: 'NODAL',
-  status: 'discrete',
-  intensity: 0,
-  frequency: 0,
-  impact: 0,
-  howWell: 0,
-  otherPersonName: '',
-  primaryPersonName: personName,
-  wwwwh: '',
-  observations: '',
-  priorEventsNote: '',
-  reflectionsNote: '',
-  createdAt: Date.now(),
-  eventClass: 'individual',
-});
-
-const normalizeEvent = (event: EmotionalProcessEvent): EmotionalProcessEvent => ({
-  ...event,
-  id: event.id || createEventId(),
-  date: event.date || '',
-  category: event.category || 'Event',
-  eventType: event.eventType || 'NODAL',
-  status: event.status || 'discrete',
-  intensity: typeof event.intensity === 'number' ? event.intensity : 0,
-  frequency: typeof event.frequency === 'number' ? event.frequency : 0,
-  impact: typeof event.impact === 'number' ? event.impact : 0,
-  howWell: typeof event.howWell === 'number' ? event.howWell : 0,
-  otherPersonName: event.otherPersonName || '',
-  primaryPersonName: event.primaryPersonName || '',
-  wwwwh: event.wwwwh || '',
-  observations: event.observations || '',
-  priorEventsNote: event.priorEventsNote || '',
-  reflectionsNote: event.reflectionsNote || '',
-  eventClass: event.eventClass || 'individual',
-});
+/**
+ * A new lane event, built by the shared save path (bundle-03 / struct-05):
+ * date and startDate both empty, no rating, no category chosen for the user
+ * (author decision 2026-09-30), and the person lane as its owner. A lane
+ * added here has no diagram id yet; the import fills the anchor from the
+ * person it matches.
+ */
+const newLaneEvent = (personId: string | undefined, personName: string): EmotionalProcessEvent =>
+  buildNewEventDraft({
+    eventType: 'NODAL',
+    anchorType: anchorTypeForOwner('person'),
+    anchorId: personId || '',
+    eventClass: eventClassForOwner('person'),
+    primaryPersonName: personName,
+  });
 
 const bundleToTimeline = (bundle: PersonEventBundle, sourceName?: string): TimelineJson => ({
   kind: 'fam-diag-timeline',
@@ -55,10 +35,7 @@ const bundleToTimeline = (bundle: PersonEventBundle, sourceName?: string): Timel
   timelineName: `${(sourceName || 'timeline').replace(/\.[^.]+$/, '')} - timeline`,
   exportedAt: new Date().toISOString(),
   sourceFileName: bundle.sourceFileName || sourceName,
-  people: bundle.people.map((person) => ({
-    ...person,
-    events: (person.events || []).map(normalizeEvent),
-  })),
+  people: bundle.people,
 });
 
 const EventCreator = () => {
@@ -97,9 +74,20 @@ const EventCreator = () => {
           ? bundleToTimeline(parsed, file.name)
           : null;
         if (!nextTimeline) throw new Error('Invalid file');
-        setTimeline(nextTimeline);
+        // bundle-04: each event is checked before it is shown. An entry
+        // that cannot be read (null, object-valued notes) is dropped and
+        // counted, instead of crashing the editor.
+        const checked = sanitizeBundlePeople(nextTimeline.people);
+        setTimeline({ ...nextTimeline, people: checked.people });
         setSelected(null);
         setSourceName(file.name);
+        const problems = [
+          checked.droppedEvents > 0 ? `Unreadable events skipped: ${checked.droppedEvents}` : '',
+          checked.unreadableRatings > 0
+            ? `Ratings that were not numbers, left unset: ${checked.unreadableRatings}`
+            : '',
+        ].filter(Boolean);
+        if (problems.length > 0) alert(problems.join('\n'));
       } catch {
         alert('Invalid JSON. Expected timeline JSON or person-event JSON.');
       }
@@ -121,17 +109,17 @@ const EventCreator = () => {
     URL.revokeObjectURL(url);
   };
 
-  const setSelectedEventField = (field: keyof EmotionalProcessEvent, value: string | number | boolean) => {
+  // Field edits go through the shared draft rule, so a Date edit sets date
+  // and startDate together (bundle-03): editing only `date` let the old
+  // startDate win on import and the edit was lost.
+  const setSelectedEventField = (field: keyof EmotionalProcessEvent, value: string) => {
     setTimeline((prev) => {
       if (!prev || !selected) return prev;
       const people = [...prev.people];
       const person = { ...people[selected.personIndex] };
       const events = [...person.events];
       if (!events[selected.eventIndex]) return prev;
-      events[selected.eventIndex] = {
-        ...events[selected.eventIndex],
-        [field]: value,
-      } as EmotionalProcessEvent;
+      events[selected.eventIndex] = applyEventDraftFieldChange(events[selected.eventIndex], field, value);
       person.events = events;
       people[selected.personIndex] = person;
       return { ...prev, people };
@@ -163,7 +151,7 @@ const EventCreator = () => {
       if (!prev) return prev;
       const people = [...prev.people];
       const person = { ...people[personIndex] };
-      const nextEvent = defaultEvent(person.personName);
+      const nextEvent = newLaneEvent(person.personId, person.personName);
       person.events = [...person.events, nextEvent];
       people[personIndex] = person;
       return { ...prev, people };
@@ -273,7 +261,7 @@ const EventCreator = () => {
                             cursor: 'pointer',
                           }}
                         >
-                          <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{event.date || 'No date'}</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{event.startDate || event.date || 'No date'}</div>
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <strong>{event.category || 'Event'}</strong>
                             {event.observations ? ` · ${event.observations}` : ''}
@@ -304,7 +292,7 @@ const EventCreator = () => {
                     Date
                     <input
                       type="date"
-                      value={selectedEvent.date || ''}
+                      value={selectedEvent.startDate || selectedEvent.date || ''}
                       onChange={(e) => setSelectedEventField('date', e.target.value)}
                       style={{ width: '100%' }}
                     />

@@ -38,6 +38,11 @@ export const Z_INDEX = {
   VOICE_DIALOG: 1200,
   EVENT_MODAL_BACKDROP: 2000,
   EVENT_MODAL: 2001,
+  // The three Settings list dialogs (found when the bare-number check moved
+  // from a line regex to the parser: `zIndex={2000}` was a JSX prop).
+  SETTINGS_LIST_EVENT_CATEGORIES: 2000,
+  SETTINGS_LIST_RELATIONSHIP_TYPES: 2020,
+  SETTINGS_LIST_RELATIONSHIP_STATUSES: 2030,
   EVENT_ROW_MENU: 2050,
   CLIENT_DIALOG: 2070,
   PERSON_DIALOG: 2072,
@@ -55,6 +60,9 @@ export const Z_INDEX = {
   DEMO_TOUR: 2480,
   BUILD_DEMO: 2485,
   SIBLING_POPOVER: 3000,
+  // The SIR, Nodal and Functional Fact category dialogs (each had a local
+  // `MODAL_Z = 12000` the bare-number check could not see).
+  SETTINGS_CATEGORY_DIALOG: 12000,
   SETTINGS_OVERLAY: 12500,
   IMPORT_LOG: 12600,
 } as const;

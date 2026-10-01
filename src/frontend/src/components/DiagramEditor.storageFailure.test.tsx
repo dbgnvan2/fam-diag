@@ -57,6 +57,21 @@ describe('DiagramEditor — refused storage writes are reported', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.people) || '[]').length).toBeGreaterThan(0);
   });
 
+  it('a refused session-note write is reported, and the editor keeps running (regression DE1-05: it unmounted)', async () => {
+    vi.useFakeTimers();
+    refuse = (key) => key === STORAGE_KEYS.sessionNotePrimary;
+    render(<DiagramEditor />);
+    fireEvent.click(screen.getByRole('button', { name: 'Options ▾' }));
+    fireEvent.click(screen.getByText('Session Notes'));
+    const note = document.querySelector('textarea') as HTMLTextAreaElement;
+    fireEvent.change(note, { target: { value: 'first line of the session' } });
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(STORAGE_WRITE_FAILED_MESSAGE);
+    expect(screen.getByRole('button', { name: 'Options ▾' })).toBeTruthy();
+  });
+
   it('no warning while every write succeeds', async () => {
     vi.useFakeTimers();
     render(<DiagramEditor />);

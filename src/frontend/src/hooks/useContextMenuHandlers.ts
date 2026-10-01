@@ -16,6 +16,7 @@ import {
   DEFAULT_SCOPE_UP,
   type FamilyScopeFocus,
 } from '../utils/familyScope';
+import { toggledBinarySex } from '../utils/personSex';
 
 /**
  * Focus Family presets. The default sits in familyScope.ts so the menu, the
@@ -440,7 +441,7 @@ export function useContextMenuHandlers({
             label: 'Sex/Gender',
             children: [
               {
-                label: `Change Sex to ${person.gender === 'male' ? 'female' : 'male'}`,
+                label: `Change Sex to ${toggledBinarySex(person)}`,
                 onClick: () => {
                   changeSex(person.id);
                   setContextMenu(null);

@@ -25,6 +25,22 @@ export type ApplicationSettings = {
   genogramImport?: GenogramImportSettings;
 };
 
+/**
+ * A settings list as stored: the array when one is present — an empty array
+ * included — or null when the key is absent (settings-09). A user who emptied
+ * a list must get an empty list back on reload or import, not the defaults.
+ */
+export const explicitList = <T,>(value: unknown): T[] | null =>
+  Array.isArray(value) ? (value as T[]) : null;
+
+/** Trimmed, non-blank strings of an explicit array (settings-09), or null when absent. */
+export const explicitStringList = (value: unknown): string[] | null =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+        .filter((entry) => entry.length)
+    : null;
+
 const sanitizeStringArray = (value: unknown, fallback: string[]) => {
   if (!Array.isArray(value)) return fallback;
   const next = value
@@ -180,13 +196,11 @@ const FALLBACK_SETTINGS: ApplicationSettings = {
   autoSaveMinutes: 1,
 };
 
+// settings-09: an explicit (even empty) SIR list is kept.
 const sanitizeSIRCategories = (
   value: unknown,
   fallback: SIRCategoryDefinition[]
-): SIRCategoryDefinition[] => {
-  if (!Array.isArray(value) || value.length === 0) return fallback;
-  return value as SIRCategoryDefinition[];
-};
+): SIRCategoryDefinition[] => explicitList<SIRCategoryDefinition>(value) ?? fallback;
 
 const sanitizeFunctionalFactCategories = (
   value: unknown,
@@ -208,14 +222,11 @@ export const normalizeApplicationSettings = (value: unknown): ApplicationSetting
   const typed = value as Partial<ApplicationSettings> | undefined;
   return {
     eventCategories: sanitizeStringArray(typed?.eventCategories, FALLBACK_SETTINGS.eventCategories),
-    relationshipTypes: sanitizeStringArray(
-      typed?.relationshipTypes,
-      FALLBACK_SETTINGS.relationshipTypes
-    ),
-    relationshipStatuses: sanitizeStringArray(
-      typed?.relationshipStatuses,
-      FALLBACK_SETTINGS.relationshipStatuses
-    ),
+    // settings-09: an explicit (even empty) list is kept.
+    relationshipTypes:
+      explicitStringList(typed?.relationshipTypes) ?? FALLBACK_SETTINGS.relationshipTypes,
+    relationshipStatuses:
+      explicitStringList(typed?.relationshipStatuses) ?? FALLBACK_SETTINGS.relationshipStatuses,
     functionalIndicatorDefinitions: sanitizeFunctionalIndicators(
       typed?.functionalIndicatorDefinitions,
       FALLBACK_SETTINGS.functionalIndicatorDefinitions

@@ -359,3 +359,20 @@ describe('siblingConflictInputKey', () => {
     );
   });
 });
+
+// Review nodes-10: sex comes from the shared resolver, so a father stored as
+// 'Male' (and drawn as a square) is found by sex, not by falling back to the
+// left-hand position.
+describe('parentMatchForRole with capitalised sex values (nodes-10)', () => {
+  const mum: Person = { id: 'mum', name: 'Mum', x: 0, y: 0, partnerships: ['pp'], gender: 'Female' };
+  const dad: Person = { id: 'dad', name: 'Dad', x: 200, y: 0, partnerships: ['pp'], gender: 'Male' };
+  const kid: Person = { id: 'kid', name: 'Kid', x: 100, y: 200, partnerships: [], parentPartnership: 'pp' };
+  const pp: Partnership = {
+    id: 'pp', partner1_id: 'mum', partner2_id: 'dad', horizontalConnectorY: 100,
+    relationshipType: 'married', relationshipStatus: 'married', children: ['kid'],
+  };
+  it('nodes-10: finds the father by "Male", even on the right', () => {
+    expect(parentMatchForRole(kid, [mum, dad, kid], [pp], 'father')?.id).toBe('dad');
+    expect(parentMatchForRole(kid, [mum, dad, kid], [pp], 'mother')?.id).toBe('mum');
+  });
+});

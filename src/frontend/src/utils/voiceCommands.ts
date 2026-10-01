@@ -1,4 +1,22 @@
-export type VoiceCommandOperation =
+import voiceVocabulary from '../data/voiceVocabulary.json';
+/**
+ * Fields any operation may carry besides its own.
+ *
+ * - possessiveForms (voice-07): speech often drops the apostrophe ("Doris
+ *   partner is Tom", "harrys partner is betty"), so the parser cannot tell a
+ *   possessive "s" from a name that ends in "s". The name fields hold the
+ *   stripped form ("Dori", "Harry"); this map gives, for each stripped name,
+ *   the name as spoken ("Doris", "Harrys"). The apply step picks one against
+ *   the people on the diagram (see resolveSpokenName in useVoiceHandlers).
+ * - createsPeople (voice-05): filled in at review time with the names of the
+ *   people the operation will create, so the review list says so.
+ */
+export type VoiceCommandOperationExtras = {
+  possessiveForms?: Record<string, string>;
+  createsPeople?: string[];
+};
+
+export type VoiceCommandOperation = VoiceCommandOperationExtras & (
   | {
       type: 'add_person';
       name: string;
@@ -43,7 +61,8 @@ export type VoiceCommandOperation =
       person1Name: string;
       person2Name: string;
       relationshipType: 'cutoff' | 'conflict' | 'fusion' | 'distance';
-    };
+    }
+);
 
 export type VoiceCommandParseResult = {
   operations: VoiceCommandOperation[];
@@ -61,27 +80,57 @@ export const normalizeCommandName = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 
+/**
+ * Split a spoken list of child names.
+ *
+ * voice-04: a comma-separated list, or a list with two or more "and"s, has
+ * explicit separators, so each part is one name and stays whole ("Mary Ann,
+ * Tom" gives Mary Ann and Tom). Only a list with no comma and at most one
+ * "and" ("tom dick and jane", typical of speech transcripts with no
+ * punctuation) is split on every space, because it has no other separator.
+ */
 const splitNameList = (value: string) => {
-  const cleaned = normalizeSpacing(value.replace(/\band\b/gi, ','));
-  if (cleaned.includes(',')) {
-    return cleaned
-      .split(',')
-      .flatMap((part) => {
-        const trimmed = normalizeSpacing(part);
-        if (!trimmed) return [];
-        const words = trimmed.split(/\s+/).filter(Boolean);
-        if (words.length > 1 && words.every((word) => /^[a-z][a-z'-]*$/i.test(word))) {
-          return words.map((word) => normalizeCommandName(word));
-        }
-        return [normalizeCommandName(trimmed)];
-      })
-      .filter(Boolean);
+  const cleaned = normalizeSpacing(value);
+  const andCount = (cleaned.match(/\band\b/gi) || []).length;
+  const hasExplicitSeparators = cleaned.includes(',') || andCount >= 2;
+  const parts = cleaned
+    .split(/,|\band\b/i)
+    .map((part) => normalizeSpacing(part))
+    .filter(Boolean);
+  if (hasExplicitSeparators) {
+    return parts.map((part) => normalizeCommandName(part)).filter(Boolean);
   }
-  const spaceSeparated = cleaned
-    .split(/\s+/)
+  return parts
+    .flatMap((part) => part.split(/\s+/))
     .map((part) => normalizeCommandName(part))
     .filter(Boolean);
-  return spaceSeparated;
+};
+
+/**
+ * Words that may stand before "named" in "add a ___ named X" and the sex each
+ * one states (voice-03). "person" and "child" state no sex. The words are
+ * editorial content and live in data/voiceVocabulary.json.
+ */
+const PERSON_NOUN_SEX: Record<string, 'male' | 'female' | undefined> = Object.fromEntries([
+  ...voiceVocabulary.personNouns.unspecified.map((word) => [word, undefined] as const),
+  ...voiceVocabulary.personNouns.male.map((word) => [word, 'male'] as const),
+  ...voiceVocabulary.personNouns.female.map((word) => [word, 'female'] as const),
+]);
+const PERSON_NOUN_PATTERN = Object.keys(PERSON_NOUN_SEX).join('|');
+
+/**
+ * A possessive name captured as (name, suffix). With "'s" the name is certain.
+ * With a bare "s" (voice-07) the name may itself end in "s", so both forms are
+ * kept: the stripped one in the name field and the spoken one in
+ * possessiveForms.
+ */
+const possessiveName = (
+  stem: string,
+  suffix: string
+): { name: string; spoken?: string } => {
+  const name = normalizeCommandName(stem);
+  if (suffix.toLowerCase() === "'s") return { name };
+  return { name, spoken: normalizeCommandName(`${stem}${suffix}`) };
 };
 
 const splitCommands = (input: string) => {
@@ -124,7 +173,11 @@ const splitCommands = (input: string) => {
 export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
   const operations: VoiceCommandOperation[] = [];
   const errors: string[] = [];
-  let lastPartnership: { person1Name: string; person2Name: string } | null = null;
+  let lastPartnership: {
+    person1Name: string;
+    person2Name: string;
+    possessiveForms?: Record<string, string>;
+  } | null = null;
   splitCommands(input).forEach((command) => {
     const addAdoptionMatch = command.match(
       /^(?:add|create)\s+(?:an?\s+)?(adopted|biological)\s+(?:child\s+named|child|person\s+named|named)\s+([a-z][a-z' -]*)$/i
@@ -138,64 +191,71 @@ export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
       return;
     }
 
+    // voice-03: the noun ("man", "son", ...) is captured so it can set the
+    // sex and is never folded into the name ("add a son named Bob" is Bob).
     const addPersonMatch = command.match(
-      /^(?:add|create)\s+(?:a\s+)?(?:(male|female)\s+)?(?:(?:person|man|woman)\s+)?(?:named\s+)?([a-z][a-z' -]*)$/i
+      new RegExp(
+        `^(?:add|create)\\s+(?:an?\\s+)?(?:(male|female)\\s+)?(?:(${PERSON_NOUN_PATTERN})\\s+)?(?:named\\s+)?([a-z][a-z' -]*)$`,
+        'i'
+      )
     );
     if (addPersonMatch) {
-      const gender =
-        addPersonMatch[1]?.toLowerCase() === 'male' || addPersonMatch[1]?.toLowerCase() === 'female'
-          ? (addPersonMatch[1].toLowerCase() as 'male' | 'female')
-          : undefined;
+      const adjectiveSex = addPersonMatch[1]?.toLowerCase() as 'male' | 'female' | undefined;
+      const nounSex = addPersonMatch[2]
+        ? PERSON_NOUN_SEX[addPersonMatch[2].toLowerCase()]
+        : undefined;
+      if (adjectiveSex && nounSex && adjectiveSex !== nounSex) {
+        errors.push(`"${command}" states two different sexes.`);
+        return;
+      }
+      const gender = adjectiveSex || nounSex;
       operations.push({
         type: 'add_person',
-        name: normalizeCommandName(addPersonMatch[2]),
-        gender,
+        name: normalizeCommandName(addPersonMatch[3]),
+        ...(gender ? { gender } : {}),
       });
       return;
     }
 
+    // "X's partner is Y" and "X's partner name is Y". The suffix is captured
+    // so a bare "s" keeps the spoken form too (voice-07).
     const partnerMatch = command.match(
-      /^([a-z][a-z -]*)(?:'s|s)\s+(?:partner|spouse)\s+is\s+([a-z][a-z -]*)$/i
+      /^([a-z][a-z -]*?)('s|s)\s+(?:partner|spouse)\s+(?:name\s+)?is\s+([a-z][a-z -]*)$/i
     );
     if (partnerMatch) {
+      const person = possessiveName(partnerMatch[1], partnerMatch[2]);
+      const possessiveForms = person.spoken ? { [person.name]: person.spoken } : undefined;
       const op: VoiceCommandOperation = {
         type: 'add_partnership',
-        personName: normalizeCommandName(partnerMatch[1]),
-        partnerName: normalizeCommandName(partnerMatch[2]),
+        personName: person.name,
+        partnerName: normalizeCommandName(partnerMatch[3]),
+        ...(possessiveForms ? { possessiveForms } : {}),
       };
       operations.push(op);
-      lastPartnership = { person1Name: op.personName, person2Name: op.partnerName };
-      return;
-    }
-
-    const partnerNameMatch = command.match(
-      /^([a-z][a-z -]*)(?:'s|s)\s+(?:partner|spouse)\s+name\s+is\s+([a-z][a-z -]*)$/i
-    );
-    if (partnerNameMatch) {
-      const op: VoiceCommandOperation = {
-        type: 'add_partnership',
-        personName: normalizeCommandName(partnerNameMatch[1]),
-        partnerName: normalizeCommandName(partnerNameMatch[2]),
+      lastPartnership = {
+        person1Name: op.personName,
+        person2Name: op.partnerName,
+        possessiveForms,
       };
-      operations.push(op);
-      lastPartnership = { person1Name: op.personName, person2Name: op.partnerName };
       return;
     }
 
     const childrenMatch = command.match(
-      /^([a-z][a-z -]*)\s+and\s+([a-z][a-z -]*)(?:'s|s)\s+(?:children|kids)\s+are\s+(.+)$/i
+      /^([a-z][a-z -]*)\s+and\s+([a-z][a-z -]*?)('s|s)\s+(?:children|kids)\s+are\s+(.+)$/i
     );
     if (childrenMatch) {
-      const childNames = splitNameList(childrenMatch[3]);
+      const childNames = splitNameList(childrenMatch[4]);
       if (!childNames.length) {
         errors.push(`Could not find any child names in "${command}".`);
         return;
       }
+      const parent2 = possessiveName(childrenMatch[2], childrenMatch[3]);
       operations.push({
         type: 'add_children',
         parent1Name: normalizeCommandName(childrenMatch[1]),
-        parent2Name: normalizeCommandName(childrenMatch[2]),
+        parent2Name: parent2.name,
         childNames,
+        ...(parent2.spoken ? { possessiveForms: { [parent2.name]: parent2.spoken } } : {}),
       });
       return;
     }
@@ -253,6 +313,9 @@ export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
         type: 'set_partnership_status',
         person1Name: lastPartnership.person1Name,
         person2Name: lastPartnership.person2Name,
+        ...(lastPartnership.possessiveForms
+          ? { possessiveForms: lastPartnership.possessiveForms }
+          : {}),
         relationshipType: 'married',
         relationshipStatus: 'married',
         year: theyMarriedMatch[1] ? Number(theyMarriedMatch[1]) : undefined,
@@ -283,6 +346,9 @@ export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
         type: 'set_partnership_status',
         person1Name: lastPartnership.person1Name,
         person2Name: lastPartnership.person2Name,
+        ...(lastPartnership.possessiveForms
+          ? { possessiveForms: lastPartnership.possessiveForms }
+          : {}),
         relationshipType: 'married',
         relationshipStatus: 'divorced',
         year: theyDivorcedMatch[1] ? Number(theyDivorcedMatch[1]) : undefined,
@@ -313,6 +379,9 @@ export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
         type: 'set_partnership_status',
         person1Name: lastPartnership.person1Name,
         person2Name: lastPartnership.person2Name,
+        ...(lastPartnership.possessiveForms
+          ? { possessiveForms: lastPartnership.possessiveForms }
+          : {}),
         relationshipType: 'married',
         relationshipStatus: 'separated',
         year: theySeparatedMatch[1] ? Number(theySeparatedMatch[1]) : undefined,
@@ -341,4 +410,36 @@ export const parseVoiceCommands = (input: string): VoiceCommandParseResult => {
   });
 
   return { operations, errors };
+};
+
+/**
+ * The review-list line for one operation. When review found that the
+ * operation will create people (createsPeople, voice-05), the line starts
+ * with "Create person ..." so a misheard name is visible before Apply.
+ */
+export const describeVoiceOperation = (operation: VoiceCommandOperation): string => {
+  const created = operation.createsPeople || [];
+  if (operation.type === 'add_person') {
+    const sex = operation.gender ? ` (${operation.gender})` : '';
+    if (operation.createsPeople && created.length === 0) {
+      return `Add person: ${operation.name}${sex} — already on the diagram, nothing new is created`;
+    }
+    return `Add person: ${operation.name}${sex}`;
+  }
+  const action =
+    operation.type === 'add_partnership'
+      ? `Create partnership: ${operation.personName} + ${operation.partnerName}`
+      : operation.type === 'add_children'
+      ? `Add children to ${operation.parent1Name} + ${operation.parent2Name}: ${operation.childNames.join(', ')}`
+      : operation.type === 'set_person_birth_year'
+      ? `Set birth year: ${operation.name} -> ${operation.year}`
+      : operation.type === 'set_person_death_year'
+      ? `Set death year: ${operation.name} -> ${operation.year}`
+      : operation.type === 'set_person_adoption_status'
+      ? `Set adoption: ${operation.name} -> ${operation.adoptionStatus}`
+      : operation.type === 'set_partnership_status'
+      ? `Set relationship: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipStatus}${operation.year ? ` (${operation.year})` : ''}`
+      : `Add emotional line: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipType}`;
+  if (!created.length) return action;
+  return `Create person ${created.join(', ')}; ${action}`;
 };

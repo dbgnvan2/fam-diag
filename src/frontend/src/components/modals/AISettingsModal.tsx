@@ -38,6 +38,8 @@ interface AISettingsModalProps {
 }
 
 const MODAL_MARGIN = 24;
+const CUSTOM_MODELS_NOT_SAVED =
+  'This model list could not be stored in the browser (storage is full or blocked). The change applies until the page is closed.';
 
 export default function AISettingsModal({
   open,
@@ -141,7 +143,7 @@ export default function AISettingsModal({
     };
     const next = [...customModels, newModel];
     setCustomModels(next);
-    saveCustomModels(next);
+    if (!saveCustomModels(next)) alert(CUSTOM_MODELS_NOT_SAVED);
     setDraftLabel('');
     setDraftId('');
     setDraftProvider('anthropic');
@@ -152,7 +154,7 @@ export default function AISettingsModal({
   const handleDeleteCustomModel = (id: string) => {
     const next = customModels.filter((m) => m.id !== id);
     setCustomModels(next);
-    saveCustomModels(next);
+    if (!saveCustomModels(next)) alert(CUSTOM_MODELS_NOT_SAVED);
     if (modelId === id) {
       setModelId(DEFAULT_MODEL_ID);
     }

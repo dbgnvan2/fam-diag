@@ -26,15 +26,9 @@ import type { FamilyScope } from '../utils/familyScope';
 import { collectSystemEvents, type SystemEvent } from '../utils/systemEvents';
 import { hasSameEvent } from '../utils/eventDedup';
 import { RELATIONSHIP_TYPE_STATUS_ROWS } from '../constants/relationshipStatusLabels';
-import { withoutPersonDateRecords } from '../utils/personDateEvents';
-import { withoutPartnershipStatusRecords } from '../utils/partnershipStatusEvents';
-import { withoutPatternEditRecords } from '../utils/patternEventRecords';
 import {
-  synthesizePersonDateEvents,
-  synthesizePersonIndicatorEvents,
   synthesizePartnershipDateEvents,
   synthesizeEmotionalLineDateEvents,
-  withoutDateSlotCompanions,
 } from '../utils/syntheticDateEvents';
 import {
   EPE_CATEGORY_BY_PATTERN_TYPE,
@@ -76,6 +70,15 @@ import {
   lineStyleLevel,
 } from '../utils/emotionalPatternOptions';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import {
+  listedEmotionalLineEvents,
+  listedPartnershipEvents,
+  listedPersonEvents,
+  storedEmotionalLineEvents,
+  storedPartnershipEvents,
+  storedPersonEvents,
+} from '../utils/listedEvents';
+import { joinCoupleNames } from '../utils/personNames';
 
 
 const familyAddBtnStyle: React.CSSProperties = {
@@ -1301,39 +1304,38 @@ const PropertiesPanel = ({
     const nameOf = (id: string) => people.find((p) => p.id === id)?.name;
     if (isPartnership) {
       const partnership = selectedItem as Partnership;
-      return [
-        ...withoutDateSlotCompanions(partnership.events),
-        ...synthesizePartnershipDateEvents(partnership, nameOf(partnership.partner1_id), nameOf(partnership.partner2_id)),
-      ].map((event) => ({ event, owner: selfOwner }));
+      // The shared rule (utils/listedEvents.ts): status-change records are
+      // hidden here as on the Timeline (review struct-06 — this tab listed them).
+      return listedPartnershipEvents(partnership, nameOf(partnership.partner1_id), nameOf(partnership.partner2_id)).map(
+        (event) => ({ event, owner: selfOwner })
+      );
     }
     if (isEmotionalLine) {
       const line = selectedItem as EmotionalLine;
-      return [
-        // The pattern's own tab: one event for it, one each for its start
-        // and end — edit records hidden (utils/patternEventRecords.ts).
-        ...withoutPatternEditRecords(withoutDateSlotCompanions(line.events)),
-        ...synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)),
-      ].map((event) => ({ event, owner: selfOwner }));
+      // The pattern's own tab: one event for it, one each for its start and
+      // end — edit records hidden (utils/listedEvents.ts).
+      return listedEmotionalLineEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)).map((event) => ({
+        event,
+        owner: selfOwner,
+      }));
     }
     const person = selectedItem as Person;
     // Date records are hidden rather than deleted — see utils/personDateEvents.ts.
-    const ownEvents = withoutPersonDateRecords(withoutDateSlotCompanions(person.events));
+    const ownEvents = storedPersonEvents(person);
     const ownIds = new Set(ownEvents.map((e) => e.id));
     // The clone rule lives in utils/eventDedup.ts so this panel and the
     // Timeline cannot drift.
     const isAlreadyCloned = (sourceId: string) => hasSameEvent(sourceId, ownIds);
-    const rows: Array<{ event: EmotionalProcessEvent; owner: EventOwner }> = [
-      ...ownEvents,
-      // Birth / death / adoption / gender dates and indicator-backed
-      // symptoms — the same synthesizers the Timeline lane uses (M7.A.1,
-      // M7.B.1), so the two views list the same events.
-      ...synthesizePersonDateEvents(person),
-      ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
-    ].map((event) => ({ event, owner: selfOwner }));
+    // Birth / death / adoption / gender dates and indicator-backed symptoms
+    // come from the same rule the Timeline lane uses (utils/listedEvents.ts).
+    const rows: Array<{ event: EmotionalProcessEvent; owner: EventOwner }> = listedPersonEvents(
+      person,
+      functionalIndicatorDefinitions
+    ).map((event) => ({ event, owner: selfOwner }));
     partnerships.forEach((p) => {
       if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;
       const owner: EventOwner = { kind: 'partnership', id: p.id };
-      withoutPartnershipStatusRecords(withoutDateSlotCompanions(p.events), p).forEach((event) => {
+      storedPartnershipEvents(p).forEach((event) => {
         if (!isAlreadyCloned(event.id)) rows.push({ event, owner });
       });
       // Family-level events of the person's own partnerships (M7.A.2).
@@ -1347,7 +1349,7 @@ const PropertiesPanel = ({
     allEmotionalLines.forEach((line) => {
       if (line.person1_id !== person.id && line.person2_id !== person.id) return;
       const owner: EventOwner = { kind: 'emotional', id: line.id };
-      withoutPatternEditRecords(withoutDateSlotCompanions(line.events)).forEach((event) => {
+      storedEmotionalLineEvents(line).forEach((event) => {
         if (!isAlreadyCloned(event.id)) rows.push({ event, owner });
       });
       synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)).forEach((event) => {
@@ -1964,11 +1966,9 @@ const PropertiesPanel = ({
       partnerships.find((p) => p.id === selectedPartnership.id) || selectedPartnership;
     const partner1 = people.find((p) => p.id === familyPartnership.partner1_id);
     const partner2 = people.find((p) => p.id === familyPartnership.partner2_id);
-    const partnerNames = [partner1?.name, partner2?.name].filter(Boolean).join(' & ');
+    const partnerNames = joinCoupleNames(partner1?.name, partner2?.name);
     const familyName =
-      familyPartnership.familyName ||
-      [partner1?.name, partner2?.name].filter(Boolean).join(' / ') ||
-      'Family';
+      familyPartnership.familyName || joinCoupleNames(partner1?.name, partner2?.name, 'Family');
     const allFamilyEvents = familyPartnership.familyEvents || [];
     const triangleEvents = allFamilyEvents.filter(
       (e) => (e.category || '').toLowerCase().startsWith('triangle')

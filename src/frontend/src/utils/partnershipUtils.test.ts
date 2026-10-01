@@ -311,4 +311,14 @@ describe('partnershipSeparationMarks — an "ended" status date (gate 2026-09-30
     const marks = partnershipSeparationMarks({ relationshipStatus: 'dating', statusDates: { ended: ' ' } } as Partnership);
     expect(marks).toEqual({ separated: false, divorced: false });
   });
+
+  // Review nodes-10: the shared resolver reads capitalised and one-letter
+  // values, so 'Male' listed second is still the male partner.
+  it('nodes-10: a partner stored as "Male" or "M" is the male partner', () => {
+    const female = { id: 'f', name: 'F Jones', x: 0, y: 0, partnerships: [], gender: 'Female', lastName: 'Jones' } as Person;
+    ['Male', 'M'].forEach((gender) => {
+      const male = { id: 'm', name: 'M Smith', x: 0, y: 0, partnerships: [], gender, lastName: 'Smith' } as Person;
+      expect(computeDefaultFamilyName(female, male)).toBe('Smith');
+    });
+  });
 });

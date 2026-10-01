@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import EmotionalLineNode from './EmotionalLineNode';
 import { Stage, Layer } from 'react-konva';
+import type Konva from 'konva';
 import type { Person, EmotionalLine } from '../types';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
@@ -517,4 +518,82 @@ describe('EmotionalLineNode', () => {
             });
         }
     );
+
+    // ── Review nodes-07 / nodes-08 ─────────────────────────────────────────
+
+    const renderLine = (line: Partial<EmotionalLine>, person1: Person, person2: Person) => {
+        const stageRef = React.createRef<Konva.Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <EmotionalLineNode
+                        emotionalLine={{
+                            id: 'el-x',
+                            person1_id: person1.id,
+                            person2_id: person2.id,
+                            relationshipType: 'distance',
+                            lineStyle: 'distance-long',
+                            lineEnding: 'arrow-p1-to-p2',
+                            ...line,
+                        }}
+                        person1={person1}
+                        person2={person2}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onContextMenu={() => {}}
+                    />
+                </Layer>
+            </Stage>
+        );
+        return stageRef.current!;
+    };
+    const big: Person = { id: 'p1', x: 0, y: 0, name: 'Big', partnerships: [], size: 120 };
+    const small: Person = { id: 'p2', x: 300, y: 0, name: 'Small', partnerships: [], size: 30 };
+
+    it('nodes-07: each line end stops at its own person\'s size', () => {
+        const stage = renderLine({}, big, small);
+        // The pattern line is the one that carries the click handler.
+        const drawn = stage.find<Konva.Line>('Line').filter((line) => line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
+        expect(drawn.length).toBe(1);
+        const [x1, , x2] = drawn[0].points();
+        expect(x1).toBeCloseTo(60 * 1.05);
+        expect(x2).toBeCloseTo(300 - 15 * 1.05);
+    });
+
+    it('nodes-07: the + / − labels sit a shape width from each person, by that person\'s size', () => {
+        const stage = renderLine(
+            { relationshipType: 'fusion', lineStyle: 'fusion-solid-wide', lineEnding: 'none', adequatePersonId: 'p1' },
+            { ...big, x: 0 },
+            { ...small, x: 300 }
+        );
+        const labelX = (label: string) =>
+            stage.find<Konva.Text>('Text').filter((text) => text.text() === label).map((text) => text.getParent()!.x());
+        expect(labelX('+')[0]).toBeCloseTo(120 * 1.05);
+        expect(labelX('−')[0]).toBeCloseTo(300 - 30 * 1.05);
+    });
+
+    it.each([
+        ['vertical', { x: 0, y: 0 }, { x: 0, y: 200 }],
+        ['diagonal', { x: 0, y: 0 }, { x: 150, y: 200 }],
+        ['horizontal', { x: 0, y: 0 }, { x: 200, y: 0 }],
+    ])('nodes-08: draws the cutoff bars across a %s line at right angles', (_label, a, b) => {
+        const stage = renderLine(
+            { relationshipType: 'cutoff', lineStyle: 'cutoff' },
+            { id: 'p1', name: 'A', partnerships: [], ...a },
+            { id: 'p2', name: 'B', partnerships: [], ...b }
+        );
+        const bars = stage.find<Konva.Line>('.cutoff-bar');
+        expect(bars.length).toBe(2);
+        const lineDx = b.x - a.x;
+        const lineDy = b.y - a.y;
+        const lineLen = Math.hypot(lineDx, lineDy);
+        bars.forEach((bar) => {
+            const [x1, y1, x2, y2] = bar.points();
+            const barLen = Math.hypot(x2 - x1, y2 - y1);
+            expect(barLen).toBeCloseTo(40);
+            const cosine = ((x2 - x1) * lineDx + (y2 - y1) * lineDy) / (barLen * lineLen);
+            expect(cosine).toBeCloseTo(0);
+        });
+    });
 });
+

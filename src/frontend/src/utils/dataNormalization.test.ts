@@ -99,3 +99,18 @@ describe('resolveImportedGender — explicit unknown', () => {
     expect(resolveImportedGender('Unknown', 'Quinlan')).toBeUndefined();
   });
 });
+
+describe('normalizeImportedChildLayout — reads every sex field (review 2026-09-30 struct-07)', () => {
+  it('a couple whose sex is only in birthSex still gets male left, female right', () => {
+    const people = [
+      { id: 'w', name: 'W', x: 0, y: 0, partnerships: ['pr'], birthSex: 'female' as const },
+      { id: 'h', name: 'H', x: 200, y: 0, partnerships: ['pr'], birthSex: 'male' as const },
+    ];
+    const partnerships = [
+      { id: 'pr', partner1_id: 'w', partner2_id: 'h', horizontalConnectorY: 60, relationshipType: 'married', relationshipStatus: 'married', children: [] },
+    ];
+    const result = normalizeImportedChildLayout(people, partnerships);
+    const x = (id: string) => result.people.find((p) => p.id === id)!.x;
+    expect(x('h')).toBeLessThan(x('w'));
+  });
+});

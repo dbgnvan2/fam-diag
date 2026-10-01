@@ -1,5 +1,5 @@
 import { Z_INDEX } from '../../constants/zIndex';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FunctionalIndicatorDefinition, SymptomGroup } from '../../types';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
@@ -11,7 +11,8 @@ interface IndicatorSettingsModalProps {
   onDraftLabelChange: (label: string) => void;
   onAdd: () => void;
   onAddForGroup: (group: SymptomGroup) => void;
-  onUpdateLabel: (id: string, label: string) => void;
+  /** Returns why the name was refused (empty or a duplicate), or null. */
+  onUpdateLabel: (id: string, label: string) => string | null;
   onUpdateGroup: (id: string, group: SymptomGroup) => void;
   onUpdateColor: (id: string, color: string) => void;
   onUpdateIcon: (id: string, file: File) => void;
@@ -27,6 +28,59 @@ const GROUPS: { key: SymptomGroup; label: string; color: string; bg: string }[] 
   { key: 'emotional', label: 'Emotional', color: '#d81b60', bg: '#fce8f1' },
   { key: 'social',    label: 'Social',    color: '#2e7d32', bg: '#e8f5e9' },
 ];
+
+/**
+ * The name of one symptom type. settings-07: the name is kept as a draft
+ * while typing and saved on Enter or leaving the field; an empty or
+ * duplicate name is refused with a message under the field. (It was saved on
+ * every keystroke, so a cleared or duplicate name went straight in, and each
+ * keystroke was a separate rename of the type's events.)
+ */
+const IndicatorLabelInput = ({
+  definition,
+  onCommit,
+}: {
+  definition: FunctionalIndicatorDefinition;
+  onCommit: (id: string, label: string) => string | null;
+}) => {
+  const [draft, setDraft] = useState(definition.label);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setDraft(definition.label);
+    setError(null);
+  }, [definition.label]);
+  const commit = () => {
+    if (draft === definition.label) {
+      setError(null);
+      return;
+    }
+    setError(onCommit(definition.id, draft));
+  };
+  return (
+    <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <input
+        type="text"
+        aria-label={`Name of ${definition.label}`}
+        aria-invalid={error ? true : undefined}
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setError(null);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+        }}
+        style={{ fontSize: 13 }}
+      />
+      {error && (
+        <span role="alert" style={{ color: '#b00020', fontSize: 11, marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </span>
+  );
+};
 
 const IndicatorSettingsModal = ({
   open,
@@ -237,12 +291,7 @@ const IndicatorSettingsModal = ({
                         </div>
 
                         {/* Label */}
-                        <input
-                          type="text"
-                          value={def.label}
-                          onChange={(e) => onUpdateLabel(def.id, e.target.value)}
-                          style={{ flex: 1, fontSize: 13 }}
-                        />
+                        <IndicatorLabelInput definition={def} onCommit={onUpdateLabel} />
 
                         {/* Color */}
                         <input

@@ -1,7 +1,7 @@
 import { Z_INDEX } from '../constants/zIndex';
 import type { ContextMenuState } from '../types/diagramEditor';
 import React, { useMemo, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
+import type { Dispatch, SetStateAction, MutableRefObject, RefObject, ReactNode } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
@@ -11,21 +11,10 @@ import type {
   EmotionalLine,
   Triangle,
   FunctionalIndicatorDefinition,
-  SIRCategoryDefinition,
-  FunctionalFactCategoryDefinition,
-  NodalCategoryDefinition,
   PageNote,
   SymptomGroup,
 } from '../types';
-import type {
-  PersonSectionPopupState,
-  PartnershipSectionPopupState,
-  PropertiesPanelIntent,
-} from '../types/diagramEditor';
 import ContextMenu from './ContextMenu';
-import PropertiesPanel from './PropertiesPanel';
-import type { FamilyScope } from '../utils/familyScope';
-import MultiPersonPropertiesPanel from './MultiPersonPropertiesPanel';
 import PersonNode from './PersonNode';
 import PartnershipNode from './PartnershipNode';
 import ChildConnection from './ChildConnection';
@@ -52,6 +41,8 @@ import {
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 import { APP_VERSION } from '../data/version';
 import { CANVAS_SCROLL_HINT } from '../data/helpContent';
+import { resolveBinarySex } from '../utils/personSex';
+import { joinCoupleNames } from '../utils/personNames';
 
 type MarqueeSelection = {
   active: boolean;
@@ -77,14 +68,6 @@ interface DiagramCanvasProps {
   setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
 
   // Person section popup
-  personSectionPopup: PersonSectionPopupState;
-  personSectionPopupPerson: Person | null;
-  setPersonSectionPopup: Dispatch<SetStateAction<PersonSectionPopupState>>;
-
-  // Partnership section popup
-  partnershipSectionPopup: PartnershipSectionPopupState;
-  partnershipSectionPopupPartnership: Partnership | null;
-  setPartnershipSectionPopup: Dispatch<SetStateAction<PartnershipSectionPopupState>>;
 
   // Demo tour
   isDemoFocusedCanvas: boolean;
@@ -139,7 +122,6 @@ interface DiagramCanvasProps {
 
   // Visibility maps
   personVisibility: Map<string, boolean>;
-  familyScope: FamilyScope | null;
   emotionalVisibility: Map<string, boolean>;
   partnershipVisibility: Map<string, boolean>;
   emotionalSiblingMeta: Map<string, { index: number; count: number }>;
@@ -169,12 +151,6 @@ interface DiagramCanvasProps {
   handleFamilyClick: (partnershipId: string, shiftKey?: boolean) => void;
   handleFamilyContextMenu: (e: KonvaEventObject<PointerEvent>, partnershipId: string) => void;
   onFamilyIndicatorClick: (partnershipId: string, eventId: string, position: { x: number; y: number }) => void;
-  onOpenFamilyProperty: (partnershipId: string, category: string, subtype: string, position: { x: number; y: number }) => void;
-  onAddFamilyEvent: (partnershipId: string, position: { x: number; y: number }) => void;
-  onDeleteFamilyEvent: (partnershipId: string, eventId: string) => void;
-  onCloseFamilyPanel: () => void;
-
-  // Child connection handlers
   handleChildLineSelect: (childId: string) => void;
   handleChildLineContextMenu: (e: KonvaEventObject<PointerEvent>, childId: string, partnershipId: string) => void;
 
@@ -187,11 +163,6 @@ interface DiagramCanvasProps {
   handleGroupContextMenu: (e: KonvaEventObject<PointerEvent>) => void;
   setHoveredPersonId: Dispatch<SetStateAction<string | null>>;
   functionalIndicatorDefinitions: FunctionalIndicatorDefinition[];
-  sirCategories: SIRCategoryDefinition[];
-  functionalFactCategories: FunctionalFactCategoryDefinition[];
-  nodalCategories: NodalCategoryDefinition[];
-
-  // Group resize
   selectedGroupBounds: { x: number; y: number; width: number; height: number } | null;
   beginGroupResize: () => void;
   applyGroupResize: (nextBounds: { width: number; height: number }) => void;
@@ -243,41 +214,20 @@ interface DiagramCanvasProps {
   // Multi-person panel
   showMultiPersonPanel: boolean;
   multiSelectedPeople: Person[];
-  handleBatchUpdatePersons: (personIds: string[], updates: Partial<Person>) => void;
-  openAddEmotionalPatternModal: (person1Id: string, person2Id: string) => void;
-
-  // Properties panel
   propertiesPanelItem: Person | Partnership | EmotionalLine | null;
-  eventCategories: string[];
-  relationshipTypes: string[];
-  relationshipStatuses: string[];
-  handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
   handleUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
-  handleUpdateEmotionalLine: (id: string, updates: Partial<EmotionalLine>) => void;
-  panelTriangleContext: { id: string; color: string; intensity: 'low' | 'medium' | 'high'; notes: string } | null;
-  updateTriangleColor: (triangleId: string, color: string) => void;
-  updateTriangleIntensity: (triangleId: string, intensity: 'low' | 'medium' | 'high') => void;
-  updateTriangle: (triangleId: string, updates: Partial<import('../types').Triangle>) => void;
   handleTriangleNoteDragEnd: (triangleId: string, x: number, y: number) => void;
   handleTriangleNoteResizeEnd: (triangleId: string, width: number, height: number) => void;
-  propertiesPanelIntent: PropertiesPanelIntent;
-  setPropertiesPanelIntent: Dispatch<SetStateAction<PropertiesPanelIntent>>;
-  ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
-  onRemoveEmotionalLine: (id: string) => void;
   onSiblingSquareClick: (person: Person, clientX: number, clientY: number) => void;
   onAutonomySquareClick: (person: Person) => void;
   onSymptomBadgeClick: (person: Person, group: SymptomGroup, clientX: number, clientY: number) => void;
+  /** The Properties panels (PropertiesPanelHost), placed beside the canvas. */
+  propertiesPanel: ReactNode;
 }
 
 export default function DiagramCanvas({
   contextMenu,
   setContextMenu,
-  personSectionPopup,
-  personSectionPopupPerson,
-  setPersonSectionPopup,
-  partnershipSectionPopup,
-  partnershipSectionPopupPartnership,
-  setPartnershipSectionPopup,
   isDemoFocusedCanvas,
   demoBlinkVisible,
   isDemoFocusedPerson,
@@ -314,7 +264,6 @@ export default function DiagramCanvas({
   partnerships,
   allEmotionalLines,
   personVisibility,
-  familyScope,
   emotionalVisibility,
   partnershipVisibility,
   emotionalSiblingMeta,
@@ -334,10 +283,6 @@ export default function DiagramCanvas({
   handleFamilyClick,
   handleFamilyContextMenu,
   onFamilyIndicatorClick,
-  onOpenFamilyProperty,
-  onAddFamilyEvent,
-  onDeleteFamilyEvent,
-  onCloseFamilyPanel,
   handleChildLineSelect,
   handleChildLineContextMenu,
   handleSelect,
@@ -348,9 +293,6 @@ export default function DiagramCanvas({
   handleGroupContextMenu,
   setHoveredPersonId,
   functionalIndicatorDefinitions,
-  sirCategories,
-  functionalFactCategories,
-  nodalCategories,
   selectedGroupBounds,
   beginGroupResize,
   applyGroupResize,
@@ -387,28 +329,14 @@ export default function DiagramCanvas({
   resizeStateRef,
   showMultiPersonPanel,
   multiSelectedPeople,
-  handleBatchUpdatePersons,
-  openAddEmotionalPatternModal,
   propertiesPanelItem,
-  eventCategories,
-  relationshipTypes,
-  relationshipStatuses,
-  handleUpdatePerson,
   handleUpdatePartnership,
-  handleUpdateEmotionalLine,
-  panelTriangleContext,
-  updateTriangleColor,
-  updateTriangleIntensity,
-  updateTriangle,
   handleTriangleNoteDragEnd,
   handleTriangleNoteResizeEnd,
-  propertiesPanelIntent,
-  setPropertiesPanelIntent,
-  ensureSymptomDefinition,
-  onRemoveEmotionalLine,
   onSiblingSquareClick,
   onAutonomySquareClick,
   onSymptomBadgeClick,
+  propertiesPanel,
 }: DiagramCanvasProps) {
   // Sibling positions depend on sibling data only, not on where nodes sit,
   // so they are recomputed when that data changes — not on every render and
@@ -547,112 +475,6 @@ export default function DiagramCanvas({
           </div>
         );
       })()}
-      {personSectionPopup && personSectionPopupPerson && (
-        <div
-          onClick={() => setPersonSectionPopup(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: Z_INDEX.SECTION_POPUP,
-            background: 'transparent',
-          }}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              position: 'absolute',
-              left:
-                typeof window !== 'undefined'
-                  ? Math.max(12, Math.min(personSectionPopup.x + 10, window.innerWidth - 480))
-                  : personSectionPopup.x,
-              top:
-                typeof window !== 'undefined'
-                  ? Math.max(12, Math.min(personSectionPopup.y + 10, window.innerHeight - 420))
-                  : personSectionPopup.y,
-              maxWidth: typeof window !== 'undefined' ? window.innerWidth - 24 : undefined,
-              maxHeight:
-                typeof window !== 'undefined'
-                  ? Math.max(200, window.innerHeight - Math.max(12, Math.min(personSectionPopup.y + 10, window.innerHeight - 420)) - 12)
-                  : undefined,
-              overflowY: 'auto',
-            }}
-          >
-            <PropertiesPanel
-              selectedItem={personSectionPopupPerson}
-              people={people}
-              partnerships={partnerships}
-              eventCategories={eventCategories}
-              relationshipTypes={relationshipTypes}
-              relationshipStatuses={relationshipStatuses}
-              functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-              sirCategories={sirCategories}
-                functionalFactCategories={functionalFactCategories}
-                nodalCategories={nodalCategories}
-              onUpdatePerson={handleUpdatePerson}
-              onUpdatePartnership={handleUpdatePartnership}
-              onUpdateEmotionalLine={handleUpdateEmotionalLine}
-              initialActiveTab="properties"
-              initialPersonSection={personSectionPopup.section}
-              compactPersonSectionMode
-              onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
-              onClose={() => setPersonSectionPopup(null)}
-            />
-          </div>
-        </div>
-      )}
-      {partnershipSectionPopup && partnershipSectionPopupPartnership && (
-        <div
-          onClick={() => setPartnershipSectionPopup(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: Z_INDEX.SECTION_POPUP,
-            background: 'transparent',
-          }}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              position: 'absolute',
-              left:
-                typeof window !== 'undefined'
-                  ? Math.max(12, Math.min(partnershipSectionPopup.x + 10, window.innerWidth - 540))
-                  : partnershipSectionPopup.x,
-              top:
-                typeof window !== 'undefined'
-                  ? Math.max(12, Math.min(partnershipSectionPopup.y + 10, window.innerHeight - 420))
-                  : partnershipSectionPopup.y,
-              maxWidth: typeof window !== 'undefined' ? window.innerWidth - 24 : undefined,
-              maxHeight:
-                typeof window !== 'undefined'
-                  ? Math.max(200, window.innerHeight - Math.max(12, Math.min(partnershipSectionPopup.y + 10, window.innerHeight - 420)) - 12)
-                  : undefined,
-              overflowY: 'auto',
-            }}
-          >
-            <PropertiesPanel
-              selectedItem={partnershipSectionPopupPartnership}
-              people={people}
-              partnerships={partnerships}
-              eventCategories={eventCategories}
-              relationshipTypes={relationshipTypes}
-              relationshipStatuses={relationshipStatuses}
-              functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-              sirCategories={sirCategories}
-                functionalFactCategories={functionalFactCategories}
-                nodalCategories={nodalCategories}
-              onUpdatePerson={handleUpdatePerson}
-              onUpdatePartnership={handleUpdatePartnership}
-              onUpdateEmotionalLine={handleUpdateEmotionalLine}
-              initialActiveTab="properties"
-              initialPartnershipType={partnershipSectionPopup.relationshipType}
-              compactPartnershipSectionMode
-              onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
-              onClose={() => setPartnershipSectionPopup(null)}
-            />
-          </div>
-        </div>
-      )}
       <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
         <div style={{ flex: 1, position: 'relative', background: '#ffffff' }}>
         {isDemoFocusedCanvas && (
@@ -1054,12 +876,8 @@ export default function DiagramCanvas({
               if (isDemoFocusedPerson(person.id) && !demoBlinkVisible) return null;
               const x = person.notesPosition?.x ?? person.x + 50;
               const y = person.notesPosition?.y ?? person.y;
-              const genderFill =
-                person.gender === 'male'
-                  ? '#d6ecff'
-                  : person.gender === 'female'
-                    ? '#ffe0ec'
-                    : '#fffbe6';
+              const noteSex = resolveBinarySex(person);
+              const genderFill = noteSex === 'male' ? '#d6ecff' : noteSex === 'female' ? '#ffe0ec' : '#fffbe6';
               return (
                 <NoteNode
                   key={`note-person-${person.id}`}
@@ -1127,7 +945,7 @@ export default function DiagramCanvas({
               const anchorY = p.horizontalConnectorY;
               const x = p.familyNotesPosition?.x ?? anchorX + 20;
               const y = p.familyNotesPosition?.y ?? anchorY + 60;
-              const familyName = p.familyName || [partner1.name, partner2.name].filter(Boolean).join(' & ') || 'Family';
+              const familyName = p.familyName || joinCoupleNames(partner1.name, partner2.name, 'Family');
               return (
                 <NoteNode
                   key={`note-family-${p.id}`}
@@ -1431,7 +1249,7 @@ export default function DiagramCanvas({
               if (fp) {
                 const p1 = people.find((p) => p.id === fp.partner1_id);
                 const p2 = people.find((p) => p.id === fp.partner2_id);
-                subjectName = fp.familyName || [p1?.name, p2?.name].filter(Boolean).join(' & ') || 'Family';
+                subjectName = fp.familyName || joinCoupleNames(p1?.name, p2?.name, 'Family');
               }
             } else if (showMultiPersonPanel && multiSelectedPeople.length > 0) {
               subjectName = multiSelectedPeople.map((p) => p.name).filter(Boolean).join(' & ');
@@ -1443,7 +1261,7 @@ export default function DiagramCanvas({
                 const ps = item as Partnership;
                 const p1 = people.find((p) => p.id === ps.partner1_id);
                 const p2 = people.find((p) => p.id === ps.partner2_id);
-                subjectName = ps.familyName || [p1?.name, p2?.name].filter(Boolean).join(' & ') || '';
+                subjectName = ps.familyName || joinCoupleNames(p1?.name, p2?.name);
               } else if ('lineStyle' in item) {
                 const el = item as EmotionalLine;
                 const p1 = people.find((p) => p.id === el.person1_id);
@@ -1454,137 +1272,7 @@ export default function DiagramCanvas({
             return subjectName ? `Properties Panel for ${subjectName}` : 'Properties Panel';
           })()}
         </div>
-        {(showMultiPersonPanel || propertiesPanelItem) && (
-          showMultiPersonPanel ? (
-            <MultiPersonPropertiesPanel
-              selectedPeople={multiSelectedPeople}
-              onBatchUpdate={handleBatchUpdatePersons}
-              onAddEmotionalPattern={openAddEmotionalPatternModal}
-              onClose={() => {
-                setSelectedPeopleIds([]);
-                setPropertiesPanelItem(null);
-              }}
-            />
-          ) : (
-            propertiesPanelItem && (
-              <PropertiesPanel
-                selectedItem={propertiesPanelItem}
-                people={people}
-                partnerships={partnerships}
-                eventCategories={eventCategories}
-                relationshipTypes={relationshipTypes}
-                relationshipStatuses={relationshipStatuses}
-                functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-                sirCategories={sirCategories}
-                functionalFactCategories={functionalFactCategories}
-                nodalCategories={nodalCategories}
-                onUpdatePerson={handleUpdatePerson}
-                onUpdatePartnership={handleUpdatePartnership}
-                onUpdateEmotionalLine={handleUpdateEmotionalLine}
-                triangleId={panelTriangleContext?.id}
-                triangleColor={panelTriangleContext?.color}
-                triangleIntensity={panelTriangleContext?.intensity}
-                triangleNotes={panelTriangleContext?.notes}
-                onUpdateTriangleColor={updateTriangleColor}
-                onUpdateTriangleIntensity={updateTriangleIntensity}
-                onUpdateTriangleNotes={(id, n) => updateTriangle(id, { notes: n })}
-                isFamilyView={propertiesPanelItem.id === selectedFamilyId}
-                onOpenFamilyProperty={(category, subtype, position) =>
-                  selectedFamilyId && onOpenFamilyProperty(selectedFamilyId, category, subtype, position)
-                }
-                onAddFamilyEvent={(position) =>
-                  selectedFamilyId && onAddFamilyEvent(selectedFamilyId, position)
-                }
-                onOpenFamilyEventEdit={(partnershipId, eventId, position) =>
-                  onFamilyIndicatorClick(partnershipId, eventId, position)
-                }
-                onDeleteFamilyEvent={onDeleteFamilyEvent}
-                initialActiveTab={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.tab
-                    : undefined
-                }
-                initialPersonSection={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.personSection
-                    : undefined
-                }
-                focusEventId={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.focusEventId
-                    : undefined
-                }
-                openNewEventRequestId={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.openNewEventRequestId
-                    : undefined
-                }
-                newEventSeed={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.newEventSeed
-                    : undefined
-                }
-                openNewEventPosition={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.openNewEventPosition
-                    : undefined
-                }
-                newEventModalTitle={
-                  propertiesPanelIntent?.targetId === propertiesPanelItem.id
-                    ? propertiesPanelIntent.newEventModalTitle
-                    : undefined
-                }
-                allEmotionalLines={allEmotionalLines}
-                familyScope={familyScope}
-                onSelectSystemEventOwner={(owner) => {
-                  // A system event belongs to a relative — open it there
-                  // rather than editing a copy here (M7.F.2).
-                  if (owner.type === 'person') {
-                    const target = people.find((entry) => entry.id === owner.id);
-                    if (!target) return;
-                    setSelectedPeopleIds([target.id]);
-                    setSelectedPartnershipId(null);
-                    setSelectedEmotionalLineId(null);
-                    setPropertiesPanelItem(target);
-                    return;
-                  }
-                  if (owner.type === 'partnership') {
-                    const target = partnerships.find((entry) => entry.id === owner.id);
-                    if (!target) return;
-                    setSelectedPeopleIds([]);
-                    setSelectedPartnershipId(target.id);
-                    setSelectedEmotionalLineId(null);
-                    setPropertiesPanelItem(target);
-                    return;
-                  }
-                  const line = allEmotionalLines.find((entry) => entry.id === owner.id);
-                  if (!line) return;
-                  setSelectedPeopleIds([]);
-                  setSelectedPartnershipId(null);
-                  setSelectedEmotionalLineId(line.id);
-                  setPropertiesPanelItem(line);
-                }}
-                onSelectEmotionalLine={(line) => {
-                  setPropertiesPanelItem(line);
-                  setSelectedEmotionalLineId(line.id);
-                  setSelectedPeopleIds([]);
-                }}
-                onRemoveEmotionalLine={(id) => {
-                  onRemoveEmotionalLine(id);
-                  setPropertiesPanelItem(null);
-                  setSelectedEmotionalLineId(null);
-                }}
-                onAddEmotionalPattern={openAddEmotionalPatternModal}
-                onEnsureSymptomCategoryDefinition={ensureSymptomDefinition}
-                onClose={() => {
-                  setPropertiesPanelItem(null);
-                  setPropertiesPanelIntent(null);
-                  if (selectedFamilyId) onCloseFamilyPanel();
-                }}
-              />
-            )
-          )
-        )}
+        {propertiesPanel}
       </div>
     </div>
   );

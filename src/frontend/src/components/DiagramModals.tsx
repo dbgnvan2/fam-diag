@@ -1,5 +1,6 @@
 import type { SymptomGroup } from '../types';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 import type {
   Person,
   Partnership,
@@ -23,6 +24,7 @@ import type {
 } from '../types/diagramEditor';
 import type { RibbonHelpKey } from '../data/helpContent';
 import type { FamilyScope } from '../utils/familyScope';
+import type { CategoryEventType, CategoryUsage } from '../utils/categoryRename';
 import ImportModeDialog from './modals/ImportModeDialog';
 import SessionCaptureDialog from './modals/SessionCaptureDialog';
 import ClientProfileModal from './modals/ClientProfileModal';
@@ -50,6 +52,7 @@ import ImageDiagramModal from './modals/ImageDiagramModal';
 import AISettingsModal from './modals/AISettingsModal';
 import ImportLogModal from './modals/ImportLogModal';
 import readmeContent from '../../../../README.md?raw';
+import type { ImageImportHints } from '../utils/genogram/vlmImport';
 
 type TrainingVideo = { id: string; title: string; duration: string; topic: string; embedUrl: string; url: string };
 
@@ -135,7 +138,8 @@ interface DiagramModalsProps {
   addFunctionalIndicatorDefinition: () => void;
   addFunctionalIndicatorDefinitionForGroup: (group: 'physical' | 'emotional' | 'social') => void;
   onSaveIndicatorsAsDefault: (definitions: FunctionalIndicatorDefinition[]) => void;
-  updateFunctionalIndicatorLabel: (id: string, label: string) => void;
+  /** Returns why the name was refused (settings-07), or null. */
+  updateFunctionalIndicatorLabel: (id: string, label: string) => string | null;
   updateFunctionalIndicatorGroup: (id: string, group: 'physical' | 'emotional' | 'social') => void;
   updateFunctionalIndicatorColor: (id: string, color: string) => void;
   updateFunctionalIndicatorIcon: (id: string, file: File | null) => void;
@@ -144,6 +148,9 @@ interface DiagramModalsProps {
   removeFunctionalIndicatorDefinition: (id: string) => boolean;
   ensureSymptomDefinition: (label: string, group: SymptomGroup) => string | null;
   reorderFunctionalIndicators: (defs: FunctionalIndicatorDefinition[]) => void;
+
+  /** Who still uses an SIR / Nodal / FF category (settings-02 delete check). */
+  categoryUsage: (type: CategoryEventType, name: string) => CategoryUsage;
 
   // SIRSettingsModal
   sirSettingsOpen: boolean;
@@ -277,7 +284,7 @@ interface DiagramModalsProps {
   imageDiagramProgress: string;
   onImageDiagramClose: () => void;
   onImageDiagramCancel?: () => void;
-  onImageDiagramAnalyze: (imageBlob: Blob) => Promise<void>;
+  onImageDiagramAnalyze: (imageBlob: Blob, hints: ImageImportHints) => Promise<void>;
 
   // AISettingsModal
   aiSettingsOpen: boolean;
@@ -375,6 +382,7 @@ export default function DiagramModals({
   removeFunctionalIndicatorDefinition,
   ensureSymptomDefinition,
   reorderFunctionalIndicators,
+  categoryUsage,
   sirSettingsOpen,
   setSirSettingsOpen,
   sirCategories,
@@ -560,7 +568,7 @@ export default function DiagramModals({
         onClose={() => setSettingsOpen(false)}
         title="Event Categories"
         description="Default categories are shipped with the app. You can add categories, but categories cannot be deleted. Drag or use ▲/▼ to reorder."
-        zIndex={2000}
+        zIndex={Z_INDEX.SETTINGS_LIST_EVENT_CATEGORIES}
         items={eventCategories}
         draft={settingsDraft}
         draftPlaceholder="Add category"
@@ -580,7 +588,7 @@ export default function DiagramModals({
         onClose={() => setRelationshipTypeSettingsOpen(false)}
         title="Relationship Categories"
         description="Add partnership relationship categories used in the Properties panel. Drag or use ▲/▼ to reorder."
-        zIndex={2020}
+        zIndex={Z_INDEX.SETTINGS_LIST_RELATIONSHIP_TYPES}
         items={relationshipTypes}
         draft={relationshipTypeDraft}
         draftPlaceholder="Add relationship category"
@@ -602,7 +610,7 @@ export default function DiagramModals({
         onClose={() => setRelationshipStatusSettingsOpen(false)}
         title="Relationship Statuses"
         description="Add partnership relationship statuses used in the Properties panel. Drag or use ▲/▼ to reorder."
-        zIndex={2030}
+        zIndex={Z_INDEX.SETTINGS_LIST_RELATIONSHIP_STATUSES}
         items={relationshipStatuses}
         draft={relationshipStatusDraft}
         draftPlaceholder="Add relationship status"
@@ -641,18 +649,21 @@ export default function DiagramModals({
         open={sirSettingsOpen}
         onClose={() => setSirSettingsOpen(false)}
         categories={sirCategories}
+        categoryUsage={(name) => categoryUsage('SIR', name)}
         onSave={onSaveSirCategories}
       />
       <FunctionalFactSettingsModal
         open={ffSettingsOpen}
         onClose={() => setFfSettingsOpen(false)}
         categories={functionalFactCategories}
+        categoryUsage={(name) => categoryUsage('FF', name)}
         onSave={onSaveFunctionalFactCategories}
       />
       <NodalCategorySettingsModal
         open={nodalSettingsOpen}
         onClose={() => setNodalSettingsOpen(false)}
         categories={nodalCategories}
+        categoryUsage={(name) => categoryUsage('NODAL', name)}
         onSave={onSaveNodalCategories}
       />
       <TimelineBoardModal

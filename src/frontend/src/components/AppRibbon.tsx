@@ -1,5 +1,5 @@
 import { Z_INDEX } from '../constants/zIndex';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { getSaveButtonState } from '../utils/saveButtonState';
 import { STORAGE_WRITE_FAILED_MESSAGE } from '../data/helpContent';
 import { isDemoDiagramFileName } from '../utils/demoTour';
@@ -31,6 +31,11 @@ export interface AppRibbonProps {
   lastDirtyTimestamp: number | null;
   /** Browser storage refused a write: autosave is not keeping the diagram. */
   storageWriteFailed?: boolean;
+  /**
+   * Problems with the linked file or the backup folder (write refused, no
+   * permission, file not linked), shown beside Save until the next save.
+   */
+  saveNotices?: string[];
   demoBlinkVisible: boolean;
   ribbonHelpKey: RibbonHelpKey | null;
   notesLayerEnabled: boolean;
@@ -79,8 +84,8 @@ export interface AppRibbonProps {
   setIdeasOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPredictionsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setSessionNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setDemoTourStepIndex: React.Dispatch<React.SetStateAction<number>>;
-  setDemoTourOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Guarded start: asks before replacing unsaved work, loads the demo diagram, opens step 1. */
+  handleStartDemoTour: () => void;
   /** Guarded start: asks before replacing unsaved work, then loads step 1. */
   handleStartBuildDemo: () => void;
   setTrainingVideosOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -102,7 +107,6 @@ export interface AppRibbonProps {
   handleOpenBackupRestore: () => Promise<void>;
   handleExportPersonEvents: () => void;
   handleExportPNG: () => void;
-  handleExportSVG: () => void;
   handleQuit: () => void;
   handleProcessTranscriptPicker: () => void;
   handleOpenEventCreator: () => void;
@@ -138,6 +142,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   helpMenuOpen,
   isDirty,
   storageWriteFailed = false,
+  saveNotices = [],
   lastDirtyTimestamp,
   demoBlinkVisible,
   notesLayerEnabled,
@@ -179,8 +184,7 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   setIdeasOpen,
   setPredictionsOpen,
   setSessionNotesOpen,
-  setDemoTourStepIndex,
-  setDemoTourOpen,
+  handleStartDemoTour,
   handleStartBuildDemo,
   setTrainingVideosOpen,
   setReadmeViewerOpen,
@@ -199,7 +203,6 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   handleOpenBackupRestore,
   handleExportPersonEvents,
   handleExportPNG,
-  handleExportSVG,
   handleQuit,
   handleProcessTranscriptPicker,
   handleOpenEventCreator,
@@ -217,7 +220,16 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
   handleImageDiagramPicker,
   handleImageDiagramLoad,
 }) => {
-  const now = Date.now();
+  // The Save button's colour depends on how long the diagram has been
+  // unsaved, and it blinks when that is too long. The clock that drives it
+  // lives here, so only the ribbon re-renders twice a second — it used to be
+  // the whole editor, canvas included (review 2026-09-30 struct-01).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isDirty) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(interval);
+  }, [isDirty]);
   const saveVisualState = getSaveButtonState(isDirty, lastDirtyTimestamp, now, storageWriteFailed);
   const shouldBlinkSave = saveVisualState === 'critical';
   const blinkOn = shouldBlinkSave ? Math.floor(now / 600) % 2 === 0 : false;
@@ -262,7 +274,8 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Restore Backup (Files)', action: () => void handleOpenFileBackupRestore() },
     { label: 'Export Person Events', action: handleExportPersonEvents },
     { label: 'Export PNG', action: handleExportPNG },
-    { label: 'Export SVG', action: handleExportSVG },
+    // No "Export SVG": the canvas can only be drawn as an image, and the
+    // item saved a PNG under a .svg name (review 2026-09-30 DE2-10).
     { label: 'Quit', action: handleQuit },
   ];
   const optionsMenuItems = [
@@ -319,10 +332,10 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
     { label: 'Help Video', action: () => setTrainingVideosOpen(true) },
     {
       label: 'Help Demo',
-      action: () => {
-        setDemoTourStepIndex(0);
-        setDemoTourOpen(true);
-      },
+      // settings-10: through the guarded handler, which loads the demo
+      // diagram the tour walks through. Opening the tour directly ran it over
+      // whatever diagram was open, with no unsaved-changes prompt.
+      action: handleStartDemoTour,
     },
     {
       label: 'Build Demo',
@@ -479,6 +492,11 @@ const AppRibbon: React.FC<AppRibbonProps> = ({
                   {STORAGE_WRITE_FAILED_MESSAGE}
                 </span>
               )}
+              {saveNotices.map((notice) => (
+                <span key={notice} role="status" style={{ color: '#c62828', fontSize: 12, fontWeight: 600, maxWidth: 260 }}>
+                  {notice}
+                </span>
+              ))}
               <button
                 onClick={() => setRibbonHelpKey('save')}
                 aria-label="Save help"

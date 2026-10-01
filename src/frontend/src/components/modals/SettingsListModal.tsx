@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
+import { categoryNameError } from '../../utils/categoryRename';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface SettingsListModalProps {
@@ -35,11 +36,29 @@ const SettingsListModal = ({
 }: SettingsListModalProps) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) setAddError(null);
+  }, [open]);
 
   const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
 
   const canReorder = !!onReorder;
+
+  // settings-07: an empty name, or one already in the list (compared as
+  // shown, in any letter case), is refused with a message instead of added.
+  const handleAdd = () => {
+    const shown = (item: string) => (formatItem ? formatItem(item) : item);
+    const error = categoryNameError(shown(draft.trim()), items.map(shown));
+    if (error) {
+      setAddError(error);
+      return;
+    }
+    setAddError(null);
+    onAdd();
+  };
 
   const handleMoveUp = (index: number) => {
     if (!onReorder) return;
@@ -109,11 +128,21 @@ const SettingsListModal = ({
             type="text"
             placeholder={draftPlaceholder}
             value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
+            aria-label={draftPlaceholder}
+            aria-invalid={addError ? true : undefined}
+            onChange={(e) => {
+              onDraftChange(e.target.value);
+              setAddError(null);
+            }}
           />
-          <button onClick={onAdd} style={{ marginLeft: 6 }}>
+          <button onClick={handleAdd} style={{ marginLeft: 6 }}>
             Add
           </button>
+          {addError && (
+            <div role="alert" style={{ color: '#b00020', fontSize: 12, marginTop: 4 }}>
+              {addError}
+            </div>
+          )}
         </div>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {items.map((item, index) => (

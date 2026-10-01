@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import NoteNode from './NoteNode';
 import { Stage, Layer } from 'react-konva';
 import { vi } from 'vitest';
+import type Konva from 'konva';
 
 describe('NoteNode', () => {
   it('renders the note title and text', () => {
@@ -145,4 +146,27 @@ describe('NoteNode', () => {
     group.fire('click', { evt: new MouseEvent('click') });
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
+
+  // Review nodes-12: a note resized shorter than its text used to draw the
+  // text past the bottom of the box.
+  it('nodes-12: keeps the text inside a note resized shorter than its text', () => {
+    const layerRef = React.createRef<Konva.Layer>();
+    const longText = Array.from({ length: 30 }, (_, i) => `line${i}`).join('\n');
+    render(
+      <Stage>
+        <Layer ref={layerRef}>
+          <NoteNode x={0} y={0} title="Short" text={longText} width={120} height={50} onDragEnd={() => {}} />
+        </Layer>
+      </Stage>
+    );
+    const group = layerRef.current!.getChildren()[0] as Konva.Group;
+    // The box is the Rect that has the note's width; the body is the 12 px Text.
+    const box = group.find<Konva.Rect>('Rect').filter((rect) => rect.width() === 120)[0];
+    const body = group.find<Konva.Text>('Text').filter((text) => text.fontSize() === 12)[0];
+    expect(box.height()).toBe(50);
+    expect(body.y() + body.height()).toBeLessThanOrEqual(box.height());
+    expect(body.textArr.length * body.fontSize() * body.lineHeight()).toBeLessThanOrEqual(body.height());
+    expect(body.textArr.length).toBeLessThan(30);
+  });
 });
+

@@ -35,10 +35,9 @@ import {
   isDemoDiagramFileName,
 } from '../utils/demoTour';
 import {
-  mergePersonEventsFromBundle,
+  importPersonEventFile,
   isPersonEventBundle,
   isTimelineJson,
-  timelineJsonToBundle,
 } from '../utils/personEventBundle';
 
 interface UseFileOperationsDeps {
@@ -94,6 +93,8 @@ interface UseFileOperationsDeps {
   beginImportFlow: (data: DiagramImportData, sourceFileName: string, source: 'import' | 'transcript' | 'facts') => void;
   beginSessionCaptureFlow: (data: any, sourceFileName: string) => void;
   setDiagramFileHandle: (handle: any | null) => void;
+  /** Clears the panel, selections, popups and property dialogs. */
+  clearTransientEditorState: () => void;
   markSnapshotClean: (baseline?: Partial<DiagramContentState>) => void;
   triggerSaveAs: (suggestedName: string) => Promise<void>;
 }
@@ -143,6 +144,7 @@ export function useFileOperations({
   beginImportFlow,
   beginSessionCaptureFlow,
   setDiagramFileHandle,
+  clearTransientEditorState,
   markSnapshotClean,
   triggerSaveAs,
 }: UseFileOperationsDeps) {
@@ -150,6 +152,7 @@ export function useFileOperations({
 
   const resetDiagramToBlankState = useCallback(() => {
     setDiagramFileHandle(null);
+    clearTransientEditorState();
     setPeople([]);
     setPartnerships([]);
     setEmotionalLines([]);
@@ -184,17 +187,23 @@ export function useFileOperations({
   }, [markSnapshotClean, setDiagramFileHandle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async (forcePrompt = false) => {
-    const isUnnamed = !fileName || fileName === FALLBACK_FILE_NAME;
-    if (isUnnamed || forcePrompt) {
-      const suggested = isUnnamed ? 'family-diagram.json' : fileName;
-      await triggerSaveAs(suggested);
-      return;
+    // The ribbon does not await this, so a failure must be reported here or
+    // it is lost as an unhandled rejection (review 2026-09-30 DE1-10).
+    try {
+      const isUnnamed = !fileName || fileName === FALLBACK_FILE_NAME;
+      if (isUnnamed || forcePrompt) {
+        const suggested = isUnnamed ? 'family-diagram.json' : fileName;
+        await triggerSaveAs(suggested);
+        return;
+      }
+      await saveDiagramToCurrentTarget({
+        requestedFileName: fileName,
+        forceChooseLocation: false,
+        allowPicker: false,
+      });
+    } catch (error) {
+      alert(`The diagram could not be saved: ${error instanceof Error ? error.message : String(error)}.`);
     }
-    await saveDiagramToCurrentTarget({
-      requestedFileName: fileName,
-      forceChooseLocation: false,
-      allowPicker: false,
-    });
   };
 
   const handleSaveAs = () => handleSave(true);
@@ -262,17 +271,11 @@ export function useFileOperations({
           beginSessionCaptureFlow(parsed, file.name);
           return;
         } else if (isTimelineJson(parsed) || isPersonEventBundle(parsed)) {
-          const bundle = isTimelineJson(parsed) ? timelineJsonToBundle(parsed) : parsed;
-          const result = mergePersonEventsFromBundle(people, bundle);
-          setPeople(result.people);
-          const summary = result.summary;
-          const unmatched =
-            summary.unmatchedPeople.length > 0
-              ? `\nUnmatched: ${summary.unmatchedPeople.join(', ')}`
-              : '';
-          alert(
-            `Imported person events.\nMatched people: ${summary.matchedPeople}\nAdded: ${summary.addedEvents}\nUpdated: ${summary.updatedEvents}\nRemoved: ${summary.removedEvents}${unmatched}`
-          );
+          // bundle-01: shared with DiagramEditor's timeline import; shows
+          // the counts and asks before any event is added, changed or removed.
+          const outcome = importPersonEventFile(parsed, people, (message) => window.confirm(message));
+          if (outcome.status === 'applied') setPeople(outcome.people);
+          if (outcome.status === 'applied' || outcome.status === 'no-changes') alert(outcome.message);
           return;
         } else if (isFactsImportData(parsed)) {
           data = factsToDiagramImportData(parsed);
@@ -368,14 +371,16 @@ export function useFileOperations({
   };
 
   const handleLoadDemoDiagram = () => {
-    if (!confirmDiscardUnsavedChanges(isDirty && !isCurrentDemoDiagram, 'Load the demo diagram')) return;
+    if (!confirmDiscardUnsavedChanges(isDirty, 'Load the demo diagram')) return;
     setDiagramFileHandle(null);
     replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME, { normalizeLayout: false });
   };
 
   const handleStartDemoTour = () => {
-    if (!confirmDiscardUnsavedChanges(isDirty && !isCurrentDemoDiagram, 'Start the interactive demo')) return;
-    if (!isCurrentDemoDiagram) {
+    if (!confirmDiscardUnsavedChanges(isDirty, 'Start the interactive demo')) return;
+    // Reload the demo unless it is already loaded unchanged: an edited demo
+    // the user agreed to discard is replaced too.
+    if (!isCurrentDemoDiagram || isDirty) {
       replaceDiagramState(DEMO_DIAGRAM_DATA, DEFAULT_DEMO_FILE_NAME);
     }
     setHelpOpen(false);

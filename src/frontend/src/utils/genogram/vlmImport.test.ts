@@ -13,6 +13,7 @@ import {
   parseVLMResponse,
   factCheckVLMFacts,
   extractVisionText,
+  buildVisionUserMessage,
   callClaudeVision,
   sanitizeVLMFacts,
   type VisionRetryOptions,
@@ -249,5 +250,38 @@ describe('sanitizeVLMFacts — malformed model output', () => {
     expect(partnerships).toHaveLength(1);
     expect(partnerships[0].children).toEqual([paul.id]);
     expect(paul.parentPartnership).toBe(partnerships[0].id);
+  });
+});
+
+describe('buildVisionUserMessage (review 2026-09-30 DE2-04)', () => {
+  it('sends the hints the user gave, as context not a quota', () => {
+    const message = buildVisionUserMessage({ generationCount: 3, expectedPersonCount: 12, handDrawn: true, hasNotes: false });
+    expect(message).toContain('about 3 generations');
+    expect(message).toContain('about 12 people');
+    expect(message).toContain('hand-drawn');
+    expect(message).toContain('never add people or generations to match');
+  });
+
+  it('with no hints (or none given) the message is the plain request', () => {
+    const plain = 'Extract all people and relationships from this genogram image.';
+    expect(buildVisionUserMessage()).toBe(plain);
+    expect(buildVisionUserMessage({ generationCount: 0, expectedPersonCount: 0, handDrawn: false, hasNotes: false })).toBe(plain);
+  });
+
+  it('the hints reach the request body', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ content: [{ type: 'text', text: '{}' }] }), { status: 200 }));
+    const original = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    try {
+      await callClaudeVision('img', 'key', 'model', 100, 60_000, undefined, {
+        maxRetries: 0,
+        baseDelayMs: 0,
+        userMessage: buildVisionUserMessage({ generationCount: 4, expectedPersonCount: 0, handDrawn: false, hasNotes: false }),
+      });
+      const body = JSON.parse((fetchSpy.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+      expect(body.messages[0].content[1].text).toContain('about 4 generations');
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 });

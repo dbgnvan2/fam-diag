@@ -2,6 +2,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import type { EmotionalLine, Person } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
+import { getPersonVerticalExtents } from '../utils/personGeometry';
 
 const getDashStyle = (lineStyle: EmotionalLine['lineStyle']) => {
     switch (lineStyle) {
@@ -110,13 +111,17 @@ const EmotionalLineNode = ({
 
     const points = [p1_x_center, p1_y_center, p2_x_center, p2_y_center];
     
-    const radius = 30 * 1.05;
+    // Each end stops just outside its own person's shape. A fixed 30 px
+    // (half the default size) ran into large people and left a gap at small
+    // ones (review nodes-07).
+    const radius1 = getPersonVerticalExtents(person1).top * 1.05;
+    const radius2 = getPersonVerticalExtents(person2).top * 1.05;
     const angle = Math.atan2(p2_y_center - p1_y_center, p2_x_center - p1_x_center);
 
-    const p1_edge_x = p1_x_center + radius * Math.cos(angle);
-    const p1_edge_y = p1_y_center + radius * Math.sin(angle);
-    const p2_edge_x = p2_x_center - radius * Math.cos(angle);
-    const p2_edge_y = p2_y_center - radius * Math.sin(angle);
+    const p1_edge_x = p1_x_center + radius1 * Math.cos(angle);
+    const p1_edge_y = p1_y_center + radius1 * Math.sin(angle);
+    const p2_edge_x = p2_x_center - radius2 * Math.cos(angle);
+    const p2_edge_y = p2_y_center - radius2 * Math.sin(angle);
 
     const linePoints = lineEnding === 'none' ? points : [p1_edge_x, p1_edge_y, p2_edge_x, p2_edge_y];
     const perpendicularAngle = angle + Math.PI / 2;
@@ -299,12 +304,24 @@ const EmotionalLineNode = ({
         if (lineStyle === 'cutoff') {
             const midX = (p1_x_center + p2_x_center) / 2;
             const midY = (p1_y_center + p2_y_center) / 2;
+            // The two bars cross the line at right angles, 4 px apart along
+            // it, whatever its direction. They were always vertical, which
+            // lay along a vertical line (review nodes-08).
+            const alongX = Math.cos(angle);
+            const alongY = Math.sin(angle);
+            const acrossX = Math.cos(perpendicularAngle) * 20;
+            const acrossY = Math.sin(perpendicularAngle) * 20;
+            const cutoffBar = (shift: number) => {
+                const cx = midX + alongX * shift;
+                const cy = midY + alongY * shift;
+                return [cx - acrossX, cy - acrossY, cx + acrossX, cy + acrossY];
+            };
 
             return (
                 <Group>
                     <Line points={linePoints} {...lineProps} />
-                    <Line points={[midX - 2, midY - 20, midX - 2, midY + 20]} {...lineProps} />
-                    <Line points={[midX + 2, midY - 20, midX + 2, midY + 20]} {...lineProps} />
+                    <Line name="cutoff-bar" points={cutoffBar(-2)} {...lineProps} />
+                    <Line name="cutoff-bar" points={cutoffBar(2)} {...lineProps} />
                 </Group>
             )
         }
@@ -571,9 +588,10 @@ const EmotionalLineNode = ({
         const lineLen = Math.sqrt(
             (p2_x_center - p1_x_center) ** 2 + (p2_y_center - p1_y_center) ** 2
         );
-        const circleAway = radius * 2;
-        const p1Frac = lineLen > 0 ? circleAway / lineLen : 0.2;
-        const p2Frac = lineLen > 0 ? 1 - circleAway / lineLen : 0.8;
+        // A full shape width from each person's centre, by that person's own
+        // size (review nodes-07).
+        const p1Frac = lineLen > 0 ? (radius1 * 2) / lineLen : 0.2;
+        const p2Frac = lineLen > 0 ? 1 - (radius2 * 2) / lineLen : 0.8;
         const isP1Adequate = emotionalLine.adequatePersonId === emotionalLine.person1_id;
         const p1Label = isP1Adequate ? '+' : '−';
         const p2Label = isP1Adequate ? '−' : '+';

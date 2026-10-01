@@ -2,26 +2,39 @@
  * FunctionalFactSettingsModal — Create/Edit/Delete Functional Fact categories.
  * Each category is a simple name used to group functional fact events.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { FunctionalFactCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { Z_INDEX } from '../../constants/zIndex';
+import { categoryNameError, confirmCategoryDelete, type CategoryUsage } from '../../utils/categoryRename';
 
 interface FunctionalFactSettingsModalProps {
   open: boolean;
   onClose: () => void;
   categories: FunctionalFactCategoryDefinition[];
+  /** Who still uses a category name — a used category cannot be deleted (settings-02). */
+  categoryUsage: (name: string) => CategoryUsage;
   onSave: (categories: FunctionalFactCategoryDefinition[]) => void;
 }
 
-const MODAL_Z = 12000;
 
-const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: FunctionalFactSettingsModalProps) => {
+const FunctionalFactSettingsModal = ({ open, onClose, categories, categoryUsage, onSave }: FunctionalFactSettingsModalProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // settings-05: closing the dialog drops an unfinished edit. It used to
+  // reopen with the old edit form and draft still showing.
+  useEffect(() => {
+    if (open) return;
+    setEditingId(null);
+    setDraftName('');
+    setNameError(null);
+  }, [open]);
 
   const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
@@ -71,11 +84,22 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
 
   const cancelEdit = () => {
     setEditingId(null);
+    setNameError(null);
     setDraftName('');
   };
 
   const saveEdit = () => {
-    if (!draftName.trim()) return;
+    // settings-07 / settings-08: no empty or duplicate names, and no name
+    // that is another event type's built-in category.
+    const error = categoryNameError(
+      draftName,
+      [...categories.filter((c) => c.id !== editingId).map((c) => c.name)],
+      'FF',
+    );
+    if (error) {
+      setNameError(error);
+      return;
+    }
     if (editingId === '__new__') {
       const newCat: FunctionalFactCategoryDefinition = {
         id: `ff-${nanoid(8)}`,
@@ -88,8 +112,11 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
     cancelEdit();
   };
 
-  const deleteCategory = (id: string) => {
-    onSave(categories.filter((c) => c.id !== id));
+  // settings-02: a category that events still use is not deleted (they
+  // would be left on a name the list no longer has); otherwise ask first.
+  const deleteCategory = (cat: { id: string; name: string }) => {
+    if (!confirmCategoryDelete(cat.name, categoryUsage(cat.name))) return;
+    onSave(categories.filter((c) => c.id !== cat.id));
   };
 
   return (
@@ -106,7 +133,7 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: MODAL_Z,
+        zIndex: Z_INDEX.SETTINGS_CATEGORY_DIALOG,
         pointerEvents: 'none',
       }}
     >
@@ -185,7 +212,7 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteCategory(cat.id)}
+                    onClick={() => deleteCategory(cat)}
                     style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: '#b00020' }}
                     aria-label={`Delete ${cat.name}`}
                   >
@@ -242,12 +269,22 @@ const FunctionalFactSettingsModal = ({ open, onClose, categories, onSave }: Func
           <input
             type="text"
             value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
+            onChange={(e) => {
+              setDraftName(e.target.value);
+              setNameError(null);
+            }}
             placeholder="Category name"
+            aria-label="Category name"
+            aria-invalid={nameError ? true : undefined}
             style={{ flex: 1 }}
             onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); }}
           />
         </div>
+        {nameError && (
+          <div role="alert" style={{ color: '#b00020', fontSize: 12, marginBottom: 6 }}>
+            {nameError}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}>
           <button type="button" onClick={cancelEdit} style={{ padding: '3px 10px', fontSize: 12 }}>
             Cancel

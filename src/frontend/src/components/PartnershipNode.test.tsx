@@ -2,7 +2,9 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import PartnershipNode from './PartnershipNode';
 import { Stage, Layer } from 'react-konva';
-import type { Partnership, Person } from '../types';
+import type Konva from 'konva';
+import { vi } from 'vitest';
+import type { EmotionalProcessEvent, Partnership, Person } from '../types';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
 describe('PartnershipNode', () => {
@@ -235,4 +237,67 @@ describe('PartnershipNode', () => {
         const drawn = connector.find((line: any) => line.strokeWidth() === 2);
         expect(drawn).toBeTruthy();
     });
+
+    // ── Review nodes-06 / nodes-11 ─────────────────────────────────────────
+
+    const renderTyped = (overrides: Partial<Partnership>, extra: Partial<React.ComponentProps<typeof PartnershipNode>> = {}) => {
+        const stageRef = React.createRef<Konva.Stage>();
+        render(
+            <Stage ref={stageRef}>
+                <Layer>
+                    <PartnershipNode
+                        partnership={{ ...partnership, ...overrides }}
+                        partner1={{ ...partner1, lastName: 'Smith' }}
+                        partner2={{ ...partner2, maidenName: 'Jones' }}
+                        isSelected={false}
+                        onSelect={() => {}}
+                        onHorizontalConnectorDragEnd={() => {}}
+                        onContextMenu={() => {}}
+                        {...noopProps}
+                        {...extra}
+                    />
+                </Layer>
+            </Stage>
+        );
+        return stageRef.current!;
+    };
+
+    const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+        a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+    it('nodes-06: Separated and Divorced labels are not drawn under the family-name box', () => {
+        const stage = renderTyped({
+            relationshipStartDate: '1960-01-01',
+            marriedStartDate: '1961-01-01',
+            separationDate: '1980-01-01',
+            divorceDate: '1985-01-01',
+        });
+        const box = stage.find<Konva.Rect>('Rect').filter((rect) => rect.fill() === '#f8f9fc');
+        expect(box.length).toBe(1);
+        const boxRect = box[0].getClientRect();
+        const labels = stage.find<Konva.Text>('Text').filter((text) => /^(Start|Married|Separated|Divorced): /.test(text.text()));
+        expect(labels.map((text) => text.text().split(':')[0]).sort()).toEqual(['Divorced', 'Married', 'Separated', 'Start']);
+        labels.forEach((text) => expect(overlaps(text.getClientRect(), boxRect)).toBe(false));
+        // And no two labels share a row.
+        const rows = labels.map((text) => text.y());
+        expect(new Set(rows).size).toBe(rows.length);
+    });
+
+    it('nodes-11: a right-click on a family indicator does not open it; a left click does', () => {
+        const onFamilyIndicatorClick = vi.fn();
+        const familyEvent: EmotionalProcessEvent = {
+            id: 'fe1', eventType: 'FAMILY', category: 'Triangles', subtype: 'Functioning', status: 'discrete',
+            intensity: 3, howWell: 0, date: '2020-01-01', startDate: '2020-01-01', otherPersonName: '', wwwwh: '',
+            observations: '', anchorType: 'FAMILY', anchorId: 'p1', eventClass: 'family', createdAt: 0,
+        };
+        const stage = renderTyped({ familyEvents: [familyEvent] }, { onFamilyIndicatorClick });
+        // The indicator's hit box is the only transparent Rect in the node.
+        const hit = stage.find<Konva.Rect>('Rect').filter((rect) => rect.fill() === 'transparent');
+        expect(hit.length).toBe(1);
+        hit[0].fire('click', { evt: { button: 2, clientX: 1, clientY: 2 } }, true);
+        expect(onFamilyIndicatorClick).not.toHaveBeenCalled();
+        hit[0].fire('click', { evt: { button: 0, clientX: 1, clientY: 2 } }, true);
+        expect(onFamilyIndicatorClick).toHaveBeenCalledWith('p1', 'fe1', { x: 1, y: 2 });
+    });
 });
+

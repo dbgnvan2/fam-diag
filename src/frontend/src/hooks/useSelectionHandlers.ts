@@ -391,6 +391,52 @@ export function useSelectionHandlers({
     }
   };
 
+  /**
+   * Open a system event's owner in the Properties panel: a system event
+   * belongs to a relative, so it is edited there rather than as a copy here
+   * (M7.F.2). Moved out of DiagramCanvas (review 2026-09-30 struct-10).
+   */
+  const selectSystemEventOwner = (owner: { type: 'person' | 'partnership' | 'emotional'; id: string }) => {
+    if (owner.type === 'person') {
+      const target = people.find((entry) => entry.id === owner.id);
+      if (!target) return;
+      setSelectedPeopleIds([target.id]);
+      setSelectedPartnershipId(null);
+      setSelectedEmotionalLineId(null);
+      setPropertiesPanelItem(target);
+      return;
+    }
+    if (owner.type === 'partnership') {
+      const target = partnerships.find((entry) => entry.id === owner.id);
+      if (!target) return;
+      setSelectedPeopleIds([]);
+      setSelectedPartnershipId(target.id);
+      setSelectedEmotionalLineId(null);
+      setPropertiesPanelItem(target);
+      return;
+    }
+    const line = allEmotionalLines.find((entry) => entry.id === owner.id);
+    if (!line) return;
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(line.id);
+    setPropertiesPanelItem(line);
+  };
+
+  /** Show a pattern line picked from inside the Properties panel. */
+  const selectEmotionalLineFromPanel = (line: EmotionalLine) => {
+    setPropertiesPanelItem(line);
+    setSelectedEmotionalLineId(line.id);
+    setSelectedPeopleIds([]);
+  };
+
+  /** Remove a pattern line from the Properties panel and close the panel. */
+  const removeEmotionalLineFromPanel = (id: string) => {
+    removeEmotionalLine(id);
+    setPropertiesPanelItem(null);
+    setSelectedEmotionalLineId(null);
+  };
+
   return {
     handlePageNoteSelect,
     handlePageNoteDraftChange,
@@ -405,5 +451,8 @@ export function useSelectionHandlers({
     handleTriangleAreaContextMenu,
     handleSelect,
     handlePartnershipSelect,
+    selectSystemEventOwner,
+    selectEmotionalLineFromPanel,
+    removeEmotionalLineFromPanel,
   };
 }

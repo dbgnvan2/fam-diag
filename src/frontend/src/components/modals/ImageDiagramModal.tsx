@@ -6,16 +6,9 @@ import { Z_INDEX } from '../../constants/zIndex';
 import React, { useState, useRef } from 'react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
-export type ImageImportHints = {
-  /** Number of generations the user expects (0 = unknown). */
-  generationCount: number;
-  /** Approximate number of people (0 = unknown). */
-  expectedPersonCount: number;
-  /** Whether the diagram was hand-drawn (vs printed/digital). */
-  handDrawn: boolean;
-  /** Whether there are descriptive notes/text alongside symbols. */
-  hasNotes: boolean;
-};
+// One definition of the hints, owned by the import that sends them.
+export type { ImageImportHints } from '../../utils/genogram/vlmImport';
+import type { ImageImportHints } from '../../utils/genogram/vlmImport';
 
 interface ImageDiagramModalProps {
   open: boolean;

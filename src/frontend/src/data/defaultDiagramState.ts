@@ -11,7 +11,7 @@ import type {
   Person,
   Triangle,
 } from '../types';
-import { APPLICATION_SETTINGS, type ApplicationSettings } from './applicationSettings';
+import { APPLICATION_SETTINGS, explicitList, explicitStringList, type ApplicationSettings } from './applicationSettings';
 import productDefaultDiagramJson from '../../../../PRODUCT_DEFAULT.diagram.json';
 
 export const FALLBACK_FILE_NAME = 'newDiagram';
@@ -191,12 +191,12 @@ export const buildDefaultDiagramState = (
       typed.functionalIndicatorDefinitions.length
         ? typed.functionalIndicatorDefinitions
         : base.functionalIndicatorDefinitions,
+    // settings-09: an explicit list in the file, even an empty one, is the
+    // file's list; the defaults are used only when the key is absent.
     sirCategories:
-      includeEmbeddedSettings &&
-      Array.isArray((typed as Record<string, unknown>).sirCategories) &&
-      ((typed as Record<string, unknown>).sirCategories as SIRCategoryDefinition[]).length
-        ? (typed as Record<string, unknown>).sirCategories as SIRCategoryDefinition[]
-        : base.sirCategories,
+      (includeEmbeddedSettings
+        ? explicitList<SIRCategoryDefinition>((typed as Record<string, unknown>).sirCategories)
+        : null) ?? base.sirCategories,
     functionalFactCategories:
       includeEmbeddedSettings &&
       Array.isArray((typed as Record<string, unknown>).functionalFactCategories)
@@ -213,11 +213,11 @@ export const buildDefaultDiagramState = (
         : base.eventCategories,
     relationshipTypes:
       includeEmbeddedSettings
-        ? sanitizeStringArray(typed.relationshipTypes) ?? base.relationshipTypes
+        ? explicitStringList(typed.relationshipTypes) ?? base.relationshipTypes
         : base.relationshipTypes,
     relationshipStatuses:
       includeEmbeddedSettings
-        ? sanitizeStringArray(typed.relationshipStatuses) ?? base.relationshipStatuses
+        ? explicitStringList(typed.relationshipStatuses) ?? base.relationshipStatuses
         : base.relationshipStatuses,
     autoSaveMinutes: toPositiveNumberOrNull(typed.autoSaveMinutes) ?? base.autoSaveMinutes,
     fileName:

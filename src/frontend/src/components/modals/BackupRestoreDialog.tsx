@@ -23,10 +23,17 @@ const buttonStyle: CSSProperties = {
   fontWeight: 500,
 };
 
-const versionLabel = (key: string, index: number, total: number): string => {
-  if (index === 0) return `${key.toUpperCase()} (most recent backup)`;
-  if (index === total - 1) return `${key.toUpperCase()} (oldest backup)`;
-  return `${key.toUpperCase()} (previous backup)`;
+/**
+ * Every slot holds the version a save replaced (review 2026-09-30
+ * settings-06), so V1 is "before the last save" on every save path. The time
+ * it was replaced is shown when it was recorded.
+ */
+const versionLabel = (key: string, index: number, total: number, replacedAt?: string | null): string => {
+  const position =
+    index === 0 ? 'before the last save' : index === total - 1 ? 'oldest backup' : 'earlier backup';
+  const when = replacedAt ? new Date(replacedAt) : null;
+  const time = when && !Number.isNaN(when.getTime()) ? `, replaced ${when.toLocaleString()}` : '';
+  return `${key.toUpperCase()} (${position}${time})`;
 };
 
 const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: BackupRestoreDialogProps) => {
@@ -103,7 +110,7 @@ const BackupRestoreDialog = ({ open, versions, onClose, onRestoreVersion }: Back
                   opacity: value ? 1 : 0.5,
                 }}
               >
-                {versionLabel(versionKey, idx, versionKeys.length)}
+                {versionLabel(versionKey, idx, versionKeys.length, versions[`replacedAt${versionKey.slice(1)}`])}
               </button>
             );
           })}

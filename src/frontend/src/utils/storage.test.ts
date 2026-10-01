@@ -8,6 +8,8 @@ import {
   setRightClickHintHidden,
   clearDiagramLocalStorage,
   parseStoredDiagramArray,
+  nextBackupVersions,
+  type BackupVersions,
 } from './storage';
 
 describe('storage — guarded writes', () => {
@@ -90,5 +92,38 @@ describe('canvas scroll hint preference', () => {
     expect(isCanvasScrollHintHidden()).toBe(false);
     expect(setCanvasScrollHintHidden(true)).toBe(true);
     expect(isCanvasScrollHintHidden()).toBe(true);
+  });
+});
+
+describe('nextBackupVersions — V1 is the version the last save replaced (review 2026-09-30 settings-06)', () => {
+  it('download saves (no file content to read) back up the version the previous save wrote', () => {
+    let record: BackupVersions = {};
+    let step = nextBackupVersions(record, 'first', null, 3, 't1');
+    expect(step.backedUp).toBeNull();
+    expect(step.versions.v1).toBeUndefined();
+    record = step.versions;
+    step = nextBackupVersions(record, 'second', null, 3, 't2');
+    expect(step.backedUp).toBe('first');
+    expect(step.versions.v1).toBe('first');
+    expect(step.versions.replacedAt1).toBe('t2');
+    record = step.versions;
+    step = nextBackupVersions(record, 'third', null, 3, 't3');
+    expect([step.versions.v1, step.versions.v2]).toEqual(['second', 'first']);
+    expect([step.versions.replacedAt1, step.versions.replacedAt2]).toEqual(['t3', 't2']);
+    expect(step.versions.latest).toBe('third');
+  });
+
+  it('a linked-file save backs up the file content it replaced', () => {
+    const step = nextBackupVersions({ latest: 'what this browser saved' }, 'new', 'on disk', 3, 't');
+    expect(step.versions.v1).toBe('on disk');
+    expect(step.versions.latest).toBe('new');
+  });
+
+  it('keeps no more than the slot count', () => {
+    let record: BackupVersions = {};
+    for (const [i, json] of ['a', 'b', 'c', 'd', 'e'].entries()) {
+      record = nextBackupVersions(record, json, null, 2, `t${i}`).versions;
+    }
+    expect([record.v1, record.v2, record.v3]).toEqual(['d', 'c', undefined]);
   });
 });

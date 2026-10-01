@@ -5,8 +5,6 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import TimelineBoardModal from './TimelineBoardModal';
 import { computeFamilyScope, defaultFocusForRoot } from '../../utils/familyScope';
 import type { EmotionalProcessEvent, Partnership, Person } from '../../types';
@@ -194,13 +192,9 @@ describe('TimelineBoardModal — person lane completeness', () => {
     expect(hoverTexts()).not.toContain('auto-generated from date field');
   });
 
-  it('test_m7a3_timeline_imports_shared_synthesizer', () => {
-    const source = readFileSync(join(__dirname, './TimelineBoardModal.tsx'), 'utf8');
-    expect(source).toContain("from '../../utils/syntheticDateEvents'");
-    expect(source).toContain('synthesizePartnershipDateEvents');
-    expect(source).toContain('synthesizePersonDateEvents');
-    expect(source).toContain('synthesizePersonIndicatorEvents');
-  });
+  // test_m7a3_timeline_imports_shared_synthesizer read this component's
+  // source for the synthesizer imports. The lanes now use the shared rule in
+  // utils/listedEvents.ts, which is tested by behaviour in listedEvents.test.ts.
 });
 
 describe('TimelineBoardModal — opening and closing', () => {

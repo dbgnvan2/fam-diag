@@ -1,9 +1,11 @@
 import { relationshipEndingForStatus, type RelationshipEnding } from './relationshipStatusKeys';
 import type { Partnership, Person } from '../types';
+import { resolveBinarySex } from './personSex';
 
 export function computeDefaultFamilyName(partner1: Person, partner2: Person): string {
-  // Same test as siblingPosition: either spelling of the stored gender.
-  const isMale = (p: Person) => p.birthSex === 'male' || p.gender === 'b' || p.gender === 'male';
+  // The shared sex resolver (review nodes-10 / struct-07), so 'Male', 'M'
+  // and a male gender symbol count here as they do on the canvas.
+  const isMale = (p: Person) => resolveBinarySex(p) === 'male';
   const male = isMale(partner1) ? partner1 : isMale(partner2) ? partner2 : partner1;
   const female = isMale(partner1) ? partner2 : isMale(partner2) ? partner1 : partner2;
 

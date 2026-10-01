@@ -1,6 +1,7 @@
 import './App.css';
 import DiagramEditor from './components/DiagramEditor';
 import EventCreator from './components/EventCreator';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const mode =
@@ -9,13 +10,19 @@ function App() {
       : null;
 
   if (mode === 'event-creator') {
-    return <EventCreator />;
+    return (
+      <ErrorBoundary>
+        <EventCreator />
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <div className="App">
-      <DiagramEditor />
-    </div>
+    <ErrorBoundary>
+      <div className="App">
+        <DiagramEditor />
+      </div>
+    </ErrorBoundary>
   );
 }
 

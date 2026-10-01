@@ -33,6 +33,12 @@ export function loadCustomModels(): AIModelOption[] {
   }
 }
 
-export function saveCustomModels(models: AIModelOption[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(models));
+/** Returns false when the browser refused the write (storage full or blocked). */
+export function saveCustomModels(models: AIModelOption[]): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(models));
+    return true;
+  } catch {
+    return false;
+  }
 }

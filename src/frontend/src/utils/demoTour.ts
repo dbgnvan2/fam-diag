@@ -23,7 +23,9 @@ export const DEFAULT_DEMO_FILE_NAME = 'PRODUCT_DEFAULT.diagram.json';
 const LEGACY_DEMO_FILE_NAMES = new Set([
   'demo family diagram',
   'demo family diagram.json',
-  DEFAULT_DEMO_FILE_NAME,
+  // Compared lower-cased: the mixed-case name never matched (review
+  // 2026-09-30 G-TEST-13), so the loaded demo was not recognised.
+  DEFAULT_DEMO_FILE_NAME.toLowerCase(),
 ]);
 
 export const isDemoDiagramFileName = (value?: string | null) => {

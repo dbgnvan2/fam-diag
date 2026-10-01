@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import type { Person } from '../types';
+import { DEFAULT_PERSON_BORDER_COLOR, effectivePersonBorderColor } from '../utils/personAppearance';
 
 const DEFAULT_SIZE = 60;
-const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 
 interface MultiPersonPropertiesPanelProps {
@@ -29,12 +29,12 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onAddEmotio
     return allMatch ? first : undefined;
   }, [selectedPeople]);
 
+  // Compare the colour each person is drawn with, which ignores a stored
+  // colour whose border is switched off (review nodes-05).
   const sharedBorderColor = useMemo(() => {
-    if (!selectedPeople.length) return DEFAULT_BORDER_COLOR;
-    const first = resolveValue(selectedPeople[0], (p) => p.borderColor, DEFAULT_BORDER_COLOR);
-    const allMatch = selectedPeople.every(
-      (person) => resolveValue(person, (p) => p.borderColor, DEFAULT_BORDER_COLOR) === first
-    );
+    if (!selectedPeople.length) return DEFAULT_PERSON_BORDER_COLOR;
+    const first = effectivePersonBorderColor(selectedPeople[0]);
+    const allMatch = selectedPeople.every((person) => effectivePersonBorderColor(person) === first);
     return allMatch ? first : undefined;
   }, [selectedPeople]);
 
@@ -77,28 +77,40 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onAddEmotio
     }
   }, [sharedSize]);
 
+  // A size is sent only when it is valid and differs from the size everyone
+  // already shares. An empty or invalid entry goes back to the shared size,
+  // or to '' ("Mixed") when sizes differ — never to a default, which a
+  // second blur would then apply to everyone (review nodes-04).
+  const parseSize = (raw: string): number | null => {
+    const num = parseInt(raw, 10);
+    return !isNaN(num) && num > 9 ? Math.min(400, num) : null;
+  };
+
   const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setSizeText(raw);
-    const num = parseInt(raw, 10);
-    if (!isNaN(num) && num > 9) {
-      onBatchUpdate(personIds, { size: Math.min(400, num) });
+    const size = parseSize(raw);
+    if (size !== null && size !== sharedSize) {
+      onBatchUpdate(personIds, { size });
     }
   };
 
   const handleSizeBlur = () => {
-    const num = parseInt(sizeText, 10);
-    if (!isNaN(num) && num > 9) {
-      const clamped = Math.min(400, num);
-      setSizeText(String(clamped));
-      onBatchUpdate(personIds, { size: clamped });
-    } else {
-      setSizeText(String(sharedSize ?? DEFAULT_SIZE));
+    const size = parseSize(sizeText);
+    if (size === null) {
+      setSizeText(sharedSize !== undefined ? String(sharedSize) : '');
+      return;
+    }
+    setSizeText(String(size));
+    if (size !== sharedSize) {
+      onBatchUpdate(personIds, { size });
     }
   };
 
+  // Choosing a colour turns the custom border on; otherwise a person whose
+  // border was off keeps drawing the default (review nodes-05).
   const handleBorderColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onBatchUpdate(personIds, { borderColor: e.target.value });
+    onBatchUpdate(personIds, { borderColor: e.target.value, borderEnabled: true });
   };
 
   const handleBackgroundToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +149,7 @@ const MultiPersonPropertiesPanel = ({ selectedPeople, onBatchUpdate, onAddEmotio
         <input
           id="multi-border-color"
           type="color"
-          value={sharedBorderColor ?? DEFAULT_BORDER_COLOR}
+          value={sharedBorderColor ?? DEFAULT_PERSON_BORDER_COLOR}
           onChange={handleBorderColorChange}
         />
         {sharedBorderColor === undefined && (

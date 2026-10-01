@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import DiagramEditor from './DiagramEditor';
 import { vi } from 'vitest';
 import { STORAGE_KEYS } from '../utils/storage';

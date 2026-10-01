@@ -128,3 +128,30 @@ export function serializeDiagramContent(state: DiagramContentState): string {
   );
   return JSON.stringify(content);
 }
+
+/**
+ * Whether a saved diagram file holds the same content as `state` (the
+ * metadata and the autosave interval are ignored). Used before linking a
+ * remembered file to the diagram restored from browser storage. A file
+ * missing any content key is treated as different.
+ */
+export function fileHoldsDiagramContent(fileData: unknown, state: DiagramContentState): boolean {
+  if (!fileData || typeof fileData !== 'object') return false;
+  const file = fileData as DiagramContentState;
+  if (!DIAGRAM_CONTENT_KEYS.every((key) => key in file)) return false;
+  return serializeDiagramContent(file) === serializeDiagramContent(state);
+}
+
+/**
+ * A short fingerprint of serialized diagram content (FNV-1a), kept in
+ * browser storage to tell on the next load whether the restored diagram is
+ * the one last saved to or opened from a file (review 2026-09-30 DE1-04).
+ */
+export const contentFingerprint = (serialized: string): string => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < serialized.length; i += 1) {
+    hash ^= serialized.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${serialized.length.toString(36)}-${hash.toString(36)}`;
+};

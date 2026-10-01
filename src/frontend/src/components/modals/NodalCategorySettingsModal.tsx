@@ -3,38 +3,45 @@
  * Each category represents a major life event type (e.g., Job Change, Illness, House Move).
  * Includes a read-only reference section showing the default NODAL event categories.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { NodalCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { Z_INDEX } from '../../constants/zIndex';
+import { EVENT_CATEGORIES } from '../../constants/eventConstants';
+import { categoryNameError, confirmCategoryDelete, type CategoryUsage } from '../../utils/categoryRename';
 
 interface NodalCategorySettingsModalProps {
   open: boolean;
   onClose: () => void;
   categories: NodalCategoryDefinition[];
+  /** Who still uses a category name — a used category cannot be deleted (settings-02). */
+  categoryUsage: (name: string) => CategoryUsage;
   onSave: (categories: NodalCategoryDefinition[]) => void;
 }
 
-const MODAL_Z = 12000;
 
-const DEFAULT_NODAL_CATEGORIES = [
-  'Birth',
-  'Death',
-  'Marriage',
-  'Separation',
-  'Divorce',
-  'Affair',
-  'Engagement',
-  'Friendship',
-];
+// struct-08: the built-in Nodal categories come from eventConstants. A copy
+// kept here had drifted from it (it lacked 'Individual' and 'Relationship').
+const DEFAULT_NODAL_CATEGORIES = EVENT_CATEGORIES.NODAL;
 
-const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: NodalCategorySettingsModalProps) => {
+const NodalCategorySettingsModal = ({ open, onClose, categories, categoryUsage, onSave }: NodalCategorySettingsModalProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [referenceExpanded, setReferenceExpanded] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // settings-05: closing the dialog drops an unfinished edit. It used to
+  // reopen with the old edit form and draft still showing.
+  useEffect(() => {
+    if (open) return;
+    setEditingId(null);
+    setDraftName('');
+    setNameError(null);
+  }, [open]);
 
   const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
@@ -84,11 +91,22 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
 
   const cancelEdit = () => {
     setEditingId(null);
+    setNameError(null);
     setDraftName('');
   };
 
   const saveEdit = () => {
-    if (!draftName.trim()) return;
+    // settings-07 / settings-08: no empty or duplicate names, and no name
+    // that is another event type's built-in category.
+    const error = categoryNameError(
+      draftName,
+      [...categories.filter((c) => c.id !== editingId).map((c) => c.name), ...EVENT_CATEGORIES.NODAL],
+      'NODAL',
+    );
+    if (error) {
+      setNameError(error);
+      return;
+    }
     if (editingId === '__new__') {
       const newCat: NodalCategoryDefinition = {
         id: `nodal-${nanoid(8)}`,
@@ -101,8 +119,11 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
     cancelEdit();
   };
 
-  const deleteCategory = (id: string) => {
-    onSave(categories.filter((c) => c.id !== id));
+  // settings-02: a category that events still use is not deleted (they
+  // would be left on a name the list no longer has); otherwise ask first.
+  const deleteCategory = (cat: { id: string; name: string }) => {
+    if (!confirmCategoryDelete(cat.name, categoryUsage(cat.name))) return;
+    onSave(categories.filter((c) => c.id !== cat.id));
   };
 
   return (
@@ -119,7 +140,7 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: MODAL_Z,
+        zIndex: Z_INDEX.SETTINGS_CATEGORY_DIALOG,
         pointerEvents: 'none',
       }}
     >
@@ -248,7 +269,7 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteCategory(cat.id)}
+                      onClick={() => deleteCategory(cat)}
                       style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: '#b00020' }}
                       aria-label={`Delete ${cat.name}`}
                     >
@@ -306,12 +327,22 @@ const NodalCategorySettingsModal = ({ open, onClose, categories, onSave }: Nodal
           <input
             type="text"
             value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
+            onChange={(e) => {
+              setDraftName(e.target.value);
+              setNameError(null);
+            }}
             placeholder="Category name"
+            aria-label="Category name"
+            aria-invalid={nameError ? true : undefined}
             style={{ flex: 1 }}
             onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); }}
           />
         </div>
+        {nameError && (
+          <div role="alert" style={{ color: '#b00020', fontSize: 12, marginBottom: 6 }}>
+            {nameError}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}>
           <button type="button" onClick={cancelEdit} style={{ padding: '3px 10px', fontSize: 12 }}>
             Cancel

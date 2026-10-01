@@ -26,6 +26,12 @@ export const STORAGE_KEYS = {
   ideas: 'family-diagram-ideas',
   predictions: 'family-diagram-predictions',
   sessionNotesLibrary: 'family-diagram-session-notes-library',
+  // The session note being typed and its five-minute backup. Names kept from
+  // before they were listed here, so saved notes still load.
+  sessionNotePrimary: 'session-note-primary',
+  sessionNoteBackup: 'session-note-backup',
+  // Fingerprint of the content last saved to or opened from a file.
+  savedContentFingerprint: 'family-diagram-saved-content-fingerprint',
   hideRightClickHint: 'family-diagram-hide-right-click-hint',
   hideCanvasScrollHint: 'family-diagram-hide-canvas-scroll-hint',
 } as const;
@@ -195,37 +201,70 @@ export const restoreDiagramFileHandle = async (): Promise<any | null> => {
   });
 };
 
-export const rotateDiagramBackups = async (key: string, backupJson: string, maxSlots = 3) => {
-  const db = await openDiagramHandleDb();
-  if (!db) return;
+export type BackupVersions = Record<string, string | null>;
+
+/**
+ * The backup slots after a save of `savedJson`. v1 always holds the version
+ * the save replaced, on every save path (review 2026-09-30 settings-06): the
+ * linked-file path passes the file's previous content; the download path
+ * passes nothing and the version recorded by the last save (`latest`) is
+ * used. A save that replaced nothing leaves the slots as they were.
+ * `replacedAtN` records when slot N's version was replaced.
+ */
+export const nextBackupVersions = (
+  current: BackupVersions,
+  savedJson: string,
+  previousJson: string | null,
+  maxSlots: number,
+  replacedAt: string
+): { versions: BackupVersions; backedUp: string | null } => {
+  const backedUp = previousJson ?? current.latest ?? null;
+  if (!backedUp) {
+    return { versions: { ...current, latest: savedJson }, backedUp: null };
+  }
   const slots = Math.max(1, Math.min(maxSlots, 20));
-  await new Promise<void>((resolve) => {
+  const versions: BackupVersions = {
+    updatedAt: replacedAt,
+    latest: savedJson,
+    v1: backedUp,
+    replacedAt1: replacedAt,
+  };
+  for (let i = 2; i <= slots; i++) {
+    versions[`v${i}`] = current[`v${i - 1}`] ?? null;
+    versions[`replacedAt${i}`] = current[`replacedAt${i - 1}`] ?? null;
+  }
+  return { versions, backedUp };
+};
+
+/** Rotate the browser backups for a save; resolves to the version backed up, if any. */
+export const rotateDiagramBackups = async (
+  key: string,
+  savedJson: string,
+  previousJson: string | null,
+  maxSlots = 3
+): Promise<string | null> => {
+  const db = await openDiagramHandleDb();
+  if (!db) return previousJson;
+  const replacedAt = new Date().toISOString();
+  return new Promise<string | null>((resolve) => {
+    let backedUp: string | null = previousJson;
     const tx = db.transaction(DIAGRAM_BACKUP_STORE, 'readwrite');
     const store = tx.objectStore(DIAGRAM_BACKUP_STORE);
     const request = store.get(key);
+    const put = (current: BackupVersions) => {
+      const next = nextBackupVersions(current, savedJson, previousJson, maxSlots, replacedAt);
+      backedUp = next.backedUp;
+      store.put(next.versions, key);
+    };
     request.onsuccess = () => {
-      const current =
-        request.result && typeof request.result === 'object'
-          ? request.result
-          : {};
-      const next: Record<string, string | null> = { updatedAt: new Date().toISOString() };
-      next.v1 = backupJson;
-      for (let i = 2; i <= slots; i++) {
-        next[`v${i}`] = (current[`v${i - 1}`] as string | null) ?? null;
-      }
-      store.put(next, key);
+      put(request.result && typeof request.result === 'object' ? request.result : {});
     };
-    request.onerror = () => {
-      const fallback: Record<string, string | null> = { v1: backupJson, updatedAt: new Date().toISOString() };
-      store.put(fallback, key);
-    };
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); resolve(); };
-    tx.onabort = () => { db.close(); resolve(); };
+    request.onerror = () => put({});
+    tx.oncomplete = () => { db.close(); resolve(backedUp); };
+    tx.onerror = () => { db.close(); resolve(backedUp); };
+    tx.onabort = () => { db.close(); resolve(backedUp); };
   });
 };
-
-export type BackupVersions = Record<string, string | null>;
 
 export const loadDiagramBackups = async (
   key: string

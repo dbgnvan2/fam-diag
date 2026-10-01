@@ -10,7 +10,7 @@
  */
 
 import type { AIProvider } from '../data/aiModels';
-import { RETRYABLE_STATUSES } from './genogram/vlmImport';
+import { RETRYABLE_STATUSES } from './httpRetry';
 
 /**
  * Timeout and retry for the ping (gap review F-20). Without a timeout a

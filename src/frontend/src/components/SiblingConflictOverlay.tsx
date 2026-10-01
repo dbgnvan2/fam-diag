@@ -74,7 +74,7 @@ interface ParentIndicatorsProps {
   keyBase: string;
   onHover?: (lineType: 'rank' | 'sex', x: number, y: number) => void;
   onHoverLeave?: () => void;
-  onClick?: () => void;
+  onClick?: (e: KonvaEventObject<MouseEvent>) => void;
 }
 
 function ParentIndicators({ topX, topY, dx, dy, conflict, keyBase, onHover, onHoverLeave, onClick }: ParentIndicatorsProps) {
@@ -148,7 +148,7 @@ interface PartnerIndicatorsProps {
   keyBase: string;
   onHover?: (lineType: 'rank' | 'sex', x: number, y: number) => void;
   onHoverLeave?: () => void;
-  onClick?: () => void;
+  onClick?: (e: KonvaEventObject<MouseEvent>) => void;
 }
 
 function PartnerIndicators({ edgeX, centreY, dir, conflict, keyBase, onHover, onHoverLeave, onClick }: PartnerIndicatorsProps) {
@@ -214,9 +214,14 @@ const SiblingConflictOverlay = ({ person, people, partnerships, onHover, onHover
           onHover({ personId: person.id, role, lineType, x, y, conflict })
       : undefined;
 
+  // Left button only: a right-click on a conflict line is for the context
+  // menu, not the conflict popup (review nodes-11).
   const makeClick = (role: 'father' | 'mother' | 'partner', conflict: ConflictResult | null) =>
     onLineClick
-      ? () => onLineClick({ personId: person.id, role, conflict })
+      ? (e: KonvaEventObject<MouseEvent>) => {
+          if (e.evt.button !== 0) return;
+          onLineClick({ personId: person.id, role, conflict });
+        }
       : undefined;
 
   return (

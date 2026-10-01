@@ -238,6 +238,24 @@ describe('EventModal', () => {
     expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('an older saved event with a listed category and no type cannot be re-saved until a type is picked (gate 2026-09-30f LOW #3)', () => {
+    const onChange = vi.fn();
+    render(
+      <EventModal
+        {...baseProps}
+        onChange={onChange}
+        lockEventType
+        eventDraft={makeDraft({ id: 'saved-1', createdAt: 1, eventType: 'FAMILY', category: 'Stress', subtype: '' })}
+      />
+    );
+    const save = screen.getByText('Save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    expect(save.title).toBe('Choose a Type first');
+    // The Type list is offered, so the user can fix it in place.
+    fireEvent.change(screen.getByLabelText('Type:'), { target: { value: 'Emotional Reactivity' } });
+    expect(onChange).toHaveBeenCalledWith('subtype', 'Emotional Reactivity');
+  });
+
   it("keeps a symptom's typed name when its category changes (gap review F-22)", () => {
     const onSetDraft = vi.fn();
     render(

@@ -1,4 +1,5 @@
 import type { Partnership, Person } from '../types';
+import { resolveBinarySex } from './personSex';
 
 export type TomanRank = 'only' | 'oldest' | 'youngest' | 'middle';
 export type TomanComposition = 'b' | 's' | 'bs' | 'unknown' | 'partial';
@@ -102,16 +103,11 @@ const ALL_POSITION_CODES = [...MALE_POSITION_CODES, ...FEMALE_POSITION_CODES];
 const hasKnownDate = (value?: string) =>
   !!value && !Number.isNaN(new Date(value).getTime());
 
+// Brother / sister code from the shared sex resolver (review nodes-10 /
+// struct-07); it also accepts 'Male', 'M', 'F' and other casings.
 const personSexCode = (person?: Person | null): 'b' | 's' | null => {
-  if (!person) return null;
-  if (person.birthSex === 'male' || person.gender === 'male' || person.gender === 'b') return 'b';
-  if (person.birthSex === 'female' || person.gender === 'female' || person.gender === 's') return 's';
-  if (person.genderIdentity === 'masculine') return 'b';
-  if (person.genderIdentity === 'feminine') return 's';
-  const gs = person.genderSymbol;
-  if (gs === 'male_cis' || gs === 'male_trans' || gs === 'intersex_masculine') return 'b';
-  if (gs === 'female_cis' || gs === 'female_trans' || gs === 'intersex_feminine') return 's';
-  return null;
+  const sex = resolveBinarySex(person);
+  return sex === 'male' ? 'b' : sex === 'female' ? 's' : null;
 };
 
 const parentPartnershipFor = (

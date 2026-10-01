@@ -2,6 +2,8 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { Stage, Layer } from 'react-konva';
 import SiblingConflictOverlay from './SiblingConflictOverlay';
+import type Konva from 'konva';
+import { vi } from 'vitest';
 import type { Person, Partnership } from '../types';
 
 const makePerson = (overrides: Partial<Person>): Person => ({
@@ -157,4 +159,31 @@ describe('SiblingConflictOverlay', () => {
     expect(fatherRankLine.attrs.stroke).toBe('#bdbdbd');
     expect(fatherRankLine.attrs.dash).toBeDefined();
   });
+
+  // Review nodes-11: Konva fires 'click' for any mouse button; a right-click
+  // on a conflict line must not open the conflict popup.
+  it('nodes-11: a right-click on a conflict line does not call onLineClick; a left click does', () => {
+    const onLineClick = vi.fn();
+    const child = makePerson({
+      id: 'child', birthSex: 'male', x: 0, y: 200,
+      parentPartnership: 'parents', siblingsComplete: true,
+      siblingPositionOverride: 'ob/b',
+    });
+    const stageRef = React.createRef<Konva.Stage>();
+    render(
+      <Stage ref={stageRef}>
+        <Layer>
+          <SiblingConflictOverlay person={child} people={[dad, mom, child]} partnerships={[parentPartnership]} onLineClick={onLineClick} />
+        </Layer>
+      </Stage>
+    );
+    // The indicator lines are the ones with the widened hit stroke.
+    const lines = stageRef.current!.find<Konva.Line>('Line').filter((line) => line.hitStrokeWidth() === 14);
+    expect(lines.length).toBe(4);
+    lines[0].fire('click', { evt: { button: 2 } }, true);
+    expect(onLineClick).not.toHaveBeenCalled();
+    lines[0].fire('click', { evt: { button: 0 } }, true);
+    expect(onLineClick).toHaveBeenCalledTimes(1);
+  });
 });
+

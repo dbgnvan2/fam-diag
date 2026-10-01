@@ -18,15 +18,20 @@ import type {
   PageNote,
 } from '../types';
 import { nanoid } from 'nanoid';
-import { EVENT_TYPE_LABELS } from '../constants/eventConstants';
-import { applyEventDraftFieldChange, normalizeEventForSave } from '../utils/eventDraft';
+import { EVENT_SUBTYPES, EVENT_TYPE_LABELS } from '../constants/eventConstants';
+import {
+  applyEventDraftFieldChange,
+  buildFamilyEventDraft,
+  canonicalFamilyCategory,
+  normalizeEventForSave,
+} from '../utils/eventDraft';
 import { partnershipDateSlots, withoutDateSlotCompanions } from '../utils/syntheticDateEvents';
 import BackupRestoreDialog from './modals/BackupRestoreDialog';
 import AppRibbon from './AppRibbon';
 import VoiceInputModal from './modals/VoiceInputModal';
 import { Stage as StageType } from 'konva/lib/Stage';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { useAutosave } from '../hooks/useAutosave';
+import { useBrowserStorageWriter } from '../hooks/useBrowserStorageWriter';
 import { useIndicatorHandlers } from '../hooks/useIndicatorHandlers';
 import { useSessionNoteHandlers } from '../hooks/useSessionNoteHandlers';
 import { usePersonOperations } from '../hooks/usePersonOperations';
@@ -52,6 +57,7 @@ import {
 import DiagramModals from './DiagramModals';
 import PredictionsPanel from './PredictionsPanel';
 import DiagramCanvas from './DiagramCanvas';
+import PropertiesPanelHost from './PropertiesPanelHost';
 import EventModal from './EventModal';
 import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
@@ -61,7 +67,9 @@ import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
 import { normalizePredictionSets } from '../utils/predictionSets';
 import {
   buildDiagramPayload as buildDiagramPayloadPure,
+  contentFingerprint,
   DIAGRAM_CONTENT_KEYS,
+  fileHoldsDiagramContent,
   serializeDiagramContent,
   type DiagramContentState,
 } from '../utils/diagramPayload';
@@ -73,6 +81,8 @@ import {
   DEFAULT_DIAGRAM_STATE,
   FALLBACK_FILE_NAME,
 } from '../data/defaultDiagramState';
+import { explicitList } from '../data/applicationSettings';
+import { categoryUsage, saveCategoryList } from '../utils/categoryRename';
 import {
   RIBBON_HELP,
   type RibbonHelpKey,
@@ -80,10 +90,7 @@ import {
 } from '../data/helpContent';
 import {
   buildTimelineJson,
-  isPersonEventBundle,
-  isTimelineJson,
-  mergePersonEventsFromBundle,
-  timelineJsonToBundle,
+  importPersonEventFile,
 } from '../utils/personEventBundle';
 import {
   type VoiceCommandOperation,
@@ -117,6 +124,7 @@ import { confirmDiscardUnsavedChanges } from '../utils/unsavedChanges';
 import { mergeDiagramData } from '../utils/diagramMerge';
 import { alignMultipleBirthAnchors } from '../utils/multipleBirthAnchors';
 import {
+  clampTimelineYear,
   isVisibleAtCutoff,
   timelineCutoffForYear,
   timelineYearBounds as computeTimelineYearBounds,
@@ -126,7 +134,6 @@ import {
   parseIsoDateToTimestamp,
   attachEventClassToEntities,
   attachFamilyEventsToPartnerships,
-  resolveImportedGender,
   normalizeImportedChildLayout,
 } from '../utils/dataNormalization';
 import {
@@ -150,8 +157,16 @@ import type {
   DemoTourStep,
   DiagramImportData,
   SessionCaptureImportData,
-  SessionCaptureOperation,
 } from '../types/diagramEditor';
+import {
+  applySessionCaptureOperations,
+  sessionCaptureSummary,
+  withUniqueOperationIds,
+} from '../utils/sessionCaptureApply';
+import type { ImageImportHints } from '../utils/genogram/vlmImport';
+import { resolveBinarySex, toggledBinarySex } from '../utils/personSex';
+import { joinCoupleNames } from '../utils/personNames';
+import { factsToDiagramImportData } from '../utils/dataImport';
 
 /** How often a refused browser-storage write is retried. */
 const STORAGE_RETRY_MS = 5000;
@@ -320,16 +335,15 @@ const DiagramEditor = () => {
   const [relationshipTypes, setRelationshipTypes] = useState<string[]>(() => {
     if (typeof window === 'undefined') return initialRelationshipTypes;
     const stored = parseStoredUserSettings();
-    return Array.isArray(stored?.relationshipTypes) && stored.relationshipTypes.length
-      ? stored.relationshipTypes
-      : parseStoredArraySetting('relationshipTypes') || initialRelationshipTypes;
+    // settings-09: a stored list, even an emptied one, is kept.
+    return explicitList<string>(stored?.relationshipTypes)
+      ?? parseStoredArraySetting('relationshipTypes') ?? initialRelationshipTypes;
   });
   const [relationshipStatuses, setRelationshipStatuses] = useState<string[]>(() => {
     if (typeof window === 'undefined') return initialRelationshipStatuses;
     const stored = parseStoredUserSettings();
-    return Array.isArray(stored?.relationshipStatuses) && stored.relationshipStatuses.length
-      ? stored.relationshipStatuses
-      : parseStoredArraySetting('relationshipStatuses') || initialRelationshipStatuses;
+    return explicitList<string>(stored?.relationshipStatuses)
+      ?? parseStoredArraySetting('relationshipStatuses') ?? initialRelationshipStatuses;
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState('');
@@ -343,6 +357,11 @@ const DiagramEditor = () => {
   // diagram is not being kept between sessions — the throw used to escape a
   // timer and the loss was invisible.
   const [failedStorageKeys, setFailedStorageKeys] = useState<Set<keyof typeof STORAGE_KEYS>>(() => new Set());
+  // A problem with the linked file or the backup folder, shown beside Save
+  // until the next successful save (review 2026-09-30 DE1-01, DE1-10,
+  // DE1-11, DE1-12). These used to fail without a word.
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
   // The last value each key was asked to hold, so a refused write can be
   // retried without waiting for the next edit.
   const latestStoredValuesRef = useRef<Partial<Record<keyof typeof STORAGE_KEYS, string>>>({});
@@ -410,9 +429,8 @@ const DiagramEditor = () => {
   const [sirCategories, setSirCategories] = useState<SIRCategoryDefinition[]>(() => {
     if (typeof window === 'undefined') return initialSirCategories;
     const stored = parseStoredUserSettings();
-    return Array.isArray(stored?.sirCategories) && stored.sirCategories.length
-      ? stored.sirCategories as SIRCategoryDefinition[]
-      : initialSirCategories;
+    // settings-09: a stored list, even an emptied one, is kept.
+    return explicitList<SIRCategoryDefinition>(stored?.sirCategories) ?? initialSirCategories;
   });
   const [functionalFactCategories, setFunctionalFactCategories] = useState<FunctionalFactCategoryDefinition[]>(() => {
     if (typeof window === 'undefined') return initialFunctionalFactCategories;
@@ -446,7 +464,9 @@ const DiagramEditor = () => {
   const [sirSettingsOpen, setSirSettingsOpen] = useState(false);
   const [indicatorSettingsOpen, setIndicatorSettingsOpen] = useState(false);
   const [indicatorDraftLabel, setIndicatorDraftLabel] = useState('');
-  const [timelineYear, setTimelineYear] = useState<number | null>(new Date().getFullYear());
+  // null until the bounds are known, then the latest year in the diagram, so
+  // nothing dated later than today is hidden by default (review DE1-08).
+  const [timelineYear, setTimelineYear] = useState<number | null>(null);
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelineSelectionIds, setTimelineSelectionIds] = useState<string[]>([]);
   // Partnership/Family ids to show as Family lanes on the timeline (separate
@@ -601,7 +621,6 @@ const DiagramEditor = () => {
   const imageDiagramInputRef = useRef<HTMLInputElement>(null);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const timelinePlayRef = useRef<NodeJS.Timeout | null>(null);
-  const [, forceTimeRefresh] = useState(0);
   const [diagramFileHandleName, setDiagramFileHandleName] = useState<string | null>(null);
   const [addFamilyModalOpen, setAddFamilyModalOpen] = useState(false);
   const [addFamilyDraft, setAddFamilyDraft] = useState<AddFamilyDraft | null>(null);
@@ -858,16 +877,10 @@ const DiagramEditor = () => {
     [timelineEntries]
   );
 
-  // Bootstrap from localStorage once on initial mount.
+  // Keep the slider year inside the bounds whenever the bounds change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setTimelineYear((prev) => {
-      if (prev == null) return timelineYearBounds.min;
-      if (prev < timelineYearBounds.min || prev > timelineYearBounds.max) {
-        return timelineYearBounds.min;
-      }
-      return prev;
-    });
+    setTimelineYear((prev) => clampTimelineYear(prev, timelineYearBounds));
   }, [timelineYearBounds]);
 
   useEffect(() => {
@@ -899,7 +912,7 @@ const DiagramEditor = () => {
   const timelineCutoffTimestamp = useMemo(() => timelineCutoffForYear(timelineYear), [timelineYear]);
 
   const timelineSliderDisabled = timelineYearBounds.min === timelineYearBounds.max;
-  const displayTimelineYear = timelineYear ?? timelineYearBounds.min;
+  const displayTimelineYear = timelineYear ?? timelineYearBounds.max;
 
   useEffect(() => {
     if (timelineSliderDisabled && timelinePlaying) {
@@ -934,12 +947,16 @@ const DiagramEditor = () => {
   const isVisibleAtTimeline = useMemo(() => isVisibleAtCutoff(timelineCutoffTimestamp), [timelineCutoffTimestamp]);
 
   useEffect(() => {
-    setSelectedPeopleIds((prev) =>
-      prev.filter((id) => {
+    setSelectedPeopleIds((prev) => {
+      const next = prev.filter((id) => {
         const person = people.find((p) => p.id === id);
         return person ? isVisibleAtTimeline(person.birthDate) : false;
-      })
-    );
+      });
+      // The same array when nothing was removed: a new one on every people
+      // change re-rendered the editor and reset the Session Notes target
+      // (review 2026-09-30 DE1-13, struct-03).
+      return next.length === prev.length ? prev : next;
+    });
     setSelectedPartnershipId((prev) => {
       if (!prev) return prev;
       const partnership = partnerships.find((p) => p.id === prev);
@@ -1182,7 +1199,7 @@ const DiagramEditor = () => {
       const prl = partnerships.find((entry) => entry.id === target.id);
       const p1 = people.find((person) => person.id === prl?.partner1_id)?.name || '';
       const p2 = people.find((person) => person.id === prl?.partner2_id)?.name || '';
-      return [p1, p2].filter(Boolean).join(' + ');
+      return joinCoupleNames(p1, p2);
     }
     const line = emotionalLines.find((entry) => entry.id === target.id);
     const p1 = people.find((person) => person.id === line?.person1_id)?.name || '';
@@ -1279,11 +1296,18 @@ const DiagramEditor = () => {
    * pass the values they set (state has not re-rendered yet); anything not
    * passed is taken from the current render.
    */
-  const markSnapshotClean = useCallback((baseline: Partial<DiagramContentState> = {}) => {
-    savedSnapshotRef.current = serializeDiagramContent({ ...diagramContentRef.current, ...baseline });
-    setIsDirty(false);
-    setLastDirtyTimestamp(null);
-  }, []);
+  const markSnapshotClean = useCallback(
+    (baseline: Partial<DiagramContentState> = {}) => {
+      const serialized = serializeDiagramContent({ ...diagramContentRef.current, ...baseline });
+      savedSnapshotRef.current = serialized;
+      // Remembered across reloads, so a restored diagram that was never saved
+      // to a file still counts as unsaved (review DE1-04).
+      writeStored('savedContentFingerprint', contentFingerprint(serialized));
+      setIsDirty(false);
+      setLastDirtyTimestamp(null);
+    },
+    [writeStored]
+  );
 
   useEffect(() => {
     const snapshot = serializeDiagramContent(diagramContentRef.current);
@@ -1358,11 +1382,6 @@ const DiagramEditor = () => {
   }, [autoSaveMinutes, writeStored]);
 
   useEffect(() => {
-    if (!isDirty) return;
-    const interval = setInterval(() => forceTimeRefresh(Date.now()), 500);
-    return () => clearInterval(interval);
-  }, [isDirty, forceTimeRefresh]);
-  useEffect(() => {
     if (!sessionNotesOpen) {
       if (sessionAutosaveTimerRef.current) {
         clearInterval(sessionAutosaveTimerRef.current);
@@ -1375,16 +1394,19 @@ const DiagramEditor = () => {
     }
     const savePrimary = () => {
       const payload = composeSessionNotePayload();
-      localStorage.setItem('session-note-primary', JSON.stringify(payload));
+      // Through writeStored: a refused write is shown with the other storage
+      // failures; a bare setItem threw out of this effect and, with no error
+      // boundary, unmounted the editor (review DE1-05).
+      writeStored('sessionNotePrimary', JSON.stringify(payload));
       setSessionAutosaveInfo((info) => ({ ...info, primary: new Date().toISOString() }));
     };
     savePrimary();
     sessionAutosavePhaseRef.current = 'backup';
     sessionAutosaveTimerRef.current = setInterval(() => {
       if (sessionAutosavePhaseRef.current === 'backup') {
-        const existing = localStorage.getItem('session-note-primary');
+        const existing = getStoredValue('sessionNotePrimary');
         if (existing) {
-          localStorage.setItem('session-note-backup', existing);
+          writeStored('sessionNoteBackup', existing);
           setSessionAutosaveInfo((info) => ({ ...info, backup: new Date().toISOString() }));
         }
         sessionAutosavePhaseRef.current = 'file';
@@ -1403,6 +1425,7 @@ const DiagramEditor = () => {
     sessionNotesOpen,
     composeSessionNotePayload,
     sessionNoteStartedAt,
+    writeStored,
   ]);
   useEffect(() => {
     if (!sessionNotesOpen) return;
@@ -1425,10 +1448,15 @@ const DiagramEditor = () => {
     buildSessionNoteFileName,
   ]);
   useEffect(() => {
-    const storedPrimary = localStorage.getItem('session-note-primary');
+    const storedPrimary = getStoredValue('sessionNotePrimary');
     if (storedPrimary) {
       try {
         const parsed = JSON.parse(storedPrimary);
+        // Keep the note's library id, so the next Save updates its entry
+        // instead of adding a copy after every reload (review DE1-14).
+        if (typeof parsed.id === 'string' && (getSessionNotesLibrary() || []).some((entry) => entry.id === parsed.id)) {
+          setSessionNoteRecordId(parsed.id);
+        }
         setSessionNoteCoachName(parsed.coachName || '');
         setSessionNoteClientName(parsed.clientName || '');
         setSessionNoteFileName(parsed.noteFileName || 'session-note.json');
@@ -1440,7 +1468,7 @@ const DiagramEditor = () => {
         // ignore malformed session note
       }
     }
-    const storedBackup = localStorage.getItem('session-note-backup');
+    const storedBackup = getStoredValue('sessionNoteBackup');
     if (storedBackup) {
       try {
         const parsed = JSON.parse(storedBackup);
@@ -1472,16 +1500,20 @@ const DiagramEditor = () => {
       setSessionOpenCandidateId(sessionOpenCandidates[0].id);
     }
   }, [sessionNotesOpen, sessionOpenCandidates, sessionOpenCandidateId]);
+  // Follow the canvas selection only when the selection itself changes —
+  // keyed on the ids, not the array, so an unrelated edit (dragging anyone)
+  // no longer resets a target the user picked in Session Notes (DE1-13).
+  const singleSelectedPersonId = selectedPeopleIds.length === 1 ? selectedPeopleIds[0] : null;
   useEffect(() => {
     if (!sessionNotesOpen) return;
-    if (selectedPeopleIds.length === 1) {
-      setSessionNotesTarget(`person:${selectedPeopleIds[0]}`);
+    if (singleSelectedPersonId) {
+      setSessionNotesTarget(`person:${singleSelectedPersonId}`);
     } else if (selectedPartnershipId) {
       setSessionNotesTarget(`partnership:${selectedPartnershipId}`);
     } else if (selectedEmotionalLineId) {
       setSessionNotesTarget(`emotional:${selectedEmotionalLineId}`);
     }
-  }, [sessionNotesOpen, selectedPeopleIds, selectedPartnershipId, selectedEmotionalLineId]);
+  }, [sessionNotesOpen, singleSelectedPersonId, selectedPartnershipId, selectedEmotionalLineId]);
 
   const {
     applyIndicatorDefinitionArray,
@@ -1567,7 +1599,19 @@ const DiagramEditor = () => {
       // keep fallback defaults if initialization ever fails
       setTriangles(initialTriangles);
     }
-    markSnapshotClean();
+    // The diagram restored from this browser is "saved" only if it is the
+    // one last saved to or opened from a file. It used to be marked clean
+    // always, so File > New or Open discarded a never-saved diagram without
+    // asking (review DE1-04). With no fingerprint yet (first run, or data
+    // from before this check) there is nothing to compare, so it counts as
+    // saved and the fingerprint starts here.
+    const restored = serializeDiagramContent(diagramContentRef.current);
+    const savedFingerprint = getStoredValue('savedContentFingerprint');
+    if (savedFingerprint == null || savedFingerprint === contentFingerprint(restored)) {
+      markSnapshotClean();
+    } else {
+      savedSnapshotRef.current = '';
+    }
   }, [markSnapshotClean]); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
@@ -1764,86 +1808,35 @@ useEffect(() => {
     }
   };
 
-  useAutosave(
-    people,
-    (data) => {
-      writeStored('people', JSON.stringify(data));
-    },
-    autosaveDelayMs
+  // The browser copy of the diagram: every key in one pass, a second after
+  // the last change and again when the page is hidden (review DE1-02/03).
+  const storedDiagram = useMemo(
+    () => ({
+      people,
+      partnerships,
+      emotionalLines,
+      triangles,
+      pageNotes,
+      fileName,
+      eventCategories,
+      relationshipTypes,
+      relationshipStatuses,
+      indicatorDefinitions: functionalIndicatorDefinitions,
+    }),
+    [
+      people,
+      partnerships,
+      emotionalLines,
+      triangles,
+      pageNotes,
+      fileName,
+      eventCategories,
+      relationshipTypes,
+      relationshipStatuses,
+      functionalIndicatorDefinitions,
+    ]
   );
-
-  useAutosave(
-    partnerships,
-    (data) => {
-      writeStored('partnerships', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    emotionalLines,
-    (data) => {
-      writeStored('emotionalLines', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    triangles,
-    (data) => {
-      writeStored('triangles', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    pageNotes,
-    (data) => {
-      writeStored('pageNotes', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    fileName,
-    (data) => {
-      writeStored('fileName', data);
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    eventCategories,
-    (data) => {
-      writeStored('eventCategories', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    relationshipTypes,
-    (data) => {
-      writeStored('relationshipTypes', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    relationshipStatuses,
-    (data) => {
-      writeStored('relationshipStatuses', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
-  useAutosave(
-    functionalIndicatorDefinitions,
-    (data) => {
-      writeStored('indicatorDefinitions', JSON.stringify(data));
-    },
-    autosaveDelayMs
-  );
-
+  useBrowserStorageWriter(storedDiagram, writeStored);
 
   const {
     handleUpdatePerson,
@@ -1970,8 +1963,7 @@ useEffect(() => {
     setPeopleAligned((prev) =>
       prev.map((p) => {
         if (p.id !== personId) return p;
-        const currentSex = (p.birthSex || (p.gender === 'male' ? 'male' : 'female')) as BirthSex;
-        const nextSex: BirthSex = currentSex === 'male' ? 'female' : 'male';
+        const nextSex: BirthSex = toggledBinarySex(p);
         const nextIdentity: GenderIdentity = nextSex === 'male' ? 'masculine' : 'feminine';
         return {
           ...p,
@@ -1985,8 +1977,10 @@ useEffect(() => {
   };
 
   const addPartnerForPerson = (person: Person) => {
-    const partnerGender = person.gender === 'male' ? 'female' : 'male';
-    const partnerOffsetX = person.gender === 'female' ? -140 : 140;
+    // Read through the shared sex rule (utils/personSex.ts), not `gender` alone.
+    const personSex = resolveBinarySex(person);
+    const partnerGender = personSex === 'male' ? 'female' : 'male';
+    const partnerOffsetX = personSex === 'female' ? -140 : 140;
     const newPartnerId = nanoid();
     const newPartnershipId = nanoid();
     const newPartnership: Partnership = {
@@ -1995,7 +1989,9 @@ useEffect(() => {
       partner2_id: newPartnerId,
       horizontalConnectorY: Math.max(person.y, person.y) + 100,
       relationshipType: 'dating',
-      relationshipStatus: 'married',
+      // Same default as every other new-partnership builder; 'married' was a
+      // status the user never chose (review 2026-09-30 DE1-15).
+      relationshipStatus: 'ongoing',
       children: [],
       events: [],
     };
@@ -2152,9 +2148,28 @@ useEffect(() => {
         const hasReadPermission =
           !restoredHandle.queryPermission ||
           (await ensureDiagramHandlePermission(restoredHandle, 'read'));
+        // Link the file only when it holds the same diagram as the copy
+        // restored from this browser. Otherwise the next edit would autosave
+        // the browser copy over a newer file — saved on another machine or in
+        // another tab (review 2026-09-30 DE1-12). The user can still Reopen it.
+        let sameDiagram = false;
         if (hasReadPermission) {
+          try {
+            const fileData = JSON.parse(await readDiagramJsonFromHandle(restoredHandle));
+            sameDiagram = fileHoldsDiagramContent(fileData, diagramContentRef.current);
+          } catch {
+            sameDiagram = false;
+          }
+        }
+        if (hasReadPermission && sameDiagram) {
           setDiagramFileHandle(restoredHandle);
         } else {
+          if (hasReadPermission) {
+            setFileNotice(
+              `"${restoredHandle.name}" differs from the diagram restored in this browser, so it was not linked. ` +
+                'Use File > Reopen to load the file, or Save As to keep this version.'
+            );
+          }
           // Permission not auto-granted (needs user gesture). Stash the handle
           // so the File menu can offer a one-click "Reopen [filename]" shortcut.
           setPendingReopenHandle(restoredHandle);
@@ -2168,7 +2183,7 @@ useEffect(() => {
         backupDirHandleRef.current = restoredBackupDir;
       }
     })();
-  }, [browserSupportsFileSystemAccess, ensureDiagramHandlePermission, setDiagramFileHandle]);
+  }, [browserSupportsFileSystemAccess, ensureDiagramHandlePermission, setDiagramFileHandle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const writeDiagramJsonToHandle = useCallback(async (handle: any, jsonString: string) => {
     const writable = await handle.createWritable();
@@ -2180,6 +2195,37 @@ useEffect(() => {
     const file = await handle.getFile();
     return await file.text();
   }, []);
+
+  /**
+   * Write a copy to the backup folder. Returns null on success or a message
+   * saying why the copy was not made. During autosave the browser cannot ask
+   * for permission (it needs a click), so only an existing grant is used.
+   */
+  const writeFolderBackup = useCallback(
+    async (
+      dirHandle: FileSystemDirectoryHandle & {
+        queryPermission?: (options: { mode: 'readwrite' }) => Promise<PermissionState>;
+        requestPermission?: (options: { mode: 'readwrite' }) => Promise<PermissionState>;
+      },
+      name: string,
+      json: string,
+      isAutosave: boolean
+    ): Promise<string | null> => {
+      try {
+        const perm = isAutosave
+          ? await dirHandle.queryPermission?.({ mode: 'readwrite' })
+          : await dirHandle.requestPermission?.({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          return 'Backups to the folder are paused until you click Save to allow them.';
+        }
+        await writeFileBackup(dirHandle, name, json, backupCount);
+        return null;
+      } catch (error) {
+        return `The backup copy was not written: ${error instanceof Error ? error.message : String(error)}.`;
+      }
+    },
+    [backupCount]
+  );
 
   const saveDiagramToCurrentTarget = useCallback(
     async ({
@@ -2209,12 +2255,24 @@ useEffect(() => {
       }
 
       if (handle) {
-        const hasPermission = await ensureDiagramHandlePermission(handle, 'readwrite');
-        if (!hasPermission) {
-          if (!forceChooseLocation) {
-            setDiagramFileHandle(null);
+        if (isAutosave) {
+          // Without a click, the browser cannot be asked for write access.
+          // Autosave used to drop the file link, download a copy and mark
+          // the diagram saved — the opened file was never updated. Now it
+          // keeps the link, stays unsaved and says what to do.
+          const current = handle.queryPermission ? await handle.queryPermission({ mode: 'readwrite' }) : 'granted';
+          if (current !== 'granted') {
+            setFileNotice(`Autosave cannot write to "${handle.name}" until you click Save once to allow it.`);
+            return false;
           }
-          handle = null;
+        } else {
+          const hasPermission = await ensureDiagramHandlePermission(handle, 'readwrite');
+          if (!hasPermission) {
+            if (!forceChooseLocation) {
+              setDiagramFileHandle(null);
+            }
+            handle = null;
+          }
         }
       }
 
@@ -2232,9 +2290,18 @@ useEffect(() => {
         } catch {
           priorJson = null;
         }
-        await writeDiagramJsonToHandle(handle, jsonString);
+        try {
+          await writeDiagramJsonToHandle(handle, jsonString);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          const message = `Could not save "${resolvedFileName}": ${reason}. The diagram is not saved to the file.`;
+          setFileNotice(message);
+          if (!isAutosave) alert(message);
+          return false;
+        }
+        setFileNotice(null);
+        await rotateDiagramBackups(backupKey, jsonString, priorJson, backupCount);
         if (priorJson) {
-          await rotateDiagramBackups(backupKey, priorJson, backupCount);
 
           // Write file-based backup to the same folder as the diagram file.
           // On first save we auto-prompt for the directory (pre-navigated to the file's folder).
@@ -2253,12 +2320,7 @@ useEffect(() => {
             }
           }
           if (dirHandle) {
-            try {
-              const perm = await (dirHandle as any).requestPermission({ mode: 'readwrite' });
-              if (perm === 'granted') {
-                await writeFileBackup(dirHandle, resolvedFileName, priorJson, backupCount);
-              }
-            } catch { /* silently skip if permission denied */ }
+            setBackupNotice(await writeFolderBackup(dirHandle, resolvedFileName, priorJson, isAutosave));
           }
         }
         setFileName(resolvedFileName);
@@ -2274,23 +2336,21 @@ useEffect(() => {
       a.download = resolvedFileName;
       a.click();
       URL.revokeObjectURL(url);
-      await rotateDiagramBackups(backupKey, jsonString, backupCount);
-
-      // Write file-based backup for the download path too
-      if (backupDirHandleRef.current) {
-        try {
-          const perm = await (backupDirHandleRef.current as any).requestPermission({ mode: 'readwrite' });
-          if (perm === 'granted') {
-            await writeFileBackup(backupDirHandleRef.current, resolvedFileName, jsonString, backupCount);
-          }
-        } catch { /* silently skip */ }
+      // Back up the version this save replaced (the one the last save
+      // recorded), as the linked-file path does. This path used to back up
+      // what it had just written, so "V1" restored nothing (review
+      // 2026-09-30 settings-06).
+      const replacedJson = await rotateDiagramBackups(backupKey, jsonString, null, backupCount);
+      if (replacedJson && backupDirHandleRef.current) {
+        setBackupNotice(await writeFolderBackup(backupDirHandleRef.current, resolvedFileName, replacedJson, isAutosave));
       }
+      setFileNotice(null);
       setFileName(resolvedFileName);
       markSnapshotClean(payload);
       setLastSavedAt(Date.now());
       return true;
     },
-    [backupCount, buildDiagramPayload, ensureDiagramHandlePermission, fileName, markSnapshotClean, readDiagramJsonFromHandle, setDiagramFileHandle, writeDiagramJsonToHandle]
+    [backupCount, buildDiagramPayload, ensureDiagramHandlePermission, fileName, markSnapshotClean, readDiagramJsonFromHandle, setDiagramFileHandle, writeDiagramJsonToHandle, writeFolderBackup]
   );
 
   // Always points to the latest saveDiagramToCurrentTarget so async flows
@@ -2311,8 +2371,9 @@ useEffect(() => {
         forceChooseLocation: false,
         allowPicker: false,
         isAutosave: true,
-      }).catch(() => {
-        // Keep the diagram dirty if the autosave write fails.
+      }).catch((error) => {
+        // The diagram stays unsaved; the reason is shown beside Save.
+        setFileNotice(`Autosave failed: ${error instanceof Error ? error.message : String(error)}.`);
       });
     }, autosaveDelayMs);
     return () => window.clearTimeout(timeout);
@@ -2322,6 +2383,28 @@ useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autosaveDelayMs, fileName, isDirty, ...diagramContentDeps]);
 
+  /**
+   * Forget everything that points at the diagram being replaced: the
+   * Properties panel item, selections, section popups, property dialogs and
+   * an open menu. Called on Open / Restore / Import and File > New (review
+   * 2026-09-30 DE1-07: a panel edit after a backup restore wrote the stale
+   * snapshot back over the restored person).
+   */
+  const clearTransientEditorState = useCallback(() => {
+    setPropertiesPanelItem(null);
+    setPropertiesPanelIntent(null);
+    setSelectedPeopleIds([]);
+    setSelectedPartnershipId(null);
+    setSelectedEmotionalLineId(null);
+    setSelectedChildId(null);
+    setSelectedFamilyIds([]);
+    setPersonSectionPopup(null);
+    setPartnershipSectionPopup(null);
+    setFamilyPropertyModal(null);
+    setTrianglePropertyModal(null);
+    setContextMenu(null);
+  }, []);
+
   const replaceDiagramState = (
     data: any,
     sourceFileName?: string,
@@ -2330,6 +2413,7 @@ useEffect(() => {
     if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
       throw new Error('Invalid file format');
     }
+    clearTransientEditorState();
     const normalizeLayout = options?.normalizeLayout ?? false;
     const nextDefinitions: FunctionalIndicatorDefinition[] = Array.isArray(data.functionalIndicatorDefinitions)
       ? data.functionalIndicatorDefinitions
@@ -2366,13 +2450,15 @@ useEffect(() => {
     if (Array.isArray(data.eventCategories) && data.eventCategories.length > 0) {
       setEventCategories(data.eventCategories);
     }
-    if (Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0) {
+    // settings-09: a list in the file, even an empty one, is the file's
+    // list; a file without the key keeps the current one.
+    if (Array.isArray(data.relationshipTypes)) {
       setRelationshipTypes(data.relationshipTypes);
     }
-    if (Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0) {
+    if (Array.isArray(data.relationshipStatuses)) {
       setRelationshipStatuses(data.relationshipStatuses);
     }
-    if (Array.isArray(data.sirCategories) && data.sirCategories.length > 0) {
+    if (Array.isArray(data.sirCategories)) {
       setSirCategories(data.sirCategories);
     }
     const nextFunctionalFactCategories = Array.isArray(data.functionalFactCategories)
@@ -2404,7 +2490,7 @@ useEffect(() => {
     setIdeasText(nextIdeasText);
     setPredictionSets(nextPredictionSets);
     setTimelinePlaying(false);
-    setTimelineYear(new Date().getFullYear());
+    setTimelineYear(null);
     closeTimeline();
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
@@ -2422,13 +2508,9 @@ useEffect(() => {
           ? data.eventCategories
           : eventCategories,
       relationshipTypes:
-        Array.isArray(data.relationshipTypes) && data.relationshipTypes.length > 0
-          ? data.relationshipTypes
-          : relationshipTypes,
+        explicitList<string>(data.relationshipTypes) ?? relationshipTypes,
       relationshipStatuses:
-        Array.isArray(data.relationshipStatuses) && data.relationshipStatuses.length > 0
-          ? data.relationshipStatuses
-          : relationshipStatuses,
+        explicitList<string>(data.relationshipStatuses) ?? relationshipStatuses,
       ideasText: nextIdeasText,
       predictionSets: nextPredictionSets,
       functionalFactCategories: nextFunctionalFactCategories,
@@ -2448,7 +2530,9 @@ useEffect(() => {
     setImportModeDialogOpen(true);
   };
 
-  const beginSessionCaptureFlow = (data: SessionCaptureImportData, sourceFileName: string) => {
+  const beginSessionCaptureFlow = (rawData: SessionCaptureImportData, sourceFileName: string) => {
+    // Repeated operation ids would share one checkbox (review capture-03).
+    const data = withUniqueOperationIds(rawData);
     const defaults: Record<string, boolean> = {};
     data.operations.forEach((operation) => {
       const confidence = operation.confidence ?? 0.5;
@@ -2459,39 +2543,6 @@ useEffect(() => {
     setPendingSessionCaptureFileName(sourceFileName);
     setSessionCaptureSelections(defaults);
     setSessionCaptureDialogOpen(true);
-  };
-
-  const findPersonIndexForSessionOp = (
-    peopleList: Person[],
-    operation: SessionCaptureOperation
-  ): number => {
-    const normalize = (value?: string) =>
-      (value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-    const hints = operation.matchHints;
-    const payloadName =
-      (operation.payload?.personName as string | undefined) ||
-      (operation.payload?.name as string | undefined);
-    if (hints?.personId) {
-      const byId = peopleList.findIndex((person) => person.id === hints.personId);
-      if (byId >= 0) return byId;
-    }
-    const targetNames = [
-      hints?.personName,
-      ...(hints?.aliases || []),
-      payloadName,
-    ]
-      .filter(Boolean)
-      .map((entry) => normalize(entry as string))
-      .filter(Boolean);
-    if (!targetNames.length) return -1;
-    return peopleList.findIndex((person) => {
-      const personName = normalize(person.name || [person.firstName, person.lastName].filter(Boolean).join(' '));
-      return targetNames.some((name) => name === personName || personName.startsWith(`${name} `));
-    });
   };
 
   const completeSessionCaptureImport = () => {
@@ -2507,149 +2558,11 @@ useEffect(() => {
       return;
     }
 
-    const dedupeEventFingerprint = (personId: string, event: EmotionalProcessEvent) =>
-      `${personId}|${event.date || ''}|${(event.category || '').trim().toLowerCase()}|${(event.observations || '').trim().toLowerCase()}`;
-
-    const nextPeople = [...people];
-    const existingFingerprints = new Set<string>();
-    nextPeople.forEach((person) => {
-      (person.events || []).forEach((event) => {
-        existingFingerprints.add(dedupeEventFingerprint(person.id, event));
-      });
-    });
-
-    let undatedEventCount = 0;
-    selectedOps.forEach((operation) => {
-      if (operation.type === 'upsert_person') {
-        const matchedIndex = findPersonIndexForSessionOp(nextPeople, operation);
-        const payload = operation.payload || {};
-        if (matchedIndex >= 0) {
-          const existing = nextPeople[matchedIndex];
-          const incomingNotes = typeof payload.notes === 'string' ? payload.notes.trim() : '';
-          const mergedNotes =
-            incomingNotes && existing.notes && !existing.notes.includes(incomingNotes)
-              ? `${existing.notes}\n${incomingNotes}`
-              : existing.notes || incomingNotes || undefined;
-          nextPeople[matchedIndex] = {
-            ...existing,
-            name: existing.name || payload.name || payload.personName || existing.name,
-            firstName: existing.firstName || payload.firstName,
-            lastName: existing.lastName || payload.lastName,
-            birthDate: existing.birthDate || payload.birthDate,
-            deathDate: existing.deathDate || payload.deathDate,
-            gender: existing.gender || payload.gender,
-            notes: mergedNotes,
-          };
-          return;
-        }
-        const baseName = (payload.name || payload.personName || operation.matchHints?.personName || '').trim();
-        if (!baseName) return;
-        const newPerson: Person = {
-          id: (operation.matchHints?.personId as string) || nanoid(),
-          name: baseName,
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          birthDate: payload.birthDate,
-          deathDate: payload.deathDate,
-          gender: resolveImportedGender(payload.gender, baseName),
-          notes: payload.notes,
-          x: 120 + (nextPeople.length % 10) * 90,
-          y: 140 + Math.floor(nextPeople.length / 10) * 90,
-          partnerships: [],
-          events: [],
-        };
-        nextPeople.push(newPerson);
-        return;
-      }
-
-      if (operation.type === 'add_person_event') {
-        const matchedIndex = findPersonIndexForSessionOp(nextPeople, operation);
-        const payload = operation.payload || {};
-        let personIndex = matchedIndex;
-        if (personIndex < 0) {
-          const fallbackName =
-            (operation.matchHints?.personName || payload.personName || payload.name || '').trim();
-          if (!fallbackName) return;
-          const newPerson: Person = {
-            id: (operation.matchHints?.personId as string) || nanoid(),
-            name: fallbackName,
-            gender: resolveImportedGender(undefined, fallbackName),
-            x: 120 + (nextPeople.length % 10) * 90,
-            y: 140 + Math.floor(nextPeople.length / 10) * 90,
-            partnerships: [],
-            events: [],
-          };
-          nextPeople.push(newPerson);
-          personIndex = nextPeople.length - 1;
-        }
-        const target = nextPeople[personIndex];
-        const event: EmotionalProcessEvent = {
-          id: payload.id || nanoid(),
-          // No date in the capture: leave it blank rather than stamping today,
-          // which would place the event at the wrong point on the timeline.
-          date: payload.date || '',
-          startDate: payload.startDate || payload.date || '',
-          category: payload.category || 'Session Event',
-          eventType: payload.eventType || 'NODAL',
-          status: payload.status || 'discrete',
-          intensity: typeof payload.intensity === 'number' ? payload.intensity : 0,
-          frequency: typeof payload.frequency === 'number' ? payload.frequency : 0,
-          impact: typeof payload.impact === 'number' ? payload.impact : 0,
-          // 0 is "not rated", as for the other ratings; 5 was an invented score.
-          howWell: typeof payload.howWell === 'number' ? payload.howWell : 0,
-          otherPersonName: payload.otherPersonName || '',
-          primaryPersonName: target.name || payload.primaryPersonName || '',
-          wwwwh: payload.wwwwh || '',
-          observations: payload.observations || payload.notes || '',
-          priorEventsNote: payload.priorEventsNote || '',
-          reflectionsNote: payload.reflectionsNote || '',
-          createdAt: payload.createdAt || Date.now(),
-          eventClass: 'individual',
-        };
-        const fingerprint = dedupeEventFingerprint(target.id, event);
-        if (existingFingerprints.has(fingerprint)) return;
-        existingFingerprints.add(fingerprint);
-        if (!event.startDate) undatedEventCount += 1;
-        nextPeople[personIndex] = {
-          ...target,
-          events: [...(target.events || []), event],
-        };
-        return;
-      }
-
-      if (operation.type === 'upsert_partnership') {
-        const payload = operation.payload || {};
-        const p1Op: SessionCaptureOperation = {
-          ...operation,
-          type: 'upsert_person',
-          payload: { personName: payload.partner1Name || payload.partner1 },
-          matchHints: { personName: payload.partner1Name || payload.partner1 },
-        };
-        const p2Op: SessionCaptureOperation = {
-          ...operation,
-          type: 'upsert_person',
-          payload: { personName: payload.partner2Name || payload.partner2 },
-          matchHints: { personName: payload.partner2Name || payload.partner2 },
-        };
-        [p1Op, p2Op].forEach((synthetic) => {
-          const matchedIndex = findPersonIndexForSessionOp(nextPeople, synthetic);
-          if (matchedIndex >= 0) return;
-          const name = (synthetic.payload?.personName as string | undefined)?.trim();
-          if (!name) return;
-          nextPeople.push({
-            id: nanoid(),
-            name,
-            gender: resolveImportedGender(undefined, name),
-            x: 120 + (nextPeople.length % 10) * 90,
-            y: 140 + Math.floor(nextPeople.length / 10) * 90,
-            partnerships: [],
-            events: [],
-          });
-        });
-      }
-    });
-
-    setPeopleAligned(() => nextPeople);
+    // utils/sessionCaptureApply.ts: the matching, event building and
+    // partnership creation, and an honest count of what was applied.
+    const result = applySessionCaptureOperations(people, partnerships, selectedOps);
+    setPartnerships(result.partnerships);
+    setPeopleAligned(() => result.people);
 
     if ((pendingSessionCaptureData.ambiguityNotes || []).length) {
       const imported = pendingSessionCaptureData.ambiguityNotes!.join('\n');
@@ -2660,14 +2573,7 @@ useEffect(() => {
     setPendingSessionCaptureData(null);
     setPendingSessionCaptureFileName('');
     setSessionCaptureSelections({});
-    alert(
-      `Applied ${selectedOps.length} reviewed session operations.` +
-        (undatedEventCount
-          ? `\n${undatedEventCount} event${undatedEventCount === 1 ? '' : 's'} had no date and ${
-              undatedEventCount === 1 ? 'was' : 'were'
-            } added without one.`
-          : '')
-    );
+    alert(sessionCaptureSummary(result));
   };
 
   const mergeDiagramState = (data: DiagramImportData, options?: { allowNewPeople?: boolean }) => {
@@ -2745,13 +2651,19 @@ useEffect(() => {
       }
       // Imported diagrams should open with all elements visible rather than staying on a prior year cutoff.
       setTimelinePlaying(false);
-      setTimelineYear(new Date().getFullYear());
+      setTimelineYear(null);
       closeTimeline();
       setImportModeDialogOpen(false);
       setPendingImportData(null);
       setPendingImportFileName('');
     } catch (error) {
-      alert('Error importing data');
+      // Say what failed (it was a bare "Error importing data"). The diagram
+      // is unchanged: both paths compute the new state before setting any.
+      console.error('Import failed:', error);
+      alert(
+        `The import could not be completed: ${error instanceof Error ? error.message : String(error)}. ` +
+          'The diagram was not changed.'
+      );
     }
   };
 
@@ -2777,16 +2689,27 @@ useEffect(() => {
           types: DIAGRAM_FILE_PICKER_TYPES,
         });
         setDiagramFileHandle(handle);
-        await saveDiagramToCurrentTargetRef.current({ requestedFileName: handle.name, forceChooseLocation: false, allowPicker: false });
+        const saved = await saveDiagramToCurrentTargetRef.current({ requestedFileName: handle.name, forceChooseLocation: false, allowPicker: false });
+        // A file that could not be written is not kept as the save target
+        // (the save itself has already said why).
+        if (!saved) setDiagramFileHandle(null);
         return;
       } catch (err) {
         if ((err as Error)?.name === 'AbortError') return; // user cancelled — do nothing
-        // Unexpected error: fall through to name-dialog fallback
+        // Say what failed before offering the download fallback; this used
+        // to fall through without a word (review 2026-09-30 DE2-08).
+        setDiagramFileHandle(null);
+        alert(
+          `Save As could not use the chosen file (${err instanceof Error ? err.message : String(err)}). ` +
+            'Choose a name to download a copy instead.'
+        );
       }
     }
     // Fallback for browsers without showSaveFilePicker
     openSaveAsDialog((name: string) => {
-      void saveDiagramToCurrentTargetRef.current({ requestedFileName: name, forceChooseLocation: false, allowPicker: false });
+      void saveDiagramToCurrentTargetRef.current({ requestedFileName: name, forceChooseLocation: false, allowPicker: false }).catch(
+        (error) => setFileNotice(`Could not save: ${error instanceof Error ? error.message : String(error)}.`)
+      );
     });
   }, [openSaveAsDialog, setDiagramFileHandle]);
 
@@ -2799,11 +2722,16 @@ useEffect(() => {
 
   const handleAiSettingsSave = useCallback(
     (values: { anthropicApiKey: string; deepseekApiKey: string; modelId: string }) => {
-      localStorage.setItem('anthropic_api_key', values.anthropicApiKey);
-      localStorage.setItem('deepseek_api_key', values.deepseekApiKey);
-      localStorage.setItem('selected_model_id', values.modelId);
-      // Keep the legacy key in sync for any reader that hasn't migrated yet.
-      localStorage.setItem('anthropic_model', values.modelId);
+      try {
+        localStorage.setItem('anthropic_api_key', values.anthropicApiKey);
+        localStorage.setItem('deepseek_api_key', values.deepseekApiKey);
+        localStorage.setItem('selected_model_id', values.modelId);
+        // Keep the legacy key in sync for any reader that hasn't migrated yet.
+        localStorage.setItem('anthropic_model', values.modelId);
+      } catch {
+        // Used for this session; say it will not be remembered.
+        alert('The AI settings could not be stored in this browser (storage is full or blocked). They apply until the page is closed.');
+      }
       setAiSettingsAnthropicApiKey(values.anthropicApiKey);
       setAiSettingsDeepseekApiKey(values.deepseekApiKey);
       setAiSettingsModelId(values.modelId);
@@ -2827,12 +2755,7 @@ useEffect(() => {
   const handleImageDiagramAnalyze = useCallback(
     async (
       imageBlob: Blob,
-      hints?: {
-        generationCount: number;
-        expectedPersonCount: number;
-        handDrawn: boolean;
-        hasNotes: boolean;
-      }
+      hints?: ImageImportHints
     ) => {
       if (setImageDiagramAnalyzing) {
         setImageDiagramAnalyzing(true);
@@ -2857,6 +2780,11 @@ useEffect(() => {
         setImportLogOpen(true);
       };
 
+      // Created before the first await, so Cancel works from the first moment
+      // (it used to be created after two dynamic imports, and a Cancel during
+      // "Preparing…" did nothing — review 2026-09-30 DE2-06).
+      const abortController = new AbortController();
+      imageDiagramAbortRef.current = abortController;
       try {
         // VLM-based genogram extraction: send whole image to Claude Vision for holistic reading
         const modelId =
@@ -2878,13 +2806,10 @@ useEffect(() => {
 
         log.info(`Using VLM for extraction: ${readiness.model.label}`);
 
-        // Import vlmImport at the top if not already imported
+        // vlmImport is loaded on demand (its own chunk). dataImport is
+        // imported statically: useFileOperations already pulls it into the
+        // main chunk, so a dynamic import here split nothing.
         const { vlmImport, GENOGRAM_IMPORT_COST_ESTIMATE } = await import('../utils/genogram/vlmImport');
-        const { factsToDiagramImportData } = await import('../utils/dataImport');
-
-        // Create abort controller for cancellation
-        const abortController = new AbortController();
-        imageDiagramAbortRef.current = abortController;
 
         // Extract facts from image using VLM
         const facts = await vlmImport(imageBlob, {
@@ -2898,7 +2823,10 @@ useEffect(() => {
           timeoutMs: 180000,
           onProgress: (msg) => setImageDiagramProgress(msg),
           signal: abortController.signal,
+          hints,
         });
+        // Cancelled while the reply was on its way: add nothing.
+        if (abortController.signal.aborted) return;
 
         log.info(`Extracted ${facts.people?.length ?? 0} people from image`);
         if (facts.uncertainties && facts.uncertainties.length > 0) {
@@ -2917,12 +2845,23 @@ useEffect(() => {
           return;
         }
 
-        setPeople((prev) => [...prev, ...people]);
-        setPartnerships((prev) => [...prev, ...partnerships]);
         setImageDiagramModalOpen(false);
-        log.info(`Imported ${people.length} people and ${partnerships.length} partnerships.`);
+        log.info(`Read ${people.length} people and ${partnerships.length} partnerships.`);
         log.info(`Estimated cost per image: ~$${GENOGRAM_IMPORT_COST_ESTIMATE.estimatedCostPerImage.toFixed(3)} USD`);
+        // Like every other import: the user chooses Replace or Merge, instead
+        // of the people being appended to the diagram unasked; and when the
+        // model was unsure of anything, the log says what (review DE2-05).
+        beginImportFlow(diagramData, 'image import', 'import');
+        const uncertain = facts.uncertainties?.length ?? 0;
+        if (uncertain > 0) {
+          showLog(
+            `${people.length} people and ${partnerships.length} partnerships read from the image. ` +
+              `The reader was unsure of ${uncertain} thing${uncertain === 1 ? '' : 's'} — check them on the diagram.`
+          );
+        }
       } catch (error) {
+        // A cancel is not a failure to report.
+        if (abortController.signal.aborted) return;
         const message = error instanceof Error ? error.message : 'Unknown error';
         log.error(`Caught exception: ${message}`);
         showLog(`Analysis failed: ${message}`);
@@ -3012,6 +2951,7 @@ useEffect(() => {
     replaceDiagramState,
     beginImportFlow,
     beginSessionCaptureFlow,
+    clearTransientEditorState,
     setDiagramFileHandle,
     markSnapshotClean,
     triggerSaveAs,
@@ -3276,26 +3216,18 @@ useEffect(() => {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(String(event.target?.result || ''));
-        const bundle = isTimelineJson(parsed)
-          ? timelineJsonToBundle(parsed)
-          : isPersonEventBundle(parsed)
-          ? parsed
-          : null;
-        if (!bundle) {
+        // bundle-01: the same import as File › Import (useFileOperations);
+        // it shows the counts and asks before changing any event.
+        const outcome = importPersonEventFile(parsed, people, (message) => window.confirm(message));
+        if (outcome.status === 'invalid') {
           throw new Error('Not a person-event bundle');
         }
-        const result = mergePersonEventsFromBundle(people, bundle);
-        setPeople(result.people);
-        setTimelineYear(new Date().getFullYear());
-        setTimelinePlaying(false);
-        const summary = result.summary;
-        const unmatched =
-          summary.unmatchedPeople.length > 0
-            ? `\nUnmatched: ${summary.unmatchedPeople.join(', ')}`
-            : '';
-        alert(
-          `Imported person events.\nMatched people: ${summary.matchedPeople}\nAdded: ${summary.addedEvents}\nUpdated: ${summary.updatedEvents}\nRemoved: ${summary.removedEvents}${unmatched}`
-        );
+        if (outcome.status === 'applied') {
+          setPeople(outcome.people);
+          setTimelineYear(null);
+          setTimelinePlaying(false);
+        }
+        if (outcome.status === 'applied' || outcome.status === 'no-changes') alert(outcome.message);
       } catch {
         alert('Error parsing timeline/person events JSON.');
       }
@@ -3311,12 +3243,16 @@ useEffect(() => {
   };
 
   const handleQuit = () => {
-    const confirmQuit = window.confirm(
-      'Quit the Family Diagram Maker? Unsaved changes will be lost.'
-    );
-    if (confirmQuit) {
-      window.close();
-    }
+    // Ask only when there is something to lose (it warned every time), and
+    // say so when the browser will not close the tab: browsers only let a
+    // page close a tab it opened itself (review 2026-09-30 DE2-11).
+    if (!confirmDiscardUnsavedChanges(isDirty, 'Quit the Family Diagram Maker')) return;
+    window.close();
+    window.setTimeout(() => {
+      if (!window.closed) {
+        alert('The browser does not let the app close this tab. Close it yourself; the diagram is kept in this browser.');
+      }
+    }, 300);
   };
 
   const {
@@ -3356,16 +3292,6 @@ useEffect(() => {
       const a = document.createElement('a');
       a.href = uri;
       a.download = 'family-diagram.png';
-      a.click();
-    }
-  };
-
-  const handleExportSVG = () => {
-    const uri = stageRef.current?.toDataURL({ mimeType: 'image/svg+xml' });
-    if (uri) {
-      const a = document.createElement('a');
-      a.href = uri;
-      a.download = 'family-diagram.svg';
       a.click();
     }
   };
@@ -3431,11 +3357,9 @@ useEffect(() => {
       parent1: { sex: 'male' as const, firstName: '', birthDate: '' },
       parent2: { sex: 'female' as const, firstName: '', birthDate: '' },
       familySurname: '',
-      children: [
-        { sex: 'male' as const, firstName: '', birthDate: '' },
-        { sex: 'female' as const, firstName: '', birthDate: '' },
-        { sex: 'male' as const, firstName: '', birthDate: '' },
-      ],
+      // settings-03: no child rows until the user adds one. Three preset
+      // rows (male, female, male) were created as blank children on Save.
+      children: [],
     });
     setAddFamilyPosition(position);
     setAddFamilyModalOpen(true);
@@ -3560,7 +3484,7 @@ useEffect(() => {
 
   const openFamilyPropertyModal = (
     partnershipId: string,
-    seed: Partial<EmotionalProcessEvent>,
+    seed: { category?: string; subtype?: string },
     position: { x: number; y: number },
     modalTitle?: string
   ) => {
@@ -3568,34 +3492,19 @@ useEffect(() => {
     if (!partnership) return;
     const partner1 = people.find((p) => p.id === partnership.partner1_id);
     const partner2 = people.find((p) => p.id === partnership.partner2_id);
-    // No date and no ratings until the user gives them (author decisions
-    // 2026-09-30).
+    // No date, no ratings and no category until the user gives them (author
+    // decisions 2026-09-30; review DE2-03).
     setFamilyPropertyModal({
       partnershipId,
       position,
       modalTitle,
-      draft: {
-        date: '',
-        startDate: '',
-        category: 'Triangles',
-        subtype: 'Functioning',
-        status: 'ongoing',
-        intensity: 0,
-        frequency: 0,
-        impact: 0,
-        howWell: 0,
-        wwwwh: '',
-        observations: '',
-        primaryPersonName: partner1?.name || '',
-        otherPersonName: partner2?.name || '',
-        ...seed,
-        id: nanoid(),
-        eventType: (seed?.eventType as EventType | undefined) || 'FAMILY',
-        eventClass: seed?.eventClass || 'family',
-        anchorType: 'FAMILY',
-        anchorId: partnershipId,
-        createdAt: Date.now(),
-      },
+      draft: buildFamilyEventDraft({
+        partnershipId,
+        partner1Name: partner1?.name,
+        partner2Name: partner2?.name,
+        category: seed.category,
+        subtype: seed.subtype,
+      }),
     });
   };
 
@@ -3685,16 +3594,7 @@ useEffect(() => {
       onClick: () => {
         openFamilyPropertyModal(
           partnershipId,
-          {
-            eventType: 'FAMILY',
-            subtype: processType,
-            category,
-            eventClass: 'emotional-pattern',
-            status: 'ongoing',
-            intensity: 1,
-            frequency: 1,
-            impact: 1,
-          },
+          { subtype: processType, category },
           pos,
           `Family ${menuGroup} ${label}`
         );
@@ -3707,20 +3607,16 @@ useEffect(() => {
       items: [
         {
           label: 'Triangles',
-          children: [
-            makeFamilyItem('Functioning', 'Functioning', 'Triangles', 'Triangles'),
-            makeFamilyItem('Flexibility', 'Flexibility', 'Triangles', 'Triangles'),
-            makeFamilyItem('Stress Response', 'Stress Response', 'Triangles', 'Triangles'),
-          ],
+          // From eventConstants, so a new subtype reaches the menu (struct-08).
+          children: (EVENT_SUBTYPES.FAMILY?.Triangles || []).map((subtype) =>
+            makeFamilyItem(subtype, subtype, 'Triangles', 'Triangles')
+          ),
         },
         {
           label: 'Stressors',
-          children: [
-            makeFamilyItem('Emotional Reactivity', 'Emotional Reactivity', 'Stress', 'Stressors'),
-            makeFamilyItem('Adaptability', 'Adaptability', 'Stress', 'Stressors'),
-            makeFamilyItem('Family Stressor', 'Family Stressor', 'Stress', 'Stressors'),
-            makeFamilyItem('Chronic Stress', 'Chronic Stress', 'Stress', 'Stressors'),
-          ],
+          children: (EVENT_SUBTYPES.FAMILY?.Stress || []).map((subtype) =>
+            makeFamilyItem(subtype, subtype, 'Stress', 'Stressors')
+          ),
         },
         {
           label: 'Timeline',
@@ -3739,7 +3635,7 @@ useEffect(() => {
   };
 
   const handleFamilyAddGenericEvent = (partnershipId: string, position: { x: number; y: number }) => {
-    openFamilyPropertyModal(partnershipId, { eventType: 'FAMILY' as EventType, eventClass: 'relationship' }, position, 'Family Add Event');
+    openFamilyPropertyModal(partnershipId, {}, position, 'Family Add Event');
   };
 
   const {
@@ -3756,6 +3652,9 @@ useEffect(() => {
     handleTriangleAreaContextMenu,
     handleSelect,
     handlePartnershipSelect,
+    selectSystemEventOwner,
+    selectEmotionalLineFromPanel,
+    removeEmotionalLineFromPanel,
   } = useSelectionHandlers({
     pageNotes,
     selectedPageNoteId,
@@ -4095,6 +3994,7 @@ useEffect(() => {
             helpMenuOpen={helpMenuOpen}
             isDirty={isDirty}
             storageWriteFailed={failedStorageKeys.size > 0}
+            saveNotices={[fileNotice, backupNotice].filter((notice): notice is string => !!notice)}
             lastDirtyTimestamp={lastDirtyTimestamp}
             demoBlinkVisible={demoBlinkVisible}
             ribbonHelpKey={ribbonHelpKey}
@@ -4140,8 +4040,7 @@ useEffect(() => {
             setIdeasOpen={setIdeasOpen}
             setPredictionsOpen={setPredictionsOpen}
             setSessionNotesOpen={setSessionNotesOpen}
-            setDemoTourStepIndex={setDemoTourStepIndex}
-            setDemoTourOpen={setDemoTourOpen}
+            handleStartDemoTour={handleStartDemoTour}
             handleStartBuildDemo={handleStartBuildDemo}
             setTrainingVideosOpen={setTrainingVideosOpen}
             setReadmeViewerOpen={setReadmeViewerOpen}
@@ -4160,7 +4059,6 @@ useEffect(() => {
             handleOpenBackupRestore={handleOpenBackupRestore}
             handleExportPersonEvents={handleExportPersonEvents}
             handleExportPNG={handleExportPNG}
-            handleExportSVG={handleExportSVG}
             handleQuit={handleQuit}
             handleProcessTranscriptPicker={handleProcessTranscriptPicker}
             handleOpenEventCreator={handleOpenEventCreator}
@@ -4208,12 +4106,6 @@ useEffect(() => {
           <DiagramCanvas
             contextMenu={contextMenu}
             setContextMenu={setContextMenu}
-            personSectionPopup={personSectionPopup}
-            personSectionPopupPerson={personSectionPopupPerson}
-            setPersonSectionPopup={setPersonSectionPopup}
-            partnershipSectionPopup={partnershipSectionPopup}
-            partnershipSectionPopupPartnership={partnershipSectionPopupPartnership}
-            setPartnershipSectionPopup={setPartnershipSectionPopup}
             isDemoFocusedCanvas={isDemoFocusedCanvas}
             demoBlinkVisible={demoBlinkVisible}
             isDemoFocusedPerson={isDemoFocusedPerson}
@@ -4250,7 +4142,6 @@ useEffect(() => {
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}
             personVisibility={personVisibility}
-            familyScope={activeFamilyScope}
             emotionalVisibility={emotionalVisibility}
             partnershipVisibility={partnershipVisibility}
             emotionalSiblingMeta={emotionalSiblingMeta}
@@ -4270,26 +4161,6 @@ useEffect(() => {
             handleFamilyClick={handleFamilyClick}
             handleFamilyContextMenu={handleFamilyContextMenu}
             onFamilyIndicatorClick={handleFamilyIndicatorClick}
-            onOpenFamilyProperty={(partnershipId, category, subtype, position) =>
-              openFamilyPropertyModal(
-                partnershipId,
-                {
-                  eventType: 'FAMILY',
-                  category,
-                  subtype,
-                  eventClass: 'family',
-                  status: 'ongoing',
-                  intensity: 1,
-                  frequency: 1,
-                  impact: 1,
-                },
-                position,
-                ['Family', category, subtype].filter(Boolean).join(' ')
-              )
-            }
-            onAddFamilyEvent={handleFamilyAddGenericEvent}
-            onDeleteFamilyEvent={handleDeleteFamilyEvent}
-            onCloseFamilyPanel={() => setSelectedFamilyId(null)}
             handleChildLineSelect={handleChildLineSelect}
             handleChildLineContextMenu={handleChildLineContextMenu}
             handleSelect={handleSelect}
@@ -4300,9 +4171,6 @@ useEffect(() => {
             handleGroupContextMenu={handleGroupContextMenu}
             setHoveredPersonId={setHoveredPersonId}
             functionalIndicatorDefinitions={functionalIndicatorDefinitions}
-            sirCategories={sirCategories}
-            functionalFactCategories={functionalFactCategories}
-            nodalCategories={nodalCategories}
             selectedGroupBounds={selectedGroupBounds}
             beginGroupResize={beginGroupResize}
             applyGroupResize={applyGroupResize}
@@ -4339,24 +4207,10 @@ useEffect(() => {
             resizeStateRef={resizeStateRef}
             showMultiPersonPanel={showMultiPersonPanel}
             multiSelectedPeople={multiSelectedPeople}
-            handleBatchUpdatePersons={handleBatchUpdatePersons}
-            openAddEmotionalPatternModal={openAddEmotionalPatternModal}
             propertiesPanelItem={propertiesPanelItem}
-            eventCategories={eventCategories}
-            relationshipTypes={relationshipTypes}
-            relationshipStatuses={relationshipStatuses}
-            handleUpdatePerson={handleUpdatePerson}
             handleUpdatePartnership={handleUpdatePartnership}
-            handleUpdateEmotionalLine={handleUpdateEmotionalLine}
-            panelTriangleContext={panelTriangleContext}
-            updateTriangleColor={updateTriangleColor}
-            updateTriangleIntensity={updateTriangleIntensity}
-            updateTriangle={updateTriangle}
             handleTriangleNoteDragEnd={handleTriangleNoteDragEnd}
             handleTriangleNoteResizeEnd={handleTriangleNoteResizeEnd}
-            propertiesPanelIntent={propertiesPanelIntent}
-            setPropertiesPanelIntent={setPropertiesPanelIntent}
-            ensureSymptomDefinition={ensureSymptomDefinition}
             onSymptomBadgeClick={(person, group, x, y) => {
               const found = people.find((p) => p.id === person.id);
               const groupTitle = group.charAt(0).toUpperCase() + group.slice(1);
@@ -4369,7 +4223,6 @@ useEffect(() => {
               );
             }}
             onSiblingSquareClick={(person, x, y) => openPersonSectionPopup(person, 'sibling', x, y)}
-            onRemoveEmotionalLine={removeEmotionalLine}
             onAutonomySquareClick={(person) => {
               const found = people.find((p) => p.id === person.id);
               if (found) openContextualEventCreator(
@@ -4385,6 +4238,60 @@ useEffect(() => {
                 'Person Emotional Autonomy'
               );
             }}
+            propertiesPanel={
+              <PropertiesPanelHost
+                people={people}
+                partnerships={partnerships}
+                allEmotionalLines={allEmotionalLines}
+                functionalIndicatorDefinitions={functionalIndicatorDefinitions}
+                handleUpdatePartnership={handleUpdatePartnership}
+                showMultiPersonPanel={showMultiPersonPanel}
+                multiSelectedPeople={multiSelectedPeople}
+                propertiesPanelItem={propertiesPanelItem}
+                setPropertiesPanelItem={setPropertiesPanelItem}
+                setSelectedPeopleIds={setSelectedPeopleIds}
+                selectedFamilyId={selectedFamilyId}
+                onFamilyIndicatorClick={handleFamilyIndicatorClick}
+                onSelectSystemEventOwner={selectSystemEventOwner}
+                onSelectEmotionalLine={selectEmotionalLineFromPanel}
+                personSectionPopup={personSectionPopup}
+                personSectionPopupPerson={personSectionPopupPerson}
+                setPersonSectionPopup={setPersonSectionPopup}
+                partnershipSectionPopup={partnershipSectionPopup}
+                partnershipSectionPopupPartnership={partnershipSectionPopupPartnership}
+                setPartnershipSectionPopup={setPartnershipSectionPopup}
+                familyScope={activeFamilyScope}
+                onOpenFamilyProperty={(partnershipId, category, subtype, position) =>
+                  openFamilyPropertyModal(
+                    partnershipId,
+                    { category, subtype },
+                    position,
+                    ['Family', category, subtype].filter(Boolean).join(' ')
+                  )
+                }
+                onAddFamilyEvent={handleFamilyAddGenericEvent}
+                onDeleteFamilyEvent={handleDeleteFamilyEvent}
+                onCloseFamilyPanel={() => setSelectedFamilyId(null)}
+                sirCategories={sirCategories}
+                functionalFactCategories={functionalFactCategories}
+                nodalCategories={nodalCategories}
+                handleBatchUpdatePersons={handleBatchUpdatePersons}
+                openAddEmotionalPatternModal={openAddEmotionalPatternModal}
+                eventCategories={eventCategories}
+                relationshipTypes={relationshipTypes}
+                relationshipStatuses={relationshipStatuses}
+                handleUpdatePerson={handleUpdatePerson}
+                handleUpdateEmotionalLine={handleUpdateEmotionalLine}
+                panelTriangleContext={panelTriangleContext}
+                updateTriangleColor={updateTriangleColor}
+                updateTriangleIntensity={updateTriangleIntensity}
+                updateTriangle={updateTriangle}
+                propertiesPanelIntent={propertiesPanelIntent}
+                setPropertiesPanelIntent={setPropertiesPanelIntent}
+                ensureSymptomDefinition={ensureSymptomDefinition}
+                onRemoveEmotionalLine={removeEmotionalLineFromPanel}
+              />
+            }
           />
           <DiagramModals
             importModeDialogOpen={importModeDialogOpen}
@@ -4467,18 +4374,35 @@ useEffect(() => {
             removeFunctionalIndicatorDefinition={removeFunctionalIndicatorDefinition}
             ensureSymptomDefinition={ensureSymptomDefinition}
             reorderFunctionalIndicators={setFunctionalIndicatorDefinitions}
+            // settings-02: a rename rewrites the events (and SIR prediction
+            // links) that name the category; a delete is refused while used.
+            categoryUsage={(type, name) =>
+              categoryUsage({ people, partnerships, emotionalLines, triangles, predictionSets }, type, name)
+            }
             sirSettingsOpen={sirSettingsOpen}
             setSirSettingsOpen={setSirSettingsOpen}
             sirCategories={sirCategories}
-            onSaveSirCategories={setSirCategories}
+            onSaveSirCategories={(next) =>
+              saveCategoryList('SIR', sirCategories, next, setSirCategories, {
+                setPeople, setPartnerships, setEmotionalLines, setTriangles, setPredictionSets, setPropertiesPanelItem,
+              })
+            }
             ffSettingsOpen={ffSettingsOpen}
             setFfSettingsOpen={setFfSettingsOpen}
             functionalFactCategories={functionalFactCategories}
-            onSaveFunctionalFactCategories={setFunctionalFactCategories}
+            onSaveFunctionalFactCategories={(next) =>
+              saveCategoryList('FF', functionalFactCategories, next, setFunctionalFactCategories, {
+                setPeople, setPartnerships, setEmotionalLines, setTriangles, setPredictionSets, setPropertiesPanelItem,
+              })
+            }
             nodalSettingsOpen={nodalSettingsOpen}
             setNodalSettingsOpen={setNodalSettingsOpen}
             nodalCategories={nodalCategories}
-            onSaveNodalCategories={setNodalCategories}
+            onSaveNodalCategories={(next) =>
+              saveCategoryList('NODAL', nodalCategories, next, setNodalCategories, {
+                setPeople, setPartnerships, setEmotionalLines, setTriangles, setPredictionSets, setPropertiesPanelItem,
+              })
+            }
             people={people}
             partnerships={partnerships}
             allEmotionalLines={allEmotionalLines}
@@ -4713,10 +4637,11 @@ useEffect(() => {
             onSave={() => {
               if (!familyPropertyModal) return;
               const { partnershipId, draft, editingEventId } = familyPropertyModal;
-              const rawCat = (draft.category || '').toLowerCase();
-              const normalizedCat = rawCat.startsWith('triangle') ? 'Triangles' : rawCat === 'stress' ? 'Stress' : (draft.category || 'Triangles');
+              // Family events are always FAMILY / family; the category keeps
+              // what the user chose (an empty one is no longer saved as
+              // "Triangles").
               const savedDraft = normalizeEventForSave(
-                { ...draft, eventType: 'FAMILY' as const, category: normalizedCat },
+                { ...draft, eventType: 'FAMILY' as const, eventClass: 'family', category: canonicalFamilyCategory(draft.category) },
                 { anchorType: 'FAMILY', anchorId: partnershipId, eventClass: 'family' }
               );
               setPartnerships((prev) =>

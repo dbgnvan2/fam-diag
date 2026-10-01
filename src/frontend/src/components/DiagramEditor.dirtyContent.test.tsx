@@ -71,3 +71,29 @@ describe('DiagramEditor — what Save writes', () => {
     }
   });
 });
+
+describe('DiagramEditor — a restored diagram never saved to a file counts as unsaved (review DE1-04)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('a restored diagram that differs from the last saved one starts unsaved, so New asks first', () => {
+    localStorage.setItem(
+      'family-diagram-people',
+      JSON.stringify([{ id: 'p1', name: 'Only Copy', x: 100, y: 100, partnerships: [] }])
+    );
+    localStorage.setItem('family-diagram-saved-content-fingerprint', 'from-an-older-save');
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<DiagramEditor />);
+    expect(saveButtonColor()).toBe(DIRTY);
+    fireEvent.click(screen.getByRole('button', { name: 'File ▾' }));
+    fireEvent.click(screen.getByText('New'));
+    expect(confirmSpy).toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('with no fingerprint yet (first run), the restored diagram starts saved', () => {
+    render(<DiagramEditor />);
+    expect(saveButtonColor()).toBe(CLEAN);
+  });
+});

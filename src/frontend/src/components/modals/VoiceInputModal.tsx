@@ -1,5 +1,5 @@
 import { Z_INDEX } from '../../constants/zIndex';
-import type { VoiceCommandOperation } from '../../utils/voiceCommands';
+import { describeVoiceOperation, type VoiceCommandOperation } from '../../utils/voiceCommands';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 interface VoiceInputModalProps {
@@ -166,21 +166,7 @@ const VoiceInputModal = ({
                       fontSize: 14,
                     }}
                   >
-                    {operation.type === 'add_person'
-                      ? `Add person: ${operation.name}${operation.gender ? ` (${operation.gender})` : ''}`
-                      : operation.type === 'add_partnership'
-                      ? `Create partnership: ${operation.personName} + ${operation.partnerName}`
-                      : operation.type === 'add_children'
-                      ? `Add children to ${operation.parent1Name} + ${operation.parent2Name}: ${operation.childNames.join(', ')}`
-                      : operation.type === 'set_person_birth_year'
-                      ? `Set birth year: ${operation.name} -> ${operation.year}`
-                      : operation.type === 'set_person_death_year'
-                      ? `Set death year: ${operation.name} -> ${operation.year}`
-                      : operation.type === 'set_person_adoption_status'
-                      ? `Set adoption: ${operation.name} -> ${operation.adoptionStatus}`
-                      : operation.type === 'set_partnership_status'
-                      ? `Set relationship: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipStatus}${operation.year ? ` (${operation.year})` : ''}`
-                      : `Add emotional line: ${operation.person1Name} + ${operation.person2Name} -> ${operation.relationshipType}`}
+                    {describeVoiceOperation(operation)}
                   </div>
                 ))}
               </div>

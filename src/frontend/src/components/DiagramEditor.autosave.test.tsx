@@ -11,7 +11,7 @@
  */
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { STORAGE_KEYS, restoreDiagramFileHandle } from '../utils/storage';
+import { STORAGE_KEYS, restoreDiagramFileHandle, restoreBackupDirectoryHandle } from '../utils/storage';
 
 const fakeHandleWrites: string[] = [];
 const fakeFileHandle = {
@@ -19,7 +19,7 @@ const fakeFileHandle = {
   kind: 'file',
   queryPermission: async () => 'granted',
   requestPermission: async () => 'granted',
-  getFile: async () => ({ text: async () => '' }),
+  getFile: async () => ({ text: async () => '{}' }),
   createWritable: async () => ({
     write: async (blob: Blob) => {
       // jsdom's Blob has no .text(); read it the long way.
@@ -47,6 +47,15 @@ vi.mock('../utils/storage', async (importOriginal) => {
   };
 });
 
+// Whether the remembered file holds the diagram restored from storage. The
+// comparison itself is tested in utils/diagramPayload.test.ts; here it is
+// set per test (review 2026-09-30 DE1-12).
+let fileMatchesRestoredDiagram = true;
+vi.mock('../utils/diagramPayload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/diagramPayload')>();
+  return { ...actual, fileHoldsDiagramContent: () => fileMatchesRestoredDiagram };
+});
+
 import DiagramEditor from './DiagramEditor';
 
 const AUTOSAVE_MINUTES = 1;
@@ -69,6 +78,7 @@ describe('DiagramEditor autosave while dirty', () => {
     localStorage.clear();
     localStorage.setItem(STORAGE_KEYS.autoSave, String(AUTOSAVE_MINUTES));
     fakeHandleWrites.length = 0;
+    fileMatchesRestoredDiagram = true;
     vi.spyOn(window, 'confirm').mockImplementation(() => true);
   });
 
@@ -115,4 +125,73 @@ describe('DiagramEditor autosave while dirty', () => {
     };
     expect(written.people.some((person) => person.name === 'New Person')).toBe(true);
   }, 60_000);
+
+  it('a remembered file that differs from the restored diagram is not linked or overwritten (DE1-12)', async () => {
+    fileMatchesRestoredDiagram = false;
+    Object.assign(window, { showOpenFilePicker: vi.fn(), showSaveFilePicker: vi.fn() });
+    vi.useFakeTimers();
+    render(<DiagramEditor />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    addPersonViaContextMenu();
+    await stepThrough(AUTOSAVE_MINUTES * 60_000 * 1.5);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fakeHandleWrites).toHaveLength(0);
+    expect(screen.getByText(/differs from the diagram restored in this browser/)).toBeTruthy();
+  }, 60_000);
+
+  it('autosave without write permission keeps the file link, downloads nothing and says why (DE1-01)', async () => {
+    Object.assign(window, { showOpenFilePicker: vi.fn(), showSaveFilePicker: vi.fn() });
+    const originalQuery = fakeFileHandle.queryPermission;
+    fakeFileHandle.queryPermission = async ({ mode }: { mode: string } = { mode: 'read' }) =>
+      mode === 'readwrite' ? 'prompt' : 'granted';
+    const createUrl = vi.spyOn(URL, 'createObjectURL');
+    try {
+      vi.useFakeTimers();
+      render(<DiagramEditor />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      addPersonViaContextMenu();
+      await stepThrough(AUTOSAVE_MINUTES * 60_000 * 1.5);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(fakeHandleWrites).toHaveLength(0);
+      expect(createUrl).not.toHaveBeenCalled();
+      expect(screen.getByText(/Autosave cannot write to "autosave-test.json"/)).toBeTruthy();
+    } finally {
+      fakeFileHandle.queryPermission = originalQuery;
+    }
+  }, 60_000);
+  it('a backup copy that cannot be written is reported beside Save (regression DE1-11: silent)', async () => {
+    Object.assign(window, { showOpenFilePicker: vi.fn(), showSaveFilePicker: vi.fn() });
+    const failingBackupDir = {
+      kind: 'directory',
+      name: 'backups',
+      queryPermission: async () => 'granted',
+      requestPermission: async () => 'granted',
+      getFileHandle: async () => {
+        throw new Error('the disk is full');
+      },
+    };
+    vi.mocked(restoreBackupDirectoryHandle).mockResolvedValueOnce(
+      failingBackupDir as unknown as FileSystemDirectoryHandle
+    );
+    render(<DiagramEditor />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    addPersonViaContextMenu();
+    const saveButton = screen.getAllByRole('button').find((b) => b.textContent?.trim() === 'Save')!;
+    await act(async () => {
+      fireEvent.click(saveButton);
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(fakeHandleWrites.length).toBeGreaterThan(0);
+    expect(screen.getByText(/The backup copy was not written: the disk is full/)).toBeTruthy();
+  });
 });

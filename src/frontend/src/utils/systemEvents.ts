@@ -47,9 +47,6 @@ import {
   type RelationGender,
 } from '../constants/relationLabels';
 import { baseEventId, hasSameEvent } from './eventDedup';
-import { withoutPersonDateRecords } from './personDateEvents';
-import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
-import { withoutPatternEditRecords } from './patternEventRecords';
 import { eventDisplayName } from './timelineItemText';
 import {
   computeBloodPaths,
@@ -59,12 +56,8 @@ import {
   type BloodPath,
   type KinRoute,
 } from './kinship';
-import {
-  synthesizeEmotionalLineDateEvents,
-  synthesizePartnershipDateEvents,
-  synthesizePersonDateEvents,
-  synthesizePersonIndicatorEvents,
-} from './syntheticDateEvents';
+import { listedEmotionalLineEvents, listedPartnershipEvents, listedPersonEvents } from './listedEvents';
+import { joinCoupleNames } from './personNames';
 
 export type SystemEventOwnerType = 'person' | 'partnership' | 'emotional';
 
@@ -410,11 +403,9 @@ export function collectSystemEvents({
       }
     }
 
-    const ownEvents = [
-      ...withoutPersonDateRecords(relative.events || []),
-      ...synthesizePersonDateEvents(relative),
-      ...synthesizePersonIndicatorEvents(relative, functionalIndicatorDefinitions),
-    ];
+    // The shared rule (utils/listedEvents.ts); date-field companions were
+    // not hidden here, unlike every other view (review struct-06).
+    const ownEvents = listedPersonEvents(relative, functionalIndicatorDefinitions);
     ownEvents.forEach((event) => {
       push({
         event,
@@ -450,24 +441,16 @@ export function collectSystemEvents({
       noun = PARENTAL_UNION_NOUN;
     } else {
       relationClass = 'union';
-      noun = [partner1?.name, partner2?.name].filter(Boolean).join(' + ') || 'Family';
+      noun = joinCoupleNames(partner1?.name, partner2?.name, 'Family');
     }
 
-    const dateEvents = synthesizePartnershipDateEvents(
-      partnership,
-      partner1?.name,
-      partner2?.name
-    );
-    [
-      ...withoutPartnershipStatusRecords(partnership.events || [], partnership),
-      ...dateEvents,
-    ].forEach((event) => {
+    listedPartnershipEvents(partnership, partner1?.name, partner2?.name).forEach((event) => {
       push({
         event,
         relationClass,
         relationLabel: `${noun} ${phraseFor(event)}`.trim(),
         relationNoun: noun,
-        ownerName: [partner1?.name, partner2?.name].filter(Boolean).join(' + ') || 'Family',
+        ownerName: joinCoupleNames(partner1?.name, partner2?.name, 'Family'),
         ownerEntityType: 'partnership',
         ownerEntityId: partnership.id,
         partnershipTarget: 'events',
@@ -480,7 +463,7 @@ export function collectSystemEvents({
         relationClass,
         relationLabel: `${noun} · ${prefix}: ${event.category || prefix}`,
         relationNoun: noun,
-        ownerName: [partner1?.name, partner2?.name].filter(Boolean).join(' + ') || 'Family',
+        ownerName: joinCoupleNames(partner1?.name, partner2?.name, 'Family'),
         ownerEntityType: 'partnership',
         ownerEntityId: partnership.id,
         partnershipTarget: 'familyEvents',
@@ -498,8 +481,7 @@ export function collectSystemEvents({
     const p1 = personById.get(line.person1_id)?.name || '';
     const p2 = personById.get(line.person2_id)?.name || '';
     const pairLabel = [p1, p2].filter(Boolean).join(' ↔ ') || 'Pattern';
-    const dateEvents = synthesizeEmotionalLineDateEvents(line, p1, p2);
-    [...withoutPatternEditRecords(line.events || []), ...dateEvents].forEach((event) => {
+    listedEmotionalLineEvents(line, p1, p2).forEach((event) => {
       push({
         event,
         relationClass: 'sibling',

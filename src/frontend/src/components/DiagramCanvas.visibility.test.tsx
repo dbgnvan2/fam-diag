@@ -40,10 +40,6 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
   const stageRef = React.createRef<Konva.Stage>();
   const values = {
     contextMenu: null,
-    personSectionPopup: null,
-    personSectionPopupPerson: null,
-    partnershipSectionPopup: null,
-    partnershipSectionPopupPartnership: null,
     isDemoFocusedCanvas: false,
     demoBlinkVisible: true,
     fileName: null,
@@ -63,7 +59,6 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
     partnerships: [],
     allEmotionalLines: [line],
     personVisibility: new Map(Object.entries(visible)),
-    familyScope: null,
     emotionalVisibility: new Map([['l1', true]]),
     partnershipVisibility: new Map(),
     emotionalSiblingMeta: new Map(),
@@ -75,9 +70,6 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
     selectedFamilyIds: [],
     dragGroupRef: { current: null },
     functionalIndicatorDefinitions: [],
-    sirCategories: [],
-    functionalFactCategories: [],
-    nodalCategories: [],
     selectedGroupBounds: null,
     notesLayerEnabled: true,
     showSiblingConflicts: false,
@@ -93,24 +85,31 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
     showMultiPersonPanel: false,
     multiSelectedPeople: [],
     propertiesPanelItem: null,
-    eventCategories: [],
-    relationshipTypes: [],
-    relationshipStatuses: [],
-    panelTriangleContext: null,
-    propertiesPanelIntent: null,
+    propertiesPanel: null,
     ...overrides,
   };
-  // Every other prop is a handler: any prop the component reads that is not
-  // given above comes back as a spy. The component is called from a wrapper
-  // so its props object can be that Proxy — no list of prop names to keep in
-  // step with the component, and no reading of its source (gate 2026-09-30b #3).
-  const props = new Proxy(values as Record<string, unknown>, {
-    get: (target, key) =>
-      typeof key === 'string' && !(key in target) ? (target[key] = vi.fn()) : target[key as string],
+  // Every other prop is a handler. A first, throw-away pass renders the
+  // component through a recording Proxy to learn which props it reads (no
+  // list of prop names to keep in step with the component, and no reading of
+  // its source — gate 2026-09-30b #3). The render the assertions use is then
+  // a real <DiagramCanvas /> element with a plain props object, so it goes
+  // through React exactly as in the app (gate 2026-09-30c LOW).
+  const readKeys = new Set<string>();
+  const recorder = new Proxy(values as Record<string, unknown>, {
+    get: (target, key) => {
+      if (typeof key === 'string') readKeys.add(key);
+      return typeof key === 'string' && !(key in target) ? vi.fn() : target[key as string];
+    },
   });
   const renderComponent = DiagramCanvas as unknown as (componentProps: object) => React.ReactElement;
-  const Wrapper = () => renderComponent(props);
-  render(<Wrapper />);
+  const Discover = () => renderComponent(recorder);
+  render(<Discover />).unmount();
+  const props: Record<string, unknown> = { ...values };
+  readKeys.forEach((key) => {
+    if (!(key in props)) props[key] = vi.fn();
+  });
+  const Canvas = DiagramCanvas as unknown as React.ComponentType<Record<string, unknown>>;
+  render(<Canvas {...props} />);
   const stage = stageRef.current!;
   const texts = stage.find('Text').map((node) => (node as Konva.Text).text());
   const hasTriangleFill = stage

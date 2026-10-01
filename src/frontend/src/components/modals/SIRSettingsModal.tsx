@@ -2,27 +2,41 @@
  * SIRSettingsModal — Create/Edit/Delete Self in Relationship categories.
  * Each category has a name and 5-level HWDID scale descriptions.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { SIRCategoryDefinition } from '../../types';
 import { moveItemUp, moveItemDown, reorderItem } from '../../utils/listReorder';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { Z_INDEX } from '../../constants/zIndex';
+import { categoryNameError, confirmCategoryDelete, type CategoryUsage } from '../../utils/categoryRename';
 
 interface SIRSettingsModalProps {
   open: boolean;
   onClose: () => void;
   categories: SIRCategoryDefinition[];
+  /** Who still uses a category name — a used category cannot be deleted (settings-02). */
+  categoryUsage: (name: string) => CategoryUsage;
   onSave: (categories: SIRCategoryDefinition[]) => void;
 }
 
-const MODAL_Z = 12000;
 
-const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModalProps) => {
+const SIRSettingsModal = ({ open, onClose, categories, categoryUsage, onSave }: SIRSettingsModalProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftLevels, setDraftLevels] = useState<[string, string, string, string, string]>(['', '', '', '', '']);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // settings-05: closing the dialog drops an unfinished edit. It used to
+  // reopen with the old edit form and draft still showing.
+  useEffect(() => {
+    if (open) return;
+    setEditingId(null);
+    setDraftName('');
+    setNameError(null);
+    setDraftLevels(['', '', '', '', '']);
+  }, [open]);
 
   const dialogRef = useDialogFocus(open, onClose);
   if (!open) return null;
@@ -74,13 +88,24 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
 
   const cancelEdit = () => {
     setEditingId(null);
+    setNameError(null);
     setDraftName('');
     setDraftLevels(['', '', '', '', '']);
   };
 
   const saveEdit = () => {
-    if (!draftName.trim()) return;
-    const trimmedLevels = draftLevels.map((l) => l.trim() || `Level ${draftLevels.indexOf(l) + 1}`) as [string, string, string, string, string];
+    // settings-07 / settings-08: no empty or duplicate names, and no name
+    // that is another event type's built-in category.
+    const error = categoryNameError(
+      draftName,
+      [...categories.filter((c) => c.id !== editingId).map((c) => c.name)],
+      'SIR',
+    );
+    if (error) {
+      setNameError(error);
+      return;
+    }
+    const trimmedLevels = draftLevels.map((l, index) => l.trim() || `Level ${index + 1}`) as [string, string, string, string, string];
     if (editingId === '__new__') {
       const newCat: SIRCategoryDefinition = {
         id: `sir-${nanoid(8)}`,
@@ -94,8 +119,11 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
     cancelEdit();
   };
 
-  const deleteCategory = (id: string) => {
-    onSave(categories.filter((c) => c.id !== id));
+  // settings-02: a category that events still use is not deleted (they
+  // would be left on a name the list no longer has); otherwise ask first.
+  const deleteCategory = (cat: { id: string; name: string }) => {
+    if (!confirmCategoryDelete(cat.name, categoryUsage(cat.name))) return;
+    onSave(categories.filter((c) => c.id !== cat.id));
   };
 
   const setLevelText = (index: number, value: string) => {
@@ -118,7 +146,7 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: MODAL_Z,
+        zIndex: Z_INDEX.SETTINGS_CATEGORY_DIALOG,
         pointerEvents: 'none',
       }}
     >
@@ -202,7 +230,7 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteCategory(cat.id)}
+                    onClick={() => deleteCategory(cat)}
                     style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: '#b00020' }}
                     aria-label={`Delete ${cat.name}`}
                   >
@@ -253,11 +281,21 @@ const SIRSettingsModal = ({ open, onClose, categories, onSave }: SIRSettingsModa
           <input
             type="text"
             value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
+            onChange={(e) => {
+              setDraftName(e.target.value);
+              setNameError(null);
+            }}
             placeholder="Category name"
+            aria-label="Category name"
+            aria-invalid={nameError ? true : undefined}
             style={{ flex: 1 }}
           />
         </div>
+        {nameError && (
+          <div role="alert" style={{ color: '#b00020', fontSize: 12, marginBottom: 6 }}>
+            {nameError}
+          </div>
+        )}
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, width: 50, color: '#38557a' }}>Level {i + 1}:</span>

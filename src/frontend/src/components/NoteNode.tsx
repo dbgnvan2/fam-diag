@@ -219,6 +219,10 @@ const NoteNode = ({
         strokeWidth={isSelected ? 2 : 1}
         cornerRadius={5}
       />
+      {/* Both texts get a fixed height that ends at the box's inner bottom
+          edge. Konva draws only the lines that fit that height, so a note
+          resized shorter than its text no longer spills out (review
+          nodes-12). */}
       <Text
         text={wrappedTitle}
         x={paddingLeft}
@@ -226,6 +230,7 @@ const NoteNode = ({
         fontSize={titleFontSize}
         fontStyle="bold"
         width={contentWidth}
+        height={Math.max(0, boxHeight - paddingTopBottom * 2)}
         wrap="word"
       />
       <Text
@@ -234,6 +239,7 @@ const NoteNode = ({
         y={textY}
         fontSize={textFontSize}
         width={contentWidth}
+        height={Math.max(0, boxHeight - paddingTopBottom - textY)}
         wrap="word"
       />
       <Rect

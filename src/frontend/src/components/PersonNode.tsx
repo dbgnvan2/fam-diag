@@ -4,14 +4,13 @@ import type {
   Person,
   FunctionalIndicatorDefinition,
   PersonFunctionalIndicator,
-  GenderSymbol,
-  BirthSex,
-  GenderIdentity,
   SymptomGroup,
 } from '../types';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { ageInYears } from '../utils/dateFormatting';
-import { isSexUnknown } from '../utils/personSex';
+import { deriveBirthSex, deriveGenderIdentity, isSexUnknown } from '../utils/personSex';
+import { personDisplayName } from '../utils/personNames';
+import { effectivePersonBorderColor } from '../utils/personAppearance';
+import { latestEmotionalAutonomyLevel, personAgeLabel } from '../utils/canvasIndicators';
 
 interface PersonNodeProps {
   person: Person;
@@ -29,7 +28,6 @@ interface PersonNodeProps {
   onSymptomBadgeClick?: (person: Person, group: SymptomGroup, clientX: number, clientY: number) => void;
 }
 
-const DEFAULT_BORDER_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#FFF7C2';
 const DEFAULT_FOREGROUND_COLOR = '#000000';
 const DEFAULT_MALE_FILL_COLOR = '#ADD8E6';
@@ -108,7 +106,9 @@ const IndicatorBadge = ({
     <Group
       y={y}
       listening={!!onClick}
-      onClick={onClick ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onClick(e); } : undefined}
+      // Left button only: a right-click opens the context menu, not the
+      // badge (review nodes-11).
+      onClick={onClick ? (e: KonvaEventObject<MouseEvent>) => { if (e.evt.button !== 0) return; e.cancelBubble = true; onClick(e); } : undefined}
       onTap={onClick ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onClick(e); } : undefined}
     >
       <Text
@@ -155,45 +155,34 @@ const IndicatorBadge = ({
   );
 };
 
-const deriveGenderSymbol = (person: Person): GenderSymbol => {
-  if (person.genderSymbol) return person.genderSymbol;
-  if (person.birthSex && person.genderIdentity) {
-    if (person.birthSex === 'female' && person.genderIdentity === 'feminine') return 'female_cis';
-    if (person.birthSex === 'male' && person.genderIdentity === 'masculine') return 'male_cis';
-    if (person.birthSex === 'intersex' && person.genderIdentity === 'feminine') return 'intersex_feminine';
-    if (person.birthSex === 'intersex' && person.genderIdentity === 'masculine') return 'intersex_masculine';
-    if (person.birthSex === 'intersex' && person.genderIdentity === 'nonbinary') return 'intersex_nonbinary';
-    if (person.birthSex === 'intersex' && person.genderIdentity === 'agender') return 'intersex_agender';
-    if (person.genderIdentity === 'nonbinary') return 'nonbinary';
-    if (person.genderIdentity === 'agender') return 'agender';
-    return person.genderIdentity === 'feminine' ? 'female_trans' : 'male_trans';
-  }
-  if (person.birthSex === 'ai-agent' || person.gender === 'ai-agent') return 'ai_agent';
-  if (person.gender === 'male') return 'male_cis';
-  if (person.gender === 'intersex') return 'intersex';
-  return 'female_cis';
+/**
+ * Half-width of an X that fits inside an upward triangle (apex at apexY,
+ * base at baseY, base half-width halfBase), and the y of its centre. The X
+ * is drawn in the largest square that stands on the base, with a margin, so
+ * it never pokes out of the sloping sides (review nodes-09).
+ */
+const triangleCross = (apexY: number, baseY: number, halfBase: number) => {
+  const height = baseY - apexY;
+  const side = (2 * halfBase * height) / (height + 2 * halfBase);
+  return { extent: side * 0.45, centerY: baseY - side / 2 };
 };
 
-const deriveBirthSex = (person: Person, symbol: GenderSymbol): BirthSex => {
-  if (person.birthSex) return person.birthSex;
-  if (symbol === 'ai_agent') return 'ai-agent';
-  if (symbol.startsWith('intersex_') || symbol === 'intersex') return 'intersex';
-  if (person.gender === 'male') return 'male';
-  return 'female';
-};
-
-const deriveGenderIdentity = (person: Person, symbol: GenderSymbol): GenderIdentity => {
-  if (person.genderIdentity) return person.genderIdentity;
-  if (symbol === 'female_cis') return 'feminine';
-  if (symbol === 'male_cis') return 'masculine';
-  if (symbol === 'nonbinary' || symbol === 'intersex_nonbinary') return 'nonbinary';
-  if (symbol === 'agender' || symbol === 'intersex_agender') return 'agender';
-  if (symbol === 'intersex_feminine') return 'feminine';
-  if (symbol === 'intersex_masculine') return 'masculine';
-  if (symbol === 'female_trans') return 'feminine';
-  if (symbol === 'male_trans') return 'masculine';
-  return person.gender === 'male' ? 'masculine' : 'feminine';
-};
+const crossLines = (extent: number, centerY: number, stroke: string, strokeWidth: number) => (
+  <>
+    <Line
+      points={[-extent, centerY - extent, extent, centerY + extent]}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      listening={false}
+    />
+    <Line
+      points={[-extent, centerY + extent, extent, centerY - extent]}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      listening={false}
+    />
+  </>
+);
 
 const PersonNode = ({
   person,
@@ -210,19 +199,19 @@ const PersonNode = ({
   onAutonomySquareClick,
   onSymptomBadgeClick,
 }: PersonNodeProps) => {
-  const genderSymbol = deriveGenderSymbol(person);
-  const birthSex = deriveBirthSex(person, genderSymbol);
-  const genderIdentity = deriveGenderIdentity(person, genderSymbol);
+  // Sex comes from the shared resolver in utils/personSex.ts (review
+  // nodes-10): 'b' / 'M' / 'Male' draw as male, 's' / 'F' as female, and an
+  // unrecognised value as unknown. birthSex / genderIdentity are null when
+  // the fields do not say.
+  const birthSex = deriveBirthSex(person);
+  const genderIdentity = deriveGenderIdentity(person);
   const isMale = birthSex === 'male';
-  // No sex recorded: drawn as a triangle with the neutral fill, not as the
-  // female circle the derivations above fall back to.
+  // No sex recorded: drawn as a triangle with the neutral fill.
   const sexUnknown = isSexUnknown(person);
   const lifeStatus = person.lifeStatus ?? 'alive';
   const shapeSize = person.size ?? 60;
-  const borderCustomEnabled = person.borderEnabled ?? !!person.borderColor;
   const foregroundCustomEnabled = person.foregroundEnabled ?? !!person.foregroundColor;
-  const personBorderColor =
-    borderCustomEnabled ? person.borderColor ?? DEFAULT_BORDER_COLOR : DEFAULT_BORDER_COLOR;
+  const personBorderColor = effectivePersonBorderColor(person);
   const strokeColor = isSelected ? 'blue' : personBorderColor;
   const strokeWidth = isSelected ? BASE_STROKE_WIDTH * 2 : BASE_STROKE_WIDTH;
   const showBackground = person.backgroundEnabled ?? false;
@@ -244,13 +233,7 @@ const PersonNode = ({
     : DEFAULT_FOREGROUND_COLOR;
   const backgroundPadding = Math.max(10, shapeSize * 0.1);
   const backgroundSize = isMale ? shapeSize * 1.05 : shapeSize + backgroundPadding;
-  const emotionalAutonomyLevel = useMemo(() => {
-    if (!person.events) return null;
-    const latest = person.events
-      .filter((e) => e.eventType === 'EA' && typeof e.intensity === 'number')
-      .sort((a, b) => (b.startDate || b.date || '').localeCompare(a.startDate || a.date || ''))[0];
-    return latest ? (latest.intensity as number) : null;
-  }, [person.events]);
+  const emotionalAutonomyLevel = useMemo(() => latestEmotionalAutonomyLevel(person.events), [person.events]);
 
   const indicatorEntries: IndicatorEntry[] = useMemo(() => {
     if (!person.functionalIndicators || person.functionalIndicators.length === 0) {
@@ -290,8 +273,24 @@ const PersonNode = ({
     );
   };
 
+  const stillbirthRadius = shapeSize / 3;
+  // A stillborn person whose sex is not male or female is drawn as a
+  // triangle, like a living person of unknown sex, not as the female circle
+  // (review nodes-09).
+  const stillbirthIsTriangle = birthSex !== 'male' && birthSex !== 'female';
   const renderStillbirth = () => {
-    const radius = shapeSize / 3;
+    const radius = stillbirthRadius;
+    if (stillbirthIsTriangle) {
+      return (
+        <Line
+          points={[0, -radius, -radius, radius, radius, radius]}
+          closed
+          fill="white"
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+        />
+      );
+    }
     if (isMale) {
       return (
         <Rect
@@ -455,8 +454,17 @@ const PersonNode = ({
         return (
           <>
             {renderStillbirth()}
-            <Line points={[-shapeSize / 4, -shapeSize / 4, shapeSize / 4, shapeSize / 4]} stroke={strokeColor} strokeWidth={strokeWidth} />
-            <Line points={[-shapeSize / 4, shapeSize / 4, shapeSize / 4, -shapeSize / 4]} stroke={strokeColor} strokeWidth={strokeWidth} />
+            {stillbirthIsTriangle ? (
+              (() => {
+                const { extent, centerY } = triangleCross(-stillbirthRadius, stillbirthRadius, stillbirthRadius);
+                return crossLines(extent, centerY, strokeColor, strokeWidth);
+              })()
+            ) : (
+              <>
+                <Line points={[-shapeSize / 4, -shapeSize / 4, shapeSize / 4, shapeSize / 4]} stroke={strokeColor} strokeWidth={strokeWidth} />
+                <Line points={[-shapeSize / 4, shapeSize / 4, shapeSize / 4, -shapeSize / 4]} stroke={strokeColor} strokeWidth={strokeWidth} />
+              </>
+            )}
           </>
         );
       default:
@@ -467,7 +475,12 @@ const PersonNode = ({
   const renderDeathOverlay = () => {
     if (!person.deathDate && !person.deathDateKnown) return null;
     if (lifeStatus === 'miscarriage' || lifeStatus === 'stillbirth') return null;
-    // Keep the X fully inside each shape. Circles need inset endpoints.
+    // Keep the X fully inside each shape. Circles need inset endpoints; the
+    // unknown-sex triangle needs a smaller X set low (review nodes-09).
+    if (sexUnknown) {
+      const { extent, centerY } = triangleCross(-shapeSize * 0.5, shapeSize * 0.45, shapeSize * 0.45);
+      return crossLines(extent, centerY, strokeColor, strokeWidth);
+    }
     const half = shapeSize / 2;
     const inset = isMale ? 0 : Math.max(1, shapeSize * 0.06);
     const extent = Math.max(0, half - inset);
@@ -489,10 +502,11 @@ const PersonNode = ({
     );
   };
 
-  const ageLabel = useMemo(() => {
-    const age = ageInYears(person.birthDate, person.deathDate, new Date());
-    return age === null ? null : `Age ${age}`;
-  }, [person.birthDate, person.deathDate]);
+  const ageLabel = useMemo(
+    () => personAgeLabel(person, new Date()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [person.birthDate, person.deathDate, person.deathDateKnown, person.lifeStatus]
+  );
 
   const nameProps =
     lifeStatus === 'alive'
@@ -513,12 +527,8 @@ const PersonNode = ({
           align: 'center' as const,
         };
 
-  const displayName = useMemo(() => {
-    const first = person.firstName?.trim() || '';
-    const last = person.lastName?.trim() || '';
-    const combined = [first, last].filter(Boolean).join(' ').trim();
-    return combined || person.name || 'Unnamed';
-  }, [person.firstName, person.lastName, person.name]);
+  // Shared name rule (review struct-11).
+  const displayName = personDisplayName(person, 'Unnamed');
 
   return (
     <Group
@@ -609,8 +619,12 @@ const PersonNode = ({
           const handleClick = onSiblingSquareClick
             ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onSiblingSquareClick(person, e.evt.clientX, e.evt.clientY); }
             : undefined;
+          // Left button only (review nodes-11).
+          const handleLeftClick = handleClick
+            ? (e: KonvaEventObject<MouseEvent>) => { if (e.evt.button !== 0) return; handleClick(e); }
+            : undefined;
           return (
-            <Group listening={!!handleClick} onClick={handleClick} onTap={handleClick}>
+            <Group listening={!!handleClick} onClick={handleLeftClick} onTap={handleClick}>
               <Rect
                 x={sqX}
                 y={sqY}
@@ -645,8 +659,12 @@ const PersonNode = ({
           const handleClick = onAutonomySquareClick
             ? (e: KonvaEventObject<MouseEvent>) => { e.cancelBubble = true; onAutonomySquareClick(person); }
             : undefined;
+          // Left button only (review nodes-11).
+          const handleLeftClick = handleClick
+            ? (e: KonvaEventObject<MouseEvent>) => { if (e.evt.button !== 0) return; handleClick(e); }
+            : undefined;
           return (
-            <Group listening={!!handleClick} onClick={handleClick} onTap={handleClick}>
+            <Group listening={!!handleClick} onClick={handleLeftClick} onTap={handleClick}>
               <Rect
                 x={sqX}
                 y={sqY}

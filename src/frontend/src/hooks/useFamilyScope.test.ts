@@ -125,3 +125,34 @@ describe('useFamilyScope', () => {
     expect(result.current.focus).toBeNull();
   });
 });
+
+describe('useFamilyScope — a focus whose root is gone (review 2026-09-30 DE1-06)', () => {
+  it('File > New / Open / deleting the root clears the focus instead of hiding everyone', () => {
+    const { result, rerender } = renderHook(
+      ({ list }: { list: Person[] }) => useFamilyScope({ people: list, partnerships }),
+      { initialProps: { list: people } }
+    );
+    act(() => result.current.focusOnPerson('root'));
+    expect(result.current.scope).not.toBeNull();
+    // A new diagram: the root is gone, a person is added.
+    rerender({ list: [person('newcomer')] });
+    expect(result.current.focus).toBeNull();
+    expect(result.current.scope).toBeNull();
+    expect(result.current.isInScope('newcomer')).toBe(true);
+  });
+});
+
+describe('useFamilyScope — a drag does not recompute the scope (review 2026-09-30 struct-03)', () => {
+  it('moving people keeps the same scope object; a structural change makes a new one', () => {
+    const { result, rerender } = renderHook(
+      ({ list }: { list: Person[] }) => useFamilyScope({ people: list, partnerships }),
+      { initialProps: { list: people } }
+    );
+    act(() => result.current.focusOnPerson('root'));
+    const first = result.current.scope;
+    rerender({ list: people.map((entry) => ({ ...entry, x: entry.x + 25, y: entry.y + 10 })) });
+    expect(result.current.scope).toBe(first);
+    rerender({ list: people.map((entry) => (entry.id === 'stranger' ? { ...entry, parentPartnership: 'prRoot' } : entry)) });
+    expect(result.current.scope).not.toBe(first);
+  });
+});

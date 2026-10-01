@@ -61,3 +61,30 @@ describe('defaultDiagramState', () => {
     expect(Array.isArray(state.functionalFactCategories)).toBe(true);
   });
 });
+
+describe('settings-09 — an emptied list stays empty', () => {
+  it('keeps explicit empty SIR categories, relationship types and statuses from the file', () => {
+    const state = buildDefaultDiagramState({
+      people: [{ id: 'a', name: 'A', x: 0, y: 0, partnerships: [] }],
+      partnerships: [],
+      emotionalLines: [],
+      sirCategories: [],
+      relationshipTypes: [],
+      relationshipStatuses: [],
+    });
+    expect(state.sirCategories).toEqual([]);
+    expect(state.relationshipTypes).toEqual([]);
+    expect(state.relationshipStatuses).toEqual([]);
+  });
+
+  it('uses the defaults only when the key is absent', () => {
+    const state = buildDefaultDiagramState({
+      people: [{ id: 'a', name: 'A', x: 0, y: 0, partnerships: [] }],
+      partnerships: [],
+      emotionalLines: [],
+    });
+    expect(state.sirCategories).toEqual(APPLICATION_SETTINGS.sirCategories);
+    expect(state.relationshipTypes).toEqual(APPLICATION_SETTINGS.relationshipTypes);
+    expect(state.relationshipStatuses).toEqual(APPLICATION_SETTINGS.relationshipStatuses);
+  });
+});

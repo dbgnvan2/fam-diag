@@ -4,6 +4,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
 import { computeDefaultFamilyName, partnershipSeparationMarks } from '../utils/partnershipUtils';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
+import { latestEventByDate, ratingLabel } from '../utils/canvasIndicators';
 
 interface PartnershipNodeProps {
   partnership: Partnership;
@@ -48,6 +49,9 @@ const INDICATOR_DEFS = [
   { letter: 'F', subtype: 'Flexibility' },
   { letter: 'R', subtype: 'Stress Response' },
 ] as const;
+
+const DATE_LABEL_FONT = 12;
+const DATE_LABEL_STEP = 15;
 
 const DIA_SIZE = 16;
 const DIA_HALF = DIA_SIZE / 2;
@@ -163,41 +167,27 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
           />
         </Group>
 
-        {relationshipStartDate && (
-          <Text
-            text={`Start: ${relationshipStartDate}`}
-            x={midPointX - 50}
-            y={connectorY - 20}
-            fontSize={12}
-          />
-        )}
-
-        {marriedStartDate && (
-          <Text
-            text={`Married: ${marriedStartDate}`}
-            x={midPointX - 50}
-            y={connectorY - 35}
-            fontSize={12}
-          />
-        )}
-
-        {separationDate && (
-          <Text
-            text={`Separated: ${separationDate}`}
-            x={midPointX - 50}
-            y={connectorY + 5}
-            fontSize={12}
-          />
-        )}
-
-        {divorceDate && (
-          <Text
-            text={`Divorced: ${divorceDate}`}
-            x={midPointX - 50}
-            y={connectorY + 20}
-            fontSize={12}
-          />
-        )}
+        {/* Date labels stack upward from just above the connector. The
+            family-name box hangs below the connector and is opaque, so
+            Separated/Divorced labels drawn below it were hidden (review
+            nodes-06). */}
+        {[
+          relationshipStartDate ? { key: 'start', text: `Start: ${relationshipStartDate}` } : null,
+          marriedStartDate ? { key: 'married', text: `Married: ${marriedStartDate}` } : null,
+          separationDate ? { key: 'separated', text: `Separated: ${separationDate}` } : null,
+          divorceDate ? { key: 'divorced', text: `Divorced: ${divorceDate}` } : null,
+        ]
+          .filter((entry): entry is { key: string; text: string } => entry !== null)
+          .map((entry, index) => (
+            <Text
+              key={entry.key}
+              name={`partnership-date-${entry.key}`}
+              text={entry.text}
+              x={midPointX - 50}
+              y={connectorY - 20 - index * DATE_LABEL_STEP}
+              fontSize={DATE_LABEL_FONT}
+            />
+          ))}
 
         {/* One slash for separated, two for divorced — driven by the dates
             the user recorded, not by the status dropdown, which is normally
@@ -317,7 +307,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                     (ev) => ev.eventType === 'FAMILY' && ev.category === 'Triangles' && ev.subtype === def.subtype
                   );
                   if (events.length === 0) return [];
-                  return [{ ...def, event: events[events.length - 1] }];
+                  return [{ ...def, event: latestEventByDate(events)! }];
                 });
                 if (active.length === 0) return null;
                 const spacing = 30;
@@ -330,6 +320,8 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                       x={cx}
                       y={boxH + 2}
                       onClick={(e) => {
+                        // Left button only (review nodes-11).
+                        if (e.evt.button !== 0) return;
                         e.cancelBubble = true;
                         onFamilyIndicatorClick(partnership.id, ind.event.id, {
                           x: (e.evt as MouseEvent).clientX,
@@ -367,7 +359,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                       <Text
                         x={TRI_HALF + 2}
                         y={Math.round(TRI_H / 2) - 5}
-                        text={String(ind.event.intensity ?? '')}
+                        text={ratingLabel(ind.event.intensity)}
                         fontSize={10}
                         fontFamily="sans-serif"
                         fontStyle="bold"
@@ -384,7 +376,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                     (ev) => ev.eventType === 'FAMILY' && ev.category === 'Stress' && ev.subtype === def.subtype
                   );
                   if (events.length === 0) return [];
-                  return [{ ...def, event: events[events.length - 1] }];
+                  return [{ ...def, event: latestEventByDate(events)! }];
                 });
                 if (activeStressors.length === 0) return null;
                 const spacing = 30;
@@ -398,6 +390,8 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                       x={cx}
                       y={diaRowY}
                       onClick={(e) => {
+                        // Left button only (review nodes-11).
+                        if (e.evt.button !== 0) return;
                         e.cancelBubble = true;
                         onFamilyIndicatorClick(partnership.id, ind.event.id, {
                           x: (e.evt as MouseEvent).clientX,
@@ -435,7 +429,7 @@ const PartnershipNode = ({ partnership, partner1, partner2, isSelected, isFamily
                       <Text
                         x={DIA_HALF + 2}
                         y={Math.round(DIA_SIZE / 2) - 5}
-                        text={String(ind.event.intensity ?? '')}
+                        text={ratingLabel(ind.event.intensity)}
                         fontSize={10}
                         fontFamily="sans-serif"
                         fontStyle="bold"

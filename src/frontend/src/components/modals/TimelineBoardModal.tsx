@@ -14,13 +14,6 @@ import type { TimelineBoardSelection } from '../../types/diagramEditor';
 import EventModal from '../EventModal';
 import TimelineYearInput from './TimelineYearInput';
 import {
-  synthesizeEmotionalLineDateEvents,
-  synthesizePartnershipDateEvents,
-  synthesizePersonDateEvents,
-  synthesizePersonIndicatorEvents,
-  withoutDateSlotCompanions,
-} from '../../utils/syntheticDateEvents';
-import {
   anchorTypeForOwner,
   applyEventDraftFieldChange,
   buildNewEventDraft,
@@ -33,9 +26,6 @@ import {
 import { collectSystemEvents, type SystemEvent } from '../../utils/systemEvents';
 import { earliestPartnershipDate } from '../../utils/partnershipUtils';
 import { hasSameEvent } from '../../utils/eventDedup';
-import { withoutPersonDateRecords } from '../../utils/personDateEvents';
-import { withoutPartnershipStatusRecords } from '../../utils/partnershipStatusEvents';
-import { withoutPatternEditRecords } from '../../utils/patternEventRecords';
 import {
   blockShapeForPerson,
   buildTimelineHoverText,
@@ -49,6 +39,13 @@ import {
 } from '../../constants/timelineBlockStyle';
 import type { FamilyScope } from '../../utils/familyScope';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import {
+  listedEmotionalLineEvents,
+  listedPartnershipEvents,
+  listedPersonEvents,
+  storedPartnershipEvents,
+} from '../../utils/listedEvents';
+import { joinCoupleNames } from '../../utils/personNames';
 
 interface TimelineBoardModalProps {
   people: Person[];
@@ -124,16 +121,23 @@ type TimelineLane = {
   };
 };
 
+// Shared empty lists for the optional props: a `= []` default is a new array
+// on every render, which invalidated every memo keyed on it.
+const NO_INDICATOR_DEFINITIONS: FunctionalIndicatorDefinition[] = [];
+const NO_NODAL_CATEGORIES: NodalCategoryDefinition[] = [];
+const NO_FF_CATEGORIES: FunctionalFactCategoryDefinition[] = [];
+const NO_IDS: string[] = [];
+
 export default function TimelineBoardModal({
   people,
   partnerships,
   allEmotionalLines,
   eventCategories,
-  functionalIndicatorDefinitions = [],
-  nodalCategories = [],
-  functionalFactCategories = [],
+  functionalIndicatorDefinitions = NO_INDICATOR_DEFINITIONS,
+  nodalCategories = NO_NODAL_CATEGORIES,
+  functionalFactCategories = NO_FF_CATEGORIES,
   timelineSelectionIds,
-  timelineFamilySelectionIds = [],
+  timelineFamilySelectionIds = NO_IDS,
   open,
   focusControls,
   familyScope = null,
@@ -337,7 +341,7 @@ export default function TimelineBoardModal({
       const pr = partnerships.find((p) => p.id === entityId);
       const a = people.find((p) => p.id === pr?.partner1_id)?.name || '';
       const b = people.find((p) => p.id === pr?.partner2_id)?.name || '';
-      const pair = [a, b].filter(Boolean).join(' + ');
+      const pair = joinCoupleNames(a, b);
       return `Partnership ${verb} Event${pair ? ` — ${pair}` : ''}`;
     }
     const line = allEmotionalLines.find((l) => l.id === entityId);
@@ -408,6 +412,31 @@ export default function TimelineBoardModal({
     (open === undefined && timelineSelectionIds.length === 0 && timelineFamilySelectionIds.length === 0)
   );
   const dialogRef = useDialogFocus(boardOpen, onClose);
+  // Each lane's relatives' events depend only on the diagram, never on hover,
+  // the lane filter or the 500 ms unsaved-changes tick. They were recomputed
+  // (family scope, kinship routes, blood paths) on every one of those
+  // renders (review 2026-09-30 struct-02). A new cache whenever the inputs
+  // change; within one set of inputs each lane is computed once.
+  const systemEventsByPerson = useMemo(
+    () => new Map<string, ReturnType<typeof collectSystemEvents>>(),
+    // The inputs are the cache key: a new empty cache whenever one changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [familyScope, people, partnerships, allEmotionalLines, functionalIndicatorDefinitions]
+  );
+  const systemEventsFor = (personId: string) => {
+    const cached = systemEventsByPerson.get(personId);
+    if (cached) return cached;
+    const computed = collectSystemEvents({
+      personId,
+      scope: familyScope,
+      people,
+      partnerships,
+      allEmotionalLines,
+      functionalIndicatorDefinitions,
+    });
+    systemEventsByPerson.set(personId, computed);
+    return computed;
+  };
   if (!boardOpen) {
     return null;
   }
@@ -465,7 +494,7 @@ export default function TimelineBoardModal({
           entityId: partnership.id,
         });
       }
-      withoutPartnershipStatusRecords(withoutDateSlotCompanions(partnership.events), partnership).forEach((event) => {
+      storedPartnershipEvents(partnership).forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
         familyItems.push({
@@ -531,13 +560,8 @@ export default function TimelineBoardModal({
       // the shared synthesizer, the same one the Properties panel Events tab
       // uses, so the two views cannot drift apart.
       // Spec: docs/implementation_plan_2026-09-19.md#M7.A.1
-      const ownEvents = [
-        // Date records are hidden, not deleted: the date field is the record
-        // and the synthesizer renders exactly one block from it.
-        ...withoutPersonDateRecords(withoutDateSlotCompanions(person.events)),
-        ...synthesizePersonDateEvents(person),
-        ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
-      ];
+      // The shared rule (utils/listedEvents.ts) the Properties panel uses.
+      const ownEvents = listedPersonEvents(person, functionalIndicatorDefinitions);
       ownEvents.forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
@@ -573,10 +597,7 @@ export default function TimelineBoardModal({
         .forEach((partnership) => {
           const partner1Name = people.find((p) => p.id === partnership.partner1_id)?.name;
           const partner2Name = people.find((p) => p.id === partnership.partner2_id)?.name;
-          const prlEvents = [
-            ...withoutPartnershipStatusRecords(withoutDateSlotCompanions(partnership.events), partnership),
-            ...synthesizePartnershipDateEvents(partnership, partner1Name, partner2Name),
-          ];
+          const prlEvents = listedPartnershipEvents(partnership, partner1Name, partner2Name);
           prlEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
@@ -592,7 +613,7 @@ export default function TimelineBoardModal({
               intensity: event.intensity,
               hoverText: buildTimelineHoverText({
                 eventName: event.category || 'Relationship Event',
-                ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
+                ownerName: joinCoupleNames(partner1Name, partner2Name),
                 note: event.observations,
                 dateRange: dateRangeText(start, event.endDate),
               }),
@@ -620,7 +641,7 @@ export default function TimelineBoardModal({
               intensity: event.intensity,
               hoverText: buildTimelineHoverText({
                 eventName: `${labelPrefix}: ${event.category || labelPrefix}`,
-                ownerName: [partner1Name, partner2Name].filter(Boolean).join(' + '),
+                ownerName: joinCoupleNames(partner1Name, partner2Name),
                 note: event.observations,
                 dateRange: dateRangeText(start, event.endDate),
               }),
@@ -657,16 +678,11 @@ export default function TimelineBoardModal({
               entityId: line.id,
             });
           }
-          const eplEvents = [
-            // Edit records are hidden: one event for the pattern, one each for
-            // its start and end dates (utils/patternEventRecords.ts).
-            ...withoutPatternEditRecords(withoutDateSlotCompanions(line.events)),
-            ...synthesizeEmotionalLineDateEvents(
-              line,
-              people.find((p) => p.id === line.person1_id)?.name,
-              people.find((p) => p.id === line.person2_id)?.name,
-            ),
-          ];
+          const eplEvents = listedEmotionalLineEvents(
+            line,
+            people.find((p) => p.id === line.person1_id)?.name,
+            people.find((p) => p.id === line.person2_id)?.name,
+          );
           eplEvents.forEach((event) => {
             const start = eventStart(event);
             if (!start) return;
@@ -699,14 +715,7 @@ export default function TimelineBoardModal({
       // Spec: docs/implementation_plan_2026-09-19.md#M7.E.1
       let systemMeta: TimelineLane['systemMeta'];
       if (showSystemEvents) {
-        const system = collectSystemEvents({
-          personId: person.id,
-          scope: familyScope,
-          people,
-          partnerships,
-          allEmotionalLines,
-          functionalIndicatorDefinitions,
-        });
+        const system = systemEventsFor(person.id);
         systemMeta = {
           relativeIds: system.relativeIds,
           lifetimeFilterApplied: system.lifetimeFilterApplied,
@@ -810,29 +819,23 @@ export default function TimelineBoardModal({
     if (item.entityType === 'person') {
       const person = people.find((p) => p.id === item.entityId);
       existingEvent = person
-        ? [
-            ...withoutDateSlotCompanions(person.events),
-            ...synthesizePersonDateEvents(person),
-            ...synthesizePersonIndicatorEvents(person, functionalIndicatorDefinitions),
-          ].find((e) => e.id === item.eventId)
+        ? listedPersonEvents(person, functionalIndicatorDefinitions).find((e) => e.id === item.eventId)
         : undefined;
     } else if (item.entityType === 'partnership') {
       const pr = partnerships.find((p) => p.id === item.entityId);
       existingEvent = pr
         ? item.partnershipTarget === 'familyEvents'
           ? pr.familyEvents?.find((e) => e.id === item.eventId)
-          : [
-              ...withoutDateSlotCompanions(pr.events),
-              ...synthesizePartnershipDateEvents(pr, nameOf(pr.partner1_id), nameOf(pr.partner2_id)),
-            ].find((e) => e.id === item.eventId)
+          : listedPartnershipEvents(pr, nameOf(pr.partner1_id), nameOf(pr.partner2_id)).find(
+              (e) => e.id === item.eventId
+            )
         : undefined;
     } else {
       const line = allEmotionalLines.find((l) => l.id === item.entityId);
       existingEvent = line
-        ? [
-            ...withoutDateSlotCompanions(line.events),
-            ...synthesizeEmotionalLineDateEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)),
-          ].find((e) => e.id === item.eventId)
+        ? listedEmotionalLineEvents(line, nameOf(line.person1_id), nameOf(line.person2_id)).find(
+            (e) => e.id === item.eventId
+          )
         : undefined;
     }
     if (existingEvent) {

@@ -84,3 +84,20 @@ export const isVisibleAtCutoff = (cutoffTimestamp: number | null) => (date?: str
   if (Number.isNaN(ts)) return true;
   return ts <= cutoffTimestamp;
 };
+
+/**
+ * Keep the timeline slider year inside the diagram's year range. A year past
+ * the end goes to the newest year, not the oldest — jumping to the oldest hid
+ * almost the whole diagram (review 2026-09-30 DE1-09). No year yet (a newly
+ * opened diagram) is the newest year, so everything is shown, including
+ * future-dated entries (DE1-08).
+ */
+export const clampTimelineYear = (
+  year: number | null,
+  bounds: { min: number; max: number }
+): number => {
+  if (year == null) return bounds.max;
+  if (year > bounds.max) return bounds.max;
+  if (year < bounds.min) return bounds.min;
+  return year;
+};

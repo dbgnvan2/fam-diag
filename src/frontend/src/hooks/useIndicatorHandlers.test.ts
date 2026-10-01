@@ -96,3 +96,44 @@ describe('sanitizePeopleIndicators', () => {
     expect(clean.functionalIndicators?.map((e) => e.definitionId)).toEqual(['worry']);
   });
 });
+
+describe('renaming a symptom type (settings-01, settings-07)', () => {
+  const withCoughEvent: Person = {
+    ...ann,
+    events: [
+      { id: 'e', date: '2020-01-01', startDate: '2020-01-01', category: 'physical', eventType: 'SYMPTOM', status: 'discrete', intensity: 0, howWell: 0, otherPersonName: '', wwwwh: '', observations: '', eventClass: 'individual', subtype: 'Cough', symptomType: 'Cough', sourceIndicatorId: 'cough' },
+    ],
+  };
+
+  it('renames the events linked to the type with it (regression: the symptom showed under two names)', () => {
+    const { result } = renderHook(() => useHarness([withCoughEvent]));
+    let error: string | null = 'unset';
+    act(() => {
+      error = result.current.handlers.updateFunctionalIndicatorLabel('cough', '  Chronic cough ');
+    });
+    expect(error).toBeNull();
+    expect(result.current.defs.find((d) => d.id === 'cough')?.label).toBe('Chronic cough');
+    expect(result.current.people[0].events?.[0]).toMatchObject({ symptomType: 'Chronic cough', subtype: 'Chronic cough' });
+  });
+
+  it('refuses an empty name and a duplicate of another type in any letter case', () => {
+    const { result } = renderHook(() => useHarness([withCoughEvent]));
+    let empty: string | null = null;
+    let duplicate: string | null = null;
+    act(() => {
+      empty = result.current.handlers.updateFunctionalIndicatorLabel('cough', '   ');
+      duplicate = result.current.handlers.updateFunctionalIndicatorLabel('cough', 'WORRY');
+    });
+    expect(empty).toBe('Enter a name.');
+    expect(duplicate).toContain('already in the list');
+    expect(result.current.defs.map((d) => d.label)).toEqual(['Cough', 'Worry']);
+    expect(result.current.people[0].events?.[0].symptomType).toBe('Cough');
+  });
+
+  it('a second "Add Type" gets a numbered placeholder, not a duplicate name', () => {
+    const { result } = renderHook(() => useHarness([ann]));
+    act(() => result.current.handlers.addFunctionalIndicatorDefinitionForGroup('physical'));
+    act(() => result.current.handlers.addFunctionalIndicatorDefinitionForGroup('physical'));
+    expect(result.current.defs.map((d) => d.label).slice(2)).toEqual(['New Symptom Type', 'New Symptom Type 2']);
+  });
+});

@@ -11,7 +11,9 @@ import {
   applyEventDraftFieldChange,
   eventClassForOwner,
   withSyncedDateSlotCompanions,
+  buildFamilyEventDraft,
   buildNewEventDraft,
+  canonicalFamilyCategory,
   deleteEventFromOwner,
   normalizeEventForSave,
   saveEventOnOwner,
@@ -379,5 +381,40 @@ describe('a death recorded without a date (TODO 2026-09-27)', () => {
     const updates = deleteEventFromOwner({ kind: 'person', id: 'p1' }, deceased(), 'synth-death-p1') as Partial<Person>;
     expect(updates).toMatchObject({ deathDateKnown: undefined, deathDate: undefined });
     expect(updates).toHaveProperty('deathDateKnown', undefined);
+  });
+});
+
+describe('family event drafts (review 2026-09-30 DE2-03)', () => {
+  it('carry the chosen category and type, no ratings, and FAMILY / family', () => {
+    const draft = buildFamilyEventDraft({
+      partnershipId: 'pr',
+      partner1Name: 'Ann',
+      partner2Name: 'Bob',
+      category: 'Triangles',
+      subtype: 'Functioning',
+    });
+    expect(draft).toMatchObject({
+      eventType: 'FAMILY',
+      eventClass: 'family',
+      anchorType: 'FAMILY',
+      anchorId: 'pr',
+      category: 'Triangles',
+      subtype: 'Functioning',
+      intensity: 0,
+      frequency: 0,
+      impact: 0,
+      date: '',
+      startDate: '',
+    });
+  });
+
+  it('"Add Event" starts with no category and no type', () => {
+    expect(buildFamilyEventDraft({ partnershipId: 'pr' })).toMatchObject({ category: '', subtype: '' });
+  });
+
+  it('a category is put in its canonical spelling, but an empty one is not defaulted', () => {
+    expect(canonicalFamilyCategory('triangles')).toBe('Triangles');
+    expect(canonicalFamilyCategory('STRESS')).toBe('Stress');
+    expect(canonicalFamilyCategory('')).toBe('');
   });
 });

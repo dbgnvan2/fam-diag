@@ -4,7 +4,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  buildDiagramPayload,
   DIAGRAM_CONTENT_KEYS,
+  fileHoldsDiagramContent,
   DIAGRAM_PAYLOAD_KEYS,
   serializeDiagramContent,
   type DiagramContentState,
@@ -44,5 +46,17 @@ describe('serializeDiagramContent', () => {
   ])('a change to %s changes the snapshot (regression: not in the dirty check)', (_key, change) => {
     const changed = { ...base, ...change } as DiagramContentState;
     expect(serializeDiagramContent(changed)).not.toBe(serializeDiagramContent(base));
+  });
+});
+
+describe('fileHoldsDiagramContent (review 2026-09-30 DE1-12)', () => {
+  it('a file saved from this content matches it; a changed or partial file does not', () => {
+    const saved = JSON.parse(JSON.stringify(buildDiagramPayload({ ...base, autoSaveMinutes: 5 }, 'a.json')));
+    expect(fileHoldsDiagramContent(saved, base)).toBe(true);
+    expect(fileHoldsDiagramContent({ ...saved, ideasText: 'edited on the other Mac' }, base)).toBe(false);
+    const older = { ...saved };
+    delete older.predictionSets;
+    expect(fileHoldsDiagramContent(older, base)).toBe(false);
+    expect(fileHoldsDiagramContent(null, base)).toBe(false);
   });
 });

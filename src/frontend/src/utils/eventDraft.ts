@@ -491,6 +491,51 @@ export const buildNewEventDraft = ({
   };
 };
 
+/**
+ * A new family-level event (a partnership's `familyEvents`): the category
+ * and type the user picked from the menu, and nothing else — no ratings and
+ * no default category (review 2026-09-30 DE2-03: the family dialogs seeded
+ * intensity, frequency and impact as 1 and gave three different eventClass
+ * values).
+ */
+export const buildFamilyEventDraft = ({
+  partnershipId,
+  partner1Name,
+  partner2Name,
+  category,
+  subtype,
+}: {
+  partnershipId: string;
+  partner1Name?: string;
+  partner2Name?: string;
+  category?: string;
+  subtype?: string;
+}): EmotionalProcessEvent =>
+  buildNewEventDraft({
+    eventType: 'FAMILY',
+    anchorType: anchorTypeForOwner('partnership', 'familyEvents'),
+    anchorId: partnershipId,
+    eventClass: eventClassForOwner('partnership', 'familyEvents'),
+    primaryPersonName: partner1Name,
+    seed: {
+      category: category || '',
+      subtype: subtype || '',
+      status: 'ongoing',
+      otherPersonName: partner2Name || undefined,
+    },
+  });
+
+/**
+ * A family event's category in its canonical spelling ("triangles" →
+ * "Triangles"). An empty or unknown category is kept as it is, never
+ * replaced with a default.
+ */
+export const canonicalFamilyCategory = (category: string | undefined): string => {
+  const value = (category || '').trim();
+  const known = (EVENT_CATEGORIES.FAMILY || []).find((entry) => entry.toLowerCase() === value.toLowerCase());
+  return known || value;
+};
+
 /** The EPE category that names a pattern's own type. */
 export const EPE_CATEGORY_BY_PATTERN_TYPE: Record<EmotionalLine['relationshipType'], string> = {
   fusion: '+/- Adequate',

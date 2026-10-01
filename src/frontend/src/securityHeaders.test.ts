@@ -3,9 +3,20 @@
  * the app actually talks to, and nothing is loaded from a host it does not
  * list (gap review F-19). A new fetch or embed host that is not added to the
  * policy fails here, before it is blocked in production.
+ *
+ * URLs are read from the source with the TypeScript parser, so a URL in a
+ * comment is never counted and a `//` inside a string never hides one (gate
+ * 2026-09-30e / 30f LOW notes). Each https string literal is classified by
+ * how the code uses it:
+ *   - first argument of fetch() / fetchWithRetry()   → fetched (connect-src)
+ *   - value of an `embedUrl` property                → framed (frame-src)
+ *   - value of a `url` property (a link to follow)   → linked (not governed)
+ * Any other https literal is reported as unclassified, with its file, so a
+ * URL moved into a constant cannot slip past these checks.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+import ts from 'typescript';
 import { describe, it, expect } from 'vitest';
 
 const repoRoot = join(__dirname, '..', '..', '..');
@@ -30,15 +41,47 @@ const sourceFiles = (dir: string): string[] =>
     if (statSync(path).isDirectory()) return sourceFiles(path);
     return /\.(ts|tsx)$/.test(name) && !/\.test\./.test(name) ? [path] : [];
   });
-// Comments are removed first: a URL mentioned in a comment is not one the
-// app uses (gate 2026-09-30e LOW #2). The `[^:]` guard keeps "https://" from
-// being read as the start of a // comment.
-const stripComments = (text: string) =>
-  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-const allSource = sourceFiles(srcRoot)
-  .map((path) => stripComments(readFileSync(path, 'utf8')))
-  .join('\n');
-const originOf = (url: string) => new URL(url).origin;
+
+type Use = 'fetched' | 'framed' | 'linked' | 'unclassified';
+type Found = { origin: string; use: Use; where: string };
+
+const FETCHERS = new Set(['fetch', 'fetchWithRetry']);
+
+const classify = (literal: ts.StringLiteralLike): Use => {
+  const parent = literal.parent;
+  if (ts.isCallExpression(parent) && parent.arguments[0] === literal) {
+    const callee = parent.expression;
+    const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : '';
+    if (FETCHERS.has(name)) return 'fetched';
+  }
+  if (ts.isPropertyAssignment(parent) && parent.initializer === literal && ts.isIdentifier(parent.name)) {
+    if (parent.name.text === 'embedUrl') return 'framed';
+    if (parent.name.text === 'url') return 'linked';
+  }
+  return 'unclassified';
+};
+
+const found: Found[] = sourceFiles(srcRoot).flatMap((path) => {
+  const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true);
+  const out: Found[] = [];
+  const visit = (node: ts.Node) => {
+    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && /^https:\/\//.test(node.text)) {
+      const { line } = file.getLineAndCharacterOfPosition(node.getStart());
+      out.push({
+        origin: new URL(node.text).origin,
+        use: classify(node),
+        where: `${relative(srcRoot, path)}:${line + 1}`,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return out;
+});
+
+const originsUsedAs = (use: Use) => new Set(found.filter((entry) => entry.use === use).map((entry) => entry.origin));
+const httpsEntries = (name: string) => new Set(directive(name).filter((entry) => entry.startsWith('https://')));
+const sorted = (set: Set<string>) => [...set].sort();
 
 describe('production security headers', () => {
   it('apply to every path and forbid framing, plugins and foreign scripts', () => {
@@ -49,26 +92,17 @@ describe('production security headers', () => {
     expect(headerValue('X-Content-Type-Options')).toBe('nosniff');
   });
 
-  // How each https origin in the source is used. Video `embedUrl`s are
-  // framed; a video's `url` is an "Open in YouTube" link (navigation, which
-  // the policy does not govern); every other literal is something the app
-  // fetches. Scanning every literal — not only fetch() calls — means moving a
-  // URL into a constant cannot hide it from these checks.
-  const originsOf = (pattern: RegExp) =>
-    new Set([...allSource.matchAll(pattern)].map((match) => originOf(match[1])));
-  const framed = originsOf(/embedUrl:\s*'(https:\/\/[^']+)'/g);
-  const linked = originsOf(/\burl:\s*'(https:\/\/[^']+)'/g);
-  const everyOrigin = originsOf(/(https:\/\/[a-zA-Z0-9.-]+)/g);
-  const fetched = new Set([...everyOrigin].filter((origin) => !framed.has(origin) && !linked.has(origin)));
-  const httpsEntries = (name: string) => new Set(directive(name).filter((entry) => entry.startsWith('https://')));
+  it('every https URL in the source is fetched, framed or linked (classify any new use here)', () => {
+    expect(found.filter((entry) => entry.use === 'unclassified').map((entry) => `${entry.where} ${entry.origin}`)).toEqual([]);
+  });
 
   it('connect-src allows exactly the origins the app fetches from', () => {
-    expect([...httpsEntries('connect-src')].sort()).toEqual([...fetched].sort());
-    expect(fetched).toEqual(new Set(['https://api.anthropic.com', 'https://api.deepseek.com']));
+    expect(sorted(httpsEntries('connect-src'))).toEqual(sorted(originsUsedAs('fetched')));
+    expect(sorted(originsUsedAs('fetched'))).toEqual(['https://api.anthropic.com', 'https://api.deepseek.com']);
   });
 
   it('frame-src allows exactly the origins the app frames', () => {
-    expect([...httpsEntries('frame-src')].sort()).toEqual([...framed].sort());
-    expect(framed).toEqual(new Set(['https://www.youtube-nocookie.com']));
+    expect(sorted(httpsEntries('frame-src'))).toEqual(sorted(originsUsedAs('framed')));
+    expect(sorted(originsUsedAs('framed'))).toEqual(['https://www.youtube-nocookie.com']);
   });
 });

@@ -1,0 +1,8 @@
+{
+  "_comment": "Words that can stand for a person in a voice command (\"add a son named Bob\"). The word sets the sex when it implies one; 'unspecified' words say nothing about sex. Edited here, not in code.",
+  "personNouns": {
+    "unspecified": ["person", "child"],
+    "male": ["man", "boy", "son", "brother", "father", "husband", "uncle", "nephew", "grandson", "grandfather"],
+    "female": ["woman", "girl", "daughter", "sister", "mother", "wife", "aunt", "niece", "granddaughter", "grandmother"]
+  }
+}
