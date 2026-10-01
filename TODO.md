@@ -42,6 +42,18 @@ Only items that were decided, deliberately, to be left as they are:
   with today (an app timestamp, not a user-entered date); a SIR entry may be
   saved with an empty Behavior.
 
+- **Three LOW notes from gate `gate_2026-09-30f`** (APPROVED, non-blocking;
+  carried so the pushed code is exactly what the gate approved):
+  1. In `src/frontend/src/securityHeaders.test.ts` every https origin that is
+     neither framed nor linked counts as fetched, so a future origin used some
+     other way fails with a misleading "connect-src" message.
+  2. Its `stripComments` could also strip `//` or `/*` inside a string,
+     hiding an https literal from the check.
+  3. EventModal's Save waits for a type whenever the category has a type
+     list — including an older saved event with an empty type, which can't
+     be re-saved until one is picked. This follows the decision, but nothing
+     tests that case.
+
 ## Done on 2026-09-30 — gap-review TODO items
 
 - Half-siblings are labelled Half-brother / Half-sister, and an adopted
