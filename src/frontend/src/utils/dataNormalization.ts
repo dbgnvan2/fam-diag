@@ -181,7 +181,7 @@ export const GENDER_SYMBOL_OPTIONS: Array<{
   genderIdentity: GenderIdentity;
 }> = [
   { label: 'Female × Feminine (Cis)', symbol: 'female_cis', birthSex: 'female', genderIdentity: 'feminine' },
-  { label: 'Female × Masculine', symbol: 'female_trans', birthSex: 'female', genderIdentity: 'masculine' },
+  { label: 'Female × Masculine', symbol: 'male_trans', birthSex: 'female', genderIdentity: 'masculine' },
   { label: 'Female × Non-Binary', symbol: 'nonbinary', birthSex: 'female', genderIdentity: 'nonbinary' },
   { label: 'Female × Agender', symbol: 'agender', birthSex: 'female', genderIdentity: 'agender' },
   { label: 'Male × Feminine', symbol: 'female_trans', birthSex: 'male', genderIdentity: 'feminine' },

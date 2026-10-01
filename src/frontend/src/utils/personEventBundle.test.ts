@@ -383,3 +383,22 @@ describe('bundle-04: invalid events in a file', () => {
     expect(checked.people[0].events).toHaveLength(1);
   });
 });
+
+describe('person names follow the app\'s display-name rule (gate 2026-10-01 #6)', () => {
+  const annie = makePerson({ id: 'ann', name: 'Annie', firstName: 'Ann', lastName: 'Lee', events: [] });
+
+  it('a bundle names a person as the rest of the app does', () => {
+    const bundle = buildPersonEventBundle([annie]);
+    expect(bundle.people[0].personName).toBe('Ann Lee');
+  });
+
+  it('a bundle written under the old rule (stored name) still matches by name', () => {
+    const oldBundle: PersonEventBundle = {
+      ...buildPersonEventBundle([annie]),
+      people: [{ personName: 'Annie', events: [] }],
+    };
+    const { summary } = mergePersonEventsFromBundle([annie], oldBundle);
+    expect(summary.matchedPeople).toBe(1);
+    expect(summary.unmatchedPeople).toEqual([]);
+  });
+});

@@ -175,6 +175,10 @@ describe('blockShapeForPerson', () => {
     // The older single-letter gender codes are still in saved diagrams.
     expect(blockShapeForPerson({ gender: 'b' })).toBe('rect');
     expect(blockShapeForPerson({ gender: 's' })).toBe('oval');
+    // The shared sex rule: identity and symbol count too (gate 2026-10-01 #3).
+    expect(blockShapeForPerson({ genderIdentity: 'masculine' })).toBe('rect');
+    expect(blockShapeForPerson({ genderSymbol: 'female_cis' })).toBe('oval');
+    expect(blockShapeForPerson({ gender: 'g' })).toBe('oval');
   });
 
   it('test_timeline_shape_is_neutral_when_sex_is_unknown_or_absent', () => {

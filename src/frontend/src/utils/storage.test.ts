@@ -127,3 +127,42 @@ describe('nextBackupVersions — V1 is the version the last save replaced (revie
     expect([record.v1, record.v2, record.v3]).toEqual(['d', 'c', undefined]);
   });
 });
+
+describe('rotateDiagramBackups — a failed read keeps the existing backups (gate 2026-10-01 #5)', () => {
+  it('writes nothing when the stored record cannot be read', async () => {
+    const { rotateDiagramBackups } = await import('./storage');
+    const puts: unknown[] = [];
+    type Handlers = { onsuccess?: () => void; onerror?: () => void; oncomplete?: () => void };
+    const tx: Handlers & { objectStore: () => unknown } = {
+      objectStore: () => ({
+        get: () => {
+          const request: Handlers & { error: Error } = { error: new Error('read failed') };
+          setTimeout(() => {
+            request.onerror?.();
+            setTimeout(() => tx.oncomplete?.(), 0);
+          }, 0);
+          return request;
+        },
+        put: (value: unknown) => {
+          puts.push(value);
+        },
+      }),
+    };
+    const db = { transaction: () => tx, close: () => undefined, objectStoreNames: { contains: () => true } };
+    const fakeIndexedDb = {
+      open: () => {
+        const request: Handlers & { result: unknown } = { result: db };
+        setTimeout(() => request.onsuccess?.(), 0);
+        return request;
+      },
+    };
+    vi.stubGlobal('indexedDB', fakeIndexedDb);
+    try {
+      const backedUp = await rotateDiagramBackups('diagram.json', '{"new":1}', null, 3);
+      expect(puts).toEqual([]);
+      expect(backedUp).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

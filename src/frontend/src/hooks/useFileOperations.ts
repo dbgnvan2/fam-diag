@@ -89,7 +89,11 @@ interface UseFileOperationsDeps {
   setDemoTourOpen: Dispatch<SetStateAction<boolean>>;
   // Functions
   saveDiagramToCurrentTarget: (opts?: { requestedFileName?: string; forceChooseLocation?: boolean; allowPicker?: boolean }) => Promise<boolean>;
-  replaceDiagramState: (data: any, sourceFileName?: string, options?: { normalizeLayout?: boolean }) => void;
+  replaceDiagramState: (
+    data: any,
+    sourceFileName?: string,
+    options?: { normalizeLayout?: boolean; keepSavedBaseline?: boolean }
+  ) => void;
   beginImportFlow: (data: DiagramImportData, sourceFileName: string, source: 'import' | 'transcript' | 'facts') => void;
   beginSessionCaptureFlow: (data: any, sourceFileName: string) => void;
   setDiagramFileHandle: (handle: any | null) => void;
@@ -226,7 +230,9 @@ export function useFileOperations({
     if (!confirmDiscardUnsavedChanges(isDirty, `Restore backup ${versionKey.toUpperCase()}`)) return;
     try {
       const data = JSON.parse(raw);
-      replaceDiagramState(data, diagramFileHandleRef.current?.name || fileName);
+      // The restored version is not what the file holds, so it stays unsaved
+      // until saved (autosave then writes it to a linked file).
+      replaceDiagramState(data, diagramFileHandleRef.current?.name || fileName, { keepSavedBaseline: true });
       setBackupRestoreOpen(false);
       setBackupRestoreVersions(null);
     } catch {

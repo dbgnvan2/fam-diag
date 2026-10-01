@@ -114,3 +114,14 @@ describe('normalizeImportedChildLayout — reads every sex field (review 2026-09
     expect(x('h')).toBeLessThan(x('w'));
   });
 });
+
+describe('GENDER_SYMBOL_OPTIONS agree with the shared sex rule (gate 2026-10-01 #2)', () => {
+  it('every option\'s birth sex and identity give back its own symbol', async () => {
+    const { GENDER_SYMBOL_OPTIONS } = await import('./dataNormalization');
+    const { deriveGenderSymbol } = await import('./personSex');
+    for (const option of GENDER_SYMBOL_OPTIONS) {
+      expect({ label: option.label, symbol: deriveGenderSymbol({ birthSex: option.birthSex, genderIdentity: option.genderIdentity }) })
+        .toEqual({ label: option.label, symbol: option.symbol });
+    }
+  });
+});

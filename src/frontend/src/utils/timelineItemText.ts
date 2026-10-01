@@ -19,6 +19,7 @@ import {
   INTENSITY_UNRATED_FILL,
   type TimelineBlockShape,
 } from '../constants/timelineBlockStyle';
+import { resolveBinarySex, type SexFields } from './personSex';
 
 type NameableEvent = Pick<
   EmotionalProcessEvent,
@@ -105,14 +106,12 @@ export function buildTimelineHoverText({
  *          no single person, so they stay neutral.
  * Tests:   timelineItemText.test.ts::test_timeline_shape_follows_the_owner_sex
  */
-export function blockShapeForPerson(person?: {
-  birthSex?: string;
-  gender?: string;
-} | null): TimelineBlockShape {
-  const raw = (person?.birthSex || person?.gender || '').toString().toLowerCase();
-  if (!raw) return 'neutral';
-  if (raw.startsWith('m') || raw === 'b') return 'rect';
-  if (raw.startsWith('f') || raw === 's' || raw === 'g') return 'oval';
+export function blockShapeForPerson(person?: SexFields | null): TimelineBlockShape {
+  // The shared sex rule (utils/personSex.ts), not a local copy (gate
+  // 2026-10-01 #3).
+  const sex = resolveBinarySex(person);
+  if (sex === 'male') return 'rect';
+  if (sex === 'female') return 'oval';
   return 'neutral';
 }
 

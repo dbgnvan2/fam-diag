@@ -58,6 +58,7 @@ import {
 } from './kinship';
 import { listedEmotionalLineEvents, listedPartnershipEvents, listedPersonEvents } from './listedEvents';
 import { joinCoupleNames } from './personNames';
+import { resolveBinarySex } from './personSex';
 
 export type SystemEventOwnerType = 'person' | 'partnership' | 'emotional';
 
@@ -87,12 +88,10 @@ export type SystemEventsResult = {
   lifetimeFilterApplied: boolean;
 };
 
-const genderOf = (person?: Person): RelationGender => {
-  const raw = (person?.birthSex || person?.gender || '').toString().toLowerCase();
-  if (raw.startsWith('m') || raw === 'b') return 'male';
-  if (raw.startsWith('f') || raw === 's' || raw === 'g') return 'female';
-  return 'unknown';
-};
+// The shared sex rule (utils/personSex.ts), so a sex recorded only as an
+// identity or a symbol still picks Son / Daughter, Uncle / Aunt (gate
+// 2026-10-01 #3: this was a narrower copy).
+const genderOf = (person?: Person): RelationGender => resolveBinarySex(person) ?? 'unknown';
 
 const kinshipNoun = (generation: number, gender: RelationGender): string => {
   const row = RELATION_NOUNS[generation];

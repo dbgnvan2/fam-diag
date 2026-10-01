@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { EVENT_CATEGORIES } from '../constants/eventConstants';
 import type { EmotionalLine, EmotionalProcessEvent, Partnership, Person, PredictionSet, Triangle } from '../types';
 import {
   categoryInUseMessage,
@@ -231,5 +232,31 @@ describe('settings-01 — renaming a symptom type renames its events', () => {
     expect(byId('s1')).toMatchObject({ symptomType: 'Worry', subtype: 'Worry' });
     expect(byId('s2')).toMatchObject({ symptomType: 'Worry', subtype: 'panic at night' });
     expect(byId('s3')).toMatchObject({ symptomType: 'Anxiety', subtype: 'Anxiety' });
+  });
+});
+
+describe('a category named like another type\'s built-in category (gate 2026-10-01 #1)', () => {
+  // An older file can hold an SIR category whose name is also a built-in
+  // category of another event type. The stored type decides, so the events
+  // are still found.
+  const collidingName = EVENT_CATEGORIES.FAMILY[0];
+  const withCollision = (): CategoryHolders => {
+    const state = holders();
+    state.people = state.people.map((p) =>
+      p.id === 'ann'
+        ? { ...p, events: [...(p.events || []), event('c1', { eventType: 'SIR', category: collidingName })] }
+        : p
+    );
+    return state;
+  };
+
+  it('counts the events as uses, so the delete guard refuses', () => {
+    expect(categoryUsage(withCollision(), 'SIR', collidingName).eventCount).toBe(1);
+  });
+
+  it('a rename moves them', () => {
+    const state = withCollision();
+    saveCategoryList('SIR', [{ id: 'x', name: collidingName }], [{ id: 'x', name: 'Renamed' }], vi.fn(), recordingSetters(state));
+    expect(categoryOf(state, 'c1')).toBe('Renamed');
   });
 });

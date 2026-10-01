@@ -45,8 +45,18 @@ export type CategoryRename = { from: string; to: string };
 const sameName = (a: string | undefined, b: string | undefined) =>
   (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
 
+/**
+ * The stored event type decides which list a category belongs to. Inference
+ * is only for an event with no stored type (older files): `inferEventType`
+ * re-types an event whose category name is also another type's built-in
+ * category, which would hide it from a rename and from the delete guard
+ * (gate 2026-10-01 #1).
+ */
+const eventTypeForCategory = (event: EmotionalProcessEvent): EventType =>
+  event.eventType && event.eventType in EVENT_TYPE_LABELS ? event.eventType : inferEventType(event);
+
 const eventUsesCategory = (event: EmotionalProcessEvent, type: CategoryEventType, name: string) =>
-  !!name.trim() && sameName(event.category, name) && inferEventType(event) === type;
+  !!name.trim() && sameName(event.category, name) && eventTypeForCategory(event) === type;
 
 const renameEvents = (
   events: EmotionalProcessEvent[] | undefined,

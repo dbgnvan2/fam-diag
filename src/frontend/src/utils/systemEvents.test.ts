@@ -256,6 +256,30 @@ describe('collectSystemEvents', () => {
     expect(labels(result)).toContain('Parent died');
   });
 
+  it('a sex recorded only as identity or symbol still picks the noun (gate 2026-10-01 #3)', () => {
+    const { people, partnerships } = buildSystem();
+    const byIdentity = people.map((entry) =>
+      entry.id === 'dad'
+        ? { ...entry, birthSex: undefined, gender: undefined, genderIdentity: 'masculine' as const }
+        : entry
+    );
+    const bySymbol = people.map((entry) =>
+      entry.id === 'dad'
+        ? { ...entry, birthSex: undefined, gender: undefined, genderSymbol: 'male_cis' as const }
+        : entry
+    );
+    for (const variant of [byIdentity, bySymbol]) {
+      const result = collectSystemEvents({
+        personId: 'root',
+        scope: scopeFor(variant, partnerships),
+        people: variant,
+        partnerships,
+        now: new Date('2026-09-19T00:00:00Z'),
+      });
+      expect(labels(result)).toContain('Father died');
+    }
+  });
+
   it('test_m7c4_relative_symptom_event_reaches_lane', () => {
     const result = collect();
     const symptom = result.events.find((entry) => entry.event.id === 'sis-symptom');

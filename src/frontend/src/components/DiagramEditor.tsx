@@ -2408,7 +2408,16 @@ useEffect(() => {
   const replaceDiagramState = (
     data: any,
     sourceFileName?: string,
-    options?: { normalizeLayout?: boolean }
+    options?: {
+      normalizeLayout?: boolean;
+      /**
+       * Keep the last-saved baseline, so the new content counts as unsaved.
+       * A restored backup is an older version than the file holds: marking
+       * it saved hid that from autosave and from the unsaved-changes prompt
+       * (gate 2026-10-01 #4).
+       */
+      keepSavedBaseline?: boolean;
+    }
   ) => {
     if (!Array.isArray(data.people) || !Array.isArray(data.partnerships) || !Array.isArray(data.emotionalLines)) {
       throw new Error('Invalid file format');
@@ -2494,6 +2503,7 @@ useEffect(() => {
     closeTimeline();
     setSelectedPageNoteId(null);
     setPageNoteDraft(null);
+    if (options?.keepSavedBaseline) return;
     markSnapshotClean({
       people: peopleWithEvents,
       partnerships: partnershipsWithEvents,

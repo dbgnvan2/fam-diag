@@ -7,7 +7,7 @@ import type { BirthSex, GenderIdentity, GenderSymbol, Person } from '../types';
  * code accepted the 'b' / 's' codes, PersonNode drew them (and 'Male') as
  * female.
  */
-type SexFields = Pick<Person, 'gender' | 'birthSex' | 'genderIdentity' | 'genderSymbol'>;
+export type SexFields = Pick<Person, 'gender' | 'birthSex' | 'genderIdentity' | 'genderSymbol'>;
 
 /**
  * The stored `gender` string as a birth sex. Case-insensitive; accepts the
@@ -21,6 +21,7 @@ const GENDER_CODES: Record<string, BirthSex> = {
   female: 'female',
   f: 'female',
   s: 'female',
+  g: 'female',
   intersex: 'intersex',
   'ai-agent': 'ai-agent',
   ai_agent: 'ai-agent',

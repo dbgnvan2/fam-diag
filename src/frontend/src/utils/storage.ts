@@ -259,7 +259,12 @@ export const rotateDiagramBackups = async (
     request.onsuccess = () => {
       put(request.result && typeof request.result === 'object' ? request.result : {});
     };
-    request.onerror = () => put({});
+    // A failed read is not "no backups yet": writing a fresh record here
+    // would drop v1..vN, the versions this exists to keep (gate 2026-10-01
+    // #5). Leave the record as it is; nothing was backed up from it.
+    request.onerror = () => {
+      backedUp = previousJson;
+    };
     tx.oncomplete = () => { db.close(); resolve(backedUp); };
     tx.onerror = () => { db.close(); resolve(backedUp); };
     tx.onabort = () => { db.close(); resolve(backedUp); };

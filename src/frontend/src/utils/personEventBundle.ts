@@ -2,6 +2,7 @@ import type { EmotionalProcessEvent, EventAnchorType, EventClass, EventType, Per
 import { EVENT_STATUS_OPTIONS, EVENT_TYPE_LABELS, inferEventType } from '../constants/eventConstants';
 import { withoutPersonDateRecords } from './personDateEvents';
 import { anchorTypeForOwner, createEventId, eventClassForOwner, normalizeEventForSave } from './eventDraft';
+import { personDisplayName } from './personNames';
 
 /**
  * A person's name as a matching key (bundle-02). NFKD splits accented
@@ -17,8 +18,9 @@ export const normalizePersonNameKey = (value?: string): string =>
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 
-const displayName = (person: Person): string =>
-  person.name || [person.firstName, person.lastName].filter(Boolean).join(' ').trim();
+// The app's one display-name rule (utils/personNames.ts), so a bundle names
+// people as the rest of the app does (gate 2026-10-01 #6).
+const displayName = (person: Person): string => personDisplayName(person);
 
 export type PersonEventBundlePerson = {
   personId?: string;
@@ -361,10 +363,14 @@ export const mergePersonEventsFromBundle = (
   // bundle-02: a name key can belong to several people. An empty key never
   // matches, and a key held by more than one person matches nobody.
   const peopleByName = new Map<string, Person[]>();
+  // Each person is found by their display name and by their stored `name`,
+  // so a bundle written before the display-name rule changed still matches.
   currentPeople.forEach((person) => {
-    const key = normalizePersonNameKey(displayName(person));
-    if (!key) return;
-    peopleByName.set(key, [...(peopleByName.get(key) || []), person]);
+    const keys = new Set([normalizePersonNameKey(displayName(person)), normalizePersonNameKey(person.name)]);
+    keys.forEach((key) => {
+      if (!key) return;
+      peopleByName.set(key, [...(peopleByName.get(key) || []), person]);
+    });
   });
   const updatedById = new Map<string, Person>();
 
