@@ -43,6 +43,12 @@ Only items that were decided, deliberately, to be left as they are:
   changes when a callback is rebuilt, so each needs its own test; they were
   left out of the review batch to keep it reviewable.
 
+- **Two display-name copies left** (gate `gate_2026-10-01b` LOW #1):
+  `PropertiesPanel.tsx:1850` and `DiagramEditor.tsx:832-837` build
+  "First Last" inline instead of calling `personDisplayName`. Same
+  precedence, only the fallback text differs, so not a bug; carried rather
+  than fixed after the approval so the pushed code is what the gate read.
+
 ## Done on 2026-10-01 — final review (REVIEW-final-areas-2026-09-30.md)
 
 Every finding is fixed with a test that fails on the old code; see that
