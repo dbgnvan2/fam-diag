@@ -42,15 +42,27 @@ describe('production security headers', () => {
     expect(headerValue('X-Content-Type-Options')).toBe('nosniff');
   });
 
-  it('connect-src lists every host the app fetches from', () => {
-    const fetched = [...allSource.matchAll(/fetch(?:WithRetry)?\(\s*'(https:\/\/[^']+)'/g)].map((m) => originOf(m[1]));
-    expect(fetched.length).toBeGreaterThan(0);
-    for (const origin of new Set(fetched)) expect(directive('connect-src')).toContain(origin);
+  // Every https origin written anywhere in the app's source must be allowed by
+  // the policy, or be a link the user follows (navigation is not governed by
+  // connect-src / frame-src). Scanning every literal, not only fetch() calls,
+  // means moving a URL into a constant cannot hide it from this check (gate
+  // 2026-09-30d LOW #2).
+  const NAVIGATION_ONLY = new Set(['https://www.youtube.com', 'https://youtu.be']);
+  const sourceOrigins = new Set([...allSource.matchAll(/https:\/\/[a-zA-Z0-9.-]+/g)].map((m) => originOf(m[0])));
+
+  it('every https origin in the source is allowed by the policy or is a plain link', () => {
+    const allowed = new Set([...directive('connect-src'), ...directive('frame-src'), ...NAVIGATION_ONLY]);
+    const unlisted = [...sourceOrigins].filter((origin) => !allowed.has(origin));
+    expect(unlisted).toEqual([]);
   });
 
-  it('frame-src lists every video embed host', () => {
-    const embeds = [...allSource.matchAll(/embedUrl:\s*'(https:\/\/[^']+)'/g)].map((m) => originOf(m[1]));
-    expect(embeds.length).toBeGreaterThan(0);
-    for (const origin of new Set(embeds)) expect(directive('frame-src')).toContain(origin);
+  it('the AI providers are reachable by fetch, the video host by frame', () => {
+    expect(directive('connect-src')).toEqual(expect.arrayContaining(['https://api.anthropic.com', 'https://api.deepseek.com']));
+    expect(directive('frame-src')).toContain('https://www.youtube-nocookie.com');
+  });
+
+  it('the policy allows no origin the app does not use', () => {
+    const listed = [...directive('connect-src'), ...directive('frame-src')].filter((entry) => entry.startsWith('https://'));
+    expect(listed.filter((origin) => !sourceOrigins.has(origin))).toEqual([]);
   });
 });

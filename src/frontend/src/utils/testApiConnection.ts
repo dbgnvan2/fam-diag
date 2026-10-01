@@ -43,7 +43,7 @@ async function fetchWithRetry(url: string, init: RequestInit, options: Connectio
     } catch (err) {
       const timedOut = controller.signal.aborted;
       if (attempt >= maxRetries) {
-        throw timedOut ? new Error(`Connection test timed out after ${Math.round(timeoutMs / 1000)}s`) : err;
+        throw timedOut ? new Error(`Connection test timed out after ${Number((timeoutMs / 1000).toFixed(2))}s`) : err;
       }
     } finally {
       clearTimeout(timer);

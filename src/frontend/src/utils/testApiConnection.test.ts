@@ -101,7 +101,7 @@ describe('testApiConnection', () => {
         })
     );
     const result = await testApiConnection('anthropic', 'sk-x', 'm', { timeoutMs: 20, retryBaseDelayMs: 0 });
-    expect(result).toEqual({ ok: false, message: 'Connection test timed out after 0s' });
+    expect(result).toEqual({ ok: false, message: 'Connection test timed out after 0.02s' });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 

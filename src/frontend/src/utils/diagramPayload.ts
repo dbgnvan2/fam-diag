@@ -93,6 +93,27 @@ export function buildDiagramPayload(
 export type DiagramContentState = Omit<DiagramPayloadState, 'autoSaveMinutes'>;
 
 /**
+ * The keys of DiagramContentState, for code that must list them (the editor's
+ * dirty-check and file-autosave effects take their dependencies from this,
+ * not from hand-written lists that could fall behind the payload).
+ */
+export const DIAGRAM_CONTENT_KEYS = [
+  'people',
+  'partnerships',
+  'emotionalLines',
+  'pageNotes',
+  'triangles',
+  'functionalIndicatorDefinitions',
+  'eventCategories',
+  'relationshipTypes',
+  'relationshipStatuses',
+  'ideasText',
+  'predictionSets',
+  'functionalFactCategories',
+  'nodalCategories',
+] as const satisfies readonly (keyof DiagramContentState)[];
+
+/**
  * The dirty-check snapshot. It is cut from the file payload itself, so a key
  * added to the payload is part of the dirty check without a second list to
  * keep in step (predictions and ideas were saved to the file but never marked

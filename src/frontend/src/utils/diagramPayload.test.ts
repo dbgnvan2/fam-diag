@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  DIAGRAM_CONTENT_KEYS,
   DIAGRAM_PAYLOAD_KEYS,
   serializeDiagramContent,
   type DiagramContentState,
@@ -30,6 +31,9 @@ describe('serializeDiagramContent', () => {
     const keys = Object.keys(JSON.parse(serializeDiagramContent(base))).sort();
     const expected = DIAGRAM_PAYLOAD_KEYS.filter((k) => k !== 'fileMeta' && k !== 'autoSaveMinutes').sort();
     expect(keys).toEqual(expected);
+    // The list the editor's dirty-check and autosave effects depend on is the
+    // same set (gate 2026-09-30d LOW #1).
+    expect([...DIAGRAM_CONTENT_KEYS].sort()).toEqual(expected);
   });
 
   it.each([

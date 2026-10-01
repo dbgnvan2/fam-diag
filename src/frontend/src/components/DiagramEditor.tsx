@@ -61,6 +61,7 @@ import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
 import { normalizePredictionSets } from '../utils/predictionSets';
 import {
   buildDiagramPayload as buildDiagramPayloadPure,
+  DIAGRAM_CONTENT_KEYS,
   serializeDiagramContent,
   type DiagramContentState,
 } from '../utils/diagramPayload';
@@ -1204,7 +1205,7 @@ const DiagramEditor = () => {
 
   const setSessionNotesLibrary = useCallback((records: SessionNoteFileRecord[]) => {
     writeStored('sessionNotesLibrary', JSON.stringify(records));
-  }, []);
+  }, [writeStored]);
   const sessionOpenCandidates = (() => {
     const library = getSessionNotesLibrary() || [];
     const focus = sessionFocusPersonName.trim().toLowerCase();
@@ -1269,6 +1270,10 @@ const DiagramEditor = () => {
   };
   const diagramContentRef = useRef(diagramContent);
   diagramContentRef.current = diagramContent;
+  // The content fields as an effect dependency list, in DIAGRAM_CONTENT_KEYS
+  // order (a fixed length): a field added to the payload is picked up here
+  // without editing the effects below.
+  const diagramContentDeps = DIAGRAM_CONTENT_KEYS.map((key) => diagramContent[key]);
   /**
    * Record the saved baseline. Callers that have just loaded or reset state
    * pass the values they set (state has not re-rendered yet); anything not
@@ -1291,22 +1296,8 @@ const DiagramEditor = () => {
       setIsDirty(false);
       setLastDirtyTimestamp(null);
     }
-  }, [
-    people,
-    partnerships,
-    emotionalLines,
-    pageNotes,
-    triangles,
-    functionalIndicatorDefinitions,
-    eventCategories,
-    relationshipTypes,
-    relationshipStatuses,
-    ideasText,
-    predictionSets,
-    functionalFactCategories,
-    nodalCategories,
-    isDirty,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...diagramContentDeps, isDirty]);
 
   useEffect(() => {
     if (!fileMenuOpen && !settingsMenuOpen && !optionsMenuOpen && !helpMenuOpen) return;
@@ -1364,7 +1355,7 @@ const DiagramEditor = () => {
 
   useEffect(() => {
     writeStored('autoSave', String(autoSaveMinutes));
-  }, [autoSaveMinutes]);
+  }, [autoSaveMinutes, writeStored]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -1609,12 +1600,12 @@ useEffect(() => {
 useEffect(() => {
   if (typeof window === 'undefined') return;
   writeStored('ideas', ideasText);
-}, [ideasText]);
+}, [ideasText, writeStored]);
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
   writeStored('predictions', JSON.stringify(predictionSets));
-}, [predictionSets]);
+}, [predictionSets, writeStored]);
 
 useEffect(() => {
   if (typeof window === 'undefined') return;
@@ -1640,6 +1631,7 @@ useEffect(() => {
   relationshipStatuses,
   relationshipTypes,
   sirCategories,
+  writeStored,
 ]);
 
 useEffect(() => {
@@ -2324,27 +2316,11 @@ useEffect(() => {
       });
     }, autosaveDelayMs);
     return () => window.clearTimeout(timeout);
-  }, [
-    autosaveDelayMs,
-    // Every field of DiagramContentState: the content the dirty check and the
-    // file payload cover. (Not the diagramContent object — it is rebuilt on
-    // every render, which would restart the timer before it fires.)
-    emotionalLines,
-    eventCategories,
-    fileName,
-    functionalFactCategories,
-    functionalIndicatorDefinitions,
-    ideasText,
-    isDirty,
-    nodalCategories,
-    pageNotes,
-    partnerships,
-    people,
-    predictionSets,
-    relationshipStatuses,
-    relationshipTypes,
-    triangles,
-  ]);
+    // Every content field (diagramContentDeps), not the diagramContent object:
+    // that is rebuilt on every render, which would restart the timer before
+    // it fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosaveDelayMs, fileName, isDirty, ...diagramContentDeps]);
 
   const replaceDiagramState = (
     data: any,
