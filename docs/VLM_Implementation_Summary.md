@@ -15,7 +15,7 @@ Replaced the brittle 1500-line pure-JS OpenCV pipeline with a single Vision Lang
 - **Implementation time:** ~4 hours  
 - **New code:** ~760 lines (vlmImport.ts + type extensions)  
 - **Old code removed:** 0 (cv-js pipeline remains for reference, can be removed later)  
-- **Cost per image:** ~$0.012 USD (Claude Sonnet 4)
+- **Cost per image:** depends on the model and the drawing; the import log shows the real token counts of each attempt (see "Cost" below). The first version's ~$0.012 figure no longer applies.
 - **Speed:** 10-15 seconds per image (VLM API + processing)
 - **Accuracy:** ~95% on test genograms (vision models handle ambiguity naturally)
 
@@ -166,26 +166,20 @@ const diagramData = factsToDiagramImportData(facts);
 
 ---
 
-## Cost Breakdown
+## Cost
 
-Based on **Claude Sonnet 4 pricing** (as of 2026-06-08):
+There is no built-in cost figure. The first version's table (Claude Sonnet 4
+pricing, a ~2,000-token reply, ~$0.012 per image) described a small test
+genogram and was removed on 2026-10-06, when a dense six-generation drawing
+needed more than 16,000 output tokens.
 
-### Per-Image Cost
-
-| Component | Tokens | Cost |
-|-----------|--------|------|
-| Image encoding (1600×1200 @ 85% JPEG) | ~75 | $0.0002 |
-| Prompt + instructions | ~1500 | $0.0045 |
-| JSON response (avg) | ~2000 | $0.030 |
-| **Total per image** | **~3600** | **~$0.012** |
-| Range (small to large genogram) | 2500–5000 | $0.008–0.030 |
-
-### Total Cost of Ownership (First Year)
-
-- 100 images/month → $0.14/month → **$1.68/year**
-- 1000 images/month → $1.40/month → **$16.80/year**
-
-**Context:** A typical therapist or family service agency would process 10–50 images/month, costing **$0.12–0.60/month** (<$10/year).
+Cost is now read from the import log: each attempt that reached the model logs
+a line such as
+`Claude Vision token usage (Claude Opus 5.5): 4,812 input, 31,207 output (includes thinking)`.
+Multiply by the model's current per-million-token prices to get the cost.
+Failed and retried attempts are logged too, because they are billed. Output
+dominates: a large diagram can use tens of thousands of output tokens, and
+newer models' thinking is counted as output.
 
 ---
 
@@ -368,15 +362,15 @@ approach lives in the retired `docs/genogram-import-status.md`.
 
 ---
 
-## Cost Estimate Included in Code
+## Token Usage in the Import Log
 
-Every time an image is imported, the log displays:
+Every image import logs the token usage of each attempt (see "Cost" above),
+for example:
 ```
-[vlmImport] Complete
-Estimated cost per image: ~$0.012 USD
+Claude Vision token usage (Claude Opus 5.5): 4,812 input, 31,207 output (includes thinking)
 ```
-
-Users can see the cost impact of their usage pattern in the import log modal.
+A line ending "stream ended early" means the attempt failed before the final
+count arrived; the output figure is the last one the API reported.
 
 ---
 
