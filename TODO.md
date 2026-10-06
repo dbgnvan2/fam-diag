@@ -55,6 +55,12 @@ Only items that were decided, deliberately, to be left as they are:
   before it starts, is reported as "stopped sending data". Negligible in
   practice (the image is a few hundred KB; the API sends `message_start`
   at once). Carried rather than fixed after the approval.
+- **Token-usage notes** (gate `gate_2026-10-06c` INFO, carried):
+  `VisionUsage.complete` turns true on the first `message_delta` (the API
+  sends one, at the end, so this holds today); the `formatVisionUsage` tests
+  compare exact strings with en-US digit grouping, which depends on the
+  runtime's ICU data; and the VLM doc says an incomplete line "ends" with
+  "stream ended early" when it only contains it.
 - **Image import not yet confirmed on a real diagram.** The streaming change
   (2026-10-06) is covered by unit tests against a stubbed API; the first
   real import of the dense six-generation genogram is the live check.
