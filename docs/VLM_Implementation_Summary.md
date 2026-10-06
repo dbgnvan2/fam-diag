@@ -29,8 +29,8 @@ Replaced the brittle 1500-line pure-JS OpenCV pipeline with a single Vision Lang
 
 **Key Functions:**
 - `vlmImport()` — Main entry point
-  - Downscales image to ≤1600px long side (configurable)
-  - Calls Anthropic Claude Vision API
+  - Downscales image to ≤2400px long side (configurable)
+  - Calls Anthropic Claude Vision API (streamed — see "Request settings" below)
   - Parses JSON response
   - Deduplicates people by name
   - Returns `FactsImportData`
@@ -63,6 +63,25 @@ export const GENOGRAM_IMPORT_COST_ESTIMATE = {
   estimatedCostRange: { min: 0.01, max: 0.03 },
 };
 ```
+
+### Request settings (current, 2026-10-06)
+
+The numbers elsewhere in this document (4000 tokens, 60 s, 1600 px) are from the
+first version. A dense hand-drawn genogram (~200 people, six generations) hit
+the later 16,000-token limit, so the call in `DiagramEditor.handleImageDiagramAnalyze`
+now sends:
+
+| Setting | Value | Why |
+|---|---|---|
+| `stream` | `true` | A 20–40k-token reply takes minutes; a non-streamed request that long risks a dropped connection. `readVisionStream()` assembles the SSE events into the same shape `extractVisionText()` reads. |
+| `maxTokens` | 64000 | Room for the JSON plus thinking (newer models' thinking counts against `max_tokens`). Within every built-in model's output limit (Haiku 4.5: 64K). |
+| `idleTimeoutMs` | 90000 | Replaces the fixed 180 s timeout. Restarted on every received chunk, so only a stalled stream fails. A stall is not retried. |
+| `effort` | `'low'` when `AIModelOption.supportsEffort` | Keeps thinking from using the output budget. Omitted for Haiku 4.5 (rejects the field) and custom models. |
+| `maxImageDimension` | 2400 | Small symbols stay legible. Opus 4.7+, Sonnet 5 and Fable read up to 2576 px; Sonnet 4.6 and Haiku 4.5 are downscaled to 1568 px by the API. |
+
+Mid-stream `error` events of type `overloaded_error`, `api_error` or `rate_limit_error`
+are retried like a 529; a stream that ends without `message_stop` is retried like a
+network failure.
 
 ### 2. Configuration: `ApplicationSettings` Extension
 
@@ -128,10 +147,11 @@ const result = await runGenogramPipeline(imageBlob, {
 const facts = await vlmImport(imageBlob, {
   apiKey,
   model: activeModel.id,
-  maxImageDimension: 1600,
+  maxImageDimension: 2400,
   imageQuality: 0.85,
-  maxTokens: 4000,
-  timeoutMs: 60000,
+  maxTokens: 64000,
+  idleTimeoutMs: 90000,
+  effort: activeModel?.supportsEffort ? 'low' : undefined,
   onProgress: (msg) => setImageDiagramProgress(msg),
 });
 const diagramData = factsToDiagramImportData(facts);

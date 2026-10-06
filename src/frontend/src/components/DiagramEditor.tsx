@@ -2825,12 +2825,18 @@ useEffect(() => {
         const facts = await vlmImport(imageBlob, {
           apiKey,
           model: readiness.model.id,
-          maxImageDimension: 1600, // Can be made configurable from settings later
+          // 2400 px keeps small symbols legible on dense drawings. Models with
+          // high-resolution vision (Opus 4.7+, Sonnet 5, Fable) read it as sent;
+          // older ones (Sonnet 4.6, Haiku 4.5) are downscaled to 1568 px by the API.
+          maxImageDimension: 2400,
           imageQuality: 0.85,
-          // Newer Claude models (Opus 5+, Sonnet 5, Fable 5.1) think by default, and
-          // thinking tokens count against max_tokens, so leave room for both.
-          maxTokens: 16000,
-          timeoutMs: 180000,
+          // A dense diagram (~200 people) needs 20-40k output tokens, and newer
+          // models' thinking counts against max_tokens too. 64000 is within every
+          // built-in model's output limit (Haiku 4.5's is 64K). The reply streams,
+          // so a long one does not time out; only a stalled stream does.
+          maxTokens: 64000,
+          idleTimeoutMs: 90000,
+          effort: activeModel?.supportsEffort ? 'low' : undefined,
           onProgress: (msg) => setImageDiagramProgress(msg),
           signal: abortController.signal,
           hints,

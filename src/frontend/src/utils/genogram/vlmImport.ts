@@ -18,10 +18,20 @@ import { applyDataRules } from './genogramRules';
 export type VLMImportOptions = {
   apiKey: string;
   model: string;
-  maxImageDimension?: number; // Default: 1600
+  maxImageDimension?: number; // Default: 2400
   imageQuality?: number; // 0-1, default: 0.85
-  maxTokens?: number; // Default: 16000
-  timeoutMs?: number; // Default: 180000
+  maxTokens?: number; // Default: 64000
+  /**
+   * Fail when the response stream sends nothing for this long. The reply is
+   * streamed, so a long reply that keeps arriving never times out; a stalled
+   * one does. Default: 90000
+   */
+  idleTimeoutMs?: number;
+  /**
+   * output_config.effort. Leave undefined for a model that does not accept
+   * effort (Haiku 4.5, custom models) — see AIModelOption.supportsEffort.
+   */
+  effort?: VisionEffort;
   onProgress?: (message: string) => void;
   /** Optional abort signal — if aborted, the API call is cancelled. */
   signal?: AbortSignal;
@@ -32,6 +42,8 @@ export type VLMImportOptions = {
   /** What the user told the import dialog about the drawing. */
   hints?: ImageImportHints;
 };
+
+export type VisionEffort = 'low' | 'medium' | 'high';
 
 /** The import dialog's hints. 0 means "not given". */
 export type ImageImportHints = {
@@ -68,6 +80,10 @@ export function buildVisionUserMessage(hints?: ImageImportHints): string {
 import { RETRYABLE_STATUSES } from '../httpRetry';
 /** Upper bound on any single wait, including a server-sent Retry-After. */
 const MAX_RETRY_DELAY_MS = 60_000;
+/** How often (in received characters) the import log hears about streaming progress. */
+const STREAM_PROGRESS_STEP_CHARS = 2000;
+/** Mid-stream `error` events that mean "try again", not "this request is wrong". */
+const RETRYABLE_STREAM_ERRORS = new Set(['overloaded_error', 'api_error', 'rate_limit_error']);
 
 /**
  * Cost estimate for image processing.
@@ -107,10 +123,11 @@ export async function vlmImport(
   const {
     apiKey,
     model,
-    maxImageDimension = 1600,
+    maxImageDimension = 2400,
     imageQuality = 0.85,
-    maxTokens = 16000,
-    timeoutMs = 180000,
+    maxTokens = 64000,
+    idleTimeoutMs = 90000,
+    effort,
     onProgress,
     signal,
     maxRetries = 2,
@@ -131,10 +148,22 @@ export async function vlmImport(
 
   // Step 2: Call Anthropic Vision API
   onProgress?.('[vlmImport] Sending to Claude Vision...');
-  const response = await callClaudeVision(scaledImageBase64, apiKey, model, maxTokens, timeoutMs, signal, {
+  let lastReported = { phase: '', textChars: -STREAM_PROGRESS_STEP_CHARS };
+  const response = await callClaudeVision(scaledImageBase64, apiKey, model, maxTokens, idleTimeoutMs, signal, {
     maxRetries,
     baseDelayMs: retryBaseDelayMs,
     userMessage: buildVisionUserMessage(hints),
+    effort,
+    onStream: ({ phase, textChars }) => {
+      // Report a phase change at once, then every STREAM_PROGRESS_STEP_CHARS.
+      if (phase === lastReported.phase && textChars - lastReported.textChars < STREAM_PROGRESS_STEP_CHARS) return;
+      lastReported = { phase, textChars };
+      onProgress?.(
+        phase === 'thinking'
+          ? '[vlmImport] Claude is reading the diagram...'
+          : `[vlmImport] Receiving response (${textChars.toLocaleString()} characters)...`
+      );
+    },
     onRetry: (attempt, reason, delayMs) =>
       onProgress?.(
         `[vlmImport] ${reason}; retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt + 1} of ${maxRetries + 1})...`
@@ -226,7 +255,13 @@ export type VisionRetryOptions = {
   onRetry?: (attempt: number, reason: string, delayMs: number) => void;
   /** The user turn sent with the image (see buildVisionUserMessage). */
   userMessage?: string;
+  /** output_config.effort; omitted from the request when undefined. */
+  effort?: VisionEffort;
+  /** Called as streamed content arrives. */
+  onStream?: (status: VisionStreamStatus) => void;
 };
+
+export type VisionStreamStatus = { phase: 'thinking' | 'writing'; textChars: number };
 
 /** Wait `ms`, rejecting early with AbortError-style cancellation if `signal` aborts. */
 const waitUnlessAborted = (ms: number, signal?: AbortSignal) =>
@@ -259,9 +294,12 @@ const retryAfterMs = (res: Response): number | null => {
 /**
  * Call Anthropic Claude Vision API directly from browser.
  *
- * Each attempt has its own timeout. A retryable failure (see
- * RETRYABLE_STATUSES, or a network error) is retried with exponential
- * backoff; a timeout, a user cancel, or any other status fails at once.
+ * The reply is streamed (stream: true): a large diagram needs tens of
+ * thousands of output tokens, which takes minutes, and a non-streamed request
+ * that long risks a dropped connection. Each attempt fails if the stream goes
+ * quiet for `idleTimeoutMs`. A retryable failure (see RETRYABLE_STATUSES, a
+ * retryable mid-stream error event, or a network error) is retried with
+ * exponential backoff; a stall, a user cancel, or any other status fails at once.
  *
  * Exported for unit testing.
  */
@@ -270,7 +308,7 @@ export async function callClaudeVision(
   apiKey: string,
   model: string,
   maxTokens: number,
-  timeoutMs: number,
+  idleTimeoutMs: number,
   externalSignal?: AbortSignal,
   retry: VisionRetryOptions = { maxRetries: 2, baseDelayMs: 2000 }
 ): Promise<string> {
@@ -356,6 +394,8 @@ RULES:
   const requestBody = JSON.stringify({
     model,
     max_tokens: maxTokens,
+    stream: true,
+    ...(retry.effort ? { output_config: { effort: retry.effort } } : {}),
     system: systemPrompt,
     messages: [
       {
@@ -373,7 +413,17 @@ RULES:
 
   for (let attempt = 0; ; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    // Idle timer: restarted whenever bytes arrive, so only a stall trips it.
+    let timedOut = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const armIdleTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, idleTimeoutMs);
+    };
+    armIdleTimer();
     // Forward the external abort signal to this attempt's controller.
     const forwardAbort = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
@@ -397,29 +447,37 @@ RULES:
         body: requestBody,
         signal: controller.signal,
       });
-      cleanup();
 
       if (res.ok) {
-        const data = (await res.json()) as ClaudeVisionResponse;
-        return extractVisionText(data, maxTokens);
+        const streamed = await readVisionStream(res, armIdleTimer, retry.onStream);
+        cleanup();
+        if (streamed.kind === 'message') return extractVisionText(streamed.message, maxTokens);
+        if (!RETRYABLE_STREAM_ERRORS.has(streamed.errorType) || attempt >= retry.maxRetries) {
+          throw new Error(`Claude Vision stream error (${streamed.errorType}): ${streamed.errorMessage}`);
+        }
+        retryReason = `Claude Vision stream error (${streamed.errorType})`;
+      } else {
+        const errorText = await res.text();
+        cleanup();
+        if (!RETRYABLE_STATUSES.has(res.status) || attempt >= retry.maxRetries) {
+          throw new Error(`Claude Vision API error (${res.status}): ${errorText}`);
+        }
+        retryReason = `Claude Vision returned ${res.status}`;
+        serverDelayMs = retryAfterMs(res);
       }
-      const errorText = await res.text();
-      if (!RETRYABLE_STATUSES.has(res.status) || attempt >= retry.maxRetries) {
-        throw new Error(`Claude Vision API error (${res.status}): ${errorText}`);
-      }
-      retryReason = `Claude Vision returned ${res.status}`;
-      serverDelayMs = retryAfterMs(res);
     } catch (error) {
       cleanup();
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Distinguish between user cancellation and timeout. Neither is retried:
-        // a timed-out request already used its full budget.
-        if (externalSignal?.aborted) {
+      // Checked by name: an aborted body read rejects with a DOMException,
+      // which is not an Error subclass in every runtime.
+      if ((error as { name?: unknown } | null)?.name === 'AbortError') {
+        // Distinguish between user cancellation and a stall. Neither is
+        // retried: a stalled request has already spent its output tokens.
+        if (externalSignal?.aborted && !timedOut) {
           throw new Error('Cancelled by user');
         }
-        throw new Error(`Claude Vision request timed out after ${timeoutMs}ms`);
+        throw new Error(`Claude Vision stopped sending data for ${Math.round(idleTimeoutMs / 1000)}s`);
       }
-      // fetch rejects with a TypeError when the network request itself fails.
+      // fetch (or a stream read) rejects with a TypeError when the network fails.
       if (!(error instanceof TypeError) || attempt >= retry.maxRetries) {
         throw error;
       }
@@ -434,6 +492,119 @@ RULES:
     await waitUnlessAborted(delayMs, externalSignal);
   }
 }
+
+type VisionStreamResult =
+  | { kind: 'message'; message: ClaudeVisionResponse }
+  | { kind: 'error'; errorType: string; errorMessage: string };
+
+/**
+ * Read a Messages API server-sent-event stream into the same shape as a
+ * non-streamed response, keeping text blocks and the stop reason. Thinking
+ * deltas are not kept; they only move the phase reported to `onStream`.
+ * `onBytes` is called for every chunk received (it restarts the idle timer).
+ *
+ * A stream that ends without message_stop is a dropped connection: it is
+ * thrown as a TypeError so the caller retries it like any network failure.
+ *
+ * Exported for unit testing.
+ */
+export async function readVisionStream(
+  res: Response,
+  onBytes: () => void,
+  onStream?: (status: VisionStreamStatus) => void
+): Promise<VisionStreamResult> {
+  if (!res.body) throw new TypeError('Claude Vision response had no body');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const texts: string[] = [];
+  let stopReason: string | null = null;
+  let stopDetails: ClaudeVisionResponse['stop_details'] = null;
+  let textChars = 0;
+  let buffer = '';
+
+  const handleEvent = (data: string): VisionStreamResult | 'stop' | null => {
+    let event: StreamEvent;
+    try {
+      event = JSON.parse(data) as StreamEvent;
+    } catch {
+      return null; // a non-JSON data line (none are sent today) is skipped
+    }
+    switch (event.type) {
+      case 'content_block_start':
+        if (event.content_block?.type === 'thinking') onStream?.({ phase: 'thinking', textChars });
+        if (event.content_block?.type === 'text') texts[event.index ?? texts.length] = '';
+        return null;
+      case 'content_block_delta':
+        if (event.delta?.type === 'text_delta' && typeof event.delta.text === 'string') {
+          const i = event.index ?? 0;
+          texts[i] = (texts[i] ?? '') + event.delta.text;
+          textChars += event.delta.text.length;
+          onStream?.({ phase: 'writing', textChars });
+        }
+        return null;
+      case 'message_delta':
+        if (event.delta?.stop_reason !== undefined) stopReason = event.delta.stop_reason ?? null;
+        if (event.delta?.stop_details !== undefined) stopDetails = event.delta.stop_details ?? null;
+        return null;
+      case 'message_stop':
+        return 'stop';
+      case 'error':
+        return {
+          kind: 'error',
+          errorType: event.error?.type ?? 'unknown_error',
+          errorMessage: event.error?.message ?? '',
+        };
+      default:
+        return null; // message_start, content_block_stop, ping
+    }
+  };
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    onBytes();
+    buffer += decoder.decode(value, { stream: true });
+    // Events are separated by a blank line; each carries one `data:` line.
+    let sep: number;
+    while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
+      const rawEvent = buffer.slice(0, sep);
+      buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
+      const data = rawEvent
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n');
+      if (!data) continue;
+      const outcome = handleEvent(data);
+      if (outcome === 'stop') {
+        await reader.cancel().catch(() => undefined);
+        return {
+          kind: 'message',
+          message: {
+            content: texts.filter((t) => t !== undefined).map((text) => ({ type: 'text', text })),
+            stop_reason: stopReason,
+            stop_details: stopDetails,
+          },
+        };
+      }
+      if (outcome) return outcome;
+    }
+  }
+  throw new TypeError('Claude Vision stream ended before the message was complete');
+}
+
+type StreamEvent = {
+  type: string;
+  index?: number;
+  content_block?: { type?: string };
+  delta?: {
+    type?: string;
+    text?: string;
+    stop_reason?: string | null;
+    stop_details?: ClaudeVisionResponse['stop_details'];
+  };
+  error?: { type?: string; message?: string };
+};
 
 export type ClaudeVisionResponse = {
   content: Array<{ type: string; text?: string }>;

@@ -36,6 +36,13 @@ describe('AI_MODELS', () => {
     });
   });
 
+  it('marks effort support: every built-in Claude model except Haiku 4.5, which rejects the field', () => {
+    AI_MODELS.filter((m) => m.provider === 'anthropic').forEach((m) => {
+      expect(m.supportsEffort ?? false).toBe(!m.id.startsWith('claude-haiku-4-5'));
+    });
+    AI_MODELS.filter((m) => m.provider !== 'anthropic').forEach((m) => expect(m.supportsEffort).toBeUndefined());
+  });
+
   it('includes current Claude models alongside earlier ones', () => {
     const ids = AI_MODELS.filter((m) => m.provider === 'anthropic').map((m) => m.id);
     [
