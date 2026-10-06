@@ -7,7 +7,6 @@ import type { AddFamilyDraft } from '../types/diagramEditor';
 interface UsePersonOperationsProps {
   people: Person[];
   partnerships: Partnership[];
-  selectedPeopleIds: string[];
   propertiesPanelItem: Person | Partnership | EmotionalLine | null;
   setPeople: Dispatch<SetStateAction<Person[]>>;
   setPeopleAligned: (updater: (prev: Person[]) => Person[]) => void;
@@ -26,7 +25,6 @@ interface UsePersonOperationsProps {
 export function usePersonOperations({
   people,
   partnerships,
-  selectedPeopleIds,
   propertiesPanelItem,
   setPeople,
   setPeopleAligned,
@@ -293,42 +291,47 @@ export function usePersonOperations({
     setContextMenu(null);
   };
 
-  const removePerson = (personId: string) => {
-    const personToRemove = people.find(p => p.id === personId);
-    if (!personToRemove) return;
+  /**
+   * Delete people, and with them every partnership, emotional line and
+   * triangle that uses any of them. Children of a removed partnership stay,
+   * unlinked. Works from the latest state (functional updates), so deleting
+   * a whole selection is one call, not a loop over removePerson.
+   */
+  const removePeople = (personIds: string[]) => {
+    const ids = new Set(personIds.filter((id) => people.some((p) => p.id === id)));
+    if (ids.size === 0) return;
 
-    const partnershipsToRemove = partnerships.filter(
-      (p) => p.partner1_id === personId || p.partner2_id === personId
-    ).map((p) => p.id);
+    const partnershipsToRemove = new Set(
+      partnerships.filter((p) => ids.has(p.partner1_id) || ids.has(p.partner2_id)).map((p) => p.id)
+    );
 
     setPartnerships((prev) =>
       prev
-        .filter((p) => p.partner1_id !== personId && p.partner2_id !== personId)
-        .map((p) => ({ ...p, children: p.children.filter((id) => id !== personId) }))
+        .filter((p) => !ids.has(p.partner1_id) && !ids.has(p.partner2_id))
+        .map((p) => ({ ...p, children: p.children.filter((id) => !ids.has(id)) }))
     );
 
-    const childrenNeedingCleanup = new Set(partnershipsToRemove);
     setPeople((prev) =>
       alignAllAnchors(
         prev
-          .filter((p) => p.id !== personId)
+          .filter((p) => !ids.has(p.id))
           // Surviving partners drop the removed partnerships from their own list.
           .map((p) =>
-            p.partnerships?.some((pid) => childrenNeedingCleanup.has(pid))
-              ? { ...p, partnerships: p.partnerships.filter((pid) => !childrenNeedingCleanup.has(pid)) }
+            p.partnerships?.some((pid) => partnershipsToRemove.has(pid))
+              ? { ...p, partnerships: p.partnerships.filter((pid) => !partnershipsToRemove.has(pid)) }
               : p
           )
           .map((p) => {
-            if (p.parentPartnership && childrenNeedingCleanup.has(p.parentPartnership)) {
+            if (p.parentPartnership && partnershipsToRemove.has(p.parentPartnership)) {
               const copy = { ...p };
               delete copy.parentPartnership;
               delete copy.connectionAnchorX;
-              if (copy.birthParentPartnership && childrenNeedingCleanup.has(copy.birthParentPartnership)) {
+              if (copy.birthParentPartnership && partnershipsToRemove.has(copy.birthParentPartnership)) {
                 delete copy.birthParentPartnership;
               }
               return copy;
             }
-            if (p.birthParentPartnership && childrenNeedingCleanup.has(p.birthParentPartnership)) {
+            if (p.birthParentPartnership && partnershipsToRemove.has(p.birthParentPartnership)) {
               const copy = { ...p };
               delete copy.birthParentPartnership;
               return copy;
@@ -339,25 +342,23 @@ export function usePersonOperations({
     );
 
     setEmotionalLines((prev) =>
-      prev.filter((line) => line.person1_id !== personId && line.person2_id !== personId)
+      prev.filter((line) => !ids.has(line.person1_id) && !ids.has(line.person2_id))
     );
     setTriangles((prev) =>
       prev.filter(
         (triangle) =>
-          triangle.person1_id !== personId &&
-          triangle.person2_id !== personId &&
-          triangle.person3_id !== personId
+          !ids.has(triangle.person1_id) && !ids.has(triangle.person2_id) && !ids.has(triangle.person3_id)
       )
     );
 
-    if (selectedPeopleIds.includes(personId)) {
-      setSelectedPeopleIds(selectedPeopleIds.filter((id) => id !== personId));
-    }
-    if (propertiesPanelItem?.id === personId) {
+    setSelectedPeopleIds((prev) => (prev.some((id) => ids.has(id)) ? prev.filter((id) => !ids.has(id)) : prev));
+    if (propertiesPanelItem && ids.has(propertiesPanelItem.id)) {
       setPropertiesPanelItem(null);
     }
     setContextMenu(null);
   };
+
+  const removePerson = (personId: string) => removePeople([personId]);
 
   const removeChildFromPartnership = (childId: string, partnershipId: string) => {
     setPartnerships((prev) =>
@@ -489,6 +490,7 @@ export function usePersonOperations({
     createAdoptedChildForPartnership,
     removePartnership,
     removePerson,
+    removePeople,
     removeChildFromPartnership,
     createFamilyFromDraft,
   };

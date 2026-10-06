@@ -166,6 +166,8 @@ import {
 import type { ImageImportHints } from '../utils/genogram/vlmImport';
 import { resolveBinarySex, toggledBinarySex } from '../utils/personSex';
 import { joinCoupleNames } from '../utils/personNames';
+import { isEditableTarget } from '../utils/deleteSelectionShortcut';
+import { useDeleteSelectionShortcut } from '../hooks/useDeleteSelectionShortcut';
 import { factsToDiagramImportData } from '../utils/dataImport';
 
 /** How often a refused browser-storage write is retried. */
@@ -759,14 +761,7 @@ const DiagramEditor = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code !== 'Space') return;
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName?.toLowerCase();
-      const isEditable =
-        tagName === 'input' ||
-        tagName === 'textarea' ||
-        tagName === 'select' ||
-        target?.isContentEditable;
-      if (isEditable) return;
+      if (isEditableTarget(event.target)) return;
       event.preventDefault();
       setSpacePanActive(true);
     };
@@ -3282,12 +3277,12 @@ useEffect(() => {
     createAdoptedChildForPartnership,
     removePartnership,
     removePerson,
+    removePeople,
     removeChildFromPartnership,
     createFamilyFromDraft,
   } = usePersonOperations({
     people,
     partnerships,
-    selectedPeopleIds,
     propertiesPanelItem,
     setPeople,
     setPeopleAligned,
@@ -3302,6 +3297,9 @@ useEffect(() => {
     setPropertiesPanelItem,
     setContextMenu,
   });
+
+  // CMD-X / Ctrl-X deletes the selected people (after a confirm).
+  useDeleteSelectionShortcut({ people, selectedPeopleIds, removePeople });
 
 
   const handleExportPNG = () => {

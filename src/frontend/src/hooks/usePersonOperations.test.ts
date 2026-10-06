@@ -50,7 +50,6 @@ const setup = (startPeople: () => Person[] = initialPeople, startPartnerships: (
     const ops = usePersonOperations({
       people,
       partnerships,
-      selectedPeopleIds: [],
       propertiesPanelItem: null,
       setPeople,
       setPeopleAligned: (updater) => setPeople(updater),
@@ -86,6 +85,42 @@ describe('usePersonOperations — removePerson', () => {
     expect(byId(result.current.people, 'kid')?.parentPartnership).toBeUndefined();
     expect(result.current.emotionalLines.map((line) => line.id)).toEqual(['l1']);
     expect(result.current.triangles).toEqual([]);
+  });
+});
+
+describe('usePersonOperations — removePeople (CMD-X group delete)', () => {
+  it('deletes the whole group in one call, with their partnerships, lines and triangles', () => {
+    const { result } = setup();
+    act(() => result.current.ops.removePeople(['sam', 'ann']));
+    expect(result.current.people.map((p) => p.id)).toEqual(['bea', 'kid']);
+    expect(result.current.partnerships).toEqual([]);
+    expect(result.current.emotionalLines).toEqual([]);
+    expect(result.current.triangles).toEqual([]);
+  });
+
+  it('a surviving child is unlinked, and a surviving partner drops the removed partnership', () => {
+    const { result } = setup();
+    act(() => result.current.ops.removePeople(['sam', 'ann']));
+    expect(byId(result.current.people, 'kid')?.parentPartnership).toBeUndefined();
+    expect(byId(result.current.people, 'bea')?.partnerships).toEqual([]);
+  });
+
+  it('deleting a child takes it out of its parents\' children list and leaves the parents linked', () => {
+    const { result } = setup();
+    act(() => result.current.ops.removePeople(['kid', 'bea']));
+    expect(byId(result.current.partnerships, 'sa')?.children).toEqual([]);
+    expect(result.current.partnerships.map((p) => p.id)).toEqual(['sa']);
+    expect(byId(result.current.people, 'sam')?.partnerships).toEqual(['sa']);
+    expect(result.current.emotionalLines.map((line) => line.id)).toEqual(['l2']);
+  });
+
+  it('ignores unknown ids, and an all-unknown list changes nothing', () => {
+    const { result } = setup();
+    const before = result.current.people;
+    act(() => result.current.ops.removePeople(['nobody']));
+    expect(result.current.people).toBe(before);
+    act(() => result.current.ops.removePeople(['nobody', 'bea']));
+    expect(result.current.people.map((p) => p.id)).toEqual(['sam', 'ann', 'kid']);
   });
 });
 

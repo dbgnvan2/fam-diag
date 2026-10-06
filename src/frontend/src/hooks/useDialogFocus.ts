@@ -7,6 +7,13 @@ import { useEffect, useRef } from 'react';
 const openDialogs: symbol[] = [];
 
 /**
+ * True while any dialog that uses useDialogFocus is open. Canvas keyboard
+ * shortcuts check it so a key pressed in a dialog never acts on the diagram
+ * behind it.
+ */
+export const isDialogOpen = (): boolean => openDialogs.length > 0;
+
+/**
  * Keyboard and screen-reader basics for a dialog: when it opens, focus moves
  * into it (so it is announced and reachable without tabbing through the
  * ribbon); Escape closes it when it is the topmost open dialog; when it
