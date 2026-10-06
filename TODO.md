@@ -49,6 +49,31 @@ Only items that were decided, deliberately, to be left as they are:
   precedence, only the fallback text differs, so not a bug; carried rather
   than fixed after the approval so the pushed code is what the gate read.
 
+- **Image import: the idle timer also bounds time to first byte** (gate
+  `gate_2026-10-06` LOW). `callClaudeVision` arms the 90 s idle timer before
+  `fetch()`, so a very slow upload, or a model that sends no byte for 90 s
+  before it starts, is reported as "stopped sending data". Negligible in
+  practice (the image is a few hundred KB; the API sends `message_start`
+  at once). Carried rather than fixed after the approval.
+- **Image import cost estimate is stale** (`GENOGRAM_IMPORT_COST_ESTIMATE`
+  in `utils/genogram/vlmImport.ts`, logged by `DiagramEditor`). It uses
+  Sonnet 4 pricing and a 3,000-token reply and prints "~$0.012 per image";
+  with the 64000-token limit a dense diagram costs $0.50–1.30 on Opus 5.5.
+  Fix: log the real input/output token counts from the stream's
+  `message_start` / `message_delta` usage instead of a fixed estimate.
+- **Image import not yet confirmed on a real diagram.** The streaming change
+  (2026-10-06) is covered by unit tests against a stubbed API; the first
+  real import of the dense six-generation genogram is the live check.
+  If people are missed or misread at effort `'low'`, try `'medium'`.
+
+## Done on 2026-10-06 — image import streaming
+
+A dense hand-drawn genogram failed at the 16000 max_tokens limit. The
+Vision call now streams, with `max_tokens` 64000, a 90 s idle timeout in
+place of the fixed 180 s one, effort `'low'` where the model accepts it,
+and 2400 px images. See `docs/VLM_Implementation_Summary.md` "Request
+settings" and `docs/cycles/gate_2026-10-06_vlm-streaming.md` (APPROVED).
+
 ## Done on 2026-10-01 — final review (REVIEW-final-areas-2026-09-30.md)
 
 Every finding is fixed with a test that fails on the old code; see that
