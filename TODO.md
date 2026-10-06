@@ -65,6 +65,15 @@ Only items that were decided, deliberately, to be left as they are:
   Mac, while the help tip says "Ctrl-X on Windows"; and the batch delete
   inherits removePerson's existing selection cleanup (a deleted partnership
   or line that was selected is not deselected).
+- **CMD-X page-note notes** (gate `gate_2026-10-06e`): the note open in
+  the editor always counts as selected, and the editor is not a
+  `useDialogFocus` overlay, so CMD-X outside its fields offers to delete
+  the note being edited (MEDIUM, non-blocking: the confirm names it). The
+  drag helper (`activeMarqueePageNoteIds`) and the delete helper
+  (`allSelectedPageNoteIds`) differ on purpose and say so nowhere (LOW);
+  `removePageNotes` leaves deleted ids in the marquee state, which
+  everything downstream filters out (LOW); and the confirm says "page
+  note" where the rest of the UI says "general note" (INFO).
 - **Token-usage notes** (gate `gate_2026-10-06c` INFO, carried):
   `VisionUsage.complete` turns true on the first `message_delta` (the API
   sends one, at the end, so this holds today); the `formatVisionUsage` tests
