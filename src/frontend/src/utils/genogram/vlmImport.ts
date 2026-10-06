@@ -9,7 +9,8 @@
  * shape classification, OCR) with a robust vision-language approach
  * that handles ambiguity naturally.
  *
- * Cost: ~$0.01-0.03 per image (Claude Sonnet 4 vision)
+ * Cost depends on the model and the drawing; the import log reports the real
+ * token usage of every attempt (see VLMImportOptions.onUsage).
  */
 
 import type { FactsImportData } from '../../types/diagramEditor';
@@ -41,6 +42,24 @@ export type VLMImportOptions = {
   retryBaseDelayMs?: number;
   /** What the user told the import dialog about the drawing. */
   hints?: ImageImportHints;
+  /**
+   * Called once per attempt that reached the model, with the tokens it was
+   * billed for — including failed and retried attempts.
+   */
+  onUsage?: (usage: VisionUsage) => void;
+};
+
+/**
+ * Token usage of one attempt, as the API reported it. `outputTokens`
+ * includes thinking. `complete` is false when the stream ended before the
+ * final count arrived, so the output figure is the last one reported.
+ */
+export type VisionUsage = {
+  inputTokens: number;
+  cacheReadInputTokens: number;
+  cacheCreationInputTokens: number;
+  outputTokens: number;
+  complete: boolean;
 };
 
 export type VisionEffort = 'low' | 'medium' | 'high';
@@ -86,27 +105,18 @@ const STREAM_PROGRESS_STEP_CHARS = 2000;
 const RETRYABLE_STREAM_ERRORS = new Set(['overloaded_error', 'api_error', 'rate_limit_error']);
 
 /**
- * Cost estimate for image processing.
- *
- * Based on Claude Sonnet 4 pricing (as of 2026-06-08):
- * - Input: $3 / 1M tokens
- * - Output: $15 / 1M tokens
- *
- * A typical 1600×1200 image at 85% JPEG quality:
- * - ~50KB encoded size
- * - ~75 tokens for image encoding
- * - ~1500 tokens for prompt text
- * - ~2000-3000 tokens for JSON response
- * - Total: ~3600 tokens
- * - Cost: ~$0.012 per image
+ * One import-log line for an attempt's token usage. Counts only — no price:
+ * prices change and differ by model, and a stale figure is worse than none.
  */
-export const GENOGRAM_IMPORT_COST_ESTIMATE = {
-  estimatedTokensPerImage: 3600,
-  inputTokenCostPerMillion: 3,
-  outputTokenCostPerMillion: 15,
-  estimatedCostPerImage: 0.012, // in USD
-  estimatedCostRange: { min: 0.01, max: 0.03 },
-};
+export function formatVisionUsage(modelLabel: string, usage: VisionUsage): string {
+  const n = (v: number) => v.toLocaleString('en-US');
+  const parts = [`${n(usage.inputTokens)} input`];
+  if (usage.cacheReadInputTokens > 0) parts.push(`${n(usage.cacheReadInputTokens)} cache-read input`);
+  if (usage.cacheCreationInputTokens > 0) parts.push(`${n(usage.cacheCreationInputTokens)} cache-write input`);
+  parts.push(`${n(usage.outputTokens)} output (includes thinking)`);
+  const tail = usage.complete ? '' : ' — stream ended early; output count is the last one reported';
+  return `Claude Vision token usage (${modelLabel}): ${parts.join(', ')}${tail}`;
+}
 
 /**
  * Extract genogram structure from an image using Claude Vision.
@@ -133,6 +143,7 @@ export async function vlmImport(
     maxRetries = 2,
     retryBaseDelayMs = 2000,
     hints,
+    onUsage,
   } = options;
 
   // Step 1: Downscale image if needed
@@ -154,6 +165,7 @@ export async function vlmImport(
     baseDelayMs: retryBaseDelayMs,
     userMessage: buildVisionUserMessage(hints),
     effort,
+    onUsage,
     onStream: ({ phase, textChars }) => {
       // Report a phase change at once, then every STREAM_PROGRESS_STEP_CHARS.
       if (phase === lastReported.phase && textChars - lastReported.textChars < STREAM_PROGRESS_STEP_CHARS) return;
@@ -259,6 +271,8 @@ export type VisionRetryOptions = {
   effort?: VisionEffort;
   /** Called as streamed content arrives. */
   onStream?: (status: VisionStreamStatus) => void;
+  /** Called once per attempt that reached the model (see VisionUsage). */
+  onUsage?: (usage: VisionUsage) => void;
 };
 
 export type VisionStreamStatus = { phase: 'thinking' | 'writing'; textChars: number };
@@ -449,7 +463,7 @@ RULES:
       });
 
       if (res.ok) {
-        const streamed = await readVisionStream(res, armIdleTimer, retry.onStream);
+        const streamed = await readVisionStream(res, armIdleTimer, retry.onStream, retry.onUsage);
         cleanup();
         if (streamed.kind === 'message') return extractVisionText(streamed.message, maxTokens);
         if (!RETRYABLE_STREAM_ERRORS.has(streamed.errorType) || attempt >= retry.maxRetries) {
@@ -493,7 +507,7 @@ RULES:
   }
 }
 
-type VisionStreamResult =
+export type VisionStreamResult =
   | { kind: 'message'; message: ClaudeVisionResponse }
   | { kind: 'error'; errorType: string; errorMessage: string };
 
@@ -502,6 +516,8 @@ type VisionStreamResult =
  * non-streamed response, keeping text blocks and the stop reason. Thinking
  * deltas are not kept; they only move the phase reported to `onStream`.
  * `onBytes` is called for every chunk received (it restarts the idle timer).
+ * `onUsage` is called once, when the stream ends in any way after
+ * message_start, with the token counts the API reported.
  *
  * A stream that ends without message_stop is a dropped connection: it is
  * thrown as a TypeError so the caller retries it like any network failure.
@@ -511,7 +527,8 @@ type VisionStreamResult =
 export async function readVisionStream(
   res: Response,
   onBytes: () => void,
-  onStream?: (status: VisionStreamStatus) => void
+  onStream?: (status: VisionStreamStatus) => void,
+  onUsage?: (usage: VisionUsage) => void
 ): Promise<VisionStreamResult> {
   if (!res.body) throw new TypeError('Claude Vision response had no body');
   const reader = res.body.getReader();
@@ -521,6 +538,26 @@ export async function readVisionStream(
   let stopDetails: ClaudeVisionResponse['stop_details'] = null;
   let textChars = 0;
   let buffer = '';
+  // Set by message_start; message_delta carries the running output count
+  // (cumulative, so the last one wins) and, on newer API versions, input too.
+  let usage: VisionUsage | null = null;
+  let usageReported = false;
+  const reportUsage = () => {
+    if (usage && !usageReported) {
+      usageReported = true;
+      onUsage?.(usage);
+    }
+  };
+  const mergeUsage = (u: StreamUsage | undefined) => {
+    if (!u || !usage) return;
+    usage = {
+      ...usage,
+      inputTokens: u.input_tokens ?? usage.inputTokens,
+      cacheReadInputTokens: u.cache_read_input_tokens ?? usage.cacheReadInputTokens,
+      cacheCreationInputTokens: u.cache_creation_input_tokens ?? usage.cacheCreationInputTokens,
+      outputTokens: u.output_tokens ?? usage.outputTokens,
+    };
+  };
 
   const handleEvent = (data: string): VisionStreamResult | 'stop' | null => {
     let event: StreamEvent;
@@ -530,6 +567,17 @@ export async function readVisionStream(
       return null; // a non-JSON data line (none are sent today) is skipped
     }
     switch (event.type) {
+      case 'message_start': {
+        const u = event.message?.usage;
+        usage = {
+          inputTokens: u?.input_tokens ?? 0,
+          cacheReadInputTokens: u?.cache_read_input_tokens ?? 0,
+          cacheCreationInputTokens: u?.cache_creation_input_tokens ?? 0,
+          outputTokens: u?.output_tokens ?? 0,
+          complete: false,
+        };
+        return null;
+      }
       case 'content_block_start':
         if (event.content_block?.type === 'thinking') onStream?.({ phase: 'thinking', textChars });
         if (event.content_block?.type === 'text') texts[event.index ?? texts.length] = '';
@@ -545,6 +593,8 @@ export async function readVisionStream(
       case 'message_delta':
         if (event.delta?.stop_reason !== undefined) stopReason = event.delta.stop_reason ?? null;
         if (event.delta?.stop_details !== undefined) stopDetails = event.delta.stop_details ?? null;
+        mergeUsage(event.usage);
+        if (usage) usage = { ...usage, complete: true };
         return null;
       case 'message_stop':
         return 'stop';
@@ -555,47 +605,64 @@ export async function readVisionStream(
           errorMessage: event.error?.message ?? '',
         };
       default:
-        return null; // message_start, content_block_stop, ping
+        return null; // content_block_stop, ping
     }
   };
 
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    onBytes();
-    buffer += decoder.decode(value, { stream: true });
-    // Events are separated by a blank line; each carries one `data:` line.
-    let sep: number;
-    while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
-      const rawEvent = buffer.slice(0, sep);
-      buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
-      const data = rawEvent
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trimStart())
-        .join('\n');
-      if (!data) continue;
-      const outcome = handleEvent(data);
-      if (outcome === 'stop') {
-        await reader.cancel().catch(() => undefined);
-        return {
-          kind: 'message',
-          message: {
-            content: texts.filter((t) => t !== undefined).map((text) => ({ type: 'text', text })),
-            stop_reason: stopReason,
-            stop_details: stopDetails,
-          },
-        };
-      }
-      if (outcome) return outcome;
-    }
+  try {
+    return await readEvents();
+  } finally {
+    reportUsage();
   }
-  throw new TypeError('Claude Vision stream ended before the message was complete');
+
+  async function readEvents(): Promise<VisionStreamResult> {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      onBytes();
+      buffer += decoder.decode(value, { stream: true });
+      // Events are separated by a blank line; each carries one `data:` line.
+      let sep: number;
+      while ((sep = buffer.search(/\r?\n\r?\n/)) !== -1) {
+        const rawEvent = buffer.slice(0, sep);
+        buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
+        const data = rawEvent
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart())
+          .join('\n');
+        if (!data) continue;
+        const outcome = handleEvent(data);
+        if (outcome === 'stop') {
+          await reader.cancel().catch(() => undefined);
+          return {
+            kind: 'message',
+            message: {
+              content: texts.filter((t) => t !== undefined).map((text) => ({ type: 'text', text })),
+              stop_reason: stopReason,
+              stop_details: stopDetails,
+            },
+          };
+        }
+        if (outcome) return outcome;
+      }
+    }
+    throw new TypeError('Claude Vision stream ended before the message was complete');
+  }
 }
+
+type StreamUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+};
 
 type StreamEvent = {
   type: string;
   index?: number;
+  message?: { usage?: StreamUsage };
+  usage?: StreamUsage;
   content_block?: { type?: string };
   delta?: {
     type?: string;

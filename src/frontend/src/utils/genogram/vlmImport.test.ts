@@ -17,9 +17,11 @@ import {
   buildVisionUserMessage,
   callClaudeVision,
   readVisionStream,
+  formatVisionUsage,
   sanitizeVLMFacts,
   type VisionRetryOptions,
   type VisionStreamStatus,
+  type VisionUsage,
 } from './vlmImport';
 import { applyDataRules } from './genogramRules';
 
@@ -40,7 +42,15 @@ const messageEvents = (
 ): SseEvent[] => {
   const half = Math.floor(text.length / 2);
   return [
-    { type: 'message_start', message: { id: 'msg_1', content: [], stop_reason: null } },
+    {
+      type: 'message_start',
+      message: {
+        id: 'msg_1',
+        content: [],
+        stop_reason: null,
+        usage: { input_tokens: 4812, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    },
     { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
     { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'not the answer' } },
     { type: 'content_block_stop', index: 0 },
@@ -49,7 +59,7 @@ const messageEvents = (
     { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: text.slice(0, half) } },
     { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: text.slice(half) } },
     { type: 'content_block_stop', index: 1 },
-    { type: 'message_delta', delta: { stop_reason: stopReason, stop_details: stopDetails }, usage: { output_tokens: 10 } },
+    { type: 'message_delta', delta: { stop_reason: stopReason, stop_details: stopDetails }, usage: { output_tokens: 31207 } },
     { type: 'message_stop' },
   ];
 };
@@ -419,6 +429,128 @@ describe('callClaudeVision — streaming', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await expect(pending).resolves.toBe('{"people":[]}');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('token usage (replaces the fixed cost estimate)', () => {
+  const read = async (events: SseEvent[]) => {
+    const usages: VisionUsage[] = [];
+    const result = await readVisionStream(streamResponse([toSse(events)]), () => undefined, undefined, (u) => usages.push(u));
+    return { result, usages };
+  };
+
+  it('reports input from message_start and the final output count, once', async () => {
+    const { usages } = await read(messageEvents('{}'));
+    expect(usages).toEqual([
+      { inputTokens: 4812, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, outputTokens: 31207, complete: true },
+    ]);
+  });
+
+  it('output counts are cumulative: the last message_delta wins, not the sum', async () => {
+    const events = messageEvents('{}');
+    const final = events.length - 2; // the message_delta
+    events.splice(final, 0, { type: 'message_delta', delta: {}, usage: { output_tokens: 500 } });
+    const { usages } = await read(events);
+    expect(usages[0].outputTokens).toBe(31207);
+  });
+
+  it('takes input counts from message_delta when the API sends them there', async () => {
+    const events = messageEvents('{}');
+    events[events.length - 2] = {
+      type: 'message_delta',
+      delta: { stop_reason: 'end_turn' },
+      usage: { input_tokens: 5000, cache_read_input_tokens: 1200, output_tokens: 900 },
+    };
+    const { usages } = await read(events);
+    expect(usages[0]).toMatchObject({ inputTokens: 5000, cacheReadInputTokens: 1200, outputTokens: 900 });
+  });
+
+  it('a mid-stream error still reports what was billed, marked incomplete', async () => {
+    const events = [...messageEvents('{"people":[]}').slice(0, 7), { type: 'error', error: { type: 'overloaded_error', message: 'x' } }];
+    const { result, usages } = await read(events);
+    expect(result.kind).toBe('error');
+    expect(usages).toEqual([
+      { inputTokens: 4812, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, outputTokens: 1, complete: false },
+    ]);
+  });
+
+  it('a dropped stream still reports usage before it throws', async () => {
+    const usages: VisionUsage[] = [];
+    const res = streamResponse([toSse(messageEvents('{"people":[]}').slice(0, 7))]);
+    await expect(readVisionStream(res, () => undefined, undefined, (u) => usages.push(u))).rejects.toThrow(TypeError);
+    expect(usages).toHaveLength(1);
+    expect(usages[0].complete).toBe(false);
+  });
+
+  it('reports nothing when the stream never reached message_start', async () => {
+    const { usages } = await read([{ type: 'error', error: { type: 'invalid_request_error', message: 'bad' } }]);
+    expect(usages).toEqual([]);
+  });
+
+  describe('callClaudeVision', () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      vi.useFakeTimers();
+      fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    });
+
+    it('reports every billed attempt, including the one that failed and was retried', async () => {
+      const overloaded = toSse([...messageEvents('{}').slice(0, 1), { type: 'error', error: { type: 'overloaded_error', message: 'x' } }]);
+      fetchMock
+        .mockImplementationOnce(async () => streamResponse([overloaded]))
+        .mockImplementationOnce(async () => streamResponse([toSse(messageEvents('{"people":[]}'))]));
+      const onUsage = vi.fn();
+      const pending = callClaudeVision('img', 'key', 'model', 64000, 60_000, undefined, {
+        maxRetries: 2,
+        baseDelayMs: 1000,
+        onUsage,
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      await pending;
+      expect(onUsage).toHaveBeenCalledTimes(2);
+      expect(onUsage.mock.calls[0][0]).toMatchObject({ complete: false });
+      expect(onUsage.mock.calls[1][0]).toMatchObject({ outputTokens: 31207, complete: true });
+    });
+
+    it('reports usage for a reply cut off at max_tokens (it was still billed)', async () => {
+      fetchMock.mockImplementation(async () => streamResponse([toSse(messageEvents('{"people":[', 'max_tokens'))]));
+      const onUsage = vi.fn();
+      await expect(
+        callClaudeVision('img', 'key', 'model', 64000, 60_000, undefined, { maxRetries: 0, baseDelayMs: 0, onUsage })
+      ).rejects.toThrow('max_tokens');
+      expect(onUsage).toHaveBeenCalledWith(expect.objectContaining({ outputTokens: 31207, complete: true }));
+    });
+  });
+
+  describe('formatVisionUsage', () => {
+    const base: VisionUsage = {
+      inputTokens: 4812,
+      cacheReadInputTokens: 0,
+      cacheCreationInputTokens: 0,
+      outputTokens: 31207,
+      complete: true,
+    };
+
+    it('gives counts, not a price', () => {
+      const line = formatVisionUsage('Claude Opus 5.5', base);
+      expect(line).toBe('Claude Vision token usage (Claude Opus 5.5): 4,812 input, 31,207 output (includes thinking)');
+      expect(line).not.toMatch(/\$/);
+    });
+
+    it('lists cache tokens only when there are some', () => {
+      expect(formatVisionUsage('M', { ...base, cacheReadInputTokens: 1200, cacheCreationInputTokens: 300 })).toBe(
+        'Claude Vision token usage (M): 4,812 input, 1,200 cache-read input, 300 cache-write input, 31,207 output (includes thinking)'
+      );
+    });
+
+    it('says when the output count is not final', () => {
+      expect(formatVisionUsage('M', { ...base, complete: false })).toContain('stream ended early');
+    });
   });
 });
 

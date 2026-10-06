@@ -2819,7 +2819,7 @@ useEffect(() => {
         // vlmImport is loaded on demand (its own chunk). dataImport is
         // imported statically: useFileOperations already pulls it into the
         // main chunk, so a dynamic import here split nothing.
-        const { vlmImport, GENOGRAM_IMPORT_COST_ESTIMATE } = await import('../utils/genogram/vlmImport');
+        const { vlmImport, formatVisionUsage } = await import('../utils/genogram/vlmImport');
 
         // Extract facts from image using VLM
         const facts = await vlmImport(imageBlob, {
@@ -2840,6 +2840,9 @@ useEffect(() => {
           onProgress: (msg) => setImageDiagramProgress(msg),
           signal: abortController.signal,
           hints,
+          // Every attempt that reached the model is billed, including failed
+          // and retried ones, so each is logged as it ends.
+          onUsage: (usage) => log.info(formatVisionUsage(readiness.model.label, usage)),
         });
         // Cancelled while the reply was on its way: add nothing.
         if (abortController.signal.aborted) return;
@@ -2863,7 +2866,6 @@ useEffect(() => {
 
         setImageDiagramModalOpen(false);
         log.info(`Read ${people.length} people and ${partnerships.length} partnerships.`);
-        log.info(`Estimated cost per image: ~$${GENOGRAM_IMPORT_COST_ESTIMATE.estimatedCostPerImage.toFixed(3)} USD`);
         // Like every other import: the user chooses Replace or Merge, instead
         // of the people being appended to the diagram unasked; and when the
         // model was unsure of anything, the log says what (review DE2-05).

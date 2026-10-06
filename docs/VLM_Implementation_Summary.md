@@ -55,14 +55,15 @@ Replaced the brittle 1500-line pure-JS OpenCV pipeline with a single Vision Lang
   - If multiple people share a name, appends suffix
   - Adds note to uncertainties for user review
 
-**Cost Estimate Built-in:**
-```typescript
-export const GENOGRAM_IMPORT_COST_ESTIMATE = {
-  estimatedTokensPerImage: 3600,
-  estimatedCostPerImage: 0.012, // USD
-  estimatedCostRange: { min: 0.01, max: 0.03 },
-};
-```
+**Token usage (replaced the fixed cost estimate, 2026-10-06):**
+The first version logged a fixed `GENOGRAM_IMPORT_COST_ESTIMATE` (~$0.012, Sonnet 4
+pricing). It was removed. `readVisionStream()` now reads the real counts from the
+stream (`message_start` usage, then the cumulative `message_delta` usage) and
+`vlmImport`'s `onUsage` reports them once per attempt that reached the model —
+including failed and retried attempts, which are billed too. `DiagramEditor` logs
+each with `formatVisionUsage()`, e.g.
+`Claude Vision token usage (Claude Opus 5.5): 4,812 input, 31,207 output (includes thinking)`.
+Counts only, no dollar figure: prices differ by model and change.
 
 ### Request settings (current, 2026-10-06)
 

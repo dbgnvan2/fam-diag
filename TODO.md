@@ -55,12 +55,6 @@ Only items that were decided, deliberately, to be left as they are:
   before it starts, is reported as "stopped sending data". Negligible in
   practice (the image is a few hundred KB; the API sends `message_start`
   at once). Carried rather than fixed after the approval.
-- **Image import cost estimate is stale** (`GENOGRAM_IMPORT_COST_ESTIMATE`
-  in `utils/genogram/vlmImport.ts`, logged by `DiagramEditor`). It uses
-  Sonnet 4 pricing and a 3,000-token reply and prints "~$0.012 per image";
-  with the 64000-token limit a dense diagram costs $0.50–1.30 on Opus 5.5.
-  Fix: log the real input/output token counts from the stream's
-  `message_start` / `message_delta` usage instead of a fixed estimate.
 - **Image import not yet confirmed on a real diagram.** The streaming change
   (2026-10-06) is covered by unit tests against a stubbed API; the first
   real import of the dense six-generation genogram is the live check.
@@ -73,6 +67,10 @@ Vision call now streams, with `max_tokens` 64000, a 90 s idle timeout in
 place of the fixed 180 s one, effort `'low'` where the model accepts it,
 and 2400 px images. See `docs/VLM_Implementation_Summary.md` "Request
 settings" and `docs/cycles/gate_2026-10-06_vlm-streaming.md` (APPROVED).
+
+The fixed cost estimate (~$0.012, Sonnet 4 pricing) is gone: the import log
+now shows the real input/output token counts of every billed attempt,
+read from the stream.
 
 ## Done on 2026-10-01 — final review (REVIEW-final-areas-2026-09-30.md)
 
