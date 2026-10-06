@@ -1,21 +1,34 @@
 import { renderHook, render, fireEvent } from '@testing-library/react';
 import { createElement } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import type { Person } from '../types';
+import type { PageNote, Person } from '../types';
 import { useDeleteSelectionShortcut } from './useDeleteSelectionShortcut';
 import { useDialogFocus } from './useDialogFocus';
 
 const person = (id: string, extra: Partial<Person> = {}): Person => ({ id, name: id, x: 0, y: 0, partnerships: [], ...extra });
 const people = [person('ann', { firstName: 'Ann', lastName: 'Lee' }), person('sam'), person('kid')];
 
-const setup = (selectedPeopleIds: string[], confirmResult = true) => {
+const note = (id: string, title = id): PageNote => ({ id, x: 0, y: 0, title, text: '' });
+const pageNotes = [note('n1', 'Intake'), note('n2', 'Plan')];
+
+const setup = (selectedPeopleIds: string[], confirmResult = true, selectedPageNoteIds: string[] = []) => {
   const removePeople = vi.fn();
+  const removePageNotes = vi.fn();
   const confirmFn = vi.fn(() => confirmResult);
   const hook = renderHook(
-    ({ ids }) => useDeleteSelectionShortcut({ people, selectedPeopleIds: ids, removePeople, confirmFn }),
-    { initialProps: { ids: selectedPeopleIds } }
+    ({ ids, noteIds }) =>
+      useDeleteSelectionShortcut({
+        people,
+        selectedPeopleIds: ids,
+        removePeople,
+        pageNotes,
+        selectedPageNoteIds: noteIds,
+        removePageNotes,
+        confirmFn,
+      }),
+    { initialProps: { ids: selectedPeopleIds, noteIds: selectedPageNoteIds } }
   );
-  return { removePeople, confirmFn, hook };
+  return { removePeople, removePageNotes, confirmFn, hook };
 };
 
 const pressCmdX = (target: EventTarget = window) => fireEvent.keyDown(target, { key: 'x', metaKey: true });
@@ -56,7 +69,7 @@ describe('useDeleteSelectionShortcut', () => {
 
   it('uses the latest selection, not the one at mount', () => {
     const { removePeople, hook } = setup(['ann']);
-    hook.rerender({ ids: ['kid'] });
+    hook.rerender({ ids: ['kid'], noteIds: [] });
     pressCmdX();
     expect(removePeople).toHaveBeenCalledWith(['kid']);
   });
@@ -94,5 +107,50 @@ describe('useDeleteSelectionShortcut', () => {
     hook.unmount();
     pressCmdX();
     expect(removePeople).not.toHaveBeenCalled();
+  });
+});
+
+describe('useDeleteSelectionShortcut — page notes', () => {
+  it('deletes selected page notes on their own', () => {
+    const { removePeople, removePageNotes, confirmFn } = setup([], true, ['n2']);
+    pressCmdX();
+    expect(confirmFn).toHaveBeenCalledWith(expect.stringMatching(/^Delete 1 page note: "Plan"\?/));
+    expect(removePageNotes).toHaveBeenCalledWith(['n2']);
+    expect(removePeople).not.toHaveBeenCalled();
+  });
+
+  it('deletes people and notes together after one confirm', () => {
+    const { removePeople, removePageNotes, confirmFn } = setup(['sam'], true, ['n1', 'n2']);
+    pressCmdX();
+    expect(confirmFn).toHaveBeenCalledTimes(1);
+    expect(confirmFn).toHaveBeenCalledWith(expect.stringMatching(/^Delete 1 person: sam; and 2 page notes: "Intake", "Plan"\?/));
+    expect(removePeople).toHaveBeenCalledWith(['sam']);
+    expect(removePageNotes).toHaveBeenCalledWith(['n1', 'n2']);
+  });
+
+  it('cancel deletes neither', () => {
+    const { removePeople, removePageNotes } = setup(['sam'], false, ['n1']);
+    pressCmdX();
+    expect(removePeople).not.toHaveBeenCalled();
+    expect(removePageNotes).not.toHaveBeenCalled();
+  });
+
+  it('skips note ids that no longer exist, and asks nothing when none remain', () => {
+    const { removePageNotes, confirmFn } = setup([], true, ['gone']);
+    pressCmdX();
+    expect(confirmFn).not.toHaveBeenCalled();
+    expect(removePageNotes).not.toHaveBeenCalled();
+  });
+
+  it('notes in a text field are safe: CMD-X there cuts text', () => {
+    const { removePageNotes } = setup([], true, ['n1']);
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+    try {
+      pressCmdX(textarea);
+    } finally {
+      textarea.remove();
+    }
+    expect(removePageNotes).not.toHaveBeenCalled();
   });
 });

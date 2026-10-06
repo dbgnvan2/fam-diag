@@ -125,13 +125,18 @@ export function useSelectionHandlers({
     );
   };
 
-  const handlePageNoteDelete = (noteId: string) => {
-    setPageNotes((prev) => prev.filter((note) => note.id !== noteId));
-    if (selectedPageNoteId === noteId) {
+  /** Delete page notes; closes the note editor if its note is among them. */
+  const removePageNotes = (noteIds: string[]) => {
+    const ids = new Set(noteIds);
+    if (ids.size === 0) return;
+    setPageNotes((prev) => prev.filter((note) => !ids.has(note.id)));
+    if (selectedPageNoteId && ids.has(selectedPageNoteId)) {
       setSelectedPageNoteId(null);
       setPageNoteDraft(null);
     }
   };
+
+  const handlePageNoteDelete = (noteId: string) => removePageNotes([noteId]);
 
   const handlePageNoteDragEnd = (noteId: string, x: number, y: number) => {
     setPageNotes((prev) =>
@@ -442,6 +447,7 @@ export function useSelectionHandlers({
     handlePageNoteDraftChange,
     handlePageNoteSave,
     handlePageNoteDelete,
+    removePageNotes,
     handlePageNoteDragEnd,
     handlePageNoteResizeEnd,
     handleChildLineSelect,

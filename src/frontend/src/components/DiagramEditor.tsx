@@ -63,7 +63,7 @@ import FileBackupListDialog from './modals/FileBackupListDialog';
 import type { FileBackupEntry } from './modals/FileBackupListDialog';
 import { removeOrphanedMiscarriages } from '../utils/dataCleanup';
 import { checkAddChildToPartnership, earliestPartnershipDate } from '../utils/partnershipUtils';
-import { activeMarqueePageNoteIds } from '../utils/pageNoteSelection';
+import { activeMarqueePageNoteIds, allSelectedPageNoteIds } from '../utils/pageNoteSelection';
 import { normalizePredictionSets } from '../utils/predictionSets';
 import {
   buildDiagramPayload as buildDiagramPayloadPure,
@@ -3298,9 +3298,6 @@ useEffect(() => {
     setContextMenu,
   });
 
-  // CMD-X / Ctrl-X deletes the selected people (after a confirm).
-  useDeleteSelectionShortcut({ people, selectedPeopleIds, removePeople });
-
 
   const handleExportPNG = () => {
     const uri = stageRef.current?.toDataURL();
@@ -3659,6 +3656,7 @@ useEffect(() => {
     handlePageNoteDraftChange,
     handlePageNoteSave,
     handlePageNoteDelete,
+    removePageNotes,
     handlePageNoteDragEnd,
     handlePageNoteResizeEnd,
     handleChildLineSelect,
@@ -3700,6 +3698,16 @@ useEffect(() => {
     removeTriangle,
     removeEmotionalLine,
     updateTriangle,
+  });
+
+  // CMD-X / Ctrl-X deletes the selected people and page notes (after a confirm).
+  useDeleteSelectionShortcut({
+    people,
+    selectedPeopleIds,
+    removePeople,
+    pageNotes,
+    selectedPageNoteIds: allSelectedPageNoteIds(selectedPageNoteId, selectedPeopleIds, marqueePageNoteSelection),
+    removePageNotes,
   });
 
   const getPersonSelectionBounds = useCallback((person: Person) => {

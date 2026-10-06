@@ -64,8 +64,7 @@ Only items that were decided, deliberately, to be left as they are:
 - **CMD-X notes** (gate `gate_2026-10-06d` INFO): Ctrl-X also fires on the
   Mac, while the help tip says "Ctrl-X on Windows"; and the batch delete
   inherits removePerson's existing selection cleanup (a deleted partnership
-  or line that was selected is not deselected). Page notes caught in a
-  marquee selection are not deleted by CMD-X; only people are.
+  or line that was selected is not deselected).
 - **Token-usage notes** (gate `gate_2026-10-06c` INFO, carried):
   `VisionUsage.complete` turns true on the first `message_delta` (the API
   sends one, at the end, so this holds today); the `formatVisionUsage` tests

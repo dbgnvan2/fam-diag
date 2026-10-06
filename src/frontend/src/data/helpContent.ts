@@ -32,7 +32,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     tips: [
       'The white on the screen is the "CANVAS". A right-click anywere on the screen will pop up a small window where you can "add person"',
       'You can click and drag the cursor across the screen to select mulitiple items. Hold Space and left-drag to pan the whole diagram; Alt-drag and middle-mouse drag still work as fallbacks.',
-      'To delete the selected people, press CMD-X (Ctrl-X on Windows). The app asks first and names everyone who will be deleted; their partnerships, emotional lines and triangles go too. There is no undo.',
+      'To delete the selected people and general notes, press CMD-X (Ctrl-X on Windows). The app asks first and names everything that will be deleted; the people\'s partnerships, emotional lines and triangles go too. There is no undo.',
       ' ',
       'Use the Timeline controls (slider, ±1 year buttons, and Play/Pause left of the Zoom slider) to replay all items on the screen provided they are dated.',
       'Events like births, deaths, PRL milestones, EPL start/end dates, and logged events all need dates for the timeline to work well. Only items on or before the chosen year remain visible so you can “grow” the diagram chronologically.',

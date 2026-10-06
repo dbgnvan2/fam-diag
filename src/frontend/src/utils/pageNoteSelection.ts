@@ -15,3 +15,16 @@ export const activeMarqueePageNoteIds = (
   selectedPeopleIds: string[],
   marquee: MarqueePageNoteSelection
 ): string[] => (selectedPeopleIds === marquee.peopleIds ? marquee.pageNoteIds : []);
+
+/**
+ * Every page note the user sees as selected: the one open in the note
+ * editor (a click, or a marquee that caught exactly one note) plus the
+ * notes of a marquee that is still active. Each id once.
+ */
+export const allSelectedPageNoteIds = (
+  selectedPageNoteId: string | null,
+  selectedPeopleIds: string[],
+  marquee: MarqueePageNoteSelection
+): string[] => [
+  ...new Set([...(selectedPageNoteId ? [selectedPageNoteId] : []), ...activeMarqueePageNoteIds(selectedPeopleIds, marquee)]),
+];
