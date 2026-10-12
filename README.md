@@ -15,6 +15,7 @@ A specialized, web-based family diagramming application designed for clinical an
 *   **Family Focus**: Right-click a person → **Focus Family** to show only that person's family — by default 2 generations up and 2 down (grandparents → grandchildren), including siblings, aunts, uncles and cousins. A chip beside the year slider widens or narrows it, reports how many people are showing, and says what the boundary hides. It filters the canvas and drives the Timeline lanes; it changes nothing in your file.
 
 ### 🎭 Emotional Pattern Lines (EPLs) & Triangles
+*   **Adding a pattern**: Right-click a person, choose **Emotional Pattern**, then click the second person; or select both people, right-click and choose **Add Emotional Pattern**. Both open the same dialog.
 *   **Advanced Styling**: Visualize Fusion, Distance, Cutoff, Conflict, Projection, and Open Connections with multi-level graphic scales (sawtooth, dashes, parallel lines).
 *   **Lifecycle Management**: Tracks "Ongoing" vs. "Ended" status with end dates—ended lines remain in the timeline/data but hide from the active canvas.
 *   **Triangle Analysis**: Create focused 3-person triangles with dedicated properties panel for analyzing emotional dynamics and tracking triangle-specific events and notes.

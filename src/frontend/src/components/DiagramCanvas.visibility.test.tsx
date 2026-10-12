@@ -79,6 +79,7 @@ const renderCanvas = (visible: Record<string, boolean>, overrides: Record<string
     selectedPageNote: null,
     pageNoteDraft: null,
     canvasScrollHintOpen: false,
+    patternPickFirstPerson: null,
     panelRef: { current: null },
     panelWidth: 300,
     resizeStateRef: { current: null },
@@ -144,5 +145,23 @@ describe('DiagramCanvas — pan hint', () => {
     fireEvent.click(screen.getByLabelText(CANVAS_SCROLL_HINT.dontShowAgainLabel));
     fireEvent.click(screen.getByLabelText('Close canvas scroll hint'));
     expect(closeCanvasScrollHint).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('DiagramCanvas — Emotional Pattern second-person banner', () => {
+  it('names the first person and cancels from its button', async () => {
+    const { fireEvent, screen } = await import('@testing-library/react');
+    const { EMOTIONAL_PATTERN_PICK_HINT } = await import('../data/helpContent');
+    const cancelEmotionalPatternPick = vi.fn();
+    renderCanvas({ a: true, b: true, c: true }, { patternPickFirstPerson: people[0], cancelEmotionalPatternPick });
+    expect(screen.getByLabelText('Emotional Pattern second person')).toHaveTextContent(EMOTIONAL_PATTERN_PICK_HINT.text('A'));
+    fireEvent.click(screen.getByRole('button', { name: EMOTIONAL_PATTERN_PICK_HINT.cancelLabel }));
+    expect(cancelEmotionalPatternPick).toHaveBeenCalled();
+  });
+
+  it('is absent when no pick is waiting', async () => {
+    const { screen } = await import('@testing-library/react');
+    renderCanvas({ a: true, b: true, c: true });
+    expect(screen.queryByLabelText('Emotional Pattern second person')).toBeNull();
   });
 });

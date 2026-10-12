@@ -40,9 +40,9 @@ import {
 } from '../utils/noteVisibility';
 import { FALLBACK_FILE_NAME } from '../data/defaultDiagramState';
 import { APP_VERSION } from '../data/version';
-import { CANVAS_SCROLL_HINT } from '../data/helpContent';
+import { CANVAS_SCROLL_HINT, EMOTIONAL_PATTERN_PICK_HINT } from '../data/helpContent';
 import { resolveBinarySex } from '../utils/personSex';
-import { joinCoupleNames } from '../utils/personNames';
+import { joinCoupleNames, personDisplayName } from '../utils/personNames';
 
 type MarqueeSelection = {
   active: boolean;
@@ -206,6 +206,10 @@ interface DiagramCanvasProps {
   setCanvasScrollHintOpen: Dispatch<SetStateAction<boolean>>;
   handleCanvasScrollHint: () => void;
 
+  // One-person Emotional Pattern route: waiting for the second person.
+  patternPickFirstPerson?: Person | null;
+  cancelEmotionalPatternPick?: () => void;
+
   // Panel
   panelRef: RefObject<HTMLDivElement>;
   panelWidth: number;
@@ -321,6 +325,8 @@ export default function DiagramCanvas({
   handlePageNoteDelete,
   handlePageNoteSave,
   canvasScrollHintOpen,
+  patternPickFirstPerson,
+  cancelEmotionalPatternPick,
   closeCanvasScrollHint,
   setCanvasScrollHintOpen,
   handleCanvasScrollHint,
@@ -1133,6 +1139,38 @@ export default function DiagramCanvas({
                 Save
               </button>
             </div>
+          </div>
+        )}
+        {patternPickFirstPerson && (
+          <div
+            role="status"
+            aria-label="Emotional Pattern second person"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 12,
+              transform: 'translateX(-50%)',
+              maxWidth: 'calc(100% - 32px)',
+              background: '#eef4ff',
+              border: '1px solid #8aa8d8',
+              borderRadius: 10,
+              boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
+              padding: '8px 12px',
+              display: 'flex',
+              gap: 12,
+              alignItems: 'center',
+              fontSize: 13,
+              color: '#1f3558',
+              zIndex: Z_INDEX.CANVAS_SCROLL_HINT,
+            }}
+          >
+            <span>
+              {EMOTIONAL_PATTERN_PICK_HINT.text(personDisplayName(patternPickFirstPerson))}{' '}
+              {EMOTIONAL_PATTERN_PICK_HINT.escapeNote}
+            </span>
+            <button type="button" onClick={() => cancelEmotionalPatternPick?.()}>
+              {EMOTIONAL_PATTERN_PICK_HINT.cancelLabel}
+            </button>
           </div>
         )}
         {canvasScrollHintOpen && (

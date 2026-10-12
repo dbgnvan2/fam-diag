@@ -61,6 +61,8 @@ interface UseContextMenuHandlersDeps {
   // Other passed functions
   addPartnerForPerson: (person: Person) => void;
   openAddEmotionalPatternModal: (person1Id: string, person2Id: string) => void;
+  /** Starts the one-person route: the next person clicked is the second. */
+  startEmotionalPatternPick: (personId: string) => void;
   handleUpdatePerson: (id: string, updates: Partial<Person>) => void;
   handleUpdatePartnership: (id: string, updates: Partial<Partnership>) => void;
   openContextualEventCreator: (
@@ -140,6 +142,7 @@ export function useContextMenuHandlers({
   removeChildFromPartnership,
   addPartnerForPerson,
   openAddEmotionalPatternModal,
+  startEmotionalPatternPick,
   handleUpdatePerson,
   handleUpdatePartnership,
   openContextualEventCreator,
@@ -424,6 +427,14 @@ export function useContextMenuHandlers({
                 },
               },
             ],
+          },
+          {
+            // The two-person route (select both, right-click) still works.
+            label: 'Emotional Pattern',
+            onClick: () => {
+              startEmotionalPatternPick(person.id);
+              setContextMenu(null);
+            },
           },
           {
             label: person.notes

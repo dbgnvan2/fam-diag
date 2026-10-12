@@ -67,6 +67,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: 'Emotional Pattern Lines (EPLs)',
     tips: [
       'Use the right-click options (context menu) to add EPLs between two people; choose relationship type (+/- adequate, distance, cutoff, conflict) with intensity-specific line styles.',
+      'To add an EPL, right-click a person, choose Emotional Pattern, then click the second person. Or select the two people, right-click one of them and choose Add Emotional Pattern. Esc cancels the second-person click.',
       'Each EPL supports custom colors (helpful for highlighting emotional triangles) plus arrow endings (single, double, perpendicular, +/- adequate arrow). Thickness adjusts automatically for high-intensity options.',
       'Select three people, then right-click one of them and choose Add Triangle to draw a Bowen triangle between those three people.',
       '+/- Adequate, distance, conflict, and projection use a five-level graphic scale. The Pattern tab keeps Intensity and Intensity Level synchronized so changing either control updates the other.',
@@ -266,4 +267,13 @@ export const HINT_PREFERENCE_NOT_SAVED_MESSAGE =
 export const CANVAS_SCROLL_HINT = {
   text: 'To PAN or SCROLL the canvas, hold down SPACE bar and Click to pan the Canvas in any direction',
   dontShowAgainLabel: "Don't show this again",
+};
+
+// Shown while the user picks the second person for an Emotional Pattern
+// started from one person's right-click menu.
+export const EMOTIONAL_PATTERN_PICK_HINT = {
+  text: (firstPersonName: string) =>
+    `Click the second person for the Emotional Pattern with ${firstPersonName}.`,
+  cancelLabel: 'Cancel',
+  escapeNote: '(Esc cancels)',
 };

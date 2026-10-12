@@ -37,6 +37,7 @@ import { useSessionNoteHandlers } from '../hooks/useSessionNoteHandlers';
 import { usePersonOperations } from '../hooks/usePersonOperations';
 import { useContextMenuHandlers } from '../hooks/useContextMenuHandlers';
 import { useSelectionHandlers } from '../hooks/useSelectionHandlers';
+import { useEmotionalPatternPick } from '../hooks/useEmotionalPatternPick';
 import { useCanvasDragHandlers } from '../hooks/useCanvasDragHandlers';
 import { useFileOperations } from '../hooks/useFileOperations';
 import { useVoiceHandlers } from '../hooks/useVoiceHandlers';
@@ -1948,6 +1949,13 @@ useEffect(() => {
     setContextMenu,
   });
 
+  const {
+    patternPickFirstPerson,
+    startPick: startEmotionalPatternPick,
+    cancelPick: cancelEmotionalPatternPick,
+    handlePickClick: handleEmotionalPatternPickClick,
+  } = useEmotionalPatternPick({ people, openAddEmotionalPatternModal });
+
   const predictionHandlers = usePredictionHandlers({
     predictionSets,
     setPredictionSets,
@@ -3431,6 +3439,7 @@ useEffect(() => {
     removeChildFromPartnership,
     addPartnerForPerson,
     openAddEmotionalPatternModal,
+    startEmotionalPatternPick,
     handleUpdatePerson,
     handleUpdatePartnership,
     openContextualEventCreator,
@@ -4187,7 +4196,10 @@ useEffect(() => {
             onFamilyIndicatorClick={handleFamilyIndicatorClick}
             handleChildLineSelect={handleChildLineSelect}
             handleChildLineContextMenu={handleChildLineContextMenu}
-            handleSelect={handleSelect}
+            handleSelect={(personId: string, additive: boolean) => {
+              if (handleEmotionalPatternPickClick(personId)) return;
+              handleSelect(personId, additive);
+            }}
             handlePersonDragStart={handlePersonDragStart}
             handlePersonDrag={handlePersonDrag}
             dragGroupRef={dragGroupRef}
@@ -4226,6 +4238,8 @@ useEffect(() => {
             setCanvasScrollHintOpen={setCanvasScrollHintOpen}
             handleCanvasScrollHint={handleCanvasScrollHint}
             closeCanvasScrollHint={closeCanvasScrollHint}
+            patternPickFirstPerson={patternPickFirstPerson}
+            cancelEmotionalPatternPick={cancelEmotionalPatternPick}
             panelRef={panelRef}
             panelWidth={panelWidth}
             resizeStateRef={resizeStateRef}

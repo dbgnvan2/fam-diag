@@ -81,6 +81,25 @@ describe('Add Triangle (M18)', () => {
   });
 });
 
+describe('Emotional Pattern from one person', () => {
+  it('a single person\'s menu offers Emotional Pattern, which starts the second-person pick', () => {
+    const { result, deps, event, menu } = setup(['a']);
+    result.current.handlePersonContextMenu(event, person('b'));
+    const item = flatten(menu()!.items).find((entry) => entry.path.join('>') === 'Emotional Pattern');
+    expect(item).toBeDefined();
+    item!.item.onClick!();
+    expect(deps.startEmotionalPatternPick).toHaveBeenCalledWith('b');
+    expect(deps.openAddEmotionalPatternModal).not.toHaveBeenCalled();
+  });
+
+  it('the two-person route still opens the dialog directly', () => {
+    const { result, deps, event, menu } = setup(['a', 'b']);
+    result.current.handlePersonContextMenu(event, person('a'));
+    flatten(menu()!.items).find((entry) => entry.item.label === 'Add Emotional Pattern')!.item.onClick!();
+    expect(deps.openAddEmotionalPatternModal).toHaveBeenCalledWith('a', 'b');
+  });
+});
+
 describe('context-menu event seeds (M2)', () => {
   it('every seed names a category the event dialog knows, and no rating or date', () => {
     const { result, deps, event, menu } = setup(['a']);
