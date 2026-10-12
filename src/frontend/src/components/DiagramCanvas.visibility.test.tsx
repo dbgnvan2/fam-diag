@@ -154,7 +154,12 @@ describe('DiagramCanvas — Emotional Pattern second-person banner', () => {
     const { EMOTIONAL_PATTERN_PICK_HINT } = await import('../data/helpContent');
     const cancelEmotionalPatternPick = vi.fn();
     renderCanvas({ a: true, b: true, c: true }, { patternPickFirstPerson: people[0], cancelEmotionalPatternPick });
-    expect(screen.getByLabelText('Emotional Pattern second person')).toHaveTextContent(EMOTIONAL_PATTERN_PICK_HINT.text('A'));
+    // Literal copy, not EMOTIONAL_PATTERN_PICK_HINT.text('A'): an expectation
+    // built by the code under test passes whatever that code produces (P32).
+    // 'A' is the fixture person's name.
+    expect(screen.getByLabelText('Emotional Pattern second person')).toHaveTextContent(
+      'Click the second person for the Emotional Pattern with A. (Esc cancels)'
+    );
     fireEvent.click(screen.getByRole('button', { name: EMOTIONAL_PATTERN_PICK_HINT.cancelLabel }));
     expect(cancelEmotionalPatternPick).toHaveBeenCalled();
   });
