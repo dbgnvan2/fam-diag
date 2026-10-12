@@ -65,6 +65,13 @@ Only items that were decided, deliberately, to be left as they are:
   Mac, while the help tip says "Ctrl-X on Windows"; and the batch delete
   inherits removePerson's existing selection cleanup (a deleted partnership
   or line that was selected is not deselected).
+- **Emotional Pattern pick notes** (gate `gate_2026-10-12`): the
+  `handleSelect` wrap in `DiagramEditor.tsx` that sends a pending pick's
+  click to `handlePickClick` has no test driving it; removing it would
+  leave the one-person route dead with a green suite (MEDIUM,
+  non-blocking). The banner test's expected text is built from
+  `EMOTIONAL_PATTERN_PICK_HINT.text('A')`, mirroring the implementation
+  (LOW).
 - **CMD-X page-note notes** (gate `gate_2026-10-06e`): the note open in
   the editor always counts as selected, and the editor is not a
   `useDialogFocus` overlay, so CMD-X outside its fields offers to delete
