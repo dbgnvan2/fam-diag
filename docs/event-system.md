@@ -21,8 +21,8 @@ Everything that happens in the app is captured as an `EmotionalProcessEvent`. Th
 
 ## Where entities store events
 
-- `Person.events[]` — individual events, symptoms, and cloned partnership events (id suffix `-p1` / `-p2`)
-- `Partnership.events[]` — relationship events (cloned to both partners)
+- `Person.events[]` — individual events and symptoms. Older diagrams also hold copies of partnership events here (id suffix `-p1` / `-p2`); nothing writes new copies, and a copy of a status record is never listed (`utils/listedEvents.ts`)
+- `Partnership.events[]` — relationship events
 - `Partnership.familyEvents[]` — family-level events
 - `EmotionalLine.events[]` — emotional pattern events
 - Triangle events flow through Family events
@@ -134,10 +134,10 @@ Never conflate them.
 
 Three sources of events the user expects to see:
 1. Real records in `entity.events[]`
-2. Cloned partnership events on `Person.events[]` (id suffix `-p1`/`-p2`)
+2. Legacy copies of partnership events on `Person.events[]` (id suffix `-p1`/`-p2`) — `utils/eventDedup.ts` recognises them; copies of status records are hidden
 3. Synthesized phantoms from raw date fields via `utils/syntheticDateEvents.ts` (id prefix `synth-`)
 
-The Properties panel's `displayRows`, `TimelineBoardModal` and `utils/systemEvents.ts` all get an owner's events from `utils/listedEvents.ts` (`listedPersonEvents`, `listedPartnershipEvents`, `listedEmotionalLineEvents`), which applies the same synthesizers (date fields and indicator-backed symptoms), hides the companions with `withoutDateSlotCompanions` and leaves out partnership status-change records. Use those functions rather than combining the pieces again (review 2026-09-30 struct-06: five copies had drifted). To surface a new raw date field as an event, update `utils/syntheticDateEvents.ts` only.
+The Properties panel's `displayRows`, `TimelineBoardModal` and `utils/systemEvents.ts` all get an owner's events from `utils/listedEvents.ts` (`listedPersonEvents`, `listedPartnershipEvents`, `listedEmotionalLineEvents`), which applies the same synthesizers (date fields and indicator-backed symptoms), hides the companions with `withoutDateSlotCompanions` and leaves out partnership status-change records — including a partner's legacy `-p1` / `-p2` copy of one, which is why `listedPersonEvents` takes the partnerships. Use those functions rather than combining the pieces again (review 2026-09-30 struct-06: five copies had drifted). To surface a new raw date field as an event, update `utils/syntheticDateEvents.ts` only.
 
 ## Context menu click-path titles (`modalTitle`)
 

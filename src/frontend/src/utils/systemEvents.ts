@@ -404,7 +404,7 @@ export function collectSystemEvents({
 
     // The shared rule (utils/listedEvents.ts); date-field companions were
     // not hidden here, unlike every other view (review struct-06).
-    const ownEvents = listedPersonEvents(relative, functionalIndicatorDefinitions);
+    const ownEvents = listedPersonEvents(relative, functionalIndicatorDefinitions, partnerships);
     ownEvents.forEach((event) => {
       push({
         event,

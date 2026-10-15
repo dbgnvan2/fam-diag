@@ -12,7 +12,8 @@
  * view hides. Hidden, in every view:
  *   - date-field companions (they hold notes for a synthesized date event);
  *   - a person's legacy date records (utils/personDateEvents.ts);
- *   - a partnership's status-change records (utils/partnershipStatusEvents.ts);
+ *   - a partnership's status-change records (utils/partnershipStatusEvents.ts),
+ *     including the `-p1` / `-p2` copies older diagrams hold on each partner;
  *   - a pattern's per-edit records (utils/patternEventRecords.ts).
  */
 import type { EmotionalLine, EmotionalProcessEvent, FunctionalIndicatorDefinition, Partnership, Person } from '../types';
@@ -24,18 +25,30 @@ import {
   withoutDateSlotCompanions,
 } from './syntheticDateEvents';
 import { withoutPersonDateRecords } from './personDateEvents';
-import { withoutPartnershipStatusRecords } from './partnershipStatusEvents';
+import { isPartnershipStatusRecordEvent, withoutPartnershipStatusRecords } from './partnershipStatusEvents';
+import { CLONE_SUFFIX_PATTERN } from './eventDedup';
 import { withoutPatternEditRecords } from './patternEventRecords';
 
+// A partner's copy of a status record: the partnership shows that date as
+// its own date event, so listing the copy as well shows the marriage twice.
+const isStatusRecordCopy = (event: EmotionalProcessEvent, partnerships: Partnership[]): boolean => {
+  if (!CLONE_SUFFIX_PATTERN.test(event.id)) return false;
+  const partnership = partnerships.find((entry) => entry.id === event.anchorId);
+  return !!partnership && isPartnershipStatusRecordEvent(event, partnership);
+};
+
 /** A person's stored events as listed (no synthesized ones). */
-export const storedPersonEvents = (person: Person): EmotionalProcessEvent[] =>
-  withoutPersonDateRecords(withoutDateSlotCompanions(person.events));
+export const storedPersonEvents = (person: Person, partnerships: Partnership[]): EmotionalProcessEvent[] =>
+  withoutPersonDateRecords(withoutDateSlotCompanions(person.events)).filter(
+    (event) => !isStatusRecordCopy(event, partnerships)
+  );
 
 export const listedPersonEvents = (
   person: Person,
-  definitions: FunctionalIndicatorDefinition[]
+  definitions: FunctionalIndicatorDefinition[],
+  partnerships: Partnership[]
 ): EmotionalProcessEvent[] => [
-  ...storedPersonEvents(person),
+  ...storedPersonEvents(person, partnerships),
   ...synthesizePersonDateEvents(person),
   ...synthesizePersonIndicatorEvents(person, definitions),
 ];

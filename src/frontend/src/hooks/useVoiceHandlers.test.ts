@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { EmotionalLine, Partnership, Person } from '../types';
 import type { VoiceCommandOperation } from '../utils/voiceCommands';
 import { describeVoiceOperation } from '../utils/voiceCommands';
-import { useVoiceHandlers } from './useVoiceHandlers';
+import { planVoiceCommands, useVoiceHandlers } from './useVoiceHandlers';
+import { readPartnershipStatusDate } from '../utils/relationshipStatusKeys';
 
 const person = (id: string, name: string, extra: Partial<Person> = {}): Person => ({
   id,
@@ -218,3 +219,58 @@ describe('useVoiceHandlers — voice-07 possessive "s" with no apostrophe', () =
     expect(out.partnerships[0].marriedStartDate).toBe('1970-01-01');
   });
 });
+
+describe('useVoiceHandlers — partnership status dates go through statusDates', () => {
+  const alice = person('a', 'Alice', { partnerships: ['pr'], birthSex: 'female' });
+  const bob = person('b', 'Bob', { partnerships: ['pr'], birthSex: 'male' });
+  const dating: Partnership = {
+    id: 'pr',
+    partner1_id: 'a',
+    partner2_id: 'b',
+    horizontalConnectorY: 0,
+    relationshipType: 'dating',
+    relationshipStatus: 'ongoing',
+    children: [],
+    statusDates: { start: '1985-03-04', married: '1999-01-01' },
+    relationshipStartDate: '1985-03-04',
+    marriedStartDate: '1999-01-01',
+  };
+  const plan = (op: VoiceCommandOperation) =>
+    planVoiceCommands([op], [alice, bob], [dating], []).partnerships.find((p) => p.id === 'pr')!;
+
+  it('"married in 1990" replaces a stale statusDates.married, so the panel shows 1990', () => {
+    const next = plan({ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'married', year: 1990 });
+    expect(readPartnershipStatusDate(next, 'married')).toBe('1990-01-01');
+    expect(next.marriedStartDate).toBe('1990-01-01');
+  });
+
+  it('"married in 1990" keeps an existing relationship start date', () => {
+    const next = plan({ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'married', year: 1990 });
+    expect(readPartnershipStatusDate(next, 'start')).toBe('1985-03-04');
+    expect(next.relationshipStartDate).toBe('1985-03-04');
+  });
+
+  it('"married in 1990" with no start date sets the start date to the marriage year', () => {
+    const fresh: Partnership = { ...dating, statusDates: undefined, relationshipStartDate: undefined, marriedStartDate: undefined };
+    const next = planVoiceCommands(
+      [{ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'married', year: 1990 }],
+      [alice, bob], [fresh], []
+    ).partnerships[0];
+    expect(readPartnershipStatusDate(next, 'start')).toBe('1990-01-01');
+  });
+
+  it('divorce and separation years land in statusDates and the legacy field', () => {
+    const divorced = plan({ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'divorced', year: 2005 });
+    expect(divorced.statusDates?.divorce).toBe('2005-01-01');
+    expect(divorced.divorceDate).toBe('2005-01-01');
+    const separated = plan({ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'separated', year: 2003 });
+    expect(separated.statusDates?.separated).toBe('2003-01-01');
+    expect(separated.separationDate).toBe('2003-01-01');
+  });
+
+  it('does not change the partnership it was given', () => {
+    plan({ type: 'set_partnership_status', person1Name: 'Alice', person2Name: 'Bob', relationshipType: 'married', relationshipStatus: 'married', year: 1990 });
+    expect(dating.statusDates).toEqual({ start: '1985-03-04', married: '1999-01-01' });
+  });
+});
+

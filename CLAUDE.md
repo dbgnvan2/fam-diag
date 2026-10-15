@@ -16,7 +16,7 @@ Read the relevant file from `~/.claude/standards/` before starting work:
 ## Pre-completion checklist (all 3 must pass before declaring done)
 
 ```bash
-cd src/frontend && npx tsc --noEmit
+cd src/frontend && npx tsc --noEmit -p tsconfig.app.json   # plain `tsc --noEmit` checks 0 files (L5)
 cd src/frontend && npx vitest run
 cd src/frontend && rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b
 ```
@@ -69,7 +69,7 @@ Use `position: fixed` on the dialog itself, not `position: absolute` inside a fl
 
 ### Date-field synthesis (Events tab ↔ Timeline must stay in sync)
 
-The Properties panel's `displayRows` and `TimelineBoardModal` both call `utils/syntheticDateEvents.ts` to surface raw date fields as events. A date field has exactly ONE event: editing it edits the field, and deleting it clears the date (`DateSlot`, author decision 2026-09-30). To add a new "date field that should appear as an event," add a slot in `syntheticDateEvents.ts` only — both consumers and the save path pick it up.
+The Properties panel's `displayRows` and `TimelineBoardModal` both call `utils/syntheticDateEvents.ts` to surface raw date fields as events. A date field has exactly ONE event: editing it edits the field, and deleting it clears the date (`DateSlot`, author decision 2026-09-30). Partnership status dates are read and written only through `utils/relationshipStatusKeys.ts` (`readPartnershipStatusDate`, `withPartnershipStatusDate`), which keeps `statusDates` and the legacy fields in step — start and ongoing share `relationshipStartDate`, and the start date owns it. To add a new "date field that should appear as an event," add a slot in `syntheticDateEvents.ts` only — both consumers and the save path pick it up.
 
 ## Consistency protocol
 

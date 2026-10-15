@@ -16,7 +16,7 @@
  */
 import { RELATIONSHIP_STATUS_INTENSITY } from '../constants/timelineBlockStyle';
 import {
-  STATUS_KEY_BY_LEGACY_FIELD,
+  statusKeyMirroredBy,
   canonicalRelationshipStatusKey,
   legacyFieldForStatus,
   type PartnershipDateField,
@@ -94,19 +94,22 @@ export const partnershipDateSlots = (partnership: Partnership): DateSlot[] => {
   const slots: DateSlot[] = PARTNERSHIP_FIELD_SLOTS.map(({ field, category }) => ({
     owner: 'partnership',
     field,
-    statusKey: STATUS_KEY_BY_LEGACY_FIELD[field],
+    // start and ongoing share relationshipStartDate; the slot belongs to the
+    // status whose date the field holds, so editing it edits that status.
+    statusKey: statusKeyMirroredBy(partnership, field),
     category,
     synthId: `synth-${field}-${partnership.id}`,
     date: partnership[field],
   }));
-  // A status whose date is mirrored into a legacy field ('start', 'ongoing',
-  // 'divorce', ...) is the slot above. Only statuses with no field of their
-  // own — "widowed" is the common one — get a slot here, or the panel's
-  // canonical keys would list the same date twice.
+  // A status whose date the legacy field holds is the slot above. A status
+  // with no field of its own ("widowed"), or one whose date differs from the
+  // field it shares (an ongoing date after the start date), gets a slot here.
   const seen = new Set<string>();
   Object.entries(partnership.statusDates || {}).forEach(([rawKey, date]) => {
     const statusKey = canonicalRelationshipStatusKey(rawKey);
-    if (legacyFieldForStatus(statusKey) || seen.has(statusKey)) return;
+    const sharedField = legacyFieldForStatus(statusKey);
+    if (seen.has(statusKey)) return;
+    if (sharedField && (!date || partnership[sharedField] === date)) return;
     seen.add(statusKey);
     slots.push({
       owner: 'partnership',

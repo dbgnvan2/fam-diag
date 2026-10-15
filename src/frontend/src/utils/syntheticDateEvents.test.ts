@@ -1,3 +1,4 @@
+import { deleteEventFromOwner } from './eventDraft';
 import { describe, it, expect } from 'vitest';
 import {
   synthesizePersonDateEvents,
@@ -288,3 +289,35 @@ describe('date-slot companion events', () => {
     expect(synthesizePersonDateEvents(person)).toHaveLength(0);
   });
 });
+
+describe('start and ongoing dates that differ', () => {
+  it('each is listed as its own event', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ relationshipStartDate: '1980-01-01', statusDates: { start: '1980-01-01', ongoing: '1985-01-01' } })
+    );
+    expect(events.map((e) => [e.category, e.startDate])).toEqual([
+      ['Relationship Started', '1980-01-01'],
+      ['Ongoing', '1985-01-01'],
+    ]);
+  });
+
+  it('deleting the ongoing event leaves the start event', () => {
+    const partnership = makePartnership({
+      relationshipStartDate: '1980-01-01',
+      statusDates: { start: '1980-01-01', ongoing: '1985-01-01' },
+    });
+    const ongoing = synthesizePartnershipDateEvents(partnership).find((e) => e.category === 'Ongoing')!;
+    const after = { ...partnership, ...deleteEventFromOwner({ kind: 'partnership', id: 'pr1' }, partnership, ongoing.id) } as Partnership;
+    expect(synthesizePartnershipDateEvents(after).map((e) => [e.category, e.startDate])).toEqual([
+      ['Relationship Started', '1980-01-01'],
+    ]);
+  });
+
+  it('deleting the start event when only an ongoing date holds the field removes it', () => {
+    const partnership = makePartnership({ relationshipStartDate: '1981-01-01', statusDates: { ongoing: '1981-01-01' } });
+    const [only] = synthesizePartnershipDateEvents(partnership);
+    const after = { ...partnership, ...deleteEventFromOwner({ kind: 'partnership', id: 'pr1' }, partnership, only.id) } as Partnership;
+    expect(synthesizePartnershipDateEvents(after)).toEqual([]);
+  });
+});
+

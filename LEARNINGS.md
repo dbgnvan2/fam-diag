@@ -92,11 +92,15 @@ think it does. Prefer realistic fixtures that set every field the real input car
 stricter project config) but **not** by `tsc --noEmit`. A change that "passed typecheck" would
 have failed the deploy.
 
-**Root cause.** `tsc --noEmit` and `tsc -b` resolve different tsconfig settings; the quick
-check is looser than the build gate.
+**Root cause.** `src/frontend/tsconfig.json` is a solution file (`"files": []` plus
+`references`). Plain `tsc --noEmit` therefore type-checks **no files at all** — measured
+2026-10-14 with `--listFilesOnly`: 0 source files, against 499 for `-p tsconfig.app.json`.
+It always "passes". `tsc -b` follows the references and is the one that checked anything.
 
-**Rule.** Run **all three** pre-completion gates every time (`tsc --noEmit`, `vitest`,
-`tsc -b`) — see CLAUDE.md. Never treat `tsc --noEmit` alone as "typechecks".
+**Rule.** The quick gate is `npx tsc --noEmit -p tsconfig.app.json`; run it, `vitest`, and
+`tsc -b` every time — see CLAUDE.md. A gate that cannot fail is not a gate: when a check
+passes suspiciously fast, confirm it covers files (`--listFilesOnly`). Note that
+`tsconfig.app.json` excludes `*.test.ts(x)`, so test files are type-checked by no gate.
 
 ---
 

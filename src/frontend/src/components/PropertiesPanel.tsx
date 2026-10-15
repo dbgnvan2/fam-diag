@@ -1321,7 +1321,7 @@ const PropertiesPanel = ({
     }
     const person = selectedItem as Person;
     // Date records are hidden rather than deleted — see utils/personDateEvents.ts.
-    const ownEvents = storedPersonEvents(person);
+    const ownEvents = storedPersonEvents(person, partnerships);
     const ownIds = new Set(ownEvents.map((e) => e.id));
     // The clone rule lives in utils/eventDedup.ts so this panel and the
     // Timeline cannot drift.
@@ -1330,7 +1330,8 @@ const PropertiesPanel = ({
     // come from the same rule the Timeline lane uses (utils/listedEvents.ts).
     const rows: Array<{ event: EmotionalProcessEvent; owner: EventOwner }> = listedPersonEvents(
       person,
-      functionalIndicatorDefinitions
+      functionalIndicatorDefinitions,
+      partnerships
     ).map((event) => ({ event, owner: selfOwner }));
     partnerships.forEach((p) => {
       if (p.partner1_id !== person.id && p.partner2_id !== person.id) return;

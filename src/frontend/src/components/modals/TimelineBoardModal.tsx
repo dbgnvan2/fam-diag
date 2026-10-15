@@ -561,7 +561,7 @@ export default function TimelineBoardModal({
       // uses, so the two views cannot drift apart.
       // Spec: docs/implementation_plan_2026-09-19.md#M7.A.1
       // The shared rule (utils/listedEvents.ts) the Properties panel uses.
-      const ownEvents = listedPersonEvents(person, functionalIndicatorDefinitions);
+      const ownEvents = listedPersonEvents(person, functionalIndicatorDefinitions, partnerships);
       ownEvents.forEach((event) => {
         const start = eventStart(event);
         if (!start) return;
@@ -819,7 +819,7 @@ export default function TimelineBoardModal({
     if (item.entityType === 'person') {
       const person = people.find((p) => p.id === item.entityId);
       existingEvent = person
-        ? listedPersonEvents(person, functionalIndicatorDefinitions).find((e) => e.id === item.eventId)
+        ? listedPersonEvents(person, functionalIndicatorDefinitions, partnerships).find((e) => e.id === item.eventId)
         : undefined;
     } else if (item.entityType === 'partnership') {
       const pr = partnerships.find((p) => p.id === item.entityId);

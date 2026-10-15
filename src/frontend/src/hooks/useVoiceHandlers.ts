@@ -7,6 +7,7 @@ import {
   type VoiceCommandOperation,
 } from '../utils/voiceCommands';
 import { DEFAULT_LINE_COLOR } from '../utils/emotionalPatternOptions';
+import { readPartnershipStatusDate, withPartnershipStatusDate } from '../utils/relationshipStatusKeys';
 import { inferGenderFromName, normalizeImportedChildLayout } from '../utils/dataNormalization';
 
 export type VoiceCommandPlan = {
@@ -287,15 +288,17 @@ export const planVoiceCommands = (
         const { partnership } = result;
         partnership.relationshipType = operation.relationshipType;
         partnership.relationshipStatus = operation.relationshipStatus;
-        if (operation.relationshipStatus === 'married' && operation.year) {
-          partnership.relationshipStartDate = `${operation.year}-01-01`;
-          partnership.marriedStartDate = `${operation.year}-01-01`;
-        }
-        if (operation.relationshipStatus === 'divorced' && operation.year) {
-          partnership.divorceDate = `${operation.year}-01-01`;
-        }
-        if (operation.relationshipStatus === 'separated' && operation.year) {
-          partnership.separationDate = `${operation.year}-01-01`;
+        if (operation.year && operation.relationshipStatus !== 'ongoing') {
+          // Status dates are written through the shared helper, which keeps
+          // statusDates (what the panel reads) and the legacy field in step.
+          const date = `${operation.year}-01-01`;
+          let next = withPartnershipStatusDate(partnership, operation.relationshipStatus, date);
+          // A marriage implies the relationship had started; it never moves
+          // a start date that is already known.
+          if (operation.relationshipStatus === 'married' && !readPartnershipStatusDate(next, 'start')) {
+            next = withPartnershipStatusDate(next, 'start', date);
+          }
+          Object.assign(partnership, next);
         }
         return;
       }

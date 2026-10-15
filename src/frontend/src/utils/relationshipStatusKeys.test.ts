@@ -61,3 +61,39 @@ describe('relationshipEndingForStatus', () => {
     expect(relationshipEndingForStatus('widowed')).toBeNull();
   });
 });
+
+describe('start and ongoing share relationshipStartDate', () => {
+  // Both statuses mirror into the one legacy field; the start date owns it.
+  it('setting an ongoing date does not overwrite the start date mirror', () => {
+    const next = withPartnershipStatusDate(partnership({ statusDates: { start: '1980-01-01' }, relationshipStartDate: '1980-01-01' }), 'ongoing', '1985-01-01');
+    expect(next.statusDates).toEqual({ start: '1980-01-01', ongoing: '1985-01-01' });
+    expect(next.relationshipStartDate).toBe('1980-01-01');
+  });
+
+  it('clearing the ongoing date keeps the start date mirror', () => {
+    const next = withPartnershipStatusDate(
+      partnership({ statusDates: { start: '1980-01-01', ongoing: '1985-01-01' }, relationshipStartDate: '1980-01-01' }),
+      'ongoing',
+      ''
+    );
+    expect(next.statusDates).toEqual({ start: '1980-01-01' });
+    expect(next.relationshipStartDate).toBe('1980-01-01');
+  });
+
+  it('clearing the start date falls back to the ongoing date', () => {
+    const next = withPartnershipStatusDate(
+      partnership({ statusDates: { start: '1980-01-01', ongoing: '1985-01-01' }, relationshipStartDate: '1980-01-01' }),
+      'start',
+      ''
+    );
+    expect(next.relationshipStartDate).toBe('1985-01-01');
+  });
+
+  it('a start date held only in the legacy field survives setting an ongoing date', () => {
+    const next = withPartnershipStatusDate(partnership({ relationshipStartDate: '1980-01-01' }), 'ongoing', '1985-01-01');
+    expect(readPartnershipStatusDate(next, 'start')).toBe('1980-01-01');
+    expect(readPartnershipStatusDate(next, 'ongoing')).toBe('1985-01-01');
+    expect(next.relationshipStartDate).toBe('1980-01-01');
+  });
+});
+

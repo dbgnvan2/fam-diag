@@ -75,20 +75,64 @@ export const withPartnershipStatusDate = (
 ): Partnership => {
   const key = canonicalRelationshipStatusKey(status);
   const trimmed = value.trim();
+  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
   const nextStatusDates = { ...(partnership.statusDates || {}) };
+  // Several statuses share one legacy field (start / ongoing). A date held
+  // only in that field belongs to the field's own status; record it there
+  // before another status that shares the field is written, or it is lost.
+  if (legacyField) {
+    const ownKey = STATUS_KEY_BY_LEGACY_FIELD[legacyField];
+    const legacyValue = partnership[legacyField];
+    if (key !== ownKey && legacyValue && !readStatusDatesOnly(nextStatusDates, ownKey)) {
+      const anyHolder = Object.entries(nextStatusDates).some(
+        ([entryKey, entryValue]) => entryValue && legacyFieldForStatus(entryKey) === legacyField
+      );
+      if (!anyHolder) nextStatusDates[ownKey] = legacyValue;
+    }
+  }
   // Drop every alias spelling of this status, so 'divorced' and 'divorce'
   // cannot both survive with different dates.
   Object.keys(nextStatusDates).forEach((entryKey) => {
     if (canonicalRelationshipStatusKey(entryKey) === key) delete nextStatusDates[entryKey];
   });
   if (trimmed) nextStatusDates[key] = trimmed;
-  const legacyField = LEGACY_STATUS_DATE_FIELD_BY_KEY[key];
   const next: Partnership = {
     ...partnership,
     statusDates: Object.keys(nextStatusDates).length ? nextStatusDates : undefined,
   };
-  if (legacyField) next[legacyField] = trimmed || undefined;
+  if (legacyField) next[legacyField] = legacyMirror(legacyField, nextStatusDates) || undefined;
   return next;
+};
+
+const readStatusDatesOnly = (statusDates: Record<string, string>, key: string): string =>
+  Object.entries(statusDates).find(
+    ([entryKey, entryValue]) => entryValue && canonicalRelationshipStatusKey(entryKey) === key
+  )?.[1] || '';
+
+/**
+ * The date a legacy field mirrors: its own status's date (start for
+ * relationshipStartDate), else the date of another status that shares it.
+ */
+const legacyMirror = (field: PartnershipDateField, statusDates: Record<string, string> = {}): string => {
+  const own = readStatusDatesOnly(statusDates, STATUS_KEY_BY_LEGACY_FIELD[field]);
+  if (own) return own;
+  return (
+    Object.entries(statusDates).find(
+      ([entryKey, entryValue]) => entryValue && legacyFieldForStatus(entryKey) === field
+    )?.[1] || ''
+  );
+};
+
+/** The status whose date a legacy field currently mirrors. */
+export const statusKeyMirroredBy = (partnership: Partnership, field: PartnershipDateField): string => {
+  const ownKey = STATUS_KEY_BY_LEGACY_FIELD[field];
+  const value = partnership[field];
+  const statusDates = partnership.statusDates || {};
+  if (!value || readStatusDatesOnly(statusDates, ownKey) === value) return ownKey;
+  const holder = Object.entries(statusDates).find(
+    ([entryKey, entryValue]) => entryValue === value && legacyFieldForStatus(entryKey) === field
+  );
+  return holder ? canonicalRelationshipStatusKey(holder[0]) : ownKey;
 };
 
 /** How a status ends a relationship on the canvas: two slashes or one. */

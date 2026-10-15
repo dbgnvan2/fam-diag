@@ -77,3 +77,46 @@ describe('listed events — one rule for every view (review 2026-09-30 struct-06
     expect(dadDeaths).toHaveLength(1);
   });
 });
+
+describe('legacy partner copies of partnership status records', () => {
+  // Older diagrams hold a copy of each status record on both partners
+  // (`<id>-p1` / `<id>-p2`); the record itself is the date field now.
+  const marriedRecord = event({
+    id: 'rec',
+    subtype: 'Married',
+    category: 'Married',
+    date: '1990-01-01',
+    startDate: '1990-01-01',
+    anchorType: 'RELATIONSHIP_PRL',
+    anchorId: 'pr',
+  });
+  const legacyPartnership: Partnership = { ...married, events: [marriedRecord] };
+  const personA: Person = {
+    id: 'a',
+    name: 'A',
+    x: 0,
+    y: 0,
+    gender: 'male',
+    partnerships: ['pr'],
+    events: [
+      { ...marriedRecord, id: 'rec-p1' },
+      event({ id: 'own-p1', subtype: 'Started counselling', anchorType: 'RELATIONSHIP_PRL', anchorId: 'pr' }),
+    ],
+  };
+
+  it('a person does not list a partner copy of a status record the partnership shows as its date', () => {
+    const ids = listedPersonEvents(personA, [], [legacyPartnership]).map((entry) => entry.id);
+    expect(ids).not.toContain('rec-p1');
+  });
+
+  it('adversarial: a user-written relationship event with a -p1 id is still listed', () => {
+    const ids = listedPersonEvents(personA, [], [legacyPartnership]).map((entry) => entry.id);
+    expect(ids).toContain('own-p1');
+  });
+
+  it('a copy is kept when its partnership is not known (nothing else would show it)', () => {
+    const ids = listedPersonEvents(personA, [], []).map((entry) => entry.id);
+    expect(ids).toContain('rec-p1');
+  });
+});
+
