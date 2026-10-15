@@ -97,10 +97,20 @@ have failed the deploy.
 2026-10-14 with `--listFilesOnly`: 0 source files, against 499 for `-p tsconfig.app.json`.
 It always "passes". `tsc -b` follows the references and is the one that checked anything.
 
-**Rule.** The quick gate is `npx tsc --noEmit -p tsconfig.app.json`; run it, `vitest`, and
-`tsc -b` every time — see CLAUDE.md. A gate that cannot fail is not a gate: when a check
-passes suspiciously fast, confirm it covers files (`--listFilesOnly`). Note that
-`tsconfig.app.json` excludes `*.test.ts(x)`, so test files are type-checked by no gate.
+**Second gap (fixed 2026-10-14).** `tsconfig.app.json` excludes `*.test.ts(x)` and nothing
+else included them, so no gate type-checked a test file; vitest strips types without checking
+them. 203 errors had built up across 16 test files, and some hid real mistakes: an
+`eventClass: 'event'` that is not an `EventClass`, `createRef<any>()` stages, fixtures cast
+`as Person` that lacked required fields or held invalid gender symbols, and calls that missed
+a newly required argument. `tsconfig.test.json` (extends the app config, includes the tests)
+is now referenced from `tsconfig.json`, so `tsc -b` checks it; `src/test/typecheckCoverage.test.ts`
+fails if that wiring is undone.
+
+**Rule.** The quick gate is `npm run typecheck` (`tsc --noEmit -p tsconfig.test.json`, app and
+test files); run it, `vitest`, and `tsc -b` every time — see CLAUDE.md. A gate that cannot fail
+is not a gate: when a check passes suspiciously fast, confirm it covers files
+(`--listFilesOnly`). In tests, type the react-konva tree with `src/test/konvaStage.ts`
+(`mountedStage`, `childGroup`, `childShape`, `childrenNamed`) instead of `any` or `!`.
 
 ---
 

@@ -2,7 +2,6 @@
  * EventModal tests — covers category/subtype dropdown correctness for all event types,
  * including the family event locked-type and stale-category normalization cases.
  */
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EventModal from './EventModal';
@@ -17,7 +16,7 @@ const baseProps = {
   otherPersonOptions: ['None', 'Alice', 'Bob'],
   eventCategories: ['Job', 'Health'],
   symptomTypeOptions: ['Anxiety', 'Headache'],
-  resolvedEventClass: 'event' as const,
+  resolvedEventClass: 'individual' as const,
   onChange: vi.fn(),
   onSetDraft: vi.fn(),
   onSave: vi.fn(),
@@ -27,7 +26,7 @@ const baseProps = {
 const makeDraft = (overrides: Partial<EmotionalProcessEvent> = {}): EmotionalProcessEvent => ({
   id: 'ev1',
   eventType: 'NODAL',
-  eventClass: 'event',
+  eventClass: 'individual',
   anchorType: 'PERSON',
   anchorId: 'p1',
   category: 'Birth',

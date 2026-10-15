@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import PartnershipNode from './PartnershipNode';
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
+import { mountedStage, childGroup } from '../test/konvaStage';
 import { vi } from 'vitest';
 import type { EmotionalProcessEvent, Partnership, Person } from '../types';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
@@ -29,7 +30,7 @@ describe('PartnershipNode', () => {
         );
     });
     it('keeps horizontal endpoints aligned with partner drop lines', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -47,13 +48,13 @@ describe('PartnershipNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current!;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const rootGroup = layer.getChildren()[0];
+        const rootGroup = childGroup(layer);
         const children = rootGroup.getChildren();
         const leftDrop = children[0];
         const rightDrop = children[1];
-        const horizontalGroup = children[2];
+        const horizontalGroup = childGroup(rootGroup, 2);
         const horizontal = horizontalGroup.getChildren()[1];
 
         expect(leftDrop.attrs.points[0]).toBe(horizontal.attrs.points[0]);
@@ -62,7 +63,7 @@ describe('PartnershipNode', () => {
         expect(rightDrop.attrs.points[3]).toBe(horizontalGroup.attrs.y);
     });
     it('renders the divorce indicator for the canonical divorce status used by the properties panel', () => {
-        const divorceStageRef = React.createRef<Stage>();
+        const divorceStageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={divorceStageRef}>
                 <Layer>
@@ -80,9 +81,9 @@ describe('PartnershipNode', () => {
             </Stage>
         );
 
-        const stage = divorceStageRef.current!;
+        const stage = mountedStage(divorceStageRef);
         const layer = stage.getLayers()[0];
-        const rootGroup = layer.getChildren()[0];
+        const rootGroup = childGroup(layer);
         const indicatorLines = rootGroup
             .getChildren()
             .filter((node) => node.getClassName() === 'Line' && node !== rootGroup.getChildren()[0] && node !== rootGroup.getChildren()[1]);
@@ -95,7 +96,7 @@ describe('PartnershipNode', () => {
         expect(divorceMarkers).toHaveLength(2);
     });
     it('uses custom line color when partnership.color is set', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -112,20 +113,20 @@ describe('PartnershipNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current!;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const rootGroup = layer.getChildren()[0];
+        const rootGroup = childGroup(layer);
         const leftDrop = rootGroup.getChildren()[0];
         const rightDrop = rootGroup.getChildren()[1];
         expect(leftDrop.attrs.stroke).toBe('#FF1744');
         expect(rightDrop.attrs.stroke).toBe('#FF1744');
         // Horizontal visible line is inside the draggable group
-        const horizontalGroup = rootGroup.getChildren()[2];
+        const horizontalGroup = childGroup(rootGroup, 2);
         const visibleLine = horizontalGroup.getChildren()[1];
         expect(visibleLine.attrs.stroke).toBe('#FF1744');
     });
     it('renders background line when partnership.backgroundColor is set', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -142,10 +143,10 @@ describe('PartnershipNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current!;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const rootGroup = layer.getChildren()[0];
-        const horizontalGroup = rootGroup.getChildren()[2];
+        const rootGroup = childGroup(layer);
+        const horizontalGroup = childGroup(rootGroup, 2);
         // With background: bgLine(0), hitLine(1), visibleLine(2)
         const bgLine = horizontalGroup.getChildren()[0];
         expect(bgLine.attrs.stroke).toBe('#e3f2fd');
@@ -158,13 +159,13 @@ describe('PartnershipNode', () => {
      * but relationshipStatus was still "ongoing", and the marks keyed off
      * that dropdown alone.
      */
-    const countSlashes = (stageRef: React.RefObject<any>, connectorY: number) => {
-        const stage = stageRef.current;
+    const countSlashes = (stageRef: React.RefObject<Konva.Stage | null>, connectorY: number) => {
+        const stage = mountedStage(stageRef);
         // The separation marks are the only diagonal lines drawn across the
         // connector: same short span, crossing its Y.
         return stage
-            .find('Line')
-            .filter((line: any) => {
+            .find<Konva.Line>('Line')
+            .filter((line) => {
                 const pts = line.points();
                 if (pts.length !== 4) return false;
                 const risesAcross = Math.abs(pts[1] - pts[3]) === 20;
@@ -174,7 +175,7 @@ describe('PartnershipNode', () => {
     };
 
     const renderWith = (overrides: Partial<Partnership>) => {
-        const stageRef = React.createRef<any>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -226,15 +227,15 @@ describe('PartnershipNode', () => {
 
     it('gives the partnership line a hit region far wider than the line it draws', () => {
         const stageRef = renderWith({});
-        const lines = stageRef.current!.find('Line');
-        const connector = lines.filter((line: any) => {
+        const lines = mountedStage(stageRef).find<Konva.Line>('Line');
+        const connector = lines.filter((line) => {
             const pts = line.points();
             return pts.length === 4 && pts[1] === 0 && pts[3] === 0;
         });
-        const hit = connector.find((line: any) => line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
+        const hit = connector.find((line) => line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
         expect(hit).toBeTruthy();
         // The visible line stays 2px; only the clickable region grew.
-        const drawn = connector.find((line: any) => line.strokeWidth() === 2);
+        const drawn = connector.find((line) => line.strokeWidth() === 2);
         expect(drawn).toBeTruthy();
     });
 
@@ -259,7 +260,7 @@ describe('PartnershipNode', () => {
                 </Layer>
             </Stage>
         );
-        return stageRef.current!;
+        return mountedStage(stageRef);
     };
 
     const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>

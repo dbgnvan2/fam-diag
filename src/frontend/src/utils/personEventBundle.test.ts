@@ -32,6 +32,8 @@ describe('personEventBundle', () => {
           {
             id: 'evt-1',
             date: '2025-01-01',
+            eventType: 'NODAL',
+            status: 'discrete',
             category: 'Individual',
             intensity: 1,
             frequency: 1,
@@ -62,6 +64,8 @@ describe('personEventBundle', () => {
           {
             id: 'evt-1',
             date: '2025-01-01',
+            eventType: 'NODAL',
+            status: 'discrete',
             category: 'Individual',
             intensity: 1,
             frequency: 1,
@@ -76,6 +80,8 @@ describe('personEventBundle', () => {
           {
             id: 'evt-2',
             date: '2025-01-02',
+            eventType: 'NODAL',
+            status: 'discrete',
             category: 'Individual',
             intensity: 1,
             frequency: 1,
@@ -90,6 +96,8 @@ describe('personEventBundle', () => {
           {
             id: 'evt-local',
             date: '2025-01-03',
+            eventType: 'NODAL',
+            status: 'discrete',
             category: 'Individual',
             intensity: 1,
             frequency: 1,
@@ -105,7 +113,7 @@ describe('personEventBundle', () => {
       }),
     ];
 
-    const bundle = {
+    const bundle: PersonEventBundle = {
       kind: 'fam-diag-person-events' as const,
       version: 1 as const,
       exportedAt: new Date().toISOString(),
@@ -118,6 +126,8 @@ describe('personEventBundle', () => {
             {
               id: 'evt-1',
               date: '2025-01-01',
+              eventType: 'NODAL',
+              status: 'discrete',
               category: 'Individual',
               intensity: 2,
               frequency: 1,
@@ -132,6 +142,8 @@ describe('personEventBundle', () => {
             {
               id: 'evt-3',
               date: '2025-01-04',
+              eventType: 'NODAL',
+              status: 'discrete',
               category: 'Individual',
               intensity: 1,
               frequency: 1,
@@ -240,7 +252,7 @@ describe('bundle-01: unchanged events and confirmation', () => {
       },
       { personName: 'Nobody Here', events: [ev({ id: 'e9' })] },
     ]);
-    const confirm = vi.fn(() => false);
+    const confirm = vi.fn((_message: string) => false);
     const cancelled = importPersonEventFile(bundle, people, confirm);
     expect(cancelled.status).toBe('cancelled');
     expect(confirm).toHaveBeenCalledTimes(1);

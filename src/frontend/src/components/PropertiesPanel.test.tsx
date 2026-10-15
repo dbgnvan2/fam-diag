@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import PropertiesPanel from './PropertiesPanel';
 import type { EmotionalLine, Person, FunctionalIndicatorDefinition, Partnership } from '../types';
@@ -1043,6 +1042,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={defs}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1093,6 +1093,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={defs}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1304,6 +1305,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1321,6 +1323,7 @@ describe('PropertiesPanel', () => {
                 people={[updatedAfterFirst]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1351,6 +1354,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1394,6 +1398,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1712,6 +1717,8 @@ describe('PropertiesPanel', () => {
                 {
                     id: 'event-1',
                     date: '2024-04-01',
+                    eventType: 'NODAL',
+                    status: 'discrete',
                     category: 'Individual',
                     intensity: 1,
                     frequency: 1,
@@ -1856,6 +1863,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Birth']}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1912,6 +1920,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Job']}
                 functionalIndicatorDefinitions={defs}
+                sirCategories={[]}
                 onUpdatePerson={updatePerson}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -1969,6 +1978,7 @@ describe('PropertiesPanel', () => {
                 allEmotionalLines={[el]}
                 eventCategories={[]}
                 functionalIndicatorDefinitions={[]}
+                sirCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}
@@ -2010,6 +2020,7 @@ describe('PropertiesPanel', () => {
                 people={[person]}
                 eventCategories={['Individual']}
                 functionalIndicatorDefinitions={defs}
+                sirCategories={[]}
                 onUpdatePerson={() => {}}
                 onUpdatePartnership={() => {}}
                 onUpdateEmotionalLine={() => {}}

@@ -4,10 +4,11 @@ import NoteNode from './NoteNode';
 import { Stage, Layer } from 'react-konva';
 import { vi } from 'vitest';
 import type Konva from 'konva';
+import { mounted, childGroup, childrenNamed } from '../test/konvaStage';
 
 describe('NoteNode', () => {
   it('renders the note title and text', () => {
-    const layerRef = React.createRef<any>();
+    const layerRef = React.createRef<Konva.Layer>();
     render(
       <Stage>
         <Layer ref={layerRef}>
@@ -22,16 +23,16 @@ describe('NoteNode', () => {
       </Stage>
     );
 
-    const layer = layerRef.current;
-    const group = layer.getChildren()[0];
-    const texts = group.getChildren().filter((node: any) => node.getClassName() === 'Text');
+    const layer = mounted(layerRef, 'Layer');
+    const group = childGroup(layer);
+    const texts = childrenNamed<Konva.Text>(group, 'Text');
     
     expect(texts[0].getAttr('text')).toBe('Test Title');
     expect(texts[1].getAttr('text')).toBe('Test Text');
   });
 
   it('renders a resize handle', () => {
-    const layerRef = React.createRef<any>();
+    const layerRef = React.createRef<Konva.Layer>();
     render(
       <Stage>
         <Layer ref={layerRef}>
@@ -45,14 +46,14 @@ describe('NoteNode', () => {
         </Layer>
       </Stage>
     );
-    const layer = layerRef.current;
-    const group = layer.getChildren()[0];
-    const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
+    const layer = mounted(layerRef, 'Layer');
+    const group = childGroup(layer);
+    const rects = childrenNamed<Konva.Rect>(group, 'Rect');
     expect(rects.length).toBeGreaterThanOrEqual(2);
   });
 
   it('uses a stable default width of about 20 characters', () => {
-    const layerRef = React.createRef<any>();
+    const layerRef = React.createRef<Konva.Layer>();
     render(
       <Stage>
         <Layer ref={layerRef}>
@@ -66,15 +67,15 @@ describe('NoteNode', () => {
         </Layer>
       </Stage>
     );
-    const layer = layerRef.current;
-    const group = layer.getChildren()[0];
-    const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
+    const layer = mounted(layerRef, 'Layer');
+    const group = childGroup(layer);
+    const rects = childrenNamed<Konva.Rect>(group, 'Rect');
     const noteRect = rects[0];
     expect(noteRect.width()).toBe(147);
   });
 
   it('keeps resize handle anchored to the lower-right corner', () => {
-    const layerRef = React.createRef<any>();
+    const layerRef = React.createRef<Konva.Layer>();
     const { rerender } = render(
       <Stage>
         <Layer ref={layerRef}>
@@ -92,9 +93,9 @@ describe('NoteNode', () => {
     );
 
     const getRects = () => {
-      const layer = layerRef.current;
-      const group = layer.getChildren()[0];
-      const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
+      const layer = mounted(layerRef, 'Layer');
+      const group = childGroup(layer);
+      const rects = childrenNamed<Konva.Rect>(group, 'Rect');
       return { noteRect: rects[0], handleRect: rects[1] };
     };
 
@@ -124,7 +125,7 @@ describe('NoteNode', () => {
   });
 
   it('calls onSelect when the note is clicked', () => {
-    const layerRef = React.createRef<any>();
+    const layerRef = React.createRef<Konva.Layer>();
     const onSelect = vi.fn();
     render(
       <Stage>
@@ -141,8 +142,8 @@ describe('NoteNode', () => {
       </Stage>
     );
 
-    const layer = layerRef.current;
-    const group = layer.getChildren()[0];
+    const layer = mounted(layerRef, 'Layer');
+    const group = childGroup(layer);
     group.fire('click', { evt: new MouseEvent('click') });
     expect(onSelect).toHaveBeenCalledTimes(1);
   });

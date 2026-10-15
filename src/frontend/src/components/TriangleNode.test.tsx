@@ -1,12 +1,14 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { Stage, Layer } from 'react-konva';
+import type Konva from 'konva';
+import { mountedStage, childGroup, childrenNamed } from '../test/konvaStage';
 import TriangleNode from './TriangleNode';
 import type { Person, Triangle } from '../types';
 
 describe('TriangleNode', () => {
   it('renders three sides for a triangle', () => {
-    const stageRef = React.createRef<Stage>();
+    const stageRef = React.createRef<Konva.Stage>();
     const triangle: Triangle = {
       id: 't1',
       person1_id: 'p1',
@@ -33,10 +35,10 @@ describe('TriangleNode', () => {
       </Stage>
     );
 
-    const stage = stageRef.current;
+    const stage = mountedStage(stageRef);
     const layer = stage.getLayers()[0];
-    const group = layer.getChildren()[0];
-    const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+    const group = childGroup(layer);
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     expect(lines).toHaveLength(3);
   });
 });

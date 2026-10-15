@@ -16,10 +16,10 @@ describe('defaultDiagramState', () => {
     expect(DEFAULT_DIAGRAM_STATE.emotionalLines).toHaveLength(
       productDefaultDiagramJson.emotionalLines.length
     );
+    // The bundled file may have no triangles key at all, so read it untyped.
+    const bundledTriangles: unknown = Reflect.get(productDefaultDiagramJson, 'triangles');
     expect(DEFAULT_DIAGRAM_STATE.triangles).toHaveLength(
-      Array.isArray((productDefaultDiagramJson as any).triangles)
-        ? (productDefaultDiagramJson as any).triangles.length
-        : 0
+      Array.isArray(bundledTriangles) ? bundledTriangles.length : 0
     );
     expect(DEFAULT_DIAGRAM_STATE.eventCategories).toEqual(APPLICATION_SETTINGS.eventCategories);
     expect(DEFAULT_DIAGRAM_STATE.relationshipTypes).toEqual(APPLICATION_SETTINGS.relationshipTypes);

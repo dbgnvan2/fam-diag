@@ -16,7 +16,7 @@ Read the relevant file from `~/.claude/standards/` before starting work:
 ## Pre-completion checklist (all 3 must pass before declaring done)
 
 ```bash
-cd src/frontend && npx tsc --noEmit -p tsconfig.app.json   # plain `tsc --noEmit` checks 0 files (L5)
+cd src/frontend && npm run typecheck   # app + test files; plain `tsc --noEmit` checks 0 files (L5)
 cd src/frontend && npx vitest run
 cd src/frontend && rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b
 ```

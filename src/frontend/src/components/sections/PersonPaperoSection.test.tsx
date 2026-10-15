@@ -2,7 +2,6 @@
  * PersonPaperoSection tests — Papero Assessment tab with 5 categories, 16 topics,
  * Level dropdowns, and ? help dialogs.
  */
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import PersonPaperoSection from './PersonPaperoSection';

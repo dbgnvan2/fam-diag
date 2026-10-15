@@ -48,5 +48,8 @@ describe('DiagramEditor — Timeline for a focused family', () => {
     fireEvent.click(fewerDown);
     fireEvent.click(fewerDown);
     expect(laneCount(board)).toBeLessThan(before);
-  });
+    // Mounts the whole editor and a Timeline board: about 2s alone, but over
+    // vitest's 5s default when the full suite runs in parallel (seen twice,
+    // 2026-10-14). The work, not the logic, is slow.
+  }, 20000);
 });

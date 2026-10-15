@@ -1,6 +1,8 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { Stage, Layer } from 'react-konva';
+import type Konva from 'konva';
+import { mountedStage, childGroup, childShape, childrenNamed } from '../test/konvaStage';
 import ChildConnection from './ChildConnection';
 import type { Person, Partnership } from '../types';
 import { getPersonVerticalExtents } from '../utils/personGeometry';
@@ -21,7 +23,7 @@ describe('ChildConnection', () => {
   const partner2: Person = { id: 'p2', x: 200, y: 0, name: 'B', partnerships: [] };
 
   const renderConnection = (child: Person) => {
-    const stageRef = React.createRef<Stage>();
+    const stageRef = React.createRef<Konva.Stage>();
     render(
       <Stage ref={stageRef}>
         <Layer>
@@ -37,9 +39,9 @@ describe('ChildConnection', () => {
         </Layer>
       </Stage>
     );
-    const stage = stageRef.current!;
+    const stage = mountedStage(stageRef);
     const layer = stage.getLayers()[0];
-    const group = layer.getChildren()[0];
+    const group = childGroup(layer);
     return group.getChildren()[0];
   };
 
@@ -112,7 +114,7 @@ describe('ChildConnection', () => {
   });
 
   it('renders no cutoff markers on the child line — the arc is a separate FamilyCutoffArc component', () => {
-    const stageRef = React.createRef<Stage>();
+    const stageRef = React.createRef<Konva.Stage>();
     render(
       <Stage ref={stageRef}>
         <Layer>
@@ -137,11 +139,11 @@ describe('ChildConnection', () => {
       </Stage>
     );
 
-    const stage = stageRef.current!;
+    const stage = mountedStage(stageRef);
     const layer = stage.getLayers()[0];
-    const group = layer.getChildren()[0];
+    const group = childGroup(layer);
     // ChildConnection never renders cutoff decorations — those are in FamilyCutoffArc
-    const shapes = group.getChildren().filter((node: any) => node.getClassName() === 'Shape');
+    const shapes = childrenNamed<Konva.Shape>(group, 'Shape');
     expect(shapes).toHaveLength(0);
   });
 
@@ -151,7 +153,7 @@ describe('ChildConnection', () => {
    * once the canvas is zoomed out.
    */
   it('gives the child line a hit region far wider than the line it draws', () => {
-    const stageRef = React.createRef<Stage>();
+    const stageRef = React.createRef<Konva.Stage>();
     render(
       <Stage ref={stageRef}>
         <Layer>
@@ -167,8 +169,9 @@ describe('ChildConnection', () => {
         </Layer>
       </Stage>
     );
-    const group = stageRef.current!.getLayers()[0].getChildren()[0] as any;
-    const [visible, hit] = group.getChildren();
+    const group = childGroup(mountedStage(stageRef).getLayers()[0]);
+    const visible = childShape(group, 0);
+    const hit = childShape(group, 1);
 
     expect(visible.strokeWidth()).toBe(1);
     // The clickable line is the one carrying the handlers.

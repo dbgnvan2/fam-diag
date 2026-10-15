@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import PersonNode from './PersonNode';
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
+import { mountedStage, childGroup, childrenNamed } from '../test/konvaStage';
 import { vi } from 'vitest';
 import type { Person, FunctionalIndicatorDefinition, EmotionalProcessEvent } from '../types';
 
@@ -29,7 +30,7 @@ describe('PersonNode', () => {
     });
 
     it('renders AI agent as hexagon (6-point closed polygon)', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const aiAgent: Person = {
             id: 'ai1',
             name: 'Claude',
@@ -48,11 +49,11 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
         // Hexagon is a closed Line with 12 numeric values (6 points × 2 coords)
         const hexagons = group.getChildren().filter(
-            (node: any) => node.getClassName() === 'Line' && node.attrs.closed && node.attrs.points?.length === 12
+            (node) => node.getClassName() === 'Line' && node.attrs.closed && node.attrs.points?.length === 12
         );
         expect(hexagons.length).toBe(1);
     });
@@ -67,7 +68,7 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        return stageRef.current!.getLayers()[0].getChildren()[0] as Konva.Group;
+        return childGroup(mountedStage(stageRef).getLayers()[0]);
     };
     const konvaLines = (group: Konva.Group) => group.find<Konva.Line>('Line');
     // Point-in-triangle by the sign of the three edge cross products.
@@ -83,7 +84,7 @@ describe('PersonNode', () => {
     };
 
     const renderAndGetGroup = (subject: Person) => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -91,13 +92,11 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        return stageRef.current.getLayers()[0].getChildren()[0];
+        return childGroup(mountedStage(stageRef).getLayers()[0]);
     };
-    const triangles = (group: any) =>
-        group.getChildren().filter(
-            (node: any) => node.getClassName() === 'Line' && node.attrs.closed && node.attrs.points?.length === 6
-        );
-    const circles = (group: any) => group.getChildren().filter((node: any) => node.getClassName() === 'Circle');
+    const triangles = (group: Konva.Group) =>
+        childrenNamed<Konva.Line>(group, 'Line').filter((node) => node.attrs.closed && node.attrs.points?.length === 6);
+    const circles = (group: Konva.Group) => childrenNamed<Konva.Circle>(group, 'Circle');
 
     it('renders a person with no sex recorded as a triangle, not a circle (regression)', () => {
         const unknown: Person = { id: 'u1', name: 'Unknown', x: 0, y: 0, partnerships: [] };
@@ -127,11 +126,11 @@ describe('PersonNode', () => {
         outlines[0].points().forEach((value, index) => expect(value).toBeCloseTo(expected[index]));
         const crossStrokes = konvaLines(group).filter((line) => !line.closed() && line.points().length === 4);
         expect(crossStrokes.length).toBe(2);
-        expect(group.find('Circle').length).toBe(0);
+        expect(group.find<Konva.Circle>('Circle').length).toBe(0);
     });
 
     it('renders stillbirth with X overlay', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const stillbirth: Person = { id: 'p3', name: 'Stillborn', x: 0, y: 0, partnerships: [], lifeStatus: 'stillbirth', gender: 'female' };
         render(
             <Stage ref={stageRef}>
@@ -140,14 +139,15 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const lines = group.getChildren().filter((node: any) => node.getClassName() === 'Line');
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const lines = childrenNamed<Konva.Line>(group, 'Line');
         expect(lines.length).toBeGreaterThanOrEqual(2);
     });
 
     it('renders shaded background when enabled', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
+        const shadedSize = 80;
         const shadedPerson: Person = {
             id: 'p4',
             name: 'Shaded',
@@ -155,7 +155,7 @@ describe('PersonNode', () => {
             y: 0,
             gender: 'male',
             partnerships: [],
-            size: 80,
+            size: shadedSize,
             backgroundEnabled: true,
             backgroundColor: '#ff0000',
         };
@@ -166,16 +166,16 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
-        const expectedSize = shadedPerson.size * 1.05;
-        const hasBackground = rects.some((rect: any) => rect.attrs.width === expectedSize);
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const rects = childrenNamed<Konva.Rect>(group, 'Rect');
+        const expectedSize = shadedSize * 1.05;
+        const hasBackground = rects.some((rect) => rect.attrs.width === expectedSize);
         expect(hasBackground).toBe(true);
     });
 
     it('uses the configured shaded background color', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const clientPerson: Person = {
             id: 'p-client',
             name: 'Client',
@@ -193,14 +193,14 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
-        expect(rects.some((rect: any) => rect.attrs.fill === '#22aa88')).toBe(true);
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const rects = childrenNamed<Konva.Rect>(group, 'Rect');
+        expect(rects.some((rect) => rect.attrs.fill === '#22aa88')).toBe(true);
     });
 
     it('fills the person node with the enabled foreground color', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const tintedPerson: Person = {
             id: 'p-foreground',
             name: 'Tinted',
@@ -218,14 +218,14 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const rects = group.getChildren().filter((node: any) => node.getClassName() === 'Rect');
-        expect(rects.some((rect: any) => rect.attrs.width === 60 && rect.attrs.fill === '#22aa88')).toBe(true);
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const rects = childrenNamed<Konva.Rect>(group, 'Rect');
+        expect(rects.some((rect) => rect.attrs.width === 60 && rect.attrs.fill === '#22aa88')).toBe(true);
     });
 
     it('renders functional indicator badges with fallback letters', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const personWithIndicator: Person = {
             id: 'p5',
             name: 'Indicator',
@@ -245,21 +245,21 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const texts = group.find('Text');
-        const hasCombined = texts.some((node: any) => node.text() === 'C5');
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const texts = group.find<Konva.Text>('Text');
+        const hasCombined = texts.some((node) => node.text() === 'C5');
         expect(hasCombined).toBe(true);
     });
 
     // The maturity badge is a small square (Rect, fill #f0f4ff) at the upper-left.
     // These two tests used to count Circle children, which matched the person's
     // own body circle, not the badge.
-    const maturityBadges = (group: any) =>
-        group.find('Rect').filter((n: any) => n.attrs.fill === '#f0f4ff');
+    const maturityBadges = (group: Konva.Group) =>
+        group.find<Konva.Rect>('Rect').filter((n) => n.attrs.fill === '#f0f4ff');
 
     it('renders a maturity badge at the upper-left when siblingMaturityLevel is set', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const maturePerson: Person = {
             id: 'p-mat',
             name: 'Mature',
@@ -275,19 +275,19 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
         const badges = maturityBadges(group);
         expect(badges.length).toBe(1);
         expect(badges[0].x()).toBeLessThan(0);
         expect(badges[0].y()).toBeLessThan(0);
         // Text label should show the maturity level
-        const texts = group.find('Text');
-        expect(texts.some((n: any) => n.text() === '3')).toBe(true);
+        const texts = group.find<Konva.Text>('Text');
+        expect(texts.some((n) => n.text() === '3')).toBe(true);
     });
 
     it('does not render a maturity badge when siblingMaturityLevel is not set', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -295,13 +295,13 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
         expect(maturityBadges(group).length).toBe(0);
     });
 
     it('renders the sibling effective position code to the left of the person', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -314,14 +314,14 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const texts = group.find('Text');
-        expect(texts.some((n: any) => n.text() === 'ob/s')).toBe(true);
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const texts = group.find<Konva.Text>('Text');
+        expect(texts.some((n) => n.text() === 'ob/s')).toBe(true);
     });
 
     it('does not render a position code label when siblingEffectivePosition is not provided', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -329,15 +329,15 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const texts = group.find('Text');
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const texts = group.find<Konva.Text>('Text');
         // Only name text should be present (no position code)
-        expect(texts.every((n: any) => n.text() !== 'ob/s')).toBe(true);
+        expect(texts.every((n) => n.text() !== 'ob/s')).toBe(true);
     });
 
     it('displays age label based on birth/death dates', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const datedPerson: Person = {
             id: 'p6',
             name: 'Aged',
@@ -355,11 +355,11 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const stage = stageRef.current;
-        const group = stage.getLayers()[0].getChildren()[0];
-        const texts = group.find('Text');
-        expect(texts.some((node: any) => node.text() === 'Age 40')).toBe(true);
-        expect(texts.some((node: any) => node.text() === 'd. 2020-01-06')).toBe(true);
+        const stage = mountedStage(stageRef);
+        const group = childGroup(stage.getLayers()[0]);
+        const texts = group.find<Konva.Text>('Text');
+        expect(texts.some((node) => node.text() === 'Age 40')).toBe(true);
+        expect(texts.some((node) => node.text() === 'd. 2020-01-06')).toBe(true);
     });
 
     const maturityBadgesTyped = (group: Konva.Group) =>
@@ -394,7 +394,7 @@ describe('PersonNode', () => {
 
     it('nodes-09: draws a stillborn person of unknown sex as a triangle with the X inside it', () => {
         const group = renderTyped({ id: 's', name: 'S', x: 0, y: 0, partnerships: [], lifeStatus: 'stillbirth' });
-        expect(group.find('Circle').length).toBe(0);
+        expect(group.find<Konva.Circle>('Circle').length).toBe(0);
         const body = konvaLines(group).filter((line) => line.closed() && line.fill() === 'white');
         expect(body.length).toBe(1);
         const tri = body[0].points();
@@ -409,7 +409,7 @@ describe('PersonNode', () => {
 
     it('nodes-09: a stillborn female is still a circle', () => {
         const group = renderTyped({ id: 's', name: 'S', x: 0, y: 0, partnerships: [], lifeStatus: 'stillbirth', gender: 'female' });
-        expect(group.find('Circle').length).toBe(1);
+        expect(group.find<Konva.Circle>('Circle').length).toBe(1);
     });
 
     it('nodes-09: keeps the death X inside the unknown-sex triangle', () => {
@@ -448,7 +448,7 @@ describe('PersonNode', () => {
                 </Layer>
             </Stage>
         );
-        const badge = stageRef.current!.find<Konva.Circle>('Circle').filter((circle) => circle.stroke() === '#123456');
+        const badge = mountedStage(stageRef).find<Konva.Circle>('Circle').filter((circle) => circle.stroke() === '#123456');
         expect(badge.length).toBe(1);
         clickWith(badge[0], 2);
         expect(onSymptomBadgeClick).not.toHaveBeenCalled();

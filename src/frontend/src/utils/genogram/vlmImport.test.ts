@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { factsToDiagramImportData } from '../dataImport';
+import { requireLists } from '../../test/importedDiagram';
 import {
   parseVLMResponse,
   factCheckVLMFacts,
@@ -619,7 +620,7 @@ describe('sanitizeVLMFacts — malformed model output', () => {
         relationships: [{ a: 'Pa', b: 'Ma', children: 'Paul' }],
       })
     );
-    const { people, partnerships } = factsToDiagramImportData(facts);
+    const { people, partnerships } = requireLists(factsToDiagramImportData(facts));
     expect(people.map((p) => p.name).sort()).toEqual(['Ma', 'Pa', 'Paul']);
     const paul = people.find((p) => p.name === 'Paul')!;
     expect(partnerships).toHaveLength(1);

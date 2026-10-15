@@ -31,7 +31,7 @@ const setup = (selectedPeopleIds: string[], confirmResult = true, selectedPageNo
   return { removePeople, removePageNotes, confirmFn, hook };
 };
 
-const pressCmdX = (target: EventTarget = window) => fireEvent.keyDown(target, { key: 'x', metaKey: true });
+const pressCmdX = (target: Document | Element | Window = window) => fireEvent.keyDown(target, { key: 'x', metaKey: true });
 
 describe('useDeleteSelectionShortcut', () => {
   it('CMD-X deletes the whole selected group in one call after the confirm names them', () => {

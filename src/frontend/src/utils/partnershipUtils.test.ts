@@ -291,7 +291,7 @@ describe('partnership gender and separation marks', () => {
   });
 
   it('a whitespace-only divorce date is not a divorce', () => {
-    const marks = partnershipSeparationMarks({ divorceDate: '  ', relationshipStatus: 'married' } as Partnership);
+    const marks = partnershipSeparationMarks(partnership({ divorceDate: '  ', relationshipStatus: 'married' }));
     expect(marks.divorced).toBe(false);
   });
 });
@@ -300,15 +300,15 @@ describe('partnershipSeparationMarks — an "ended" status date (gate 2026-09-30
   it('draws one slash, the same as an "ended" status — deliberate, from the shared classifier', () => {
     // Before the shared classifier only the status field counted "ended";
     // a recorded "ended" date now counts too, so the field and the dates agree.
-    const marks = partnershipSeparationMarks({
+    const marks = partnershipSeparationMarks(partnership({
       relationshipStatus: 'dating',
       statusDates: { ended: '2010-01-01' },
-    } as Partnership);
+    }));
     expect(marks).toEqual({ separated: true, divorced: false });
   });
 
   it('a whitespace-only "ended" date does not count', () => {
-    const marks = partnershipSeparationMarks({ relationshipStatus: 'dating', statusDates: { ended: ' ' } } as Partnership);
+    const marks = partnershipSeparationMarks(partnership({ relationshipStatus: 'dating', statusDates: { ended: ' ' } }));
     expect(marks).toEqual({ separated: false, divorced: false });
   });
 

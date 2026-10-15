@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { Stage, Layer } from 'react-konva';
 import SiblingConflictOverlay from './SiblingConflictOverlay';
 import type Konva from 'konva';
+import { mountedStage, childGroup, childrenNamed } from '../test/konvaStage';
 import { vi } from 'vitest';
 import type { Person, Partnership } from '../types';
 
@@ -27,7 +28,7 @@ const makePartnership = (overrides: Partial<Partnership>): Partnership => ({
 });
 
 const renderOverlay = (person: Person, people: Person[], partnerships: Partnership[]) => {
-  const stageRef = React.createRef<Stage>();
+  const stageRef = React.createRef<Konva.Stage>();
   render(
     <Stage ref={stageRef}>
       <Layer>
@@ -35,7 +36,7 @@ const renderOverlay = (person: Person, people: Person[], partnerships: Partnersh
       </Layer>
     </Stage>
   );
-  const group = stageRef.current!.getLayers()[0].getChildren()[0];
+  const group = childGroup(mountedStage(stageRef).getLayers()[0]);
   return group;
 };
 
@@ -58,7 +59,7 @@ describe('SiblingConflictOverlay', () => {
     });
     const people = [dad, mom, child];
     const group = renderOverlay(child, people, [parentPartnership]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     // 2 lines for father (rank+sex) + 2 lines for mother (rank+sex) = 4 total
     expect(lines.length).toBe(4);
   });
@@ -78,7 +79,7 @@ describe('SiblingConflictOverlay', () => {
     const couple = makePartnership({ id: 'couple', partner1_id: 'child', partner2_id: 'partner', children: [] });
     const people = [dad, mom, child, partnerPerson];
     const group = renderOverlay(child, people, [parentPartnership, couple]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     // 2 father + 2 mother + 2 partner = 6 lines
     expect(lines.length).toBe(6);
   });
@@ -99,7 +100,7 @@ describe('SiblingConflictOverlay', () => {
     const couple = makePartnership({ id: 'couple', partner1_id: 'child', partner2_id: 'partner', children: [] });
     const people = [dad, mom, child, partnerPerson];
     const group = renderOverlay(child, people, [parentPartnership, couple]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     const partnerLines = lines.slice(-2); // last 2 are partner rank+sex
     const rankLine = partnerLines[0];
     expect(rankLine.attrs.stroke).toBe('#43a047'); // green = no conflict
@@ -121,7 +122,7 @@ describe('SiblingConflictOverlay', () => {
     const couple = makePartnership({ id: 'couple', partner1_id: 'child', partner2_id: 'partner', children: [] });
     const people = [dad, mom, child, partnerPerson];
     const group = renderOverlay(child, people, [parentPartnership, couple]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     const partnerRankLine = lines[lines.length - 2];
     expect(partnerRankLine.attrs.stroke).toBe('#e53935'); // red = conflict
   });
@@ -136,7 +137,7 @@ describe('SiblingConflictOverlay', () => {
     });
     const people = [dad, mom, child];
     const group = renderOverlay(child, people, [parentPartnership]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     // Father lines: lines[0]=rank, lines[1]=sex
     const fatherSexLine = lines[1];
     expect(fatherSexLine.attrs.stroke).toBe('#43a047'); // green = N/A (same sex pair)
@@ -153,7 +154,7 @@ describe('SiblingConflictOverlay', () => {
     // Only the child in people — dad and mom not found
     const people = [child];
     const group = renderOverlay(child, people, [parentPartnership]);
-    const lines = group.getChildren().filter((n: any) => n.getClassName() === 'Line');
+    const lines = childrenNamed<Konva.Line>(group, 'Line');
     // Father rank line should be gray dashed (parent not found)
     const fatherRankLine = lines[0];
     expect(fatherRankLine.attrs.stroke).toBe('#bdbdbd');
@@ -178,7 +179,7 @@ describe('SiblingConflictOverlay', () => {
       </Stage>
     );
     // The indicator lines are the ones with the widened hit stroke.
-    const lines = stageRef.current!.find<Konva.Line>('Line').filter((line) => line.hitStrokeWidth() === 14);
+    const lines = mountedStage(stageRef).find<Konva.Line>('Line').filter((line) => line.hitStrokeWidth() === 14);
     expect(lines.length).toBe(4);
     lines[0].fire('click', { evt: { button: 2 } }, true);
     expect(onLineClick).not.toHaveBeenCalled();

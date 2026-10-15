@@ -16,32 +16,32 @@ const defaultCategories: SIRCategoryDefinition[] = [
   },
 ];
 
-const makePerson = (overrides?: Partial<Person>): Person =>
-  ({
+const makePerson = (overrides?: Partial<Person>): Person => ({
     id: 'p1',
     name: 'Alice',
     x: 0,
     y: 0,
     gender: 'female',
     birthSex: 'female',
-    genderIdentity: 'female',
-    genderSymbol: 'female',
+    genderIdentity: 'feminine',
+    genderSymbol: 'female_cis',
+    partnerships: [],
     events: [],
     ...overrides,
-  } as Person);
+  });
 
-const makeOtherPerson = (): Person =>
-  ({
+const makeOtherPerson = (): Person => ({
     id: 'p2',
     name: 'Bob',
     x: 0,
     y: 0,
     gender: 'male',
     birthSex: 'male',
-    genderIdentity: 'male',
-    genderSymbol: 'male',
+    genderIdentity: 'masculine',
+    genderSymbol: 'male_cis',
+    partnerships: [],
     events: [],
-  } as Person);
+  });
 
 const makeSirEvent = (overrides?: Partial<EmotionalProcessEvent>): EmotionalProcessEvent => ({
   id: 'sir-ev-1',

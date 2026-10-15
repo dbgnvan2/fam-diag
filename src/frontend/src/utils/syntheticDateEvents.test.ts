@@ -31,6 +31,7 @@ const makePartnership = (overrides: Partial<Partnership> = {}): Partnership => (
   partner1_id: 'p1',
   partner2_id: 'p2',
   relationshipType: 'married',
+  relationshipStatus: 'married',
   horizontalConnectorY: 0,
   children: [],
   events: [],
@@ -42,7 +43,8 @@ const makeEPL = (overrides: Partial<EmotionalLine> = {}): EmotionalLine => ({
   person1_id: 'p1',
   person2_id: 'p2',
   relationshipType: 'fusion',
-  lineStyle: 'one-line',
+  lineStyle: 'fusion-dotted-wide',
+  lineEnding: 'none',
   events: [],
   ...overrides,
 });

@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import EmotionalLineNode from './EmotionalLineNode';
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
+import { mountedStage, childGroup, childrenNamed } from '../test/konvaStage';
 import type { Person, EmotionalLine } from '../types';
 import { LINE_HIT_STROKE_WIDTH } from '../constants/hitAreas';
 
@@ -36,7 +37,7 @@ describe('EmotionalLineNode', () => {
     });
 
     it('renders double solid lines for level 3 fusion', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
@@ -63,10 +64,10 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
-        const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+        const group = childGroup(layer);
+        const lines = childrenNamed<Konva.Line>(group, 'Line');
         expect(lines).toHaveLength(2);
         lines.forEach((line) => {
             expect(line.attrs.dash).toBeUndefined();
@@ -74,7 +75,7 @@ describe('EmotionalLineNode', () => {
     });
 
     it('renders triple lines for level 5 fusion', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
@@ -101,10 +102,10 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
-        const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+        const group = childGroup(layer);
+        const lines = childrenNamed<Konva.Line>(group, 'Line');
         expect(lines).toHaveLength(3);
         lines.forEach((line) => {
             expect(line.attrs.strokeWidth).toBeGreaterThan(2);
@@ -112,7 +113,7 @@ describe('EmotionalLineNode', () => {
     });
 
     it('renders the level 3 distance dash pattern', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el-distance',
             person1_id: 'p1',
@@ -139,16 +140,16 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
+        const group = childGroup(layer);
         const line = group.getChildren()[0];
         expect(line.attrs.strokeWidth).toBe(2);
         expect(line.attrs.dash).toEqual([14, 8]);
     });
 
     it('uses the provided color when not selected', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
@@ -176,15 +177,15 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
+        const group = childGroup(layer);
         const line = group.getChildren()[0];
         expect(line.attrs.stroke).toBe('#ff5500');
     });
 
     it('renders the level 5 dot pattern for distance', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
@@ -211,15 +212,15 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
+        const group = childGroup(layer);
         const line = group.getChildren()[0];
         expect(line.attrs.dash).toEqual([2, 5]);
     });
 
     it('renders a short-line sawtooth for level 3 conflict', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el1',
             person1_id: 'p1',
@@ -246,9 +247,9 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
+        const group = childGroup(layer);
         const line = group.getChildren()[0];
         // The number of points will be > 2 for a sawtooth line
         expect(line.attrs.points.length).toBeGreaterThan(4);
@@ -256,7 +257,7 @@ describe('EmotionalLineNode', () => {
     });
 
     it('renders double dotted sawtooth lines for level 2 conflict', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el-conflict-double-dotted',
             person1_id: 'p1',
@@ -283,10 +284,10 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
-        const lines = group.getChildren().filter((child) => child.getClassName() === 'Line');
+        const group = childGroup(layer);
+        const lines = childrenNamed<Konva.Line>(group, 'Line');
         expect(lines).toHaveLength(2);
         lines.forEach((line) => {
             expect(line.attrs.dash).toEqual([2, 5]);
@@ -294,7 +295,7 @@ describe('EmotionalLineNode', () => {
     });
 
     it('renders projection markers for projection EPL intensity', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el-projection',
             person1_id: 'p1',
@@ -321,16 +322,16 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const group = layer.getChildren()[0];
-        const texts = group.find('Text');
+        const group = childGroup(layer);
+        const texts = group.find<Konva.Text>('Text');
         expect(texts.length).toBeGreaterThan(0);
         expect(texts[0].attrs.text).toBe('>>>>');
     });
 
     it('renders two EPLs beside each other for the same pair', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const emotionalLine: EmotionalLine = {
             id: 'el-sibling',
             person1_id: 'p1',
@@ -369,16 +370,15 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const groups = layer.getChildren();
-        const firstLine = groups[0].getChildren()[0];
-        const secondLine = groups[1].getChildren()[0];
+        const firstLine = childGroup(layer, 0).getChildren()[0];
+        const secondLine = childGroup(layer, 1).getChildren()[0];
         expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
     });
 
     it('keeps sibling lanes separated when the second line reverses person order', () => {
-        const stageRef = React.createRef<Stage>();
+        const stageRef = React.createRef<Konva.Stage>();
         const forward: EmotionalLine = {
             id: 'el-forward',
             person1_id: 'p1',
@@ -423,11 +423,10 @@ describe('EmotionalLineNode', () => {
             </Stage>
         );
 
-        const stage = stageRef.current;
+        const stage = mountedStage(stageRef);
         const layer = stage.getLayers()[0];
-        const groups = layer.getChildren();
-        const firstLine = groups[0].getChildren()[0];
-        const secondLine = groups[1].getChildren()[0];
+        const firstLine = childGroup(layer, 0).getChildren()[0];
+        const secondLine = childGroup(layer, 1).getChildren()[0];
 
         expect(firstLine.attrs.points[1]).not.toBe(secondLine.attrs.points[1]);
     });
@@ -448,7 +447,7 @@ describe('EmotionalLineNode', () => {
         };
         const person1: Person = { id: 'p1', x: 0, y: 0, name: 'A', partnerships: [] };
         const person2: Person = { id: 'p2', x: 200, y: 200, name: 'B', partnerships: [] };
-        const stageRef = React.createRef<any>();
+        const stageRef = React.createRef<Konva.Stage>();
         render(
             <Stage ref={stageRef}>
                 <Layer>
@@ -463,11 +462,10 @@ describe('EmotionalLineNode', () => {
                 </Layer>
             </Stage>
         );
-        const clickable = stageRef
-            .current!.find('Line')
-            .filter((line: any) => typeof line.eventListeners?.click !== 'undefined' || line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
+        const clickable = mountedStage(stageRef).find<Konva.Line>('Line')
+            .filter((line) => typeof line.eventListeners?.click !== 'undefined' || line.hitStrokeWidth() === LINE_HIT_STROKE_WIDTH);
         expect(clickable.length).toBeGreaterThan(0);
-        clickable.forEach((line: any) => {
+        clickable.forEach((line) => {
             expect(line.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
         });
     });
@@ -487,7 +485,7 @@ describe('EmotionalLineNode', () => {
     ] as const)(
         'gives the %s / %s render path a wide hit region too',
         (relationshipType, lineStyle) => {
-            const stageRef = React.createRef<any>();
+            const stageRef = React.createRef<Konva.Stage>();
             render(
                 <Stage ref={stageRef}>
                     <Layer>
@@ -509,11 +507,10 @@ describe('EmotionalLineNode', () => {
                     </Layer>
                 </Stage>
             );
-            const withHit = stageRef
-                .current!.find('Line')
-                .filter((line: any) => line.hitStrokeWidth() !== 'auto');
+            const withHit = mountedStage(stageRef).find<Konva.Line>('Line')
+                .filter((line) => line.hitStrokeWidth() !== 'auto');
             expect(withHit.length).toBeGreaterThan(0);
-            withHit.forEach((line: any) => {
+            withHit.forEach((line) => {
                 expect(line.hitStrokeWidth()).toBe(LINE_HIT_STROKE_WIDTH);
             });
         }
@@ -545,7 +542,7 @@ describe('EmotionalLineNode', () => {
                 </Layer>
             </Stage>
         );
-        return stageRef.current!;
+        return mountedStage(stageRef);
     };
     const big: Person = { id: 'p1', x: 0, y: 0, name: 'Big', partnerships: [], size: 120 };
     const small: Person = { id: 'p2', x: 300, y: 0, name: 'Small', partnerships: [], size: 30 };

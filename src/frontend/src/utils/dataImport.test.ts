@@ -15,6 +15,11 @@ import {
 } from './dataImport';
 import type { FactsImportData } from '../types/diagramEditor';
 import type { Partnership as DiagramPartnership, Person } from '../types';
+import { requireLists } from '../test/importedDiagram';
+
+const convertFacts = (facts: FactsImportData) => requireLists(factsToDiagramImportData(facts));
+const convertTranscript = (transcript: string, sourceFileName: string) =>
+  requireLists(parseTranscriptToDraftDiagram(transcript, sourceFileName));
 
 const find = (people: Person[], name: string) => {
   const p = people.find((person) => person.name === name);
@@ -31,14 +36,14 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
           { name: 'Jennie Boyd', sex: 'female' },
         ],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Wayne Adams').gender).toBe('male');
       expect(find(people, 'Jennie Boyd').gender).toBe('female');
     });
 
     it('maps birthYear → birthDate (Jan 1 of that year)', () => {
       const facts: FactsImportData = { people: [{ name: 'Wayne Adams', sex: 'male', birthYear: 1968 }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Wayne Adams').birthDate).toBe('1968-01-01');
     });
 
@@ -46,7 +51,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts: FactsImportData = {
         people: [{ name: 'Charlie Cole', sex: 'male', deceased: true, deathYear: 2014 }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Charlie Cole').deathDate).toBe('2014-01-01');
     });
 
@@ -58,7 +63,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts: FactsImportData = {
         people: [{ name: 'Charlie Cole', sex: 'male', deceased: true, deathYear: null, birthYear: 1950 }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       const charlie = find(people, 'Charlie Cole');
       expect(charlie.deathDate).toBeUndefined();
       expect(charlie.deathDateKnown).toBe(true);
@@ -73,20 +78,20 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
           { name: 'Mary', sex: 'unknown' },
         ],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Ghost').gender).toBeUndefined();
       expect(find(people, 'Mary').gender).toBeUndefined();
     });
 
     it('leaves gender unset when sex is absent and the name gives no evidence', () => {
       const facts: FactsImportData = { people: [{ name: 'Quinlan' }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Quinlan').gender).toBeUndefined();
     });
 
     it('does not set a death date for a living person', () => {
       const facts: FactsImportData = { people: [{ name: 'Wayne Adams', sex: 'male' }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Wayne Adams').deathDate).toBeUndefined();
     });
 
@@ -103,7 +108,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Pa', b: 'Ma', children: ['LeftKid', 'RightKid'] }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'LeftKid').x).toBeLessThan(find(people, 'RightKid').x);
     });
   });
@@ -118,7 +123,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', type: 'married', children: ['Kid One'] }],
       };
-      const { people, partnerships } = factsToDiagramImportData(facts);
+      const { people, partnerships } = convertFacts(facts);
       expect(partnerships).toHaveLength(1);
       const kid = find(people, 'Kid One');
       expect(kid.parentPartnership).toBe(partnerships[0].id);
@@ -129,7 +134,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
   describe('R16 — unknown-sex symbols render smaller, but never below the 30px floor', () => {
     it('sets size to 30 for an unknown-sex person (rule 3 floor)', () => {
       const facts: FactsImportData = { people: [{ name: 'Mystery X', sex: 'unknown' }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Mystery X').size).toBe(30);
     });
 
@@ -140,7 +145,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
           { name: 'Baby X', sex: 'unknown', deceased: true, notes: 'stillbirth' },
         ],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       for (const p of people) {
         if (p.size !== undefined) expect(p.size).toBeGreaterThanOrEqual(30);
       }
@@ -148,7 +153,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
 
     it('does not shrink a known-sex person', () => {
       const facts: FactsImportData = { people: [{ name: 'Wayne Adams', sex: 'male' }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Wayne Adams').size).toBeUndefined();
     });
   });
@@ -158,7 +163,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts: FactsImportData = {
         people: [{ name: 'Baby X', sex: 'unknown', deceased: true, notes: 'small X — stillbirth' }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       const baby = find(people, 'Baby X');
       expect(baby.lifeStatus).toBe('stillbirth');
       expect(baby.size).toBe(30);
@@ -173,13 +178,13 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Baby X'] }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Baby X').lifeStatus).toBe('stillbirth');
     });
 
     it('does not flag a living unknown-sex person as stillbirth', () => {
       const facts: FactsImportData = { people: [{ name: 'Mystery X', sex: 'unknown' }] };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Mystery X').lifeStatus).toBeUndefined();
     });
   });
@@ -194,7 +199,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: [] }],
       };
-      const { people, partnerships } = factsToDiagramImportData(facts);
+      const { people, partnerships } = convertFacts(facts);
       const orphan = find(people, 'Orphan Below');
       expect(orphan.parentPartnership).toBeUndefined();
       expect(partnerships.every((p) => !p.children.includes(orphan.id))).toBe(true);
@@ -209,7 +214,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Linked Kid'] }],
       };
-      const { people, partnerships } = factsToDiagramImportData(facts);
+      const { people, partnerships } = convertFacts(facts);
       const kid = find(people, 'Linked Kid');
       expect(kid.parentPartnership).toBe(partnerships[0].id);
       expect(partnerships[0].children).toContain(kid.id);
@@ -228,7 +233,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
     });
 
     it('gives twins a shared multipleBirthGroupId and a shared connectionAnchorX', () => {
-      const { people } = factsToDiagramImportData(twinFacts());
+      const { people } = convertFacts(twinFacts());
       const a = find(people, 'Twin A');
       const b = find(people, 'Twin B');
       expect(a.multipleBirthGroupId).toBeDefined();
@@ -240,7 +245,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts = twinFacts();
       facts.people!.push({ name: 'Solo Sib', sex: 'male' });
       facts.relationships![0].children!.push('Solo Sib');
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Solo Sib').multipleBirthGroupId).toBeUndefined();
     });
 
@@ -253,7 +258,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
         ],
         relationships: [{ a: 'Wayne Adams', b: 'Jennie Boyd', children: ['Lonely Twin'] }],
       };
-      const { people } = factsToDiagramImportData(facts);
+      const { people } = convertFacts(facts);
       expect(find(people, 'Lonely Twin').multipleBirthGroupId).toBeUndefined();
     });
   });
@@ -263,7 +268,7 @@ describe('factsToDiagramImportData — VLM image-import path', () => {
       const facts: FactsImportData = {
         family: { parents: ['Wayne Adams', 'Jennie Boyd'], childrenMentionedByName: ['Kid One'] },
       };
-      const { people, partnerships } = factsToDiagramImportData(facts);
+      const { people, partnerships } = convertFacts(facts);
       expect(people.map((p) => p.name).sort()).toEqual(['Jennie Boyd', 'Kid One', 'Wayne Adams']);
       expect(partnerships).toHaveLength(1);
       // R17 (stillbirth) is image-import only — nobody is flagged here.
@@ -320,7 +325,7 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
   });
 
   it('places Wayne in the SAME generation row as his siblings (not the top)', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     const wayne = find(people, 'Wayne');
     for (const sib of ['Ben', 'Craig', 'Brian']) {
       expect(find(people, sib).y).toBe(wayne.y);
@@ -331,7 +336,7 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
   });
 
   it('keeps every child strictly below the deeper of its two parents', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     const y = (n: string) => find(people, n).y;
     // Wayne below both parents
     expect(y('Wayne')).toBeGreaterThan(y('Art'));
@@ -344,25 +349,25 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
   });
 
   it('lets a married-in spouse with no drawn parents inherit their partner’s generation', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     // Rose has no parents drawn; she must sit with Wayne, not be treated as a top-gen root.
     expect(find(people, 'Rose').y).toBe(find(people, 'Wayne').y);
   });
 
   it('produces the expected four generation bands', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     const bands = [...new Set(people.map((p) => p.y))].sort((a, b) => a - b);
     expect(bands).toHaveLength(4); // grandparents → their kids → John/Jennie/Art gen → Wayne gen
   });
 
   it('matches the corrected reference on family count', () => {
     const ref = JSON.parse(readFileSync(join(__dirname, '../../../../Jennies Boy Corrected.json'), 'utf8'));
-    const { partnerships } = factsToDiagramImportData(jennieFacts());
+    const { partnerships } = convertFacts(jennieFacts());
     expect(partnerships).toHaveLength(ref.partnerships.length); // both have 5 families
   });
 
   it('does not place a childless married-in spouse on top of a sibling (Rose vs Craig)', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     const rose = find(people, 'Rose');
     // Rose married into a full sibling row (Ben/Craig/Wayne/Brian) — she must not
     // land exactly on any of them.
@@ -372,7 +377,7 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
   });
 
   it('gives every person a unique position on their generation row', () => {
-    const { people } = factsToDiagramImportData(jennieFacts());
+    const { people } = convertFacts(jennieFacts());
     const byRow = new Map<number, number[]>();
     for (const p of people) {
       const row = Math.round(p.y);
@@ -385,7 +390,7 @@ describe("factsToDiagramImportData — Jennie's Boy generation layout", () => {
   });
 
   it('brackets every couple wider than its RESIDENT children row (R19, R20)', () => {
-    const { people, partnerships } = factsToDiagramImportData(jennieFacts());
+    const { people, partnerships } = convertFacts(jennieFacts());
     const byId = new Map(people.map((p) => [p.id, p]));
     // A child who is themselves a parent in another family may have married out
     // (R20) and moved next to their spouse, so a couple need only bracket the
@@ -420,7 +425,7 @@ describe('factsToDiagramImportData — age as a soft generation check', () => {
         { a: 'Parent A', b: 'Parent B', children: ['Kid'] },
       ],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     // Floater has no lines, so structure alone would leave her at the top gen (y minimum).
     // The age nudge should drop her onto Kid's row instead.
     expect(find(people, 'Floater').y).toBe(find(people, 'Kid').y);
@@ -435,7 +440,7 @@ describe('factsToDiagramImportData — age as a soft generation check', () => {
       ],
       relationships: [{ a: 'Young Parent', b: 'Other Parent', children: ['Older Child'] }],
     };
-    const result = factsToDiagramImportData(facts);
+    const result = convertFacts(facts);
     // Age raises a hand (surfaced via ideasText) ...
     expect(result.ideasText).toMatch(/Age check/i);
     // ... but never grabs the wheel: the drawn parent-child link is preserved.
@@ -471,7 +476,7 @@ describe('factsToDiagramImportData — R20 married-in mate anchoring', () => {
   });
 
   it('does not stretch the married-in partner’s birth family to reach them', () => {
-    const { people } = factsToDiagramImportData(crossLineageFacts());
+    const { people } = convertFacts(crossLineageFacts());
     const x = (n: string) => find(people, n).x;
     // Family B brackets its RESIDENT child (Bsib) ...
     expect(Math.min(x('Bmom'), x('Bdad'))).toBeLessThan(x('Bsib'));
@@ -484,7 +489,7 @@ describe('factsToDiagramImportData — R20 married-in mate anchoring', () => {
   });
 
   it('still brackets the married couple over their own children', () => {
-    const { people } = factsToDiagramImportData(crossLineageFacts());
+    const { people } = convertFacts(crossLineageFacts());
     const x = (n: string) => find(people, n).x;
     const kidMin = Math.min(x('GC1'), x('GC2'));
     const kidMax = Math.max(x('GC1'), x('GC2'));
@@ -505,7 +510,7 @@ describe('factsToDiagramImportData — R19 packed family X layout', () => {
       ],
       relationships: [{ a: 'Pa', b: 'Ma', children: ['A', 'B', 'C'] }],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     const x = (n: string) => find(people, n).x;
     const kidMin = Math.min(x('A'), x('B'), x('C'));
     const kidMax = Math.max(x('A'), x('B'), x('C'));
@@ -530,7 +535,7 @@ describe('factsToDiagramImportData — R19 packed family X layout', () => {
         { a: 'GpaB', b: 'GmaB', children: ['B1', 'B2'] },
       ],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     const x = (n: string) => find(people, n).x;
     // Family A's whole X-extent must sit entirely left of family B's — no interleaving.
     const familyAmax = Math.max(x('GpaA'), x('GmaA'), x('A1'), x('A2'));
@@ -539,7 +544,7 @@ describe('factsToDiagramImportData — R19 packed family X layout', () => {
   });
 
   it('assigns a distinct X to every person in a generation (no exact collisions)', () => {
-    const { people } = factsToDiagramImportData({
+    const { people } = convertFacts({
       people: [
         { name: 'P1', sex: 'male' },
         { name: 'P2', sex: 'female' },
@@ -566,7 +571,7 @@ describe('factsToDiagramImportData — R21 Reingold-Tilford centering', () => {
       ],
       relationships: [{ a: 'Dad', b: 'Mom', children: ['C1', 'C2', 'C3'] }],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     const x = (n: string) => find(people, n).x;
     const coupleCenter = (x('Dad') + x('Mom')) / 2;
     const childrenCenter = (Math.min(x('C1'), x('C2'), x('C3')) + Math.max(x('C1'), x('C2'), x('C3'))) / 2;
@@ -593,7 +598,7 @@ describe('factsToDiagramImportData — R21 Reingold-Tilford centering', () => {
         { a: 'BigKid', b: 'Sp', children: ['g1', 'g2', 'g3'] },
       ],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     const x = (n: string) => find(people, n).x;
     expect(x('BigKid')).toBeLessThan(x('MidKid'));
     expect(x('MidKid')).toBeLessThan(x('SmallKid'));
@@ -607,7 +612,7 @@ describe('factsToDiagramImportData — facts (non-image) path does not fabricate
       family: { parents: ['Anna Ray', 'Bert Ray'] },
       clinical: { events: [{ person: 'Anna Ray', type: 'homicide_suicide' }] },
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     const anna = find(people, 'Anna Ray');
     expect(anna.deathDate).toBeUndefined();
     expect(anna.deathDateKnown).toBe(true);
@@ -618,7 +623,7 @@ describe('factsToDiagramImportData — facts (non-image) path does not fabricate
       family: { parents: ['Anna Ray', 'Bert Ray'] },
       clinical: { events: [{ person: 'Anna Ray', type: 'homicide_suicide', year: 1981 }] },
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     expect(find(people, 'Anna Ray').deathDate).toBe('1981-01-01');
   });
 
@@ -626,7 +631,7 @@ describe('factsToDiagramImportData — facts (non-image) path does not fabricate
     const facts: FactsImportData = {
       relationships: [{ a: 'Quinlan Ray', b: 'Don Ray', type: 'married' }],
     };
-    const { people } = factsToDiagramImportData(facts);
+    const { people } = convertFacts(facts);
     expect(find(people, 'Quinlan Ray').gender).toBeUndefined();
     // Name-override evidence still applies.
     expect(find(people, 'Don Ray').gender).toBe('male');
@@ -637,7 +642,7 @@ describe('parseTranscriptToDraftDiagram — does not fabricate', () => {
   it('a killed-then-suicide mention marks both deceased without inventing 1973', () => {
     // Regression: both people used to get deathDate '1973-01-01'.
     const transcript = 'Quinlan killed Tavi and then killed himself.';
-    const { people } = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    const { people } = convertTranscript(transcript, 't.txt');
     for (const name of ['Quinlan', 'Tavi']) {
       const person = find(people, name);
       expect(person.deathDate).toBeUndefined();
@@ -646,19 +651,19 @@ describe('parseTranscriptToDraftDiagram — does not fabricate', () => {
   });
 
   it('keeps a real death year from the transcript', () => {
-    const { people } = parseTranscriptToDraftDiagram('Quinlan died 1990.', 't.txt');
+    const { people } = convertTranscript('Quinlan died 1990.', 't.txt');
     expect(find(people, 'Quinlan').deathDate).toBe('1990-01-01');
     expect(find(people, 'Quinlan').deathDateKnown).toBeUndefined();
   });
 
   it('does not default unknown names to female', () => {
-    const { people } = parseTranscriptToDraftDiagram('Quinlan and Tavi married in 1980.', 't.txt');
+    const { people } = convertTranscript('Quinlan and Tavi married in 1980.', 't.txt');
     expect(find(people, 'Quinlan').gender).toBeUndefined();
     expect(find(people, 'Tavi').gender).toBeUndefined();
   });
 
   it('placeholder children from a child count get no invented sex', () => {
-    const { people } = parseTranscriptToDraftDiagram(
+    const { people } = convertTranscript(
       'Quinlan and Tavi married in 1980. Quinlan and Tavi have two children.',
       't.txt'
     );
@@ -670,7 +675,7 @@ describe('parseTranscriptToDraftDiagram — does not fabricate', () => {
 
 describe('parseTranscriptToDraftDiagram — only names become people', () => {
   const names = (transcript: string) =>
-    parseTranscriptToDraftDiagram(transcript, 't.txt').people.map((p) => p.name).sort();
+    convertTranscript(transcript, 't.txt').people.map((p) => p.name).sort();
 
   it('does not turn pronouns or role words into people (regression: the `i` flag)', () => {
     // With /gi, [A-Z][a-z]+ matched any word: this produced Mother, Father and She.
@@ -692,7 +697,7 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
       'Tom and Bob argued constantly.',
       'Ann was cut off from her sister Joy.',
     ].join(' ');
-    const result = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    const result = convertTranscript(transcript, 't.txt');
     const byName = (n: string) => result.people.find((p) => p.name === n);
     expect(byName('Tom')).toBeDefined();
     expect(byName('Ann')?.deathDate).toBe('1995-01-01');
@@ -705,7 +710,7 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
   });
 
   it('accepts a capitalised diagnosis keyword', () => {
-    const result = parseTranscriptToDraftDiagram(
+    const result = convertTranscript(
       'Tom and Joy married in 1970. Joy was Diagnosed with Schizophrenia in 1990.',
       't.txt'
     );
@@ -715,7 +720,7 @@ describe('parseTranscriptToDraftDiagram — only names become people', () => {
   });
 
   it('records a diagnosis with no invented ratings, backed by a symptom event (regression: 5 / 5 / 5, no event)', () => {
-    const result = parseTranscriptToDraftDiagram(
+    const result = convertTranscript(
       'Tom and Joy married in 1970. Joy was diagnosed with schizophrenia in 1990.',
       't.txt'
     );
@@ -754,7 +759,7 @@ describe('factsToDiagramImportData — image import keeps distinct labels distin
       ],
       relationships: [{ a: 'D', b: 'M', type: 'married', children: ['M (b.1968)'] }],
     };
-    const { people, partnerships } = factsToDiagramImportData(facts);
+    const { people, partnerships } = convertFacts(facts);
     expect(people.map((p) => p.name).sort()).toEqual(['D', 'M', 'M (b.1968)']);
     const daughter = find(people, 'M (b.1968)');
     expect(daughter.birthDate).toBe('1968-01-01');
@@ -766,7 +771,7 @@ describe('factsToDiagramImportData — image import keeps distinct labels distin
     const facts: FactsImportData = {
       people: [{ name: 'Mary', sex: 'female' }, { name: 'Mary Jones', sex: 'female' }],
     };
-    expect(factsToDiagramImportData(facts).people).toHaveLength(2);
+    expect(convertFacts(facts).people).toHaveLength(2);
   });
 
   it('still matches a first name to a full name in a non-image facts import', () => {
@@ -774,7 +779,7 @@ describe('factsToDiagramImportData — image import keeps distinct labels distin
       family: { parents: ['Mary Jones', 'Tom Jones'], childrenMentionedByName: [] },
       relationships: [{ a: 'Mary', b: 'Tom Jones', type: 'married' }],
     };
-    expect(factsToDiagramImportData(facts).people).toHaveLength(2);
+    expect(convertFacts(facts).people).toHaveLength(2);
   });
 });
 
@@ -824,7 +829,7 @@ describe('factsToDiagramImportData — a parent with children by two partners', 
   it('places each family under its own couple when the parent has drawn parents', () => {
     // Regression: only Paul's first family was laid out as a tree; KidB landed
     // outside Paul–Wife2 (x=340 with Paul=160, Wife2=240).
-    const { people, partnerships } = factsToDiagramImportData(remarriage(true));
+    const { people, partnerships } = convertFacts(remarriage(true));
     expectKidsBracketed(people, partnerships);
     const x = (n: string) => find(people, n).x;
     expect(x('Wife1')).toBeLessThan(x('Paul'));
@@ -832,7 +837,7 @@ describe('factsToDiagramImportData — a parent with children by two partners', 
   });
 
   it('places each family under its own couple when the parent is a top root', () => {
-    const { people, partnerships } = factsToDiagramImportData(remarriage(false));
+    const { people, partnerships } = convertFacts(remarriage(false));
     expectKidsBracketed(people, partnerships);
     const x = (n: string) => find(people, n).x;
     expect(x('Wife1')).toBeLessThan(x('Paul'));
@@ -840,7 +845,7 @@ describe('factsToDiagramImportData — a parent with children by two partners', 
   });
 
   it('keeps the two half-sibling groups apart', () => {
-    const { people } = factsToDiagramImportData(remarriage(true));
+    const { people } = convertFacts(remarriage(true));
     const x = (n: string) => find(people, n).x;
     expect(Math.max(x('KidA1'), x('KidA2'))).toBeLessThan(x('KidB'));
   });
@@ -860,7 +865,7 @@ describe('factsToDiagramImportData — every referenced person is in the output'
     const facts: FactsImportData = {
       relationships: [{ a: 'Quinlan Ray', b: 'Don Ray', type: 'married', evidence: 'They had two children.' }],
     };
-    const { people, partnerships } = factsToDiagramImportData(facts);
+    const { people, partnerships } = convertFacts(facts);
     expectNoDanglingIds(people, partnerships);
     const placeholders = people.filter((p) => / Child \d+$/.test(p.name));
     expect(placeholders).toHaveLength(2);
@@ -875,7 +880,7 @@ describe('factsToDiagramImportData — every referenced person is in the output'
       people: [{ name: 'Pa', sex: 'male' }, { name: 'Ma', sex: 'female' }],
       relationships: [{ a: 'Pa', b: 'Ma', children: ['Unlisted Kid'] }],
     };
-    const { people, partnerships } = factsToDiagramImportData(facts);
+    const { people, partnerships } = convertFacts(facts);
     expectNoDanglingIds(people, partnerships);
     expect(find(people, 'Unlisted Kid').parentPartnership).toBe(partnerships[0].id);
   });
@@ -890,7 +895,7 @@ describe('parseTranscriptToDraftDiagram — keywords with a leading capital', ()
       'Tom And Bob Argued constantly.',
       'Ann Was Cut Off From Joy.',
     ].join(' ');
-    const result = parseTranscriptToDraftDiagram(transcript, 't.txt');
+    const result = convertTranscript(transcript, 't.txt');
     const byName = (n: string) => result.people.find((p) => p.name === n);
     expect(result.partnerships).toHaveLength(1);
     expect(result.partnerships[0].relationshipStartDate).toBe('1970-01-01');
@@ -901,7 +906,7 @@ describe('parseTranscriptToDraftDiagram — keywords with a leading capital', ()
 
   it('still does not turn capitalised non-names into people', () => {
     expect(
-      parseTranscriptToDraftDiagram('Mother And Father Married In 1950. She Died 1980.', 't.txt').people
+      convertTranscript('Mother And Father Married In 1950. She Died 1980.', 't.txt').people
     ).toEqual([]);
   });
 });
