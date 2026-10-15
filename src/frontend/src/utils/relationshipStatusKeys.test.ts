@@ -95,5 +95,16 @@ describe('start and ongoing share relationshipStartDate', () => {
     expect(readPartnershipStatusDate(next, 'ongoing')).toBe('1985-01-01');
     expect(next.relationshipStartDate).toBe('1980-01-01');
   });
+
+  it('a start date held only in the legacy field survives rewriting an ongoing date already in statusDates', () => {
+    const next = withPartnershipStatusDate(
+      partnership({ statusDates: { ongoing: '1985-01-01' }, relationshipStartDate: '1980-01-01' }),
+      'ongoing',
+      '1990-01-01'
+    );
+    expect(readPartnershipStatusDate(next, 'start')).toBe('1980-01-01');
+    expect(readPartnershipStatusDate(next, 'ongoing')).toBe('1990-01-01');
+    expect(next.relationshipStartDate).toBe('1980-01-01');
+  });
 });
 

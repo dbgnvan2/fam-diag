@@ -109,7 +109,7 @@ export const partnershipDateSlots = (partnership: Partnership): DateSlot[] => {
     const statusKey = canonicalRelationshipStatusKey(rawKey);
     const sharedField = legacyFieldForStatus(statusKey);
     if (seen.has(statusKey)) return;
-    if (sharedField && (!date || partnership[sharedField] === date)) return;
+    if (sharedField && (!date || (partnership[sharedField] && statusKeyMirroredBy(partnership, sharedField) === statusKey))) return;
     seen.add(statusKey);
     slots.push({
       owner: 'partnership',

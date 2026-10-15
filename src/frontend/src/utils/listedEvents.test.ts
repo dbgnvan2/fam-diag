@@ -54,13 +54,13 @@ describe('listed events — one rule for every view (review 2026-09-30 struct-06
       partnerships: [],
       birthDate: '1950-01-01',
     };
-    const listed = listedPersonEvents(person, []);
+    const listed = listedPersonEvents(person, [], []);
     const birth = listed.filter((entry) => entry.category === 'Birth');
     expect(birth).toHaveLength(1);
     // A companion stored under the slot's id (it holds the event's notes) is
     // shown through the synthesized event, not as a second row.
     const withCompanion = { ...person, events: [{ ...birth[0], observations: 'notes' }] };
-    expect(listedPersonEvents(withCompanion, []).filter((entry) => entry.category === 'Birth')).toHaveLength(1);
+    expect(listedPersonEvents(withCompanion, [], []).filter((entry) => entry.category === 'Birth')).toHaveLength(1);
   });
 
   it("a relative's date-field companion is not listed twice on someone else's lane (system events)", () => {
@@ -68,7 +68,7 @@ describe('listed events — one rule for every view (review 2026-09-30 struct-06
     const mum: Person = { id: 'mum', name: 'Mum', x: 0, y: 0, partnerships: ['prP'], birthSex: 'female' };
     const root: Person = { id: 'root', name: 'Root', x: 0, y: 0, partnerships: [], parentPartnership: 'prP', birthDate: '1970-01-01' };
     const prP: Partnership = { id: 'prP', partner1_id: 'dad', partner2_id: 'mum', horizontalConnectorY: 0, relationshipType: 'married', relationshipStatus: 'married', children: ['root'] };
-    const deathSlot = listedPersonEvents(dad, []).find((entry) => entry.category === 'Death')!;
+    const deathSlot = listedPersonEvents(dad, [], []).find((entry) => entry.category === 'Death')!;
     const dadWithCompanion = { ...dad, events: [{ ...deathSlot, observations: 'sudden' }] };
     const people = [dadWithCompanion, mum, root];
     const scope = computeFamilyScope(people, [prP], 'root', defaultFocusForRoot('root'));

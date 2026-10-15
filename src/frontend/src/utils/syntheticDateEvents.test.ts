@@ -319,5 +319,19 @@ describe('start and ongoing dates that differ', () => {
     const after = { ...partnership, ...deleteEventFromOwner({ kind: 'partnership', id: 'pr1' }, partnership, only.id) } as Partnership;
     expect(synthesizePartnershipDateEvents(after)).toEqual([]);
   });
+
+  it('a divergent date on a unique legacy field (married) is not double-listed', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ statusDates: { married: '1990-01-01' }, marriedStartDate: '1991-01-01' })
+    );
+    expect(events.map((e) => [e.category, e.startDate])).toEqual([['Marriage', '1991-01-01']]);
+  });
+
+  it('a status date held only in statusDates (legacy field unset) is still listed', () => {
+    const events = synthesizePartnershipDateEvents(
+      makePartnership({ statusDates: { married: '1990-01-01' } })
+    );
+    expect(events.map((e) => [e.category, e.startDate])).toEqual([['Married', '1990-01-01']]);
+  });
 });
 

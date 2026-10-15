@@ -85,7 +85,7 @@ export const withPartnershipStatusDate = (
     const legacyValue = partnership[legacyField];
     if (key !== ownKey && legacyValue && !readStatusDatesOnly(nextStatusDates, ownKey)) {
       const anyHolder = Object.entries(nextStatusDates).some(
-        ([entryKey, entryValue]) => entryValue && legacyFieldForStatus(entryKey) === legacyField
+        ([entryKey, entryValue]) => entryValue === legacyValue && legacyFieldForStatus(entryKey) === legacyField
       );
       if (!anyHolder) nextStatusDates[ownKey] = legacyValue;
     }
