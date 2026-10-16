@@ -20,3 +20,6 @@ Testdiagram*.json
 
 # Claude Code worktrees (local checkouts, never tracked)
 .claude/worktrees/
+
+# Local test diagrams at the repo root
+/test*.json
