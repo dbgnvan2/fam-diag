@@ -6,6 +6,14 @@ Deferred items, each with the reason it was not done at the time. Newest first.
 
 Only items that were decided, deliberately, to be left as they are:
 
+- **CI workflow notes** (gate `gate_2026-10-15_ci-workflow`, both LOW, left
+  to the next batch so the pushed workflow is the one the gate approved):
+  `src/test/ciWorkflow.test.ts` checks the workflow against its own command
+  list, not against the CLAUDE.md checklist, so a gate added to CLAUDE.md
+  alone is not caught; and CI type-checks but never runs `vite build`, so a
+  bundling-only failure (a missing `README.md?raw` asset, a Vite config
+  error) shows up only on Vercel. Fix: have the guard read the checklist
+  block in CLAUDE.md, and add `npm run build` to the workflow.
 - **Manual "Add Person" and voice commands default to female**
   (`usePersonOperations.addPerson`, `useVoiceHandlers`). Decided 2026-09-27:
   leave as is (user-created, changeable at once). The same rule covers the
