@@ -18,10 +18,10 @@ Read the relevant file from `~/.claude/standards/` before starting work:
 ```bash
 cd src/frontend && npm run typecheck   # app + test files; plain `tsc --noEmit` checks 0 files (L5)
 cd src/frontend && npx vitest run
-cd src/frontend && rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b
+cd src/frontend && rm -f node_modules/.tmp/*.tsbuildinfo && npx tsc -b
 ```
 
-Never tell the user "done" with any of these failing.
+Never tell the user "done" with any of these failing. CI (`.github/workflows/tests.yml`) runs the same gates plus lint on Node 22 and 26 from a clean `npm ci`; `src/test/ciWorkflow.test.ts` keeps it in step with this list.
 
 ## Common commands
 
@@ -31,7 +31,7 @@ cd src/frontend && npm run lint
 cd src/frontend && npm run dev                               # http://localhost:5173
 ```
 
-Vercel build: `rm -f node_modules/.tmp/tsconfig.app.tsbuildinfo && npx tsc -b` — run before pushing.
+Vercel build: `rm -f node_modules/.tmp/*.tsbuildinfo && npx tsc -b` — run before pushing.
 
 ## Hard rules
 

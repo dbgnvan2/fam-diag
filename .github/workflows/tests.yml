@@ -1,0 +1,40 @@
+# Runs the pre-completion checklist from CLAUDE.md on a blank machine.
+# Every check lives in the suite or an npm script; this file only invokes them
+# (src/frontend/src/test/ciWorkflow.test.ts keeps the two in step).
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22: the LTS Vercel builds with. 26: what development runs on.
+        node: ['22', '26']
+    defaults:
+      run:
+        working-directory: src/frontend
+    env:
+      # Cypress is a dev dependency with no tests in this suite; skip its binary download.
+      CYPRESS_INSTALL_BINARY: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci
+      - name: Type-check app and test files
+        run: npm run typecheck
+      - name: Test suite
+        run: npx vitest run
+      - name: Vercel build type-check
+        run: rm -f node_modules/.tmp/*.tsbuildinfo && npx tsc -b
+      - name: Lint
+        run: npm run lint
