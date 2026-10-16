@@ -17,3 +17,6 @@ __pycache__/
 # you click around, so tracking them turns every test session into a diff.
 Testdiagram*.json
 *.backup-*.json
+
+# Claude Code worktrees (local checkouts, never tracked)
+.claude/worktrees/
