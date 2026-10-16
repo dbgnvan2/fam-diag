@@ -26,7 +26,7 @@ describe('CI workflow runs the checklist gates', () => {
     ['installs from the lockfile', 'npm ci'],
     ['type-checks app and test files', 'npm run typecheck'],
     ['runs the test suite', 'npx vitest run'],
-    ['runs the Vercel build type-check', 'npx tsc -b'],
+    ['runs the Vercel build type-check', 'npx tsc -b --force'],
     ['lints', 'npm run lint'],
   ])('%s (%s)', (_label, command) => {
     expect(runLines.some((line) => line.split(' && ').includes(command))).toBe(true);

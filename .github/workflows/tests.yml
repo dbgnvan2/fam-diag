@@ -35,6 +35,6 @@ jobs:
       - name: Test suite
         run: npx vitest run
       - name: Vercel build type-check
-        run: rm -f node_modules/.tmp/*.tsbuildinfo && npx tsc -b
+        run: npx tsc -b --force
       - name: Lint
         run: npm run lint
